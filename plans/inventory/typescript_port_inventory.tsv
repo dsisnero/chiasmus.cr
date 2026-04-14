@@ -1,0 +1,494 @@
+# source_id	kind	status	crystal_refs	notes
+benchmark/chiasmus/p1-rbac.ts::interface::ConflictResult	interface	missing	-	auto-generated
+benchmark/chiasmus/p1-rbac.ts::interface::Rule	interface	missing	-	auto-generated
+benchmark/chiasmus/p2-deps.ts::interface::DependencyResult	interface	missing	-	auto-generated
+benchmark/chiasmus/p3-taint.ts::interface::TaintResult	interface	missing	-	auto-generated
+benchmark/chiasmus/p4-workflow.ts::interface::WorkflowResult	interface	missing	-	auto-generated
+benchmark/chiasmus/p5-validation.ts::function::buildGapCheck	function	missing	-	auto-generated
+benchmark/chiasmus/p5-validation.ts::interface::ValidationGapResult	interface	missing	-	auto-generated
+benchmark/tests/p1-rbac.test.ts::test::Problem 1: RBAC Policy Conflict Detection	test	missing	-	auto-generated
+benchmark/tests/p1-rbac.test.ts::test::detects the auditor read/billing conflict	test	missing	-	auto-generated
+benchmark/tests/p1-rbac.test.ts::test::finds exactly one conflict in this ruleset	test	missing	-	auto-generated
+benchmark/tests/p1-rbac.test.ts::test::returns the specific conflicting triple	test	missing	-	auto-generated
+benchmark/tests/p2-deps.test.ts::test::Problem 2: Package Dependency Resolution	test	missing	-	auto-generated
+benchmark/tests/p2-deps.test.ts::test::all versions are within allowed ranges	test	missing	-	auto-generated
+benchmark/tests/p2-deps.test.ts::test::finds a satisfiable assignment	test	missing	-	auto-generated
+benchmark/tests/p2-deps.test.ts::test::respects dependency requirements	test	missing	-	auto-generated
+benchmark/tests/p2-deps.test.ts::test::respects incompatibilities	test	missing	-	auto-generated
+benchmark/tests/p3-taint.test.ts::test::Problem 3: Data Flow Taint Analysis	test	missing	-	auto-generated
+benchmark/tests/p3-taint.test.ts::test::all three sinks are reachable	test	missing	-	auto-generated
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach db_query	test	missing	-	auto-generated
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach eval_engine	test	missing	-	auto-generated
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach file_write	test	missing	-	auto-generated
+benchmark/tests/p4-workflow.test.ts::test::Problem 4: Workflow State Machine Validation	test	missing	-	auto-generated
+benchmark/tests/p4-workflow.test.ts::test::does not flag reachable states as unreachable	test	missing	-	auto-generated
+benchmark/tests/p4-workflow.test.ts::test::does not flag states with outgoing transitions as dead-ends	test	missing	-	auto-generated
+benchmark/tests/p4-workflow.test.ts::test::identifies 	test	missing	-	auto-generated
+benchmark/tests/p5-validation.test.ts::test::Problem 5: API Validation Rule Consistency	test	missing	-	auto-generated
+benchmark/tests/p5-validation.test.ts::test::finds exactly 2 gaps	test	missing	-	auto-generated
+benchmark/tests/p5-validation.test.ts::test::finds the age gap (frontend allows 13-17, backend rejects)	test	missing	-	auto-generated
+benchmark/tests/p5-validation.test.ts::test::finds the username_length gap (frontend allows 21-30, backend max 20)	test	missing	-	auto-generated
+benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the age gap	test	missing	-	auto-generated
+benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the username_length gap	test	missing	-	auto-generated
+benchmark/traditional/p1-rbac.ts::interface::ConflictResult	interface	missing	-	auto-generated
+benchmark/traditional/p1-rbac.ts::interface::Rule	interface	missing	-	auto-generated
+benchmark/traditional/p2-deps.ts::function::backtrack	function	missing	-	auto-generated
+benchmark/traditional/p2-deps.ts::function::isValid	function	missing	-	auto-generated
+benchmark/traditional/p2-deps.ts::interface::DependencyResult	interface	missing	-	auto-generated
+benchmark/traditional/p3-taint.ts::function::reachableFrom	function	missing	-	auto-generated
+benchmark/traditional/p3-taint.ts::interface::TaintResult	interface	missing	-	auto-generated
+benchmark/traditional/p4-workflow.ts::interface::WorkflowResult	interface	missing	-	auto-generated
+benchmark/traditional/p5-validation.ts::interface::ValidationGapResult	interface	missing	-	auto-generated
+src/config.ts::function::loadConfig	function	missing	-	auto-generated
+src/config.ts::interface::ChiasmusConfig	interface	missing	-	auto-generated
+src/formalize/engine.ts::class::FormalizationEngine	class	missing	-	auto-generated
+src/formalize/engine.ts::const::FIX_SYSTEM	const	missing	-	auto-generated
+src/formalize/engine.ts::const::FORMALIZE_SYSTEM	const	missing	-	auto-generated
+src/formalize/engine.ts::interface::FormalizeResult	interface	missing	-	auto-generated
+src/formalize/engine.ts::interface::SolveResult	interface	missing	-	auto-generated
+src/formalize/engine.ts::method::FormalizationEngine.constructor	method	missing	-	auto-generated
+src/formalize/feedback.ts::function::classifyFeedback	function	missing	-	auto-generated
+src/formalize/feedback.ts::function::core	function	missing	-	auto-generated
+src/formalize/validate.ts::function::lintProlog	function	missing	-	auto-generated
+src/formalize/validate.ts::function::lintSmtlib	function	missing	-	auto-generated
+src/formalize/validate.ts::function::lintSpec	function	missing	-	auto-generated
+src/formalize/validate.ts::interface::LintResult	interface	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::clearAdapters	function	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::getAdapter	function	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::getAdapterExtensions	function	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::getAdapterForExt	function	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::isLanguageAdapter	function	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::registerAdapter	function	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::registerFromModule	function	missing	-	auto-generated
+src/graph/analyses.ts::function::buildQuery	function	ported	src/chiasmus/graph/analyses.cr:1	Ported graph analyses with direct Crystal traversal instead of Prolog query construction
+src/graph/analyses.ts::function::buildSummary	function	ported	src/chiasmus/graph/analyses.cr:1	Ported in-memory graph summary generation
+src/graph/analyses.ts::function::extractUniqueValues	function	ported	src/chiasmus/graph/analyses.cr:1	Ported through uniq-preserving collection of analysis outputs
+src/graph/analyses.ts::function::formatResult	function	ported	src/chiasmus/graph/analyses.cr:1	Ported via typed Crystal payloads per analysis mode
+src/graph/analyses.ts::interface::AnalysisRequest	interface	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal record
+src/graph/analyses.ts::interface::AnalysisResult	interface	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal record
+src/graph/analyses.ts::type::AnalysisType	type	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal enum
+src/graph/extractor.ts::function::cljDefnName	function	missing	-	auto-generated
+src/graph/extractor.ts::function::cljExtractCalls	function	missing	-	auto-generated
+src/graph/extractor.ts::function::cljExtractNs	function	missing	-	auto-generated
+src/graph/extractor.ts::function::cljSymName	function	missing	-	auto-generated
+src/graph/extractor.ts::function::extractGoCalls	function	missing	-	auto-generated
+src/graph/extractor.ts::function::extractGoReceiverType	function	missing	-	auto-generated
+src/graph/extractor.ts::function::extractImportNames	function	missing	-	auto-generated
+src/graph/extractor.ts::function::extractStringContent	function	missing	-	auto-generated
+src/graph/extractor.ts::function::findEnclosingClassName	function	missing	-	auto-generated
+src/graph/extractor.ts::function::findPythonEnclosingClass	function	missing	-	auto-generated
+src/graph/extractor.ts::function::resolveCallee	function	missing	-	auto-generated
+src/graph/extractor.ts::function::resolveGoCallee	function	missing	-	auto-generated
+src/graph/extractor.ts::function::resolvePythonCallee	function	missing	-	auto-generated
+src/graph/extractor.ts::function::walkChildren	function	missing	-	auto-generated
+src/graph/extractor.ts::function::walkClojure	function	missing	-	auto-generated
+src/graph/extractor.ts::function::walkGo	function	missing	-	auto-generated
+src/graph/extractor.ts::function::walkNode	function	missing	-	auto-generated
+src/graph/extractor.ts::function::walkPython	function	missing	-	auto-generated
+src/graph/extractor.ts::function::walkPythonChildren	function	missing	-	auto-generated
+src/graph/facts.ts::const::BUILTIN_RULES	const	ported	src/chiasmus/graph/facts.cr:1	Ported builtin graph-analysis Prolog rules
+src/graph/facts.ts::function::escapeAtom	function	ported	src/chiasmus/graph/facts.cr:1	Ported Prolog atom escaping
+src/graph/facts.ts::function::graphToProlog	function	ported	src/chiasmus/graph/facts.cr:1	Ported CodeGraph-to-Prolog serialization
+src/graph/mermaid.ts::const::FLOWCHART_RULES	const	missing	-	auto-generated
+src/graph/mermaid.ts::const::STATE_RULES	const	missing	-	auto-generated
+src/graph/mermaid.ts::function::detectDiagramType	function	missing	-	auto-generated
+src/graph/mermaid.ts::function::extractLabel	function	missing	-	auto-generated
+src/graph/mermaid.ts::function::extractMermaidGraph	function	missing	-	auto-generated
+src/graph/mermaid.ts::function::generateProlog	function	missing	-	auto-generated
+src/graph/mermaid.ts::function::normalizeId	function	missing	-	auto-generated
+src/graph/mermaid.ts::function::parseFlowchartLine	function	missing	-	auto-generated
+src/graph/mermaid.ts::function::parseMermaid	function	missing	-	auto-generated
+src/graph/mermaid.ts::function::parseStateLine	function	missing	-	auto-generated
+src/graph/mermaid.ts::interface::MermaidEdge	interface	missing	-	auto-generated
+src/graph/mermaid.ts::interface::MermaidGraph	interface	missing	-	auto-generated
+src/graph/mermaid.ts::interface::MermaidNode	interface	missing	-	auto-generated
+src/graph/mermaid.ts::type::DiagramType	type	missing	-	auto-generated
+src/graph/parser.ts::function::getLangConfig	function	ported	src/chiasmus/graph/parser.cr:11	Ported as LANGUAGE_CONFIG constant used by parser loading helpers
+src/graph/parser.ts::function::getLanguageForFile	function	ported	src/chiasmus/graph/parser.cr:220	Ported extension-to-language resolution
+src/graph/parser.ts::function::getNativeParser	function	missing	-	auto-generated
+src/graph/parser.ts::function::getSupportedExtensions	function	ported	src/chiasmus/graph/parser.cr:227	Ported supported-extension enumeration
+src/graph/parser.ts::function::loadLanguageSync	function	ported	src/chiasmus/graph/parser.cr:246	Ported synchronous language load helper
+src/graph/parser.ts::function::parseSource	function	ported	src/chiasmus/graph/parser.cr:232	Ported sync parse entrypoint via UniversalParser
+src/graph/parser.ts::interface::LangConfig	interface	ported	src/chiasmus/graph/parser.cr:14	Represented by Crystal named tuples inside LANGUAGE_CONFIG
+src/graph/types.ts::interface::CallsFact	interface	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::CodeGraph	interface	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::ContainsFact	interface	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::DefinesFact	interface	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::ExportsFact	interface	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::ImportsFact	interface	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::LanguageAdapter	interface	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal abstract class
+src/graph/types.ts::type::SymbolKind	type	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal enum
+src/llm/anthropic.ts::class::AnthropicAdapter	class	missing	-	auto-generated
+src/llm/anthropic.ts::const::DEFAULT_MAX_TOKENS	const	missing	-	auto-generated
+src/llm/anthropic.ts::const::DEFAULT_MODEL	const	missing	-	auto-generated
+src/llm/anthropic.ts::const::DEFAULT_URL	const	missing	-	auto-generated
+src/llm/anthropic.ts::function::createLLMFromEnv	function	missing	-	auto-generated
+src/llm/anthropic.ts::function::data	function	missing	-	auto-generated
+src/llm/anthropic.ts::interface::AnthropicConfig	interface	missing	-	auto-generated
+src/llm/anthropic.ts::method::AnthropicAdapter.constructor	method	missing	-	auto-generated
+src/llm/mock.ts::class::MockLLMAdapter	class	missing	-	auto-generated
+src/llm/mock.ts::method::MockLLMAdapter.constructor	method	missing	-	auto-generated
+src/llm/openai-compatible.ts::class::OpenAICompatibleAdapter	class	missing	-	auto-generated
+src/llm/openai-compatible.ts::const::DEFAULT_MAX_TOKENS	const	missing	-	auto-generated
+src/llm/openai-compatible.ts::function::data	function	missing	-	auto-generated
+src/llm/openai-compatible.ts::interface::OpenAICompatibleConfig	interface	missing	-	auto-generated
+src/llm/openai-compatible.ts::method::OpenAICompatibleAdapter.constructor	method	missing	-	auto-generated
+src/llm/types.ts::interface::LLMAdapter	interface	missing	-	auto-generated
+src/llm/types.ts::interface::LLMMessage	interface	missing	-	auto-generated
+src/mcp-server.ts::const::TOOLS	const	ported	src/chiasmus/mcp_server/tools/verify.cr:7	chiasmus_verify tool ported to Crystal
+src/mcp-server.ts::const::VALID_ANALYSES	const	missing	-	auto-generated
+src/mcp-server.ts::function::getChiasmusHome	function	ported	src/chiasmus/utils/config.cr:21	Port with XDG support
+src/mcp-server.ts::function::handleLint	function	missing	-	auto-generated
+src/mcp-server.ts::function::handleSkills	function	missing	-	auto-generated
+src/skills/bm25.ts::const::N	const	missing	-	auto-generated
+src/skills/bm25.ts::const::STOPWORDS	const	missing	-	auto-generated
+src/skills/bm25.ts::function::buildIndex	function	missing	-	auto-generated
+src/skills/bm25.ts::function::search	function	missing	-	auto-generated
+src/skills/bm25.ts::function::tokenize	function	missing	-	auto-generated
+src/skills/bm25.ts::interface::BM25Index	interface	missing	-	auto-generated
+src/skills/bm25.ts::interface::DocEntry	interface	missing	-	auto-generated
+src/skills/craft.ts::function::buildPrologInput	function	missing	-	auto-generated
+src/skills/craft.ts::function::validateTemplate	function	missing	-	auto-generated
+src/skills/craft.ts::interface::CraftInput	interface	missing	-	auto-generated
+src/skills/craft.ts::interface::CraftResult	interface	missing	-	auto-generated
+src/skills/learner.ts::class::SkillLearner	class	missing	-	auto-generated
+src/skills/learner.ts::const::DEDUP_SIMILARITY_THRESHOLD	const	missing	-	auto-generated
+src/skills/learner.ts::const::EXTRACT_SYSTEM	const	missing	-	auto-generated
+src/skills/learner.ts::const::PROMOTION_SUCCESS_RATE	const	missing	-	auto-generated
+src/skills/learner.ts::const::PROMOTION_THRESHOLD	const	missing	-	auto-generated
+src/skills/learner.ts::method::SkillLearner.constructor	method	missing	-	auto-generated
+src/skills/library.ts::class::SkillLibrary	class	missing	-	auto-generated
+src/skills/library.ts::interface::SearchOptions	interface	missing	-	auto-generated
+src/skills/relationships.ts::function::getRelatedTemplates	function	missing	-	auto-generated
+src/skills/relationships.ts::interface::RelatedTemplate	interface	missing	-	auto-generated
+src/skills/types.ts::interface::Normalization	interface	missing	-	auto-generated
+src/skills/types.ts::interface::SkillMetadata	interface	missing	-	auto-generated
+src/skills/types.ts::interface::SkillSearchResult	interface	missing	-	auto-generated
+src/skills/types.ts::interface::SkillTemplate	interface	missing	-	auto-generated
+src/skills/types.ts::interface::SkillWithMetadata	interface	missing	-	auto-generated
+src/skills/types.ts::interface::SlotDef	interface	missing	-	auto-generated
+src/solvers/correction-loop.ts::interface::CorrectionLoopOptions	interface	missing	-	auto-generated
+src/solvers/correction-loop.ts::type::CorrectionAttempt	type	missing	-	auto-generated
+src/solvers/correction-loop.ts::type::CorrectionResult	type	missing	-	auto-generated
+src/solvers/correction-loop.ts::type::SpecFixer	type	missing	-	auto-generated
+src/solvers/prolog-solver.ts::const::MAX_ANSWERS	const	missing	-	auto-generated
+src/solvers/prolog-solver.ts::const::MAX_INFERENCES	const	missing	-	auto-generated
+src/solvers/prolog-solver.ts::const::MAX_TRACE_ENTRIES	const	missing	-	auto-generated
+src/solvers/prolog-solver.ts::function::consult	function	missing	-	auto-generated
+src/solvers/prolog-solver.ts::function::createPrologSolver	function	missing	-	auto-generated
+src/solvers/prolog-solver.ts::function::entry	function	missing	-	auto-generated
+src/solvers/prolog-solver.ts::function::formatError	function	missing	-	auto-generated
+src/solvers/prolog-solver.ts::function::instrumentForTracing	function	missing	-	auto-generated
+src/solvers/prolog-solver.ts::function::links	function	missing	-	auto-generated
+src/solvers/prolog-solver.ts::function::nextAnswer	function	missing	-	auto-generated
+src/solvers/prolog-solver.ts::function::query	function	missing	-	auto-generated
+src/solvers/session.ts::class::SolverSession	class	missing	-	auto-generated
+src/solvers/types.ts::interface::PrologAnswer	interface	missing	-	auto-generated
+src/solvers/types.ts::interface::Solver	interface	missing	-	auto-generated
+src/solvers/types.ts::type::SolverInput	type	missing	-	auto-generated
+src/solvers/types.ts::type::SolverResult	type	missing	-	auto-generated
+src/solvers/types.ts::type::SolverType	type	missing	-	auto-generated
+src/solvers/z3-solver.ts::const::SOLVER_TIMEOUT_MS	const	missing	-	auto-generated
+src/solvers/z3-solver.ts::function::getZ3	function	missing	-	auto-generated
+src/solvers/z3-solver.ts::function::sanitizeSmtlib	function	missing	-	auto-generated
+src/tau-prolog.d.ts::function::create	function	missing	-	auto-generated
+src/tau-prolog.d.ts::function::format_answer	function	missing	-	auto-generated
+src/tau-prolog.d.ts::interface::PrologSession	interface	missing	-	auto-generated
+src/tau-prolog.d.ts::interface::PrologSubstitution	interface	missing	-	auto-generated
+src/tau-prolog.d.ts::interface::PrologTerm	interface	missing	-	auto-generated
+tests/config.test.ts::test::falls back to defaults for invalid JSON	test	missing	-	auto-generated
+tests/config.test.ts::test::ignores unknown keys and wrong types	test	missing	-	auto-generated
+tests/config.test.ts::test::loadConfig	test	missing	-	auto-generated
+tests/config.test.ts::test::reads adapterDiscovery from config.json	test	missing	-	auto-generated
+tests/config.test.ts::test::returns defaults when config.json does not exist	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::Correction Loop	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::Prolog	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::Z3	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::correctly distinguishes solver errors from valid UNSAT	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::enhanced feedback	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::fixes a malformed Prolog program	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::fixes a minor syntax error within 2 rounds	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::handles multi-round fixes for semantic errors	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::hits max rounds on unfixable spec and returns diagnostics	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::passes full SolverResult to fixer via result parameter	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::passes through a correct Prolog program without correction	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::passes through a correct spec without correction	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::provides error history for debugging	test	missing	-	auto-generated
+tests/correction-loop.test.ts::test::stops early when fixer gives up (returns null)	test	missing	-	auto-generated
+tests/craft.test.ts::test::craftTemplate	test	missing	-	auto-generated
+tests/craft.test.ts::test::duplicate name returns error	test	missing	-	auto-generated
+tests/craft.test.ts::test::empty normalizations array returns error	test	missing	-	auto-generated
+tests/craft.test.ts::test::empty slots array returns error	test	missing	-	auto-generated
+tests/craft.test.ts::test::invalid solver returns error	test	missing	-	auto-generated
+tests/craft.test.ts::test::missing required field returns specific error	test	missing	-	auto-generated
+tests/craft.test.ts::test::slot in array not in skeleton returns error	test	missing	-	auto-generated
+tests/craft.test.ts::test::slot in skeleton not in slots array returns error	test	missing	-	auto-generated
+tests/craft.test.ts::test::template with test=true and broken example returns error but still creates	test	missing	-	auto-generated
+tests/craft.test.ts::test::template with test=true and valid Prolog example runs solver	test	missing	-	auto-generated
+tests/craft.test.ts::test::template with test=true and valid Z3 example runs solver	test	missing	-	auto-generated
+tests/craft.test.ts::test::valid template is added to library and searchable	test	missing	-	auto-generated
+tests/craft.test.ts::test::valid template passes validation with no errors	test	missing	-	auto-generated
+tests/craft.test.ts::test::validateTemplate	test	missing	-	auto-generated
+tests/craft.test.ts::test::validation errors prevent creation	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::Dogfood: realistic problem domains	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::Prolog: Rule-based reasoning	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::Z3: Policy contradiction detection	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::checks data lineage / reachability	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::derives transitive permissions through role hierarchy	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::detects contradictory firewall rules	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::detects that 3 tasks cannot fit in 2 non-overlapping slots	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::finds valid dependency version resolution	test	missing	-	auto-generated
+tests/dogfood.test.ts::test::validates workflow state machine transitions	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifies error result	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifies prolog success with answers	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifies prolog success with no answers	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifies sat result with model	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifies unknown result	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifies unsat result with core	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifies unsat result without core	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifyFeedback	test	missing	-	auto-generated
+tests/formalize.test.ts::test::FormalizationEngine	test	missing	-	auto-generated
+tests/formalize.test.ts::test::formalize (template + instructions, no execution)	test	missing	-	auto-generated
+tests/formalize.test.ts::test::includes normalization guidance in instructions	test	missing	-	auto-generated
+tests/formalize.test.ts::test::records template use in skill library	test	missing	-	auto-generated
+tests/formalize.test.ts::test::returns failure with diagnostics when correction loop exhausts	test	missing	-	auto-generated
+tests/formalize.test.ts::test::selects a Prolog template for rule inference problems	test	missing	-	auto-generated
+tests/formalize.test.ts::test::selects constraint-satisfaction for dependency problems	test	missing	-	auto-generated
+tests/formalize.test.ts::test::selects graph-reachability for data flow problems	test	missing	-	auto-generated
+tests/formalize.test.ts::test::selects the right template for a policy conflict problem	test	missing	-	auto-generated
+tests/formalize.test.ts::test::solve (end-to-end with LLM)	test	missing	-	auto-generated
+tests/formalize.test.ts::test::solves a Prolog reachability problem end-to-end	test	missing	-	auto-generated
+tests/formalize.test.ts::test::solves a Z3 policy contradiction problem end-to-end	test	missing	-	auto-generated
+tests/formalize.test.ts::test::uses correction loop when initial formalization has errors	test	missing	-	auto-generated
+tests/formalize.test.ts::test::uses enriched feedback in correction prompts	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::adapter integration with extractor	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::adapter integration with parser	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::adapter with searchPaths is accepted by registerAdapter	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::adapter-registry	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::built-in extensions take precedence over adapters	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::clearAdapters removes all registrations	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::deduplicates calls across adapter-extracted files	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::discoverAdapters	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::dispatches to adapter.extract for registered language	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::does not affect built-in languages	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::does not throw when no chiasmus-adapter-* packages exist	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::getAdapterExtensions includes registered extensions	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::getAdapterForExt resolves by extension	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::getLanguageForFile resolves adapter extensions	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::getSupportedExtensions includes adapter extensions	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::is idempotent (only runs once)	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::normalizes extensions without leading dot	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::registerAdapter + getAdapter round-trips	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::searchPaths	test	missing	-	auto-generated
+tests/graph/analyses.test.ts::test::callees returns correct callees	test	ported	spec/chiasmus/graph/analyses_spec.cr:36	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::callers returns correct callers	test	ported	spec/chiasmus/graph/analyses_spec.cr:18	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::cycles detects circular call dependencies	test	ported	spec/chiasmus/graph/analyses_spec.cr:113	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::dead-code finds unreachable functions	test	ported	spec/chiasmus/graph/analyses_spec.cr:91	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::facts returns valid Prolog string	test	ported	spec/chiasmus/graph/analyses_spec.cr:165	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::impact returns all transitive callers	test	ported	spec/chiasmus/graph/analyses_spec.cr:146	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::path returns call chain	test	ported	spec/chiasmus/graph/analyses_spec.cr:128	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::reachability returns false for unconnected nodes	test	ported	spec/chiasmus/graph/analyses_spec.cr:73	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::reachability returns true for transitive path	test	ported	spec/chiasmus/graph/analyses_spec.cr:54	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::returns error for missing target parameter	test	ported	spec/chiasmus/graph/analyses_spec.cr:212	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::runAnalysisFromGraph	test	ported	spec/chiasmus/graph/analyses_spec.cr:18	Ported run_analysis_from_graph coverage across analysis modes
+tests/graph/analyses.test.ts::test::summary returns correct counts	test	ported	spec/chiasmus/graph/analyses_spec.cr:183	Ported Crystal graph analysis spec
+tests/graph/clojure.test.ts::test::Clojure graph produces valid Prolog facts	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::Clojure support	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::Prolog integration	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::dead code detection works on Clojure graph	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::deduplicates call edges	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::extractor	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::extracts call relationships	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::extracts defn function definitions	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::extracts defn- as private (not exported)	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::extracts namespace-qualified calls (db/query → query)	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::extracts require imports from ns form	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::maps .clj extension to clojure	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::multi-file cross-namespace extraction	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::parser	test	missing	-	auto-generated
+tests/graph/clojure.test.ts::test::parses Clojure source via WASM	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::combines facts across multiple files	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::deduplicates call edges	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::does not export underscore-prefixed or lowercase identifiers	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::exports uppercase symbols only	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extractGraph	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extractGraph — Go	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extractGraph — Python	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts arrow functions assigned to const	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts call relationships	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts class with methods and contains	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts class with methods and produces defines + contains	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts cross-file call graph	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts export statements	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts function declarations	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts function definitions	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts import declarations	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts import statements	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts interface definitions	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts method calls from member expressions	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts method calls via attribute access	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts methods with receiver type and contains	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::extracts multiple imports from a single from-import statement	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::nested functions inside functions are kind=function not method	test	missing	-	auto-generated
+tests/graph/extractor.test.ts::test::skips unsupported file extensions	test	missing	-	auto-generated
+tests/graph/facts.test.ts::test::auto-detects entry points from exports	test	ported	spec/chiasmus/graph/facts_spec.cr:18	Ported Crystal graph facts spec
+tests/graph/facts.test.ts::test::cycle-safe reachability works for transitive calls	test	ported	spec/chiasmus/graph/facts_spec.cr:18	Validated via emitted builtin reachability rules
+tests/graph/facts.test.ts::test::dead code detection finds unreachable functions	test	ported	spec/chiasmus/graph/facts_spec.cr:18	Validated via emitted builtin dead-code rules
+tests/graph/facts.test.ts::test::escapeAtom	test	ported	spec/chiasmus/graph/facts_spec.cr:3	Ported Crystal graph facts spec
+tests/graph/facts.test.ts::test::escapes internal single quotes	test	ported	spec/chiasmus/graph/facts_spec.cr:14	Ported Crystal graph facts spec
+tests/graph/facts.test.ts::test::generates syntactically valid Prolog accepted by solver	test	ported	spec/chiasmus/graph/facts_spec.cr:18	Ported serialization coverage without extractor dependency
+tests/graph/facts.test.ts::test::graphToProlog	test	ported	spec/chiasmus/graph/facts_spec.cr:18	Ported Crystal graph facts spec
+tests/graph/facts.test.ts::test::handles file paths with slashes in atoms	test	ported	spec/chiasmus/graph/facts_spec.cr:18	Ported via escaped file-path serialization coverage
+tests/graph/facts.test.ts::test::leaves simple atoms unquoted	test	ported	spec/chiasmus/graph/facts_spec.cr:3	Ported Crystal graph facts spec
+tests/graph/facts.test.ts::test::produces queryable call facts	test	ported	spec/chiasmus/graph/facts_spec.cr:18	Ported via explicit call fact serialization coverage
+tests/graph/facts.test.ts::test::quotes atoms with special characters	test	ported	spec/chiasmus/graph/facts_spec.cr:8	Ported Crystal graph facts spec
+tests/graph/mcp-integration.test.ts::test::appears in tool list	test	missing	-	auto-generated
+tests/graph/mcp-integration.test.ts::test::chiasmus_graph MCP tool	test	missing	-	auto-generated
+tests/graph/mcp-integration.test.ts::test::returns callers via MCP	test	missing	-	auto-generated
+tests/graph/mcp-integration.test.ts::test::returns dead code analysis	test	missing	-	auto-generated
+tests/graph/mcp-integration.test.ts::test::returns error for missing parameters	test	missing	-	auto-generated
+tests/graph/mcp-integration.test.ts::test::returns facts as raw Prolog	test	missing	-	auto-generated
+tests/graph/mcp-integration.test.ts::test::returns summary with correct counts	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::flowchart	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::flowchart output is valid Prolog	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::handles [*] start/end markers	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::handles different arrow styles	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::handles flowchart keyword	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::handles transitions without events	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::ignores comments and empty lines	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::includes can_reach rules	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::includes reachability rules	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::normalizes IDs to lowercase	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::parseMermaid	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::parses labeled edges	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::parses multiple edges	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::parses nodes with labels	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::parses simple edge A --> B	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::parses state transitions	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::reachability works on flowchart	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::solver integration	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::state diagram output is valid Prolog	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::stateDiagram	test	missing	-	auto-generated
+tests/graph/parser.test.ts::test::lists supported extensions	test	ported	spec/chiasmus/graph/parser_spec.cr:28	Ported Crystal parser spec
+tests/graph/parser.test.ts::test::maps extensions to languages correctly	test	ported	spec/chiasmus/graph/parser_spec.cr:16	Ported Crystal parser spec
+tests/graph/parser.test.ts::test::parser	test	ported	spec/chiasmus/graph/parser_spec.cr:44	Ported parser surface coverage with graceful nil when grammar unavailable
+tests/graph/parser.test.ts::test::parses JavaScript source	test	missing	-	auto-generated
+tests/graph/parser.test.ts::test::parses TypeScript source and returns tree with rootNode	test	missing	-	auto-generated
+tests/graph/parser.test.ts::test::returns null for unsupported extension	test	ported	spec/chiasmus/graph/parser_spec.cr:39	Ported Crystal parser spec
+tests/learning.test.ts::test::SkillLearner	test	missing	-	auto-generated
+tests/learning.test.ts::test::deduplication	test	missing	-	auto-generated
+tests/learning.test.ts::test::does not promote templates with low success rate	test	missing	-	auto-generated
+tests/learning.test.ts::test::extracts a Prolog template from a verified solution	test	missing	-	auto-generated
+tests/learning.test.ts::test::extracts a Z3 template from a verified solution	test	missing	-	auto-generated
+tests/learning.test.ts::test::promotes a template after sufficient successful reuses	test	missing	-	auto-generated
+tests/learning.test.ts::test::promotion and quality tracking	test	missing	-	auto-generated
+tests/learning.test.ts::test::rejects near-duplicate templates	test	missing	-	auto-generated
+tests/learning.test.ts::test::rejects templates with missing required fields	test	missing	-	auto-generated
+tests/learning.test.ts::test::returns null when LLM produces invalid JSON	test	missing	-	auto-generated
+tests/learning.test.ts::test::template extraction	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::Chiasmus MCP Server	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::appears in tool list	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::auto-fixes check-sat in Z3 spec	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::catches missing periods in Prolog	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::catches unbalanced parentheses	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::chiasmus_craft	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::chiasmus_formalize	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::chiasmus_lint	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::chiasmus_skills	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::chiasmus_solve	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::chiasmus_verify	test	ported	spec/mcp_server/tools/verify_spec.cr:5	Basic verify tool tests ported to Crystal
+tests/mcp-server.test.ts::test::chiasmus_verify batch queries	test	ported	spec/mcp_server/tools/verify_spec.cr:5	Batch queries test ported
+tests/mcp-server.test.ts::test::lists chiasmus_verify in available tools	test	ported	spec/mcp_server/tools/verify_spec.cr:5	Tool listing test ported
+tests/mcp-server.test.ts::test::passes clean spec with no issues	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::requires query parameter for prolog solver	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns error for unknown template name	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns error when problem is missing	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns structured error for malformed Prolog input	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns structured error for malformed Z3 input	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns template and instructions for a problem	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns trace when explain=true for Prolog	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns validation errors for bad input	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::runs multiple Prolog queries against same program	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::searches for templates by query	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::solves a problem end-to-end with mock LLM	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::verifies Prolog queries	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::verifies satisfiable Z3 SMT-LIB input	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::verifies unsatisfiable Z3 input	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::PrologSolver	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::derivation traces	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::handles arithmetic	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::handles ground queries (no variables)	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::handles list operations	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::resolves recursive rules	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::resolves simple fact queries	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::returns a structured error for malformed programs	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::returns a structured error for malformed queries	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::returns empty answers for unsatisfiable queries	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::returns no trace when explain is false (default)	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::returns trace for ground query with explain=true	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::returns trace for rule chain when explain=true	test	missing	-	auto-generated
+tests/prolog-solver.test.ts::test::returns trace with multiple rule applications	test	missing	-	auto-generated
+tests/relationships.test.ts::test::all reason strings are non-empty and descriptive	test	missing	-	auto-generated
+tests/relationships.test.ts::test::all starter templates have at least one related template	test	missing	-	auto-generated
+tests/relationships.test.ts::test::getRelatedTemplates	test	missing	-	auto-generated
+tests/relationships.test.ts::test::returns empty array for unknown template	test	missing	-	auto-generated
+tests/relationships.test.ts::test::returns related templates for policy-contradiction	test	missing	-	auto-generated
+tests/relationships.test.ts::test::returns related templates for schema-consistency	test	missing	-	auto-generated
+tests/session.test.ts::test::SolverSession	test	missing	-	auto-generated
+tests/session.test.ts::test::assigns unique session IDs	test	missing	-	auto-generated
+tests/session.test.ts::test::creates isolated Prolog sessions	test	missing	-	auto-generated
+tests/session.test.ts::test::creates isolated Z3 sessions	test	missing	-	auto-generated
+tests/session.test.ts::test::runs Z3 and Prolog concurrently without interference	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::SkillLibrary	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::all templates have at least one normalization	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::all templates have valid skeletons with matching slot markers	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::can filter by domain	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::can filter by solver type	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::each template has metadata initialized	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::finds config-equivalence for configuration comparison	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::finds constraint-satisfaction for dependency version queries	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::finds graph-reachability for data flow queries	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::finds permission-derivation for role hierarchy queries	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::finds policy-contradiction for authorization conflict queries	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::finds rule-inference for eligibility/compliance queries	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::get by name	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::initialization	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::loads all starter templates	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::metadata tracking	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::persists metadata across library instances	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::records reuse and success	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::retrieves a template by exact name	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::returns null for unknown name	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::returns results sorted by relevance score	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::search	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::template structure	test	missing	-	auto-generated
+tests/validate.test.ts::test::Prolog with comments passes	test	missing	-	auto-generated
+tests/validate.test.ts::test::Spec Linting	test	missing	-	auto-generated
+tests/validate.test.ts::test::Z3 with comments passes	test	missing	-	auto-generated
+tests/validate.test.ts::test::auto-fixes	test	missing	-	auto-generated
+tests/validate.test.ts::test::catches empty spec	test	missing	-	auto-generated
+tests/validate.test.ts::test::catches missing periods in Prolog	test	missing	-	auto-generated
+tests/validate.test.ts::test::catches unbalanced Prolog parentheses	test	missing	-	auto-generated
+tests/validate.test.ts::test::catches unbalanced Z3 parentheses (extra close)	test	missing	-	auto-generated
+tests/validate.test.ts::test::catches unbalanced Z3 parentheses (unclosed)	test	missing	-	auto-generated
+tests/validate.test.ts::test::catches unfilled template slots	test	missing	-	auto-generated
+tests/validate.test.ts::test::error detection	test	missing	-	auto-generated
+tests/validate.test.ts::test::removes check-sat from Z3 specs	test	missing	-	auto-generated
+tests/validate.test.ts::test::removes get-model from Z3 specs	test	missing	-	auto-generated
+tests/validate.test.ts::test::removes set-logic from Z3 specs	test	missing	-	auto-generated
+tests/validate.test.ts::test::strips markdown fences	test	missing	-	auto-generated
+tests/validate.test.ts::test::valid Prolog passes with no errors or fixes	test	missing	-	auto-generated
+tests/validate.test.ts::test::valid Z3 passes with no errors or fixes	test	missing	-	auto-generated
+tests/validate.test.ts::test::valid specs pass clean	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::Z3Solver	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::does not include unsatCore field for SAT results	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::handles boolean satisfiability	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::handles custom datatypes	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::returns a structured error for malformed SMT-LIB	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::returns error for completely empty input	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::returns sat with a model for satisfiable constraints	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::returns unsat core expressions for contradictory unnamed assertions	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::returns unsat core for trivially unsat assertion	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::returns unsat core with named assertions for contradictory constraints	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::returns unsat for contradictory constraints	test	missing	-	auto-generated
+tests/z3-solver.test.ts::test::strips check-sat and get-model from input without breaking	test	missing	-	auto-generated
