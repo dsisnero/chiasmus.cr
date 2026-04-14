@@ -1,0 +1,45 @@
+# Ameba configuration for chiasmus Crystal port
+# Based on crystal-forge-setup-project template
+
+Version: 1.0.0
+
+# Enable/disable rules
+AllCops:
+  Enabled: true
+
+# Rule-specific configurations
+Style/RedundantBegin:
+  Enabled: true
+
+Style/RedundantReturn:
+  Enabled: true
+
+Style/UnlessElse:
+  Enabled: true
+
+Style/GuardClause:
+  Enabled: true
+
+Performance/SizeAfter:
+  Enabled: true
+
+Performance/SelectMap:
+  Enabled: true
+
+Lint/ShadowingOuterLocalVar:
+  Enabled: true
+
+Lint/UnusedArgument:
+  Enabled: true
+
+Lint/UselessAssign:
+  Enabled: true
+
+Lint/DebugCalls:
+  Enabled: false  # Allow debug statements during development
+
+# Exclude paths
+Excluded:
+  - lib/**/*
+  - temp/**/*
+  - vendor/**/*

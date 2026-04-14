@@ -1,0 +1,30 @@
+name: chiasmus
+version: 0.1.0
+
+authors:
+  - Dominic Sisneros <dsisnero@gmail.com>
+
+targets:
+  chiasmus:
+    main: src/chiasmus.cr
+
+crystal: '>= 1.19.1'
+
+dependencies:
+  tree_sitter:
+    github: crystal-lang-tools/crystal-tree-sitter
+  mcp:
+    github: spider-gazelle/mcp.cr
+  z3:
+    github: taw/crystal-z3
+  crolog:
+    github: bcardiff/crolog
+  crig:
+    github: dsisnero/crig
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.0
+
+license: MIT

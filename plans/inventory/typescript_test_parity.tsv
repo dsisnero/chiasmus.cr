@@ -1,0 +1,333 @@
+# source_test_id	status	crystal_refs	notes
+benchmark/tests/p1-rbac.test.ts::test::Problem 1: RBAC Policy Conflict Detection	missing	-	baseline
+benchmark/tests/p1-rbac.test.ts::test::detects the auditor read/billing conflict	missing	-	baseline
+benchmark/tests/p1-rbac.test.ts::test::finds exactly one conflict in this ruleset	missing	-	baseline
+benchmark/tests/p1-rbac.test.ts::test::returns the specific conflicting triple	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::test::Problem 2: Package Dependency Resolution	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::test::all versions are within allowed ranges	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::test::finds a satisfiable assignment	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::test::respects dependency requirements	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::test::respects incompatibilities	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::test::Problem 3: Data Flow Taint Analysis	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::test::all three sinks are reachable	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach db_query	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach eval_engine	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach file_write	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::test::Problem 4: Workflow State Machine Validation	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::test::does not flag reachable states as unreachable	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::test::does not flag states with outgoing transitions as dead-ends	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::test::identifies 	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::test::Problem 5: API Validation Rule Consistency	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::test::finds exactly 2 gaps	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::test::finds the age gap (frontend allows 13-17, backend rejects)	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::test::finds the username_length gap (frontend allows 21-30, backend max 20)	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the age gap	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the username_length gap	missing	-	baseline
+tests/config.test.ts::test::falls back to defaults for invalid JSON	missing	-	baseline
+tests/config.test.ts::test::ignores unknown keys and wrong types	missing	-	baseline
+tests/config.test.ts::test::loadConfig	missing	-	baseline
+tests/config.test.ts::test::reads adapterDiscovery from config.json	missing	-	baseline
+tests/config.test.ts::test::returns defaults when config.json does not exist	missing	-	baseline
+tests/correction-loop.test.ts::test::Correction Loop	missing	-	baseline
+tests/correction-loop.test.ts::test::Prolog	missing	-	baseline
+tests/correction-loop.test.ts::test::Z3	missing	-	baseline
+tests/correction-loop.test.ts::test::correctly distinguishes solver errors from valid UNSAT	missing	-	baseline
+tests/correction-loop.test.ts::test::enhanced feedback	missing	-	baseline
+tests/correction-loop.test.ts::test::fixes a malformed Prolog program	missing	-	baseline
+tests/correction-loop.test.ts::test::fixes a minor syntax error within 2 rounds	missing	-	baseline
+tests/correction-loop.test.ts::test::handles multi-round fixes for semantic errors	missing	-	baseline
+tests/correction-loop.test.ts::test::hits max rounds on unfixable spec and returns diagnostics	missing	-	baseline
+tests/correction-loop.test.ts::test::passes full SolverResult to fixer via result parameter	missing	-	baseline
+tests/correction-loop.test.ts::test::passes through a correct Prolog program without correction	missing	-	baseline
+tests/correction-loop.test.ts::test::passes through a correct spec without correction	missing	-	baseline
+tests/correction-loop.test.ts::test::provides error history for debugging	missing	-	baseline
+tests/correction-loop.test.ts::test::stops early when fixer gives up (returns null)	missing	-	baseline
+tests/craft.test.ts::test::craftTemplate	missing	-	baseline
+tests/craft.test.ts::test::duplicate name returns error	missing	-	baseline
+tests/craft.test.ts::test::empty normalizations array returns error	missing	-	baseline
+tests/craft.test.ts::test::empty slots array returns error	missing	-	baseline
+tests/craft.test.ts::test::invalid solver returns error	missing	-	baseline
+tests/craft.test.ts::test::missing required field returns specific error	missing	-	baseline
+tests/craft.test.ts::test::slot in array not in skeleton returns error	missing	-	baseline
+tests/craft.test.ts::test::slot in skeleton not in slots array returns error	missing	-	baseline
+tests/craft.test.ts::test::template with test=true and broken example returns error but still creates	missing	-	baseline
+tests/craft.test.ts::test::template with test=true and valid Prolog example runs solver	missing	-	baseline
+tests/craft.test.ts::test::template with test=true and valid Z3 example runs solver	missing	-	baseline
+tests/craft.test.ts::test::valid template is added to library and searchable	missing	-	baseline
+tests/craft.test.ts::test::valid template passes validation with no errors	missing	-	baseline
+tests/craft.test.ts::test::validateTemplate	missing	-	baseline
+tests/craft.test.ts::test::validation errors prevent creation	missing	-	baseline
+tests/dogfood.test.ts::test::Dogfood: realistic problem domains	missing	-	baseline
+tests/dogfood.test.ts::test::Prolog: Rule-based reasoning	missing	-	baseline
+tests/dogfood.test.ts::test::Z3: Policy contradiction detection	missing	-	baseline
+tests/dogfood.test.ts::test::checks data lineage / reachability	missing	-	baseline
+tests/dogfood.test.ts::test::derives transitive permissions through role hierarchy	missing	-	baseline
+tests/dogfood.test.ts::test::detects contradictory firewall rules	missing	-	baseline
+tests/dogfood.test.ts::test::detects that 3 tasks cannot fit in 2 non-overlapping slots	missing	-	baseline
+tests/dogfood.test.ts::test::finds valid dependency version resolution	missing	-	baseline
+tests/dogfood.test.ts::test::validates workflow state machine transitions	missing	-	baseline
+tests/feedback.test.ts::test::classifies error result	missing	-	baseline
+tests/feedback.test.ts::test::classifies prolog success with answers	missing	-	baseline
+tests/feedback.test.ts::test::classifies prolog success with no answers	missing	-	baseline
+tests/feedback.test.ts::test::classifies sat result with model	missing	-	baseline
+tests/feedback.test.ts::test::classifies unknown result	missing	-	baseline
+tests/feedback.test.ts::test::classifies unsat result with core	missing	-	baseline
+tests/feedback.test.ts::test::classifies unsat result without core	missing	-	baseline
+tests/feedback.test.ts::test::classifyFeedback	missing	-	baseline
+tests/formalize.test.ts::test::FormalizationEngine	missing	-	baseline
+tests/formalize.test.ts::test::formalize (template + instructions, no execution)	missing	-	baseline
+tests/formalize.test.ts::test::includes normalization guidance in instructions	missing	-	baseline
+tests/formalize.test.ts::test::records template use in skill library	missing	-	baseline
+tests/formalize.test.ts::test::returns failure with diagnostics when correction loop exhausts	missing	-	baseline
+tests/formalize.test.ts::test::selects a Prolog template for rule inference problems	missing	-	baseline
+tests/formalize.test.ts::test::selects constraint-satisfaction for dependency problems	missing	-	baseline
+tests/formalize.test.ts::test::selects graph-reachability for data flow problems	missing	-	baseline
+tests/formalize.test.ts::test::selects the right template for a policy conflict problem	missing	-	baseline
+tests/formalize.test.ts::test::solve (end-to-end with LLM)	missing	-	baseline
+tests/formalize.test.ts::test::solves a Prolog reachability problem end-to-end	missing	-	baseline
+tests/formalize.test.ts::test::solves a Z3 policy contradiction problem end-to-end	missing	-	baseline
+tests/formalize.test.ts::test::uses correction loop when initial formalization has errors	missing	-	baseline
+tests/formalize.test.ts::test::uses enriched feedback in correction prompts	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::adapter integration with extractor	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::adapter integration with parser	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::adapter with searchPaths is accepted by registerAdapter	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::adapter-registry	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::built-in extensions take precedence over adapters	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::clearAdapters removes all registrations	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::deduplicates calls across adapter-extracted files	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::discoverAdapters	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::dispatches to adapter.extract for registered language	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::does not affect built-in languages	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::does not throw when no chiasmus-adapter-* packages exist	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::getAdapterExtensions includes registered extensions	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::getAdapterForExt resolves by extension	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::getLanguageForFile resolves adapter extensions	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::getSupportedExtensions includes adapter extensions	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::is idempotent (only runs once)	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::normalizes extensions without leading dot	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::registerAdapter + getAdapter round-trips	missing	-	baseline
+tests/graph/adapter-registry.test.ts::test::searchPaths	missing	-	baseline
+tests/graph/analyses.test.ts::test::callees returns correct callees	missing	-	baseline
+tests/graph/analyses.test.ts::test::callers returns correct callers	missing	-	baseline
+tests/graph/analyses.test.ts::test::cycles detects circular call dependencies	missing	-	baseline
+tests/graph/analyses.test.ts::test::dead-code finds unreachable functions	missing	-	baseline
+tests/graph/analyses.test.ts::test::facts returns valid Prolog string	missing	-	baseline
+tests/graph/analyses.test.ts::test::impact returns all transitive callers	missing	-	baseline
+tests/graph/analyses.test.ts::test::path returns call chain	missing	-	baseline
+tests/graph/analyses.test.ts::test::reachability returns false for unconnected nodes	missing	-	baseline
+tests/graph/analyses.test.ts::test::reachability returns true for transitive path	missing	-	baseline
+tests/graph/analyses.test.ts::test::returns error for missing target parameter	missing	-	baseline
+tests/graph/analyses.test.ts::test::runAnalysisFromGraph	missing	-	baseline
+tests/graph/analyses.test.ts::test::summary returns correct counts	missing	-	baseline
+tests/graph/clojure.test.ts::test::Clojure graph produces valid Prolog facts	missing	-	baseline
+tests/graph/clojure.test.ts::test::Clojure support	missing	-	baseline
+tests/graph/clojure.test.ts::test::Prolog integration	missing	-	baseline
+tests/graph/clojure.test.ts::test::dead code detection works on Clojure graph	missing	-	baseline
+tests/graph/clojure.test.ts::test::deduplicates call edges	missing	-	baseline
+tests/graph/clojure.test.ts::test::extractor	missing	-	baseline
+tests/graph/clojure.test.ts::test::extracts call relationships	missing	-	baseline
+tests/graph/clojure.test.ts::test::extracts defn function definitions	missing	-	baseline
+tests/graph/clojure.test.ts::test::extracts defn- as private (not exported)	missing	-	baseline
+tests/graph/clojure.test.ts::test::extracts namespace-qualified calls (db/query → query)	missing	-	baseline
+tests/graph/clojure.test.ts::test::extracts require imports from ns form	missing	-	baseline
+tests/graph/clojure.test.ts::test::maps .clj extension to clojure	missing	-	baseline
+tests/graph/clojure.test.ts::test::multi-file cross-namespace extraction	missing	-	baseline
+tests/graph/clojure.test.ts::test::parser	missing	-	baseline
+tests/graph/clojure.test.ts::test::parses Clojure source via WASM	missing	-	baseline
+tests/graph/extractor.test.ts::test::combines facts across multiple files	missing	-	baseline
+tests/graph/extractor.test.ts::test::deduplicates call edges	missing	-	baseline
+tests/graph/extractor.test.ts::test::does not export underscore-prefixed or lowercase identifiers	missing	-	baseline
+tests/graph/extractor.test.ts::test::exports uppercase symbols only	missing	-	baseline
+tests/graph/extractor.test.ts::test::extractGraph	missing	-	baseline
+tests/graph/extractor.test.ts::test::extractGraph — Go	missing	-	baseline
+tests/graph/extractor.test.ts::test::extractGraph — Python	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts arrow functions assigned to const	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts call relationships	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts class with methods and contains	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts class with methods and produces defines + contains	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts cross-file call graph	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts export statements	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts function declarations	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts function definitions	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts import declarations	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts import statements	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts interface definitions	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts method calls from member expressions	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts method calls via attribute access	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts methods with receiver type and contains	missing	-	baseline
+tests/graph/extractor.test.ts::test::extracts multiple imports from a single from-import statement	missing	-	baseline
+tests/graph/extractor.test.ts::test::nested functions inside functions are kind=function not method	missing	-	baseline
+tests/graph/extractor.test.ts::test::skips unsupported file extensions	missing	-	baseline
+tests/graph/facts.test.ts::test::auto-detects entry points from exports	missing	-	baseline
+tests/graph/facts.test.ts::test::cycle-safe reachability works for transitive calls	missing	-	baseline
+tests/graph/facts.test.ts::test::dead code detection finds unreachable functions	missing	-	baseline
+tests/graph/facts.test.ts::test::escapeAtom	missing	-	baseline
+tests/graph/facts.test.ts::test::escapes internal single quotes	missing	-	baseline
+tests/graph/facts.test.ts::test::generates syntactically valid Prolog accepted by solver	missing	-	baseline
+tests/graph/facts.test.ts::test::graphToProlog	missing	-	baseline
+tests/graph/facts.test.ts::test::handles file paths with slashes in atoms	missing	-	baseline
+tests/graph/facts.test.ts::test::leaves simple atoms unquoted	missing	-	baseline
+tests/graph/facts.test.ts::test::produces queryable call facts	missing	-	baseline
+tests/graph/facts.test.ts::test::quotes atoms with special characters	missing	-	baseline
+tests/graph/mcp-integration.test.ts::test::appears in tool list	missing	-	baseline
+tests/graph/mcp-integration.test.ts::test::chiasmus_graph MCP tool	missing	-	baseline
+tests/graph/mcp-integration.test.ts::test::returns callers via MCP	missing	-	baseline
+tests/graph/mcp-integration.test.ts::test::returns dead code analysis	missing	-	baseline
+tests/graph/mcp-integration.test.ts::test::returns error for missing parameters	missing	-	baseline
+tests/graph/mcp-integration.test.ts::test::returns facts as raw Prolog	missing	-	baseline
+tests/graph/mcp-integration.test.ts::test::returns summary with correct counts	missing	-	baseline
+tests/graph/mermaid.test.ts::test::flowchart	missing	-	baseline
+tests/graph/mermaid.test.ts::test::flowchart output is valid Prolog	missing	-	baseline
+tests/graph/mermaid.test.ts::test::handles [*] start/end markers	missing	-	baseline
+tests/graph/mermaid.test.ts::test::handles different arrow styles	missing	-	baseline
+tests/graph/mermaid.test.ts::test::handles flowchart keyword	missing	-	baseline
+tests/graph/mermaid.test.ts::test::handles transitions without events	missing	-	baseline
+tests/graph/mermaid.test.ts::test::ignores comments and empty lines	missing	-	baseline
+tests/graph/mermaid.test.ts::test::includes can_reach rules	missing	-	baseline
+tests/graph/mermaid.test.ts::test::includes reachability rules	missing	-	baseline
+tests/graph/mermaid.test.ts::test::normalizes IDs to lowercase	missing	-	baseline
+tests/graph/mermaid.test.ts::test::parseMermaid	missing	-	baseline
+tests/graph/mermaid.test.ts::test::parses labeled edges	missing	-	baseline
+tests/graph/mermaid.test.ts::test::parses multiple edges	missing	-	baseline
+tests/graph/mermaid.test.ts::test::parses nodes with labels	missing	-	baseline
+tests/graph/mermaid.test.ts::test::parses simple edge A --> B	missing	-	baseline
+tests/graph/mermaid.test.ts::test::parses state transitions	missing	-	baseline
+tests/graph/mermaid.test.ts::test::reachability works on flowchart	missing	-	baseline
+tests/graph/mermaid.test.ts::test::solver integration	missing	-	baseline
+tests/graph/mermaid.test.ts::test::state diagram output is valid Prolog	missing	-	baseline
+tests/graph/mermaid.test.ts::test::stateDiagram	missing	-	baseline
+tests/graph/parser.test.ts::test::lists supported extensions	missing	-	baseline
+tests/graph/parser.test.ts::test::maps extensions to languages correctly	missing	-	baseline
+tests/graph/parser.test.ts::test::parser	missing	-	baseline
+tests/graph/parser.test.ts::test::parses JavaScript source	missing	-	baseline
+tests/graph/parser.test.ts::test::parses TypeScript source and returns tree with rootNode	missing	-	baseline
+tests/graph/parser.test.ts::test::returns null for unsupported extension	missing	-	baseline
+tests/learning.test.ts::test::SkillLearner	missing	-	baseline
+tests/learning.test.ts::test::deduplication	missing	-	baseline
+tests/learning.test.ts::test::does not promote templates with low success rate	missing	-	baseline
+tests/learning.test.ts::test::extracts a Prolog template from a verified solution	missing	-	baseline
+tests/learning.test.ts::test::extracts a Z3 template from a verified solution	missing	-	baseline
+tests/learning.test.ts::test::promotes a template after sufficient successful reuses	missing	-	baseline
+tests/learning.test.ts::test::promotion and quality tracking	missing	-	baseline
+tests/learning.test.ts::test::rejects near-duplicate templates	missing	-	baseline
+tests/learning.test.ts::test::rejects templates with missing required fields	missing	-	baseline
+tests/learning.test.ts::test::returns null when LLM produces invalid JSON	missing	-	baseline
+tests/learning.test.ts::test::template extraction	missing	-	baseline
+tests/mcp-server.test.ts::test::Chiasmus MCP Server	missing	-	baseline
+tests/mcp-server.test.ts::test::appears in tool list	missing	-	baseline
+tests/mcp-server.test.ts::test::auto-fixes check-sat in Z3 spec	missing	-	baseline
+tests/mcp-server.test.ts::test::catches missing periods in Prolog	missing	-	baseline
+tests/mcp-server.test.ts::test::catches unbalanced parentheses	missing	-	baseline
+tests/mcp-server.test.ts::test::chiasmus_craft	missing	-	baseline
+tests/mcp-server.test.ts::test::chiasmus_formalize	missing	-	baseline
+tests/mcp-server.test.ts::test::chiasmus_lint	missing	-	baseline
+tests/mcp-server.test.ts::test::chiasmus_skills	missing	-	baseline
+tests/mcp-server.test.ts::test::chiasmus_solve	missing	-	baseline
+tests/mcp-server.test.ts::test::chiasmus_verify	missing	-	baseline
+tests/mcp-server.test.ts::test::chiasmus_verify batch queries	missing	-	baseline
+tests/mcp-server.test.ts::test::created template appears in chiasmus_skills search	missing	-	baseline
+tests/mcp-server.test.ts::test::creates a template via MCP	missing	-	baseline
+tests/mcp-server.test.ts::test::filters by solver type	missing	-	baseline
+tests/mcp-server.test.ts::test::gets a template by exact name	missing	-	baseline
+tests/mcp-server.test.ts::test::includes related templates in by-name lookup	missing	-	baseline
+tests/mcp-server.test.ts::test::includes suggestions for related templates	missing	-	baseline
+tests/mcp-server.test.ts::test::includes unsatCore in unsat Z3 response	missing	-	baseline
+tests/mcp-server.test.ts::test::lists all templates when no query or name given	missing	-	baseline
+tests/mcp-server.test.ts::test::lists chiasmus_formalize in available tools	missing	-	baseline
+tests/mcp-server.test.ts::test::lists chiasmus_lint in available tools	missing	-	baseline
+tests/mcp-server.test.ts::test::lists chiasmus_skills in available tools	missing	-	baseline
+tests/mcp-server.test.ts::test::lists chiasmus_solve in available tools	missing	-	baseline
+tests/mcp-server.test.ts::test::lists chiasmus_verify in available tools	missing	-	baseline
+tests/mcp-server.test.ts::test::passes clean spec with no issues	missing	-	baseline
+tests/mcp-server.test.ts::test::requires query parameter for prolog solver	missing	-	baseline
+tests/mcp-server.test.ts::test::returns error for unknown template name	missing	-	baseline
+tests/mcp-server.test.ts::test::returns error when problem is missing	missing	-	baseline
+tests/mcp-server.test.ts::test::returns structured error for malformed Prolog input	missing	-	baseline
+tests/mcp-server.test.ts::test::returns structured error for malformed Z3 input	missing	-	baseline
+tests/mcp-server.test.ts::test::returns template and instructions for a problem	missing	-	baseline
+tests/mcp-server.test.ts::test::returns trace when explain=true for Prolog	missing	-	baseline
+tests/mcp-server.test.ts::test::returns validation errors for bad input	missing	-	baseline
+tests/mcp-server.test.ts::test::runs multiple Prolog queries against same program	missing	-	baseline
+tests/mcp-server.test.ts::test::searches for templates by query	missing	-	baseline
+tests/mcp-server.test.ts::test::solves a problem end-to-end with mock LLM	missing	-	baseline
+tests/mcp-server.test.ts::test::verifies Prolog queries	missing	-	baseline
+tests/mcp-server.test.ts::test::verifies satisfiable Z3 SMT-LIB input	missing	-	baseline
+tests/mcp-server.test.ts::test::verifies unsatisfiable Z3 input	missing	-	baseline
+tests/prolog-solver.test.ts::test::PrologSolver	missing	-	baseline
+tests/prolog-solver.test.ts::test::derivation traces	missing	-	baseline
+tests/prolog-solver.test.ts::test::handles arithmetic	missing	-	baseline
+tests/prolog-solver.test.ts::test::handles ground queries (no variables)	missing	-	baseline
+tests/prolog-solver.test.ts::test::handles list operations	missing	-	baseline
+tests/prolog-solver.test.ts::test::resolves recursive rules	missing	-	baseline
+tests/prolog-solver.test.ts::test::resolves simple fact queries	missing	-	baseline
+tests/prolog-solver.test.ts::test::returns a structured error for malformed programs	missing	-	baseline
+tests/prolog-solver.test.ts::test::returns a structured error for malformed queries	missing	-	baseline
+tests/prolog-solver.test.ts::test::returns empty answers for unsatisfiable queries	missing	-	baseline
+tests/prolog-solver.test.ts::test::returns no trace when explain is false (default)	missing	-	baseline
+tests/prolog-solver.test.ts::test::returns trace for ground query with explain=true	missing	-	baseline
+tests/prolog-solver.test.ts::test::returns trace for rule chain when explain=true	missing	-	baseline
+tests/prolog-solver.test.ts::test::returns trace with multiple rule applications	missing	-	baseline
+tests/relationships.test.ts::test::all reason strings are non-empty and descriptive	missing	-	baseline
+tests/relationships.test.ts::test::all starter templates have at least one related template	missing	-	baseline
+tests/relationships.test.ts::test::getRelatedTemplates	missing	-	baseline
+tests/relationships.test.ts::test::returns empty array for unknown template	missing	-	baseline
+tests/relationships.test.ts::test::returns related templates for policy-contradiction	missing	-	baseline
+tests/relationships.test.ts::test::returns related templates for schema-consistency	missing	-	baseline
+tests/session.test.ts::test::SolverSession	missing	-	baseline
+tests/session.test.ts::test::assigns unique session IDs	missing	-	baseline
+tests/session.test.ts::test::creates isolated Prolog sessions	missing	-	baseline
+tests/session.test.ts::test::creates isolated Z3 sessions	missing	-	baseline
+tests/session.test.ts::test::runs Z3 and Prolog concurrently without interference	missing	-	baseline
+tests/skill-library.test.ts::test::SkillLibrary	missing	-	baseline
+tests/skill-library.test.ts::test::all templates have at least one normalization	missing	-	baseline
+tests/skill-library.test.ts::test::all templates have valid skeletons with matching slot markers	missing	-	baseline
+tests/skill-library.test.ts::test::can filter by domain	missing	-	baseline
+tests/skill-library.test.ts::test::can filter by solver type	missing	-	baseline
+tests/skill-library.test.ts::test::each template has metadata initialized	missing	-	baseline
+tests/skill-library.test.ts::test::finds config-equivalence for configuration comparison	missing	-	baseline
+tests/skill-library.test.ts::test::finds constraint-satisfaction for dependency version queries	missing	-	baseline
+tests/skill-library.test.ts::test::finds graph-reachability for data flow queries	missing	-	baseline
+tests/skill-library.test.ts::test::finds permission-derivation for role hierarchy queries	missing	-	baseline
+tests/skill-library.test.ts::test::finds policy-contradiction for authorization conflict queries	missing	-	baseline
+tests/skill-library.test.ts::test::finds rule-inference for eligibility/compliance queries	missing	-	baseline
+tests/skill-library.test.ts::test::get by name	missing	-	baseline
+tests/skill-library.test.ts::test::initialization	missing	-	baseline
+tests/skill-library.test.ts::test::loads all starter templates	missing	-	baseline
+tests/skill-library.test.ts::test::metadata tracking	missing	-	baseline
+tests/skill-library.test.ts::test::persists metadata across library instances	missing	-	baseline
+tests/skill-library.test.ts::test::records reuse and success	missing	-	baseline
+tests/skill-library.test.ts::test::retrieves a template by exact name	missing	-	baseline
+tests/skill-library.test.ts::test::returns null for unknown name	missing	-	baseline
+tests/skill-library.test.ts::test::returns results sorted by relevance score	missing	-	baseline
+tests/skill-library.test.ts::test::search	missing	-	baseline
+tests/skill-library.test.ts::test::template structure	missing	-	baseline
+tests/validate.test.ts::test::Prolog with comments passes	missing	-	baseline
+tests/validate.test.ts::test::Spec Linting	missing	-	baseline
+tests/validate.test.ts::test::Z3 with comments passes	missing	-	baseline
+tests/validate.test.ts::test::auto-fixes	missing	-	baseline
+tests/validate.test.ts::test::catches empty spec	missing	-	baseline
+tests/validate.test.ts::test::catches missing periods in Prolog	missing	-	baseline
+tests/validate.test.ts::test::catches unbalanced Prolog parentheses	missing	-	baseline
+tests/validate.test.ts::test::catches unbalanced Z3 parentheses (extra close)	missing	-	baseline
+tests/validate.test.ts::test::catches unbalanced Z3 parentheses (unclosed)	missing	-	baseline
+tests/validate.test.ts::test::catches unfilled template slots	missing	-	baseline
+tests/validate.test.ts::test::error detection	missing	-	baseline
+tests/validate.test.ts::test::removes check-sat from Z3 specs	missing	-	baseline
+tests/validate.test.ts::test::removes get-model from Z3 specs	missing	-	baseline
+tests/validate.test.ts::test::removes set-logic from Z3 specs	missing	-	baseline
+tests/validate.test.ts::test::strips markdown fences	missing	-	baseline
+tests/validate.test.ts::test::valid Prolog passes with no errors or fixes	missing	-	baseline
+tests/validate.test.ts::test::valid Z3 passes with no errors or fixes	missing	-	baseline
+tests/validate.test.ts::test::valid specs pass clean	missing	-	baseline
+tests/z3-solver.test.ts::test::Z3Solver	missing	-	baseline
+tests/z3-solver.test.ts::test::does not include unsatCore field for SAT results	missing	-	baseline
+tests/z3-solver.test.ts::test::handles boolean satisfiability	missing	-	baseline
+tests/z3-solver.test.ts::test::handles custom datatypes	missing	-	baseline
+tests/z3-solver.test.ts::test::returns a structured error for malformed SMT-LIB	missing	-	baseline
+tests/z3-solver.test.ts::test::returns error for completely empty input	missing	-	baseline
+tests/z3-solver.test.ts::test::returns sat with a model for satisfiable constraints	missing	-	baseline
+tests/z3-solver.test.ts::test::returns unsat core expressions for contradictory unnamed assertions	missing	-	baseline
+tests/z3-solver.test.ts::test::returns unsat core for trivially unsat assertion	missing	-	baseline
+tests/z3-solver.test.ts::test::returns unsat core with named assertions for contradictory constraints	missing	-	baseline
+tests/z3-solver.test.ts::test::returns unsat for contradictory constraints	missing	-	baseline
+tests/z3-solver.test.ts::test::strips check-sat and get-model from input without breaking	missing	-	baseline

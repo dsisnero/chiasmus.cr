@@ -1,0 +1,21 @@
+# Rumdl configuration for chiasmus Crystal port
+# Rumdl is a documentation generator for Crystal projects
+
+[global]
+exclude = ["temp", "vendor"]
+
+[project]
+name = "chiasmus"
+version = "0.1.0"
+description = "Crystal port of chiasmus MCP server for formal verification"
+license = "MIT"
+authors = ["Dominic Sisneros <dsisnero@gmail.com>"]
+
+[build]
+source_dir = "src"
+output_dir = "docs/api"
+theme = "default"
+
+[options]
+include_private = false
+include_deprecated = false

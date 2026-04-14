@@ -1,0 +1,14 @@
+/.crystal-cache/
+/bin/
+/.shards/
+*.dwarf
+
+# Don't ignore docs/ - baseline docs must be committed
+
+# Ignore all lib/ except crolog which we're patching
+/lib/*
+!/lib/crolog/
+/lib/crolog/*
+!/lib/crolog/src/
+!/lib/crolog/src/**
+/temp

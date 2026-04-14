@@ -1,0 +1,22 @@
+[submodule "vendor/chiasmus"]
+	path = vendor/chiasmus
+	url = https://github.com/yogthos/chiasmus.git
+	branch = main
+[submodule "vendor/maki"]
+	path = vendor/maki
+	url = https://github.com/tontinton/maki.git
+[submodule "vendor/tree-sitter-rust-crate"]
+	path = vendor/tree-sitter-rust-crate
+	url = https://github.com/tree-sitter/tree-sitter.git
+[submodule "vendor/tree-sitter-rust-grammar"]
+	path = vendor/tree-sitter-rust-grammar
+	url = https://github.com/tree-sitter/tree-sitter-rust.git
+[submodule "vendor/grammars/tree-sitter-rust"]
+	path = vendor/grammars/tree-sitter-rust
+	url = https://github.com/tree-sitter/tree-sitter-rust.git
+[submodule "vendor/grammars/tree-sitter-python"]
+	path = vendor/grammars/tree-sitter-python
+	url = https://github.com/tree-sitter/tree-sitter-python.git
+[submodule "vendor/grammars/tree-sitter-typescript"]
+	path = vendor/grammars/tree-sitter-typescript
+	url = https://github.com/tree-sitter/tree-sitter-typescript.git
