@@ -40,3 +40,16 @@ extractor
 
 # Tree-sitter build artifacts
 src/tree_sitter/
+
+# Reference implementations for study only
+vendor/ruby-tree-sitter/
+vendor/tree-sitter-rust/
+
+# Backup files
+*.backup
+*.bak
+
+# Test and example files not part of the test suite
+simple_deepseek_test.cr
+test.cr
+fetch_docs.sh
