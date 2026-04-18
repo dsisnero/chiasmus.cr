@@ -60,7 +60,7 @@ module Chiasmus
             Dir.mkdir_p(File.dirname(target_dir))
 
             result_channel = run_command_async("git", ["clone", repo_url, target_dir])
-            success, output, error = result_channel.receive
+            success, _, _ = result_channel.receive
 
             channel.send(success)
           rescue
@@ -80,7 +80,7 @@ module Chiasmus
           begin
             Dir.cd(repo_dir)
             result_channel = run_command_async("git", ["pull"])
-            success, output, error = result_channel.receive
+            success, _, _ = result_channel.receive
             channel.send(success)
           rescue
             channel.send(false)
@@ -133,7 +133,7 @@ module Chiasmus
         spawn do
           begin
             result_channel = run_command_async("tree-sitter", ["generate", grammar_js_path])
-            success, output, error = result_channel.receive
+            success, _, _ = result_channel.receive
             channel.send(success)
           rescue
             channel.send(false)
@@ -167,7 +167,7 @@ module Chiasmus
 
             # Compile
             result_channel = run_command_async("sh", ["-c", build_cmd])
-            success, output, error = result_channel.receive
+            success, _, error = result_channel.receive
 
             if success
               channel.send({true, File.join(source_dir, output_file)})

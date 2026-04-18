@@ -432,7 +432,9 @@ module Chiasmus
           node_modules = File.join(install_dir, "node_modules")
           package_dir = File.join(node_modules, package)
 
-          unless Dir.exists?(package_dir)
+          if Dir.exists?(package_dir)
+            puts "    Package already installed"
+          else
             # Initialize package.json if it doesn't exist
             unless File.exists?("package.json")
               unless system("npm init -y > /dev/null 2>&1")
@@ -446,8 +448,6 @@ module Chiasmus
               puts "    Failed to install #{package}"
               return false
             end
-          else
-            puts "    Package already installed"
           end
 
           # For TypeScript/TSX, need to look in subdirectories
@@ -600,17 +600,16 @@ module Chiasmus
         end
 
         # Add our grammar directory if not already present
-        unless parser_dirs.includes?(grammar_dir)
-          parser_dirs << grammar_dir
+        return if parser_dirs.includes?(grammar_dir)
+        parser_dirs << grammar_dir
 
-          # Write updated config
-          config = {
-            "parser-directories" => parser_dirs,
-          }
+        # Write updated config
+        config = {
+          "parser-directories" => parser_dirs,
+        }
 
-          File.write(config_file, config.to_json)
-          puts "    Updated tree-sitter config at #{config_file}"
-        end
+        File.write(config_file, config.to_json)
+        puts "    Updated tree-sitter config at #{config_file}"
       end
 
       private def self.get_tree_sitter_config_dir : String

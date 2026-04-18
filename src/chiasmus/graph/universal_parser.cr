@@ -61,7 +61,7 @@ module Chiasmus
 
       # Get all supported languages (that we can parse)
       def self.supported_languages : Array(String)
-        Parser::EXT_MAP.values.uniq.select do |language|
+        Parser::EXT_MAP.values.uniq!.select do |language|
           supports_language?(language)
         end
       end

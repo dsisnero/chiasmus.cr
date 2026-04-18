@@ -194,7 +194,7 @@ module Chiasmus
           end
 
           # Get unique languages from EXT_MAP
-          all_languages = Parser::EXT_MAP.values.uniq
+          all_languages = Parser::EXT_MAP.values.uniq!
           supported = [] of String
 
           # Check system grammars first (fast)
@@ -260,10 +260,9 @@ module Chiasmus
       end
 
       private def self.notify_waiters(language : String, result : Utils::Result(TreeSitter::Language?))
-        if waiters = @@pending_requests[language]?
-          waiters.each do |waiter|
-            waiter.send(result)
-          end
+        return unless waiters = @@pending_requests[language]?
+        waiters.each do |waiter|
+          waiter.send(result)
         end
       end
     end

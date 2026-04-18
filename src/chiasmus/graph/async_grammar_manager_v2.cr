@@ -205,8 +205,8 @@ module Chiasmus
 
             # Check cache
             if cache_dir = @@cache_dir
-              found_path = grammar_cache_paths(language, cache_dir).find do |so_path|
-                exists_channel = GrammarOperations.file_exists_async(so_path)
+              found_path = grammar_cache_paths(language, cache_dir).find do |p|
+                exists_channel = GrammarOperations.file_exists_async(p)
                 Utils::Timeout.with_timeout_async(5_000, exists_channel) == true
               end
 
