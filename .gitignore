@@ -12,3 +12,6 @@
 !/lib/crolog/src/
 !/lib/crolog/src/**
 /temp
+
+# Temporary directories for shard patching
+temp/
