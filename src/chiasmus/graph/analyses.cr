@@ -2,7 +2,7 @@ module Chiasmus
   module Graph
     # Analysis payload that can be properly serialized to JSON
     # Using a tagged union pattern with JSON::Serializable
-    alias AnalysisPayload = String | Array(String) | Hash(String, String) | Hash(String, Bool) | Hash(String, Int32) | Hash(String, Array(String)) | Hash(String, Array(Array(String)))
+    alias AnalysisPayload = String | Array(String) | Hash(String, String) | Hash(String, Bool) | Hash(String, Int32) | Hash(String, Array(Array(String)))
 
     # Tagged union container for JSON serialization
     struct TaggedAnalysisPayload
@@ -14,7 +14,7 @@ module Chiasmus
       @[JSON::Field(key: "value")]
       property value : JSON::Any
 
-      def initialize(payload : AnalysisPayload)
+      def initialize(payload : String | Array(String) | Hash(String, String) | Hash(String, Bool) | Hash(String, Int32) | Hash(String, Array(Array(String))))
         @type, @value = case payload
                         when String
                           {"string", JSON.parse(payload.to_json)}
@@ -26,8 +26,7 @@ module Chiasmus
                           {"bool_hash", JSON.parse(payload.to_json)}
                         when Hash(String, Int32)
                           {"int_hash", JSON.parse(payload.to_json)}
-                        when Hash(String, Array(String))
-                          {"string_array_hash", JSON.parse(payload.to_json)}
+
                         when Hash(String, Array(Array(String)))
                           {"array_array_hash", JSON.parse(payload.to_json)}
                         else
@@ -35,8 +34,8 @@ module Chiasmus
                         end
       end
 
-      # Convert back to AnalysisPayload
-      def to_payload : AnalysisPayload
+      # Convert back to payload
+      def to_payload : String | Array(String) | Hash(String, String) | Hash(String, Bool) | Hash(String, Int32) | Hash(String, Array(Array(String)))
         case @type
         when "string"
           @value.as_s
@@ -54,10 +53,7 @@ module Chiasmus
           hash = Hash(String, Int32).new
           @value.as_h.each { |k, v| hash[k] = v.as_i }
           hash
-        when "string_array_hash"
-          hash = Hash(String, Array(String)).new
-          @value.as_h.each { |k, v| hash[k] = v.as_a.map(&.as_s) }
-          hash
+
         when "array_array_hash"
           hash = Hash(String, Array(Array(String))).new
           @value.as_h.each do |k, v|
@@ -93,7 +89,7 @@ module Chiasmus
 
     record AnalysisResult,
       analysis : AnalysisType,
-      result : AnalysisPayload do
+      result : String | Array(String) | Hash(String, String) | Hash(String, Bool) | Hash(String, Int32) | Hash(String, Array(Array(String))) do
       include JSON::Serializable
 
       # Custom serialization using tagged container
@@ -141,7 +137,7 @@ module Chiasmus
 
       def run_analysis_from_graph(graph : CodeGraph, request : AnalysisRequest) : AnalysisResult
         result = handle_analysis_request(graph, request)
-        AnalysisResult.new(analysis: request.analysis, result: result)
+        AnalysisResult.new(analysis: request.analysis, result: result.as(AnalysisPayload))
       end
 
       private def handle_analysis_request(graph : CodeGraph, request : AnalysisRequest)
