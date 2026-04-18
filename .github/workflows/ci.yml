@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Crystal
+      uses: crystal-lang/install-crystal@v1
+      with:
+        crystal: latest
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgmp-dev libssl-dev pkg-config swi-prolog
+        shards install
+
+    - name: Run formatter
+      run: make format
+
+    - name: Run linter
+      run: make lint
+
+    - name: Run tests
+      run: make test
