@@ -15,3 +15,25 @@
 
 # Temporary directories for shard patching
 temp/
+
+# Temporary files from development
+chiasmus
+cleanup_docs.sh
+.env.enc.json
+.xdg-cache/
+
+# Debug and test files
+debug_*.cr
+fix_*.cr
+test_*.cr
+repro_*.cr
+patch_*.cr
+
+# Build artifacts and configuration
+tree-sitter-config.json
+mise.toml
+src/parser.c
+src/grammar.json
+src/node-types.json
+walkers
+extractor
