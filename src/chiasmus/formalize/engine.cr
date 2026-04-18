@@ -36,11 +36,11 @@ module Chiasmus
     - No Prolog solutions: missing facts/rules → add covering clauses | wrong query pattern → fix unification
     TEXT
 
-    class Engine
+    class Engine(M)
       @library : Skills::Library
-      @llm : LLM::Adapter
+      @agent : Crig::Agent(M)
 
-      def initialize(@library : Skills::Library, @llm : LLM::Adapter)
+      def initialize(@library : Skills::Library, @agent : Crig::Agent(M))
       end
 
       # Formalize a problem: select a template and return it with
@@ -66,11 +66,16 @@ module Chiasmus
         # Ask LLM to fill the template
         filled_spec = llm_fill(problem, template)
 
-        # TODO: Implement lint loop
-        # filled_spec = lint_loop(filled_spec, template, max_rounds)
+        # Lint the filled spec
+        linted_spec, lint_errors = lint_loop(filled_spec, template, 2)
+        unless lint_errors.empty?
+          # If linting fails, ask LLM to fix it
+          filled_spec = llm_fix_lint(filled_spec, lint_errors, template)
+          linted_spec, lint_errors = lint_loop(filled_spec, template, 2)
+        end
 
         # Build solver input
-        initial_input = build_solver_input(template, filled_spec)
+        initial_input = build_solver_input(template, linted_spec)
 
         # Run correction loop with LLM as fixer
         correction_result = Solvers.correction_loop(
@@ -83,11 +88,15 @@ module Chiasmus
                        end
 
             fixed = llm_fix(attempt.input, feedback, template)
-            # TODO: Lint the fix before resubmitting to the solver
-            # linted = lint_loop(fixed, template, 2)
-            linted = fixed
+            # Lint the fix before resubmitting to the solver
+            linted, lint_errors = lint_loop(fixed, template, 2)
+            unless lint_errors.empty?
+              # If linting fails, try to fix it
+              fixed = llm_fix_lint(fixed, lint_errors, template)
+              linted, _ = lint_loop(fixed, template, 2)
+            end
 
-            build_solver_input(template, linted)
+            build_solver_input(template, linted).as(Solvers::SolverInput?)
           end,
           Solvers::CorrectionLoopOptions.new(max_rounds: max_rounds)
         )
@@ -101,7 +110,7 @@ module Chiasmus
           rounds: correction_result.rounds,
           history: correction_result.history,
           template_used: template.name,
-          answers: correction_result.result.is_a?(Solvers::SuccessResult) ? correction_result.result.answers : [] of Solvers::PrologAnswer
+          answers: correction_result.result.is_a?(Solvers::SuccessResult) ? correction_result.result.as(Solvers::SuccessResult).answers : [] of Solvers::PrologAnswer
         )
       end
 
@@ -117,8 +126,12 @@ module Chiasmus
 
         query_note = template.solver == Solvers::SolverType::Prolog ? "\nAlso provide Prolog query goal (ending with period) for the question." : ""
 
-        tips_section = if template.tips && !template.tips.empty?
-                         "\n⚠ TIPS:\n#{template.tips.map { |t| "  #{t}" }.join("\n")}"
+        tips_section = if tips = template.tips
+                         if !tips.empty?
+                           "\nTemplate-specific tips:\n" + tips.join("\n")
+                         else
+                           ""
+                         end
                        else
                          ""
                        end
@@ -151,9 +164,7 @@ module Chiasmus
       private def llm_fill(problem : String, template : Skills::SkillTemplate) : String
         instructions = build_instructions(problem, template)
 
-        response = @llm.complete(FORMALIZE_SYSTEM, [
-          LLM::LLMMessage.new(role: "user", content: instructions),
-        ])
+        response = @agent.prompt("#{FORMALIZE_SYSTEM}\n\n#{instructions}").send
 
         clean_response(response)
       end
@@ -172,26 +183,48 @@ module Chiasmus
                  ""
                end
 
-        response = @llm.complete(FIX_SYSTEM, [
-          LLM::LLMMessage.new(
-            role: "user",
-            content: <<-CONTENT
-            SOLVER: #{template.solver}
-            SPECIFICATION:
-            #{spec}
+        response = @agent.prompt(
+          <<-CONTENT
+          #{FIX_SYSTEM}
 
-            FEEDBACK:
-            #{feedback}
+          SOLVER: #{template.solver}
+          SPECIFICATION:
+          #{spec}
 
-            Fix the specification and return only the corrected version.
-            CONTENT
-          ),
-        ])
+          FEEDBACK:
+          #{feedback}
+
+          Fix the specification and return only the corrected version.
+          CONTENT
+        ).send
 
         clean_response(response)
       end
 
-      private def build_solver_input(template : Skills::SkillTemplate, spec : String) : Solvers::SolverInput
+      private def llm_fix_lint(
+        spec : String,
+        lint_errors : Array(String),
+        template : Skills::SkillTemplate,
+      ) : String
+        response = @agent.prompt(
+          <<-CONTENT
+          #{FIX_SYSTEM}
+
+          SOLVER: #{template.solver}
+          SPECIFICATION:
+          #{spec}
+
+          LINT ERRORS:
+          #{lint_errors.join("\n")}
+
+          Fix the specification to resolve these lint errors and return only the corrected version.
+          CONTENT
+        ).send
+
+        clean_response(response)
+      end
+
+      private def build_solver_input(template : Skills::SkillTemplate, spec : String) : Solvers::SolverInput?
         if template.solver == Solvers::SolverType::Z3
           Solvers::Z3SolverInput.new(smtlib: spec)
         else
@@ -229,9 +262,14 @@ module Chiasmus
         when Solvers::ErrorResult
           "Solver error: #{result.error}"
         when Solvers::UnsatResult
-          if result.unsat_core && !result.unsat_core.empty?
-            core_list = result.unsat_core.map { |c| "  - #{c}" }.join("\n")
-            "UNSAT — these assertions conflict:\n#{core_list}\nThe specification is over-constrained. Remove or weaken one of the conflicting assertions."
+          unsat_result = result.as(Solvers::UnsatResult)
+          if unsat_core = unsat_result.unsat_core
+            if !unsat_core.empty?
+              core_list = unsat_core.map { |c| "  - #{c}" }.join("\n")
+              "UNSAT — these assertions conflict:\n#{core_list}\nThe specification is over-constrained. Remove or weaken one of the conflicting assertions."
+            else
+              "UNSAT — the constraints are contradictory. The specification is over-constrained."
+            end
           else
             "UNSAT — the constraints are contradictory. The specification is over-constrained."
           end
@@ -255,6 +293,68 @@ module Chiasmus
         else
           "Unknown solver result"
         end
+      end
+
+      # Lint a spec, applying auto-fixes and reporting errors.
+      # Returns the linted spec and any remaining errors.
+      private def lint_loop(spec : String, template : Skills::SkillTemplate, max_rounds : Int32) : {String, Array(String)}
+        current = spec
+        errors = [] of String
+
+        max_rounds.times do |round|
+          lint_result = Formalize.lint_spec(current, template.solver)
+          current = lint_result.spec
+
+          if lint_result.errors.empty?
+            return {current, [] of String}
+          end
+
+          # If we have errors and this is the first round, try to fix common issues
+          if round == 0
+            # Try to apply some heuristic fixes
+            fixed = try_heuristic_fixes(current, lint_result.errors, template.solver)
+            if fixed != current
+              current = fixed
+              next
+            end
+          end
+
+          errors = lint_result.errors
+          break
+        end
+
+        {current, errors}
+      end
+
+      private def try_heuristic_fixes(spec : String, errors : Array(String), solver : Solvers::SolverType) : String
+        fixed = spec
+
+        errors.each do |error|
+          # Try to fix missing periods in Prolog
+          if error.includes?("No clauses ending with a period") && solver == Solvers::SolverType::Prolog
+            # Add period to last line if missing
+            lines = fixed.lines
+            if !lines.empty? && !lines.last.strip.ends_with?('.')
+              lines[-1] = "#{lines.last.strip}."
+              fixed = lines.join("\n")
+            end
+          end
+
+          # Try to fix unbalanced parentheses
+          if error.includes?("Unbalanced parentheses")
+            # Simple heuristic: add missing closing parens at end
+            depth = 0
+            fixed.each_char do |ch|
+              depth += 1 if ch == '('
+              depth -= 1 if ch == ')'
+            end
+            if depth > 0
+              fixed = "#{fixed}#{")" * depth}"
+            end
+          end
+        end
+
+        fixed
       end
     end
   end

@@ -83,9 +83,8 @@ module Chiasmus
 
       # Clear chiasmus cache
       def clear_cache
-        if Dir.exists?(chiasmus_cache_dir)
-          FileUtils.rm_rf(chiasmus_cache_dir)
-        end
+        return unless Dir.exists?(chiasmus_cache_dir)
+        FileUtils.rm_rf(chiasmus_cache_dir)
       end
 
       # Get state directory (for things that should persist but aren't config or cache)
