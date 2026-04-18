@@ -4,6 +4,14 @@
 
 This repository is a Crystal port of [yogthos/chiasmus](https://github.com/yogthos/chiasmus), an MCP server for formal verification with Z3 SMT solver, Tau Prolog, and tree-sitter-based source code analysis.
 
+## Technology Stack
+
+- **LLM Driver**: Using `crig` as the LLM driver with the crig API (not vendor API)
+- **Prolog Integration**: Using `crolog` to drive SWI-Prolog
+- **Concurrency**: Ensure non-blocking operations using Go/Crystal concurrency patterns (spawn, channels, fibers)
+
+**Important**: When implementing LLM or Prolog interactions, use non-blocking patterns to maintain system responsiveness. Prefer Crystal's `spawn` for concurrent operations and `Channel` for communication between fibers.
+
 ## Source of Truth
 
 The upstream source is pinned as a git submodule at `vendor/chiasmus` (tracking `main` branch).
