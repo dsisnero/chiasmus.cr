@@ -1,18 +1,16 @@
+---
 name: chiasmus
 version: 0.1.0
-
 authors:
-  - Dominic Sisneros <dsisnero@gmail.com>
-
+- Dominic Sisneros <dsisnero@gmail.com>
 targets:
   chiasmus:
     main: src/chiasmus.cr
-
-crystal: '>= 1.19.1'
-
+crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:
-    github: crystal-lang-tools/crystal-tree-sitter
+    github: dsisnero/crystal-tree-sitter
+    branch: feat/null-safety-convenience-methods
   mcp:
     github: spider-gazelle/mcp.cr
   z3:
@@ -21,10 +19,10 @@ dependencies:
     github: bcardiff/crolog
   crig:
     github: dsisnero/crig
-
+  json-schema:
+    github: spider-gazelle/json-schema
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba
-    version: ~> 1.0
-
+    version: "~> 1.0"
 license: MIT
