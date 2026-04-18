@@ -68,7 +68,7 @@ module Chiasmus
         end
         lines << "" unless graph.contains.empty?
 
-        effective_entry_points = entry_points || graph.exports.map(&.name).uniq
+        effective_entry_points = entry_points || graph.exports.map(&.name).uniq!
         effective_entry_points.each do |entry_point|
           lines << "entry_point(#{escape_atom(entry_point)})."
         end

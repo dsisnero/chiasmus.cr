@@ -1,4 +1,5 @@
 require "./parser"
+require "./walkers"
 
 module Chiasmus
   module Graph
@@ -40,10 +41,21 @@ module Chiasmus
             exports.concat(partial.exports)
             contains.concat(partial.contains)
           else
-            # For now, we don't have language-specific walkers implemented
-            # This is a placeholder for future implementation
-            # TODO: Implement language-specific walkers
-            nil
+            # Use language-specific walkers
+            scope_stack = [] of String
+            case lang
+            when "clojure"
+              Walkers.walk_clojure(tree.root_node, file.content, file.path, defines, calls, imports, exports, call_set)
+            when "python"
+              Walkers.walk_python(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+            when "go"
+              Walkers.walk_go(tree.root_node, file.content, file.path, defines, calls, imports, exports, contains, call_set)
+            when "crystal"
+              Walkers.walk_crystal(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+            else
+              # Generic walker for JavaScript/TypeScript and other languages
+              Walkers.walk_node(tree.root_node, file.content, file.path, lang, scope_stack, defines, calls, imports, exports, contains, call_set)
+            end
           end
         end
 

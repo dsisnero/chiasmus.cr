@@ -58,7 +58,7 @@ module Chiasmus
 
         if grammar_dir = paths[language]?
           # Convert to Path for the original load_language method
-          path = Path.new(grammar_dir)
+          _ = Path.new(grammar_dir)
 
           # We need to call the protected load_shared_object method
           # For now, we'll try to use the public API
@@ -77,7 +77,7 @@ module Chiasmus
 
       # Get all available languages
       def self.available_languages : Array(String)
-        extended_language_paths.keys.sort
+        extended_language_paths.keys.sort!
       end
 
       # Initialize with default paths
