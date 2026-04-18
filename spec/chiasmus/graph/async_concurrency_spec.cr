@@ -74,7 +74,7 @@ end
 class Chiasmus::Graph::AsyncGrammarManagerV2
   def self.test_reset(cache_dir : String)
     @@cache_dir = cache_dir
-    @@initialized = true
+    @@initialized = false
   end
 end
 
