@@ -1,33 +1,51 @@
 require "./types"
+require "crig"
 
 module Chiasmus
   module LLM
-    # Mock LLM adapter for testing
-    class MockAdapter < Adapter
-      @responses : Hash(String, String)
+    # Simple mock completion model for testing
+    class MockCompletionModel
+      include Crig::Completion::CompletionModel
 
-      def initialize
-        @responses = Hash(String, String).new
+      def completion(request : Crig::Completion::Request::CompletionRequest) : Crig::Completion::CompletionResponse(String)
+        # Return a simple mock response
+        Crig::Completion::CompletionResponse(String).new(
+          choice: Crig::OneOrMany(Crig::Completion::AssistantContent).one(
+            Crig::Completion::AssistantContent.new(
+              kind: Crig::Completion::AssistantContent::Kind::Text,
+              text: Crig::Completion::Text.new("Mock response")
+            )
+          ),
+          usage: Crig::Completion::Usage.new(
+            input_tokens: 10,
+            output_tokens: 20,
+            total_tokens: 30
+          ),
+          raw_response: "Mock response"
+        )
       end
 
-      def add_response(key : String, response : String) : Nil
-        @responses[key] = response
+      def stream(request : Crig::Completion::Request::CompletionRequest)
+        raise "Mock streaming not implemented"
       end
 
-      def complete(system : String, messages : Array(LLMMessage)) : String
-        # For testing, return a canned response based on the last user message
-        last_message = messages.last?
-        return "" unless last_message && last_message.role == "user"
+      def completion_request(prompt : Crig::Completion::Message | String) : Crig::Completion::Request::CompletionRequestBuilder
+        Crig::Completion::Request::CompletionRequestBuilder.new(prompt)
+      end
+    end
 
-        # Try to find a matching response
-        @responses.each do |key, response|
-          if last_message.content.includes?(key)
-            return response
-          end
-        end
+    # Mock client for testing
+    class MockClient
+      def agent(model : String) : Crig::AgentBuilder(MockCompletionModel)
+        Crig::AgentBuilder(MockCompletionModel).new(MockCompletionModel.new, model)
+      end
+    end
 
-        # Default response
-        "Mock LLM response for: #{last_message.content[0..50]}..."
+    # Helper methods for testing
+    module MockAdapter
+      def self.create_agent : Crig::Agent(MockCompletionModel)
+        client = MockClient.new
+        client.agent("mock").build
       end
     end
   end
