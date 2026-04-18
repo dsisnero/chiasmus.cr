@@ -30,10 +30,10 @@ module Chiasmus
           skeleton: "(declare-const {{SLOT:rule1}} Bool)\n(declare-const {{SLOT:rule2}} Bool)\n(assert (and {{SLOT:rule1}} {{SLOT:rule2}}))",
           slots: [
             SlotDef.new(name: "rule1", description: "First authorization rule", format: "Boolean expression"),
-            SlotDef.new(name: "rule2", description: "Second authorization rule", format: "Boolean expression")
+            SlotDef.new(name: "rule2", description: "Second authorization rule", format: "Boolean expression"),
           ],
           normalizations: [
-            Normalization.new(source: "natural language rule", transform: "Convert to Boolean logic")
+            Normalization.new(source: "natural language rule", transform: "Convert to Boolean logic"),
           ],
           tips: ["Use (= flag (or ...)) not (=> ... flag) for Z3"],
           example: nil
@@ -108,7 +108,7 @@ module Chiasmus
         end
 
         # Sort by score and limit
-        results.sort_by(&.score).reverse.first(limit)
+        results.sort_by(&.score).reverse!.first(limit)
       end
 
       # Record a template use (success or failure)
@@ -176,7 +176,7 @@ module Chiasmus
           template.domain,
           template.signature,
           *template.slots.map(&.description),
-          *template.normalizations.map { |n| "#{n.source} #{n.transform}" }
+          *template.normalizations.map { |n| "#{n.source} #{n.transform}" },
         ].join(" ").downcase
 
         query_terms = query.downcase.split(/\s+/)
