@@ -5,12 +5,8 @@
 
 # Don't ignore docs/ - baseline docs must be committed
 
-# Ignore all lib/ except crolog which we're patching
-/lib/*
-!/lib/crolog/
-/lib/crolog/*
-!/lib/crolog/src/
-!/lib/crolog/src/**
+# Ignore all lib/ dependencies (installed by shards)
+/lib/
 /temp
 
 # Temporary directories for shard patching

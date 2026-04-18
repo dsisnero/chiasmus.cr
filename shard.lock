@@ -25,8 +25,8 @@ shards:
     version: 1.0.5+git.commit.2b3abbcdca426a2a13a39b986326f9a2f7f65bc6
 
   crolog:
-    git: https://github.com/bcardiff/crolog.git
-    version: 0.0.2+git.commit.23b571295c742a84086d848591cc8b13d88cd292
+    git: https://github.com/dsisnero/crolog.git
+    version: 0.0.2+git.commit.984f92fe994877400e3dc32f0a6abdd03649316a
 
   db:
     git: https://github.com/crystal-lang/crystal-db.git
