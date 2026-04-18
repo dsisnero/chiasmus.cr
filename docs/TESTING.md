@@ -10,9 +10,14 @@ This project uses a test-driven porting approach:
 
 ## Test Structure
 
-- **Unit tests**: `spec/unit/` - Test individual components in isolation
+- **Unit tests**: `spec/chiasmus/` - Test individual components
+  - `spec/chiasmus/graph/` - Tree-sitter and code analysis tests
+  - `spec/chiasmus/solvers/` - Z3, Prolog, and hybrid solver tests
+  - `spec/chiasmus/mcp_server/` - MCP server and tool tests
+  - `spec/chiasmus/llm/` - LLM integration tests
 - **Integration tests**: `spec/integration/` - Test component interactions
-- **Porting tests**: `spec/porting/` - Tests ported from upstream
+- **Porting tests**: Tests ported from upstream TypeScript implementation
+- **Current status**: 57 examples, 0 failures, 0 errors, 0 pending
 
 ## Running Tests
 
@@ -33,8 +38,10 @@ crystal spec --fail-fast
 ## Test Dependencies
 
 - **Crystal spec**: Built-in testing framework
-- **WebMock** (if needed): HTTP request mocking
-- **Timecop** (if needed): Time manipulation for tests
+- **SWI-Prolog**: Required for Prolog solver tests
+- **Z3**: Optional for SMT solver tests (tests skip if not available)
+- **Tree-sitter grammars**: Built parsers for language analysis tests
+- **Test fixtures**: Sample code files in `spec/fixtures/`
 
 ## Porting TypeScript Tests
 
@@ -92,7 +99,7 @@ it "handles async operations" do
     result = async_operation
     channel.send(result)
   end
-  
+
   result = channel.receive
   result.should_not be_nil
 end

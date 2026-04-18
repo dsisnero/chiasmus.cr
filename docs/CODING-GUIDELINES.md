@@ -48,16 +48,23 @@ end
 
 When porting TypeScript code:
 
-1. **Preserve behavior exactly** - Don't "improve" logic unless it fixes a bug
-2. **Map types carefully**:
+1. **Upstream behavior is source of truth** - Port behavior first, then express with Crystal idioms
+2. **Map types carefully** (see complete mapping in [DEVELOPMENT.md](DEVELOPMENT.md)):
    - `string` → `String`
-   - `number` → `Int32`/`Int64`/`Float64` (choose based on usage)
+   - `number` → Preserve signedness/range (`Int32`, `Int64`, `Float64`, `UInt8`, etc.)
    - `boolean` → `Bool`
    - `any` → Use union types or generic constraints
    - `Promise<T>` → `Future(T)` or `Channel(T)`
+   - `Map<K, V>` → `Hash(K, V)`
+   - `Array<T>` → `Array(T)`
+   - `Set<T>` → `Set(T)`
+   - `Buffer` → `Bytes` (`Slice(UInt8)`)
 3. **Handle async patterns**:
    - `async/await` → `spawn` + `Channel` or `Future`
-   - Callbacks → blocks or `Proc` types
+   - Use non-blocking patterns for LLM calls, Prolog queries, Z3 solving
+   - Preserve Go/Crystal concurrency patterns for MCP server responsiveness
+4. **Use JSON::Serializable** for cleaner JSON handling in MCP tools
+5. **Apply Crystal strengths** when appropriate (performance improvements, idiomatic patterns)
 
 ### Testing Conventions
 
