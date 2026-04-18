@@ -1,7 +1,6 @@
 # Chiasmus.cr
 
 [![CI](https://github.com/dsisnero/chiasmus.cr/actions/workflows/ci.yml/badge.svg)](https://github.com/dsisnero/chiasmus.cr/actions/workflows/ci.yml)
-[![GitHub release](https://img.shields.io/github/v/release/dsisnero/chiasmus.cr)](https://github.com/dsisnero/chiasmus.cr/releases)
 
 **Crystal port of [yogthos/chiasmus](https://github.com/yogthos/chiasmus)** - an MCP server for formal verification with Z3 SMT solver, Tau Prolog, and tree-sitter-based source code analysis.
 
@@ -11,11 +10,23 @@ Chiasmus.cr gives LLMs access to formal verification via Z3 (SMT solver) and SWI
 
 ## 📚 Documentation
 
+### Core Documentation
 - **[AGENTS.md](AGENTS.md)** - Agent engineering guide and porting workflow
 - **[CLAUDE.md](CLAUDE.md)** - Project overview and development guidelines
-- **[docs/](docs/)** - Technical documentation
 - **[plans/inventory/](plans/inventory/)** - Porting inventory and parity tracking
 - **[vendor/chiasmus/README.md](vendor/chiasmus/README.md)** - Upstream documentation
+
+### Technical Documentation ([docs/](docs/))
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and design decisions
+- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development setup and workflow
+- **[TESTING.md](docs/TESTING.md)** - Testing strategy and guidelines
+- **[CODING-GUIDELINES.md](docs/CODING-GUIDELINES.md)** - Code style and conventions
+- **[PR-WORKFLOW.md](docs/PR-WORKFLOW.md)** - Pull request workflow
+- **[INDEX.md](docs/INDEX.md)** - Complete documentation index
+
+### Reference
+- **[lib_issues/](lib_issues/)** - Shard patch tracking and upstream issues
+- **[spec/](spec/)** - Test suite and examples
 
 ## 🚀 Quick Start
 
