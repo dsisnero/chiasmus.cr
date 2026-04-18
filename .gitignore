@@ -37,3 +37,6 @@ src/grammar.json
 src/node-types.json
 walkers
 extractor
+
+# Tree-sitter build artifacts
+src/tree_sitter/
