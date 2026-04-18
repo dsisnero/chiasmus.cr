@@ -492,3 +492,15 @@ tests/z3-solver.test.ts::test::returns unsat core for trivially unsat assertion	
 tests/z3-solver.test.ts::test::returns unsat core with named assertions for contradictory constraints	test	missing	-	auto-generated
 tests/z3-solver.test.ts::test::returns unsat for contradictory constraints	test	missing	-	auto-generated
 tests/z3-solver.test.ts::test::strips check-sat and get-model from input without breaking	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::created template appears in chiasmus_skills search	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::creates a template via MCP	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::filters by solver type	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::gets a template by exact name	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::includes related templates in by-name lookup	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::includes suggestions for related templates	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::includes unsatCore in unsat Z3 response	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::lists all templates when no query or name given	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::lists chiasmus_formalize in available tools	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::lists chiasmus_lint in available tools	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::lists chiasmus_skills in available tools	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
+tests/mcp-server.test.ts::test::lists chiasmus_solve in available tools	test	ported	spec/chiasmus/mcp_server/tools/*_spec.cr	MCP server tests ported
