@@ -20,35 +20,37 @@ module Chiasmus
         @model : String = ENV["CHIASMUS_LLM_MODEL"]? || Crig::Providers::OpenAI::GPT_4O_MINI,
         @preamble : String = DEFAULT_PREAMBLE,
       )
-        # Try to get API key from environment if not provided
-        if @api_key.nil?
-          @api_key = case @provider.downcase
-                     when "openai"    then ENV["OPENAI_API_KEY"]?
-                     when "deepseek"  then ENV["DEEPSEEK_API_KEY"]?
-                     when "anthropic" then ENV["ANTHROPIC_API_KEY"]?
-                     when "gemini"    then ENV["GEMINI_API_KEY"]?
-                     when "groq"      then ENV["GROQ_API_KEY"]?
-                     when "ollama"    then ENV["OLLAMA_API_KEY"]?
-                     when "mistral"   then ENV["MISTRAL_API_KEY"]?
-                     when "cohere"    then ENV["COHERE_API_KEY"]?
-                     else                  nil
-                     end
+        provider_name = @provider.downcase
+        @api_key ||= self.class.api_key_from_env(provider_name)
+        @base_url ||= self.class.base_url_from_env(provider_name)
+      end
+
+      def self.api_key_from_env(provider : String) : String?
+        case provider
+        when "openai"    then ENV["OPENAI_API_KEY"]?
+        when "deepseek"  then ENV["DEEPSEEK_API_KEY"]?
+        when "anthropic" then ENV["ANTHROPIC_API_KEY"]?
+        when "gemini"    then ENV["GEMINI_API_KEY"]?
+        when "groq"      then ENV["GROQ_API_KEY"]?
+        when "ollama"    then ENV["OLLAMA_API_KEY"]?
+        when "mistral"   then ENV["MISTRAL_API_KEY"]?
+        when "cohere"    then ENV["COHERE_API_KEY"]?
+        else                  nil
         end
+      end
 
-        # Try to get base URL from environment if not provided
-        return unless @base_url.nil?
-
-        @base_url = case @provider.downcase
-                    when "openai"    then ENV["OPENAI_BASE_URL"]?
-                    when "deepseek"  then ENV["DEEPSEEK_BASE_URL"]?
-                    when "anthropic" then ENV["ANTHROPIC_BASE_URL"]?
-                    when "gemini"    then ENV["GEMINI_BASE_URL"]?
-                    when "groq"      then ENV["GROQ_BASE_URL"]?
-                    when "ollama"    then ENV["OLLAMA_BASE_URL"]?
-                    when "mistral"   then ENV["MISTRAL_BASE_URL"]?
-                    when "cohere"    then ENV["COHERE_BASE_URL"]?
-                    else                  nil
-                    end
+      def self.base_url_from_env(provider : String) : String?
+        case provider
+        when "openai"    then ENV["OPENAI_BASE_URL"]?
+        when "deepseek"  then ENV["DEEPSEEK_BASE_URL"]?
+        when "anthropic" then ENV["ANTHROPIC_BASE_URL"]?
+        when "gemini"    then ENV["GEMINI_BASE_URL"]?
+        when "groq"      then ENV["GROQ_BASE_URL"]?
+        when "ollama"    then ENV["OLLAMA_BASE_URL"]?
+        when "mistral"   then ENV["MISTRAL_BASE_URL"]?
+        when "cohere"    then ENV["COHERE_BASE_URL"]?
+        else                  nil
+        end
       end
     end
 
@@ -64,44 +66,36 @@ module Chiasmus
     # Get a Crig client builder for a specific provider
     # This exposes the full Crig builder API for maximum flexibility
     module Builders
+      private def self.apply_optional_client_settings(builder, api_key : String?, base_url : String?)
+        configured_builder = builder
+        configured_builder = configured_builder.api_key(api_key) if api_key
+        configured_builder = configured_builder.base_url(base_url) if base_url
+        configured_builder
+      end
+
       # OpenAI client builder
       def self.openai(api_key : String? = ENV["OPENAI_API_KEY"]?, base_url : String? = ENV["OPENAI_BASE_URL"]?)
-        builder = Crig::Providers::OpenAI::Client.builder
-        builder = builder.api_key(api_key.not_nil!) if api_key
-        builder = builder.base_url(base_url.not_nil!) if base_url
-        builder
+        apply_optional_client_settings(Crig::Providers::OpenAI::Client.builder, api_key, base_url)
       end
 
       # DeepSeek client builder
       def self.deepseek(api_key : String? = ENV["DEEPSEEK_API_KEY"]?, base_url : String? = ENV["DEEPSEEK_BASE_URL"]?)
-        builder = Crig::Providers::DeepSeek::Client.builder
-        builder = builder.api_key(api_key.not_nil!) if api_key
-        builder = builder.base_url(base_url.not_nil!) if base_url
-        builder
+        apply_optional_client_settings(Crig::Providers::DeepSeek::Client.builder, api_key, base_url)
       end
 
       # Anthropic client builder
       def self.anthropic(api_key : String? = ENV["ANTHROPIC_API_KEY"]?, base_url : String? = ENV["ANTHROPIC_BASE_URL"]?)
-        builder = Crig::Providers::Anthropic::Client.builder
-        builder = builder.api_key(api_key.not_nil!) if api_key
-        builder = builder.base_url(base_url.not_nil!) if base_url
-        builder
+        apply_optional_client_settings(Crig::Providers::Anthropic::Client.builder, api_key, base_url)
       end
 
       # Gemini client builder
       def self.gemini(api_key : String? = ENV["GEMINI_API_KEY"]?, base_url : String? = ENV["GEMINI_BASE_URL"]?)
-        builder = Crig::Providers::Gemini::Client.builder
-        builder = builder.api_key(api_key.not_nil!) if api_key
-        builder = builder.base_url(base_url.not_nil!) if base_url
-        builder
+        apply_optional_client_settings(Crig::Providers::Gemini::Client.builder, api_key, base_url)
       end
 
       # Groq client builder
       def self.groq(api_key : String? = ENV["GROQ_API_KEY"]?, base_url : String? = ENV["GROQ_BASE_URL"]?)
-        builder = Crig::Providers::Groq::Client.builder
-        builder = builder.api_key(api_key.not_nil!) if api_key
-        builder = builder.base_url(base_url.not_nil!) if base_url
-        builder
+        apply_optional_client_settings(Crig::Providers::Groq::Client.builder, api_key, base_url)
       end
 
       # Ollama client builder (Ollama doesn't use API keys)
@@ -109,32 +103,26 @@ module Chiasmus
         builder = Crig::Providers::Ollama::Client.builder
         # Ollama's api_key() method expects Crig::Nothing
         builder = builder.api_key(Crig::Nothing.new)
-        builder = builder.base_url(base_url.not_nil!) if base_url
+        builder = builder.base_url(base_url) if base_url
         builder
       end
 
       # Mistral client builder
       def self.mistral(api_key : String? = ENV["MISTRAL_API_KEY"]?, base_url : String? = ENV["MISTRAL_BASE_URL"]?)
-        builder = Crig::Providers::Mistral::Client.builder
-        builder = builder.api_key(api_key.not_nil!) if api_key
-        builder = builder.base_url(base_url.not_nil!) if base_url
-        builder
+        apply_optional_client_settings(Crig::Providers::Mistral::Client.builder, api_key, base_url)
       end
 
       # Cohere client builder
       def self.cohere(api_key : String? = ENV["COHERE_API_KEY"]?, base_url : String? = ENV["COHERE_BASE_URL"]?)
-        builder = Crig::Providers::Cohere::Client.builder
-        builder = builder.api_key(api_key.not_nil!) if api_key
-        builder = builder.base_url(base_url.not_nil!) if base_url
-        builder
+        apply_optional_client_settings(Crig::Providers::Cohere::Client.builder, api_key, base_url)
       end
 
       # Azure OpenAI client builder
       def self.azure_openai(api_key : String? = ENV["AZURE_OPENAI_API_KEY"]?, base_url : String? = ENV["AZURE_OPENAI_BASE_URL"]?)
         builder = Crig::Providers::Azure::Client.builder
-        builder = builder.api_key(api_key.not_nil!) if api_key
+        builder = builder.api_key(api_key) if api_key
         # Azure uses azure_endpoint instead of base_url
-        builder = builder.azure_endpoint(base_url.not_nil!) if base_url
+        builder = builder.azure_endpoint(base_url) if base_url
         builder
       end
     end

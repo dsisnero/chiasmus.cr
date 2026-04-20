@@ -80,7 +80,7 @@ module Chiasmus
         # Run correction loop with LLM as fixer
         correction_result = Solvers.correction_loop(
           initial_input,
-          ->(attempt : Solvers::CorrectionAttempt, error : String, _round : Int32, result : Solvers::SolverResult?) do
+          ->(attempt : Solvers::CorrectionAttempt, error : String, _round : Int32, result : Solvers::SolverResult?, _previous_input : Solvers::SolverInput?) : Solvers::SolverInput? do
             feedback = if result
                          classify_feedback(result)
                        else
@@ -262,37 +262,43 @@ module Chiasmus
         when Solvers::ErrorResult
           "Solver error: #{result.error}"
         when Solvers::UnsatResult
-          unsat_result = result.as(Solvers::UnsatResult)
-          if unsat_core = unsat_result.unsat_core
-            if !unsat_core.empty?
-              core_list = unsat_core.map { |c| "  - #{c}" }.join("\n")
-              "UNSAT — these assertions conflict:\n#{core_list}\nThe specification is over-constrained. Remove or weaken one of the conflicting assertions."
-            else
-              "UNSAT — the constraints are contradictory. The specification is over-constrained."
-            end
-          else
-            "UNSAT — the constraints are contradictory. The specification is over-constrained."
-          end
+          classify_unsat_feedback(result)
         when Solvers::SatResult
-          if result.model.empty?
-            "SAT — the constraints are satisfiable (trivially, no variables)."
-          else
-            model_str = result.model.map { |k, v| "#{k} = #{v}" }.join(", ")
-            "SAT — the solver found a satisfying assignment: #{model_str}. If this was unexpected, the spec may be under-constrained."
-          end
+          classify_sat_feedback(result)
         when Solvers::SuccessResult
-          if result.answers.empty?
-            "No Prolog solutions found. Check if facts and rules cover the query pattern. Verify clause heads match."
-          else
-            ans_str = result.answers.first(5).map(&.formatted).join("; ")
-            suffix = result.answers.size > 5 ? " (and #{result.answers.size - 5} more)" : ""
-            "Prolog found #{result.answers.size} answer(s): #{ans_str}#{suffix}"
-          end
+          classify_prolog_feedback(result)
         when Solvers::UnknownResult
           "Solver returned UNKNOWN — the problem may be too complex or outside the solver's decidable fragment. Try simplifying constraints."
         else
           "Unknown solver result"
         end
+      end
+
+      private def classify_unsat_feedback(result : Solvers::UnsatResult) : String
+        unsat_core = result.unsat_core
+        return generic_unsat_feedback if unsat_core.nil? || unsat_core.empty?
+
+        core_list = unsat_core.map { |core_item| "  - #{core_item}" }.join("\n")
+        "UNSAT — these assertions conflict:\n#{core_list}\nThe specification is over-constrained. Remove or weaken one of the conflicting assertions."
+      end
+
+      private def classify_sat_feedback(result : Solvers::SatResult) : String
+        return "SAT — the constraints are satisfiable (trivially, no variables)." if result.model.empty?
+
+        model_str = result.model.map { |k, v| "#{k} = #{v}" }.join(", ")
+        "SAT — the solver found a satisfying assignment: #{model_str}. If this was unexpected, the spec may be under-constrained."
+      end
+
+      private def classify_prolog_feedback(result : Solvers::SuccessResult) : String
+        return "No Prolog solutions found. Check if facts and rules cover the query pattern. Verify clause heads match." if result.answers.empty?
+
+        ans_str = result.answers.first(5).map(&.formatted).join("; ")
+        suffix = result.answers.size > 5 ? " (and #{result.answers.size - 5} more)" : ""
+        "Prolog found #{result.answers.size} answer(s): #{ans_str}#{suffix}"
+      end
+
+      private def generic_unsat_feedback : String
+        "UNSAT — the constraints are contradictory. The specification is over-constrained."
       end
 
       # Lint a spec, applying auto-fixes and reporting errors.
@@ -344,9 +350,9 @@ module Chiasmus
           if error.includes?("Unbalanced parentheses")
             # Simple heuristic: add missing closing parens at end
             depth = 0
-            fixed.each_char do |ch|
-              depth += 1 if ch == '('
-              depth -= 1 if ch == ')'
+            fixed.each_char do |char|
+              depth += 1 if char == '('
+              depth -= 1 if char == ')'
             end
             if depth > 0
               fixed = "#{fixed}#{")" * depth}"

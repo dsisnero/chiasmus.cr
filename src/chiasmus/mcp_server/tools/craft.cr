@@ -7,82 +7,110 @@ module Chiasmus
   module MCPServer
     module Tools
       class CraftTool
+        VALID_DOMAINS = ["authorization", "configuration", "dependency", "validation", "rules", "analysis", "custom"]
+
         def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          name = arguments["name"]?.try(&.as_s?)
-          domain = arguments["domain"]?.try(&.as_s?)
-          solver = arguments["solver"]?.try(&.as_s?)
-          signature = arguments["signature"]?.try(&.as_s?)
-          skeleton = arguments["skeleton"]?.try(&.as_s?)
-          slots = arguments["slots"]?.try(&.as_h?)
-          normalization = arguments["normalization"]?.try(&.as_h?)
-          test = arguments["test"]?.try(&.as_bool?) || false
-          test_example = arguments["test_example"]?.try(&.as_s?)
+          params = extract_params(arguments)
+          error = validate_required_params(params)
+          return error if error
 
-          return Types::ErrorResponse.new("Missing required parameters: name, domain, solver, signature, skeleton, slots").to_json.as_h unless name && domain && solver && signature && skeleton && slots
+          solver_type = parse_solver_type(params[:solver])
+          return error_response("Unknown solver: #{params[:solver]}") unless solver_type
 
-          solver_type = case solver
-                        when "z3"     then Solvers::SolverType::Z3
-                        when "prolog" then Solvers::SolverType::Prolog
-                        else
-                          return Types::ErrorResponse.new("Unknown solver: #{solver}").to_json.as_h
-                        end
+          domain = params[:domain]
+          return invalid_domain_response(domain) unless VALID_DOMAINS.includes?(domain)
 
-          # Validate domain
-          valid_domains = ["authorization", "configuration", "dependency", "validation", "rules", "analysis", "custom"]
-          unless valid_domains.includes?(domain)
-            return Types::ErrorResponse.new("Invalid domain: #{domain}. Must be one of: #{valid_domains.join(", ")}").to_json.as_h
+          template = build_template(params, solver_type)
+          test_failure = verify_template(template, params[:test], params[:test_example])
+          return test_failure if test_failure
+
+          Skills::Library.instance.add_template(template)
+          success_response(template.name)
+        rescue ex
+          error_response(ex.message || ex.class.name)
+        end
+
+        private def extract_params(arguments : Hash(String, JSON::Any)) : NamedTuple(
+          name: String?,
+          domain: String?,
+          solver: String?,
+          signature: String?,
+          skeleton: String?,
+          slots: Hash(String, JSON::Any)?,
+          normalization: Hash(String, JSON::Any)?,
+          test: Bool,
+          test_example: String?)
+          {
+            name:          arguments["name"]?.try(&.as_s?),
+            domain:        arguments["domain"]?.try(&.as_s?),
+            solver:        arguments["solver"]?.try(&.as_s?),
+            signature:     arguments["signature"]?.try(&.as_s?),
+            skeleton:      arguments["skeleton"]?.try(&.as_s?),
+            slots:         arguments["slots"]?.try(&.as_h?),
+            normalization: arguments["normalization"]?.try(&.as_h?),
+            test:          arguments["test"]?.try(&.as_bool?) || false,
+            test_example:  arguments["test_example"]?.try(&.as_s?),
+          }
+        end
+
+        private def validate_required_params(params) : Hash(String, JSON::Any)?
+          return if params[:name] && params[:domain] && params[:solver] && params[:signature] && params[:skeleton] && params[:slots]
+
+          error_response("Missing required parameters: name, domain, solver, signature, skeleton, slots")
+        end
+
+        private def parse_solver_type(solver : String?) : Solvers::SolverType?
+          case solver
+          when "z3"     then Solvers::SolverType::Z3
+          when "prolog" then Solvers::SolverType::Prolog
+          else               nil
           end
+        end
 
-          # Parse slots
-          slot_defs = parse_slots(slots)
-
-          # Parse normalization recipes
-          norm_recipes = parse_normalization(normalization) if normalization
-
-          # Create template
-          template = Skills::Template.new(
-            name: name,
-            domain: domain,
+        private def build_template(params, solver_type : Solvers::SolverType) : Skills::Template
+          Skills::Template.new(
+            name: params[:name].as(String),
+            domain: params[:domain].as(String),
             solver: solver_type,
-            signature: signature,
-            skeleton: skeleton,
-            slots: slot_defs,
-            normalization: norm_recipes || {} of String => String,
+            signature: params[:signature].as(String),
+            skeleton: params[:skeleton].as(String),
+            slots: parse_slots(params[:slots].as(Hash(String, JSON::Any))),
+            normalization: params[:normalization] ? parse_normalization(params[:normalization].as(Hash(String, JSON::Any))) : {} of String => String,
             uses: 0,
             successes: 0,
             created_at: Time.utc
           )
+        end
 
-          # Test if requested
-          if test
-            return Types::ErrorResponse.new("Test example required when test=true").to_json.as_h unless test_example
+        private def verify_template(template : Skills::Template, test : Bool, test_example : String?) : Hash(String, JSON::Any)?
+          return unless test
+          return error_response("Test example required when test=true") unless test_example
 
-            # Run verification test
-            test_result = Formalize.verify_spec(
-              spec: test_example,
-              solver: solver_type
-            )
+          test_result = Formalize.verify_spec(spec: test_example, solver: template.solver)
+          return if test_result.success?
 
-            unless test_result.success?
-              return {
-                "status"      => JSON::Any.new("test_failed"),
-                "template"    => JSON::Any.new(name),
-                "test_result" => JSON::Any.new(test_result.to_h),
-                "message"     => JSON::Any.new("Template created but test failed"),
-              }
-            end
-          end
+          {
+            "status"      => JSON::Any.new("test_failed"),
+            "template"    => JSON::Any.new(template.name),
+            "test_result" => JSON::Any.new(test_result.to_h),
+            "message"     => JSON::Any.new("Template created but test failed"),
+          }
+        end
 
-          # Add to skill library
-          Skills::Library.instance.add_template(template)
-
+        private def success_response(name : String) : Hash(String, JSON::Any)
           {
             "status"   => JSON::Any.new("success"),
             "template" => JSON::Any.new(name),
             "message"  => JSON::Any.new("Template created and added to skill library"),
           }
-        rescue ex
-          Types::ErrorResponse.new(ex.message || ex.class.name).to_json.as_h
+        end
+
+        private def invalid_domain_response(domain : String?) : Hash(String, JSON::Any)
+          error_response("Invalid domain: #{domain}. Must be one of: #{VALID_DOMAINS.join(", ")}")
+        end
+
+        private def error_response(message : String) : Hash(String, JSON::Any)
+          Types::ErrorResponse.new(message).to_json.as_h
         end
 
         private def parse_slots(slots_hash : Hash(String, JSON::Any)) : Hash(String, String)

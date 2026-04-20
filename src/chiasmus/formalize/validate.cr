@@ -143,9 +143,9 @@ module Chiasmus
 
       # Check: balanced parentheses
       depth = 0
-      stripped.each_char do |ch|
-        depth += 1 if ch == '('
-        depth -= 1 if ch == ')'
+      stripped.each_char do |char|
+        depth += 1 if char == '('
+        depth -= 1 if char == ')'
         if depth < 0
           errors << "Unmatched closing parenthesis"
           break

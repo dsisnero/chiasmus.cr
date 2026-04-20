@@ -1,3 +1,5 @@
+require "./factory"
+
 module Chiasmus
   module Solvers
     class CorrectionLoopOptions
@@ -23,25 +25,12 @@ module Chiasmus
       current_input = initial_input
 
       options.max_rounds.times do |round|
-        # Create a solver session and run
-        solver_type = current_input.type
-        solver = case solver_type
-                 when SolverType::Z3
-                   # TODO: Create actual Z3 solver
-                   nil
-                 when SolverType::Prolog
-                   # TODO: Create actual Prolog solver
-                   nil
-                 else
-                   nil
-                 end
-
-        result = if solver
-                   solver.solve(current_input)
-                 else
-                   # Mock error for now
-                   ErrorResult.new(error: "Solver not implemented")
-                 end
+        solver = Factory.build(current_input)
+        result = begin
+          solver.solve(current_input)
+        ensure
+          solver.dispose
+        end
 
         # Record attempt
         attempt = CorrectionAttempt.new(
@@ -62,7 +51,7 @@ module Chiasmus
         end
 
         # Ask fixer to patch the spec
-        fixed_input = fixer.call(attempt, result.error, round, result)
+        fixed_input = fixer.call(attempt, result.error, round, result, current_input)
         break unless fixed_input # fixer gave up
 
         current_input = fixed_input

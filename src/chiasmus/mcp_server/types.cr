@@ -45,12 +45,12 @@ module Chiasmus
       # Solve tool response
       struct SolveResponse < Response
         getter result : SolverResultJSON
-        getter converged : Bool
+        getter? converged : Bool
         getter rounds : Int32
         getter template_used : String?
         getter answers : Array(PrologAnswerJSON)
         getter history : Array(CorrectionAttemptJSON)
-        getter fallback : Bool = false
+        getter? fallback : Bool = false
         getter message : String? = nil
 
         def initialize(@result : SolverResultJSON, @converged : Bool, @rounds : Int32,
@@ -58,6 +58,14 @@ module Chiasmus
                        @history : Array(CorrectionAttemptJSON) = [] of CorrectionAttemptJSON,
                        @fallback : Bool = false, @message : String? = nil)
           super("success")
+        end
+
+        def converged : Bool
+          @converged
+        end
+
+        def fallback : Bool
+          @fallback
         end
       end
 
@@ -180,9 +188,13 @@ module Chiasmus
         getter reuse_count : Int32
         getter success_count : Int32
         getter last_used : String?
-        getter promoted : Bool
+        getter? promoted : Bool
 
         def initialize(@reuse_count : Int32, @success_count : Int32, @last_used : String? = nil, @promoted : Bool = false)
+        end
+
+        def promoted : Bool
+          @promoted
         end
       end
 
@@ -202,7 +214,7 @@ module Chiasmus
         when Solvers::SuccessResult
           SolverResultJSON.new(
             status: "success",
-            answers: result.answers.map { |a| PrologAnswerJSON.new(a.bindings, a.formatted) },
+            answers: result.answers.map { |answer| PrologAnswerJSON.new(answer.bindings, answer.formatted) },
             trace: result.trace
           )
         when Solvers::ErrorResult
@@ -250,8 +262,8 @@ module Chiasmus
           solver: template.solver.to_s.downcase,
           signature: template.signature,
           skeleton: template.skeleton,
-          slots: template.slots.map { |s| SlotJSON.new(s.name, s.description, s.format) },
-          normalizations: template.normalizations.map { |n| NormalizationJSON.new(n.source, n.transform) },
+          slots: template.slots.map { |slot| SlotJSON.new(slot.name, slot.description, slot.format) },
+          normalizations: template.normalizations.map { |normalization| NormalizationJSON.new(normalization.source, normalization.transform) },
           tips: template.tips || [] of String,
           example: template.example || ""
         )

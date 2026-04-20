@@ -1,5 +1,6 @@
 # chiasmus_verify tool - Submit formal logic to solver
 require "mcp"
+require "../../solvers/factory"
 require "../../solvers/z3_solver"
 require "../../solvers/prolog_cr_solver"
 require "../../solvers/prolog_solver"
@@ -23,16 +24,13 @@ module Chiasmus
 
           case solver
           when "z3"
-            solver_input = Solvers::Z3SolverInput.new(smtlib: spec)
-            solver_result = Solvers::Z3Solver.new.solve(solver_input)
-            success_hash(z3_result_json(solver_result))
+            success_hash(run_z3(spec))
           when "prolog"
             return error_hash("queries array is not supported yet") if queries
             return error_hash("Only raw prolog input is supported") unless format == "raw"
             return error_hash("Query parameter required for prolog solver") unless query
 
-            solver_result = Solvers::PrologSolver.new.solve(spec, query, explain)
-            success_hash(prolog_result_json(solver_result))
+            success_hash(run_prolog(spec, query, explain))
           else
             error_hash("Unknown solver: #{solver}")
           end
@@ -109,8 +107,7 @@ DESC
         end
 
         private def self.handle_z3(spec : String) : MCP::Protocol::CallToolResult
-          solver = Solvers::Z3Solver.new
-          result = solver.solve(spec)
+          result = execute_z3(spec)
 
           content = case result.status
                     when "sat"
@@ -140,8 +137,7 @@ DESC
             return error_result("Query parameter required for prolog solver")
           end
 
-          solver = Solvers::PrologSolver.new
-          result = solver.solve(spec, query, explain)
+          result = execute_prolog(spec, query, explain)
 
           content = case result
                     when Solvers::SuccessResult
@@ -187,6 +183,33 @@ DESC
             "status" => JSON::Any.new("error"),
             "error"  => JSON::Any.new(message),
           }
+        end
+
+        private def run_z3(spec : String) : JSON::Any
+          z3_result_json(execute_z3(spec))
+        end
+
+        private def run_prolog(spec : String, query : String, explain : Bool) : JSON::Any
+          prolog_result_json(execute_prolog(spec, query, explain))
+        end
+
+        private def execute_z3(spec : String) : Solvers::SolverResult
+          solver_input = Solvers::Z3SolverInput.new(smtlib: spec)
+          execute_solver(solver_input)
+        end
+
+        private def execute_prolog(spec : String, query : String, explain : Bool) : Solvers::SolverResult
+          solver_input = Solvers::PrologSolverInput.new(program: spec, query: query, explain: explain)
+          execute_solver(solver_input)
+        end
+
+        private def execute_solver(input : Solvers::SolverInput) : Solvers::SolverResult
+          solver = Solvers::Factory.build(input)
+          begin
+            solver.solve(input)
+          ensure
+            solver.dispose
+          end
         end
 
         private def z3_result_json(result : Solvers::SolverResult) : JSON::Any

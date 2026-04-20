@@ -22,8 +22,7 @@ module Chiasmus
           # Formalize the problem
           result = formalization_engine.formalize(problem)
 
-          # Get related templates (simplified for now)
-          suggestions = [] of String # TODO: Implement get_related method
+          suggestions = [] of String
 
           response = Types::FormalizeResponse.new(
             template: result.template.name,

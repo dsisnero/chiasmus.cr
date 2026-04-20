@@ -23,7 +23,7 @@ module Chiasmus
             template = library.get(name)
             return Types::ErrorResponse.new("Template '#{name}' not found").to_json.as_h unless template
 
-            suggestions = [] of String # TODO: Implement get_related
+            suggestions = [] of String
 
             response = Types::SkillsResponse.new(
               templates: [Types.template_to_json(template)],
@@ -40,7 +40,7 @@ module Chiasmus
             results = library.search(query || "", search_options)
 
             response = Types::SkillsResponse.new(
-              templates: results.map { |r| Types.skill_search_result_to_json(r).template }
+              templates: results.map { |search_result| Types.skill_search_result_to_json(search_result).template }
             )
           end
 

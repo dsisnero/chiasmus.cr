@@ -93,7 +93,7 @@ module Chiasmus
         wrapper = "findall(#{projection}, (#{module_name}:(#{goal})), Results)"
         term = parse_term(wrapper)
         return QueryRowsResult.new([] of Array(String), last_exception) unless term
-        parsed_term = term.not_nil!
+        parsed_term = term
 
         call_predicate = LibProlog.predicate("call", 1, nil)
         args = LibProlog.new_term_refs(1)
@@ -170,7 +170,7 @@ module Chiasmus
       private def call_goal(goal : String) : String?
         term = parse_term(goal)
         return last_exception unless term
-        parsed_term = term.not_nil!
+        parsed_term = term
 
         call_predicate = LibProlog.predicate("call", 1, nil)
         args = LibProlog.new_term_refs(1)
@@ -301,31 +301,21 @@ module Chiasmus
 
         program.each_char do |char|
           if in_single_quote
-            current << char
-            if escaped
-              escaped = false
-            elsif char == '\\'
-              escaped = true
-            elsif char == '\''
-              in_single_quote = false
-            end
+            in_single_quote, escaped = handle_quoted_char(current, char, escaped)
             next
           end
 
           case char
           when '\''
+            start_quoted_section(current, char)
             in_single_quote = true
-            current << char
           when '(', '[', '{'
-            depth += 1
-            current << char
+            depth = append_nested_char(current, char, depth, 1)
           when ')', ']', '}'
-            depth -= 1 if depth > 0
-            current << char
+            depth = append_nested_char(current, char, depth, -1)
           when '.'
             if depth == 0
-              clause = current.to_s.strip
-              clauses << clause unless clause.empty?
+              flush_clause(clauses, current)
               current = String::Builder.new
             else
               current << char
@@ -338,6 +328,31 @@ module Chiasmus
         trailing = current.to_s.strip
         clauses << trailing unless trailing.empty?
         clauses
+      end
+
+      private def handle_quoted_char(current : String::Builder, char : Char, escaped : Bool) : {Bool, Bool}
+        current << char
+
+        return {true, false} if escaped
+        return {true, true} if char == '\\'
+        return {false, false} if char == '\''
+
+        {true, false}
+      end
+
+      private def start_quoted_section(current : String::Builder, char : Char) : Nil
+        current << char
+      end
+
+      private def append_nested_char(current : String::Builder, char : Char, depth : Int32, direction : Int32) : Int32
+        current << char
+        next_depth = depth + direction
+        next_depth < 0 ? 0 : next_depth
+      end
+
+      private def flush_clause(clauses : Array(String), current : String::Builder) : Nil
+        clause = current.to_s.strip
+        clauses << clause unless clause.empty?
       end
     end
   end

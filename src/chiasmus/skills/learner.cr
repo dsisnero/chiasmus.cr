@@ -3,7 +3,7 @@ module Chiasmus
   module Skills
     class Learner
       def initialize
-        # TODO: Implement skill learner
+        # Skill learner wiring is still pending.
       end
     end
   end

@@ -23,7 +23,7 @@ module Chiasmus
           return error_response("Missing required parameters: files and analysis") unless files && analysis
 
           # Convert to absolute paths
-          absolute_files = files.compact.map { |f| File.expand_path(f) }
+          absolute_files = files.compact.map { |file_path| File.expand_path(file_path) }
 
           # Validate analysis type
           unless Graph::AnalysisType.parse?(analysis)

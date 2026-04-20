@@ -20,8 +20,7 @@ module Chiasmus
         # Load starter templates (simplified for now)
         templates = Hash(String, SkillTemplate).new
 
-        # TODO: Load actual starter templates
-        # For now, create a minimal template
+        # Starter templates are still bootstrapped inline for now.
         templates["policy-contradiction"] = SkillTemplate.new(
           name: "policy-contradiction",
           domain: "authorization",
@@ -176,7 +175,7 @@ module Chiasmus
           template.domain,
           template.signature,
           *template.slots.map(&.description),
-          *template.normalizations.map { |n| "#{n.source} #{n.transform}" },
+          *template.normalizations.map { |normalization| "#{normalization.source} #{normalization.transform}" },
         ].join(" ").downcase
 
         query_terms = query.downcase.split(/\s+/)

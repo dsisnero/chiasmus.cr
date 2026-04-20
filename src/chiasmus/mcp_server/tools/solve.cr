@@ -31,12 +31,12 @@ module Chiasmus
             converged: result.converged,
             rounds: result.rounds,
             template_used: result.template_used,
-            answers: result.answers.map { |a| Types::PrologAnswerJSON.new(a.bindings, a.formatted) },
-            history: result.history.map { |h|
+            answers: result.answers.map { |answer| Types::PrologAnswerJSON.new(answer.bindings, answer.formatted) },
+            history: result.history.map { |attempt|
               Types::CorrectionAttemptJSON.new(
-                Types.solver_input_to_json(h.input),
-                h.result ? Types.solver_result_to_json(h.result) : nil,
-                h.error
+                Types.solver_input_to_json(attempt.input),
+                attempt.result ? Types.solver_result_to_json(attempt.result) : nil,
+                attempt.error
               )
             }
           )

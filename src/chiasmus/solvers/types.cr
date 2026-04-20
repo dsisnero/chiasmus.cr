@@ -80,9 +80,13 @@ module Chiasmus
       getter type : SolverType
       getter program : String
       getter query : String
-      getter explain : Bool
+      getter? explain : Bool
 
       def initialize(@program : String, @query : String, @explain : Bool = false, @type : SolverType = SolverType::Prolog)
+      end
+
+      def explain : Bool
+        @explain
       end
     end
 
@@ -97,15 +101,19 @@ module Chiasmus
 
     struct CorrectionResult
       getter result : SolverResult
-      getter converged : Bool
+      getter? converged : Bool
       getter rounds : Int32
       getter history : Array(CorrectionAttempt)
 
       def initialize(@result : SolverResult, @converged : Bool, @rounds : Int32, @history : Array(CorrectionAttempt))
       end
+
+      def converged : Bool
+        @converged
+      end
     end
 
-    alias SpecFixer = Proc(CorrectionAttempt, String, Int32, SolverResult?, SolverInput?)
+    alias SpecFixer = Proc(CorrectionAttempt, String, Int32, SolverResult?, SolverInput?, SolverInput?)
 
     abstract class Solver
       abstract def type : SolverType
