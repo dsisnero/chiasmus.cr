@@ -68,7 +68,7 @@ module Chiasmus
 
       private def self.setup_tree_sitter_config
         # Create tree-sitter config directory if it doesn't exist
-        config_dir = get_tree_sitter_config_dir
+        config_dir = tree_sitter_config_dir
         tree_sitter_config_dir = File.join(config_dir, "tree-sitter")
         Dir.mkdir_p(tree_sitter_config_dir)
 
@@ -101,7 +101,7 @@ module Chiasmus
         # Parsing can still succeed with already-installed grammars, so continue.
       end
 
-      private def self.get_tree_sitter_config_dir : String
+      private def self.tree_sitter_config_dir : String
         Utils::XDG.tree_sitter_config_dir
       end
 

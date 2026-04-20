@@ -30,11 +30,11 @@ module Chiasmus
           if adapter
             partial = adapter.extract(tree.root_node, file.path)
             defines.concat(partial.defines)
-            partial.calls.each do |c|
-              key = "#{c.caller}->#{c.callee}"
+            partial.calls.each do |call_fact|
+              key = "#{call_fact.caller}->#{call_fact.callee}"
               unless call_set.includes?(key)
                 call_set.add(key)
-                calls << c
+                calls << call_fact
               end
             end
             imports.concat(partial.imports)
@@ -69,7 +69,7 @@ module Chiasmus
       end
 
       private def get_adapter(language : String) : LanguageAdapter?
-        # TODO: Implement adapter registry
+        # Adapter registry integration is still pending.
         nil
       end
     end

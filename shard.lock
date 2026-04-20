@@ -4,6 +4,10 @@ shards:
     git: https://github.com/crystal-ameba/ameba.git
     version: 1.6.4
 
+  bidi:
+    git: https://github.com/dsisnero/bidi.git
+    version: 0.1.0+git.commit.a849cf60bac065668fe70e5ce09854b2bd5f5cbc
+
   cml:
     git: https://github.com/dsisnero/cml.git
     version: 0.5.0+git.commit.b7bfd828d2533fc3f5e2bade212f8a5eba240daf
@@ -46,7 +50,7 @@ shards:
 
   pdfbox:
     git: https://github.com/dsisnero/pdfbox.git
-    version: 0.1.0+git.commit.be383c4373b9e2ae285fe38e6bf57e20f753295f
+    version: 0.1.0+git.commit.ae434c50b22ad54ce4f630136e8c18d52d0053be
 
   pg:
     git: https://github.com/will/crystal-pg.git

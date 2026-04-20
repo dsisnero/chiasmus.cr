@@ -6,7 +6,6 @@ require "../../../src/chiasmus/utils/result"
 require "../../../src/chiasmus/utils/timeout"
 require "../../../src/chiasmus/utils/xdg"
 require "../../../src/chiasmus/graph/grammar_operations"
-require "../../../src/chiasmus/graph/async_grammar_manager_v2"
 require "../../../src/chiasmus/graph/grammar_manager"
 require "../../../src/chiasmus/graph/universal_parser"
 require "../../../src/chiasmus/graph/async_universal_parser_v2"
@@ -26,8 +25,11 @@ end
 
 class Chiasmus::Graph::GrammarManager
   def self.test_reset(cache_dir : String? = nil)
-    @@cache_dir = cache_dir
-    @@initialized = false
+    @@mutex.synchronize do
+      @@instance = nil
+      @@cache_dir = cache_dir
+      @@initialized = false
+    end
   end
 end
 
@@ -35,13 +37,6 @@ class Chiasmus::Graph::UniversalParser
   def self.test_reset
     @@initialized = false
     @@grammar_cache.clear
-  end
-end
-
-class Chiasmus::Graph::AsyncGrammarManagerV2
-  def self.test_reset(cache_dir : String? = nil)
-    @@cache_dir = cache_dir
-    @@initialized = false
   end
 end
 
@@ -56,7 +51,6 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
   TreeSitter::Repository.test_reset
   Chiasmus::Graph::GrammarManager.test_reset
   Chiasmus::Graph::UniversalParser.test_reset
-  Chiasmus::Graph::AsyncGrammarManagerV2.test_reset
 
   begin
     yield
@@ -77,7 +71,6 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
     TreeSitter::Repository.test_reset
     Chiasmus::Graph::GrammarManager.test_reset
     Chiasmus::Graph::UniversalParser.test_reset
-    Chiasmus::Graph::AsyncGrammarManagerV2.test_reset
   end
 end
 
@@ -113,7 +106,7 @@ module Chiasmus
       end
 
       it "lists supported extensions" do
-        exts = Parser.get_supported_extensions
+        exts = Parser.supported_extensions
         exts.should contain ".ts"
         exts.should contain ".js"
         exts.should contain ".tsx"

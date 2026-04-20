@@ -6,6 +6,8 @@ authors:
 targets:
   chiasmus:
     main: src/chiasmus.cr
+  chiasmus-grammar:
+    main: src/chiasmus_grammar.cr
 crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:

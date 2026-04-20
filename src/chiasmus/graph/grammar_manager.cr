@@ -1,146 +1,326 @@
 require "file_utils"
 require "process"
 require "json"
-require "../utils/xdg"
+require "tree_sitter"
+require "./grammar_operations"
 require "./language_loader"
-require "./async_grammar_manager_v2"
+require "./language_registry"
+require "./grammar_metadata"
+require "./embedded_grammars"
+require "../utils/xdg"
 require "../utils/timeout"
 require "../utils/result"
 
 module Chiasmus
   module Graph
-    # Manages tree-sitter grammars: downloading, building, and caching
+    # Single, non-blocking async GrammarManager using Crystal/Go-style concurrency
+    # All operations are async by default, using fibers and channels
     class GrammarManager
+      @@instance : GrammarManager?
       @@cache_dir : String?
       @@initialized = false
+      @@mutex = Mutex.new
 
-      # Grammar dependencies: language => [required_languages]
-      GRAMMAR_DEPENDENCIES = {
-        # TypeScript family depends on JavaScript
-        "typescript" => ["javascript"],
-        "tsx"        => ["javascript"],
+      # Singleton instance
+      def self.instance : GrammarManager
+        @@instance ||= new
+      end
 
-        # C++ depends on C
-        "cpp" => ["c"],
-
-        # Some grammars might have other dependencies
-        # Note: tree-sitter-c-sharp might not have dependencies
-        # Note: tree-sitter-markdown depends on tree-sitter-markdown-inline
-      }
-
-      # Preferred installation methods for each language
-      PREFERRED_METHODS = {
-        # JavaScript/TypeScript family - best via npm
-        "javascript" => :npm,
-        "typescript" => :npm,
-        "tsx"        => :npm,
-
-        # Python, Rust, Crystal - good via git
-        "python"  => :git,
-        "rust"    => :git,
-        "crystal" => :git,
-
-        # C/C++ family - git
-        "c"      => :git,
-        "cpp"    => :git,
-        "csharp" => :git,
-
-        # Java family - git
-        "java"   => :git,
-        "kotlin" => :git,
-        "scala"  => :git,
-
-        # Ruby - git
-        "ruby" => :git,
-
-        # PHP - git
-        "php" => :git,
-
-        # Swift - git
-        "swift" => :git,
-
-        # Haskell - git
-        "haskell" => :git,
-
-        # Web technologies - git
-        "html" => :git,
-        "css"  => :git,
-
-        # Shell - git
-        "bash" => :git,
-
-        # Configuration formats - git
-        "json" => :git,
-        "yaml" => :git,
-        "toml" => :git,
-
-        # Markdown - git
-        "markdown" => :git,
-
-        # SQL - git
-        "sql" => :git,
-
-        # Other languages - git
-        "lua"    => :git,
-        "dart"   => :git,
-        "elixir" => :git,
-        "erlang" => :git,
-        "ocaml"  => :git,
-        "perl"   => :git,
-        "r"      => :git,
-        "zig"    => :git,
-
-        # Clojure - npm (WASM-based)
-        "clojure" => :npm,
-      }
-
-      # Initialize the grammar manager
+      # Initialize with cache directory (async-safe)
       def self.init(cache_dir : String? = nil)
         return if @@initialized
 
-        @@cache_dir = cache_dir || default_cache_dir
-        begin
-          Dir.mkdir_p(@@cache_dir.not_nil!)
-          migrate_legacy_cache_if_needed
-        rescue File::Error
-          # Best effort only; async path will report actual availability later.
+        @@mutex.synchronize do
+          return if @@initialized
+
+          @@cache_dir = cache_dir || default_cache_dir
+          if cache_dir = @@cache_dir
+            begin
+              Dir.mkdir_p(cache_dir)
+              migrate_legacy_cache_if_needed
+
+              # Extract embedded grammars if available
+              extract_embedded_grammars(cache_dir)
+            rescue File::Error
+              # Sandboxed environments may not permit cache directory creation.
+              # Keep the configured path and let later operations fail gracefully.
+            end
+          end
+
+          # Auto-create metadata for existing vendor grammars
+          auto_create_vendor_metadata
+
+          @@initialized = true
+        end
+      end
+
+      # Check if a grammar is available (async, non-blocking)
+      def grammar_available_async(language : String) : Channel(Utils::BoolResult)
+        channel = Channel(Utils::BoolResult).new
+
+        spawn do
+          begin
+            # Check via tree-sitter repository (fast path)
+            if TreeSitter::Repository.language_names.includes?(language)
+              channel.send(Utils::BoolResult.success)
+              next
+            end
+
+            # Check our cache
+            if cache_dir = @@cache_dir
+              available = grammar_cache_paths(language, cache_dir).any? do |so_path|
+                exists_channel = GrammarOperations.file_exists_async(so_path)
+                Utils::Timeout.with_timeout_async(5_000, exists_channel) == true
+              end
+
+              if available
+                channel.send(Utils::BoolResult.success)
+              else
+                channel.send(Utils::BoolResult.new(value: false))
+              end
+            else
+              channel.send(Utils::BoolResult.failure(
+                "Cache directory not initialized",
+                {"language" => language}
+              ))
+            end
+          rescue ex
+            channel.send(Utils::BoolResult.failure(
+              "Error checking grammar availability: #{ex.message}",
+              {"language" => language, "exception" => ex.class.to_s}
+            ))
+          end
         end
 
-        AsyncGrammarManagerV2.init(@@cache_dir)
-
-        @@initialized = true
+        channel
       end
 
-      # Ensure a grammar is available, downloading/building if necessary
+      # Get grammar path (async, non-blocking)
+      def get_grammar_path_async(language : String) : Channel(Utils::StringResult)
+        channel = Channel(Utils::StringResult).new
+
+        spawn do
+          begin
+            # Check tree-sitter repository first
+            language_paths = LanguageLoader.repository_language_paths
+            if path = language_paths[language]?
+              ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+              so_path = path.join("libtree-sitter-#{language}.#{ext}")
+
+              exists_channel = GrammarOperations.file_exists_async(so_path.to_s)
+              exists_result = Utils::Timeout.with_timeout_async(5_000, exists_channel)
+
+              if exists_result == true
+                channel.send(Utils::StringResult.success(so_path.to_s))
+                next
+              end
+            end
+
+            # Check cache
+            if cache_dir = @@cache_dir
+              found_path = grammar_cache_paths(language, cache_dir).find do |grammar_path|
+                exists_channel = GrammarOperations.file_exists_async(grammar_path)
+                Utils::Timeout.with_timeout_async(5_000, exists_channel) == true
+              end
+
+              if found_path
+                channel.send(Utils::StringResult.success(found_path))
+              else
+                channel.send(Utils::StringResult.failure(
+                  "Grammar not found in cache",
+                  {"language" => language, "cache_dir" => cache_dir}
+                ))
+              end
+            else
+              channel.send(Utils::StringResult.failure(
+                "Cache directory not initialized",
+                {"language" => language}
+              ))
+            end
+          rescue ex
+            channel.send(Utils::StringResult.failure(
+              "Error getting grammar path: #{ex.message}",
+              {"language" => language, "exception" => ex.class.to_s}
+            ))
+          end
+        end
+
+        channel
+      end
+
+      # Ensure a grammar is available (async, non-blocking)
+      # This is the main entry point for grammar acquisition
+      def ensure_grammar_async(language : String, timeout_ms : Int32 = 120_000) : Channel(Utils::BoolResult)
+        self.class.init
+
+        channel = Channel(Utils::BoolResult).new
+
+        spawn do
+          begin
+            # Check if already available with timeout
+            available_channel = grammar_available_async(language)
+            available_result = Utils::Timeout.with_timeout_async(5_000, available_channel)
+
+            unless available_result
+              channel.send(Utils::BoolResult.failure(
+                "Timeout checking if grammar is available",
+                {"language" => language}
+              ))
+              next
+            end
+
+            if available_result.success? && available_result.value == true
+              channel.send(Utils::BoolResult.success)
+              next
+            end
+
+            # Handle dependencies first (async, concurrent)
+            deps = LanguageRegistry.dependencies(language)
+            if !deps.empty?
+              deps_success = ensure_dependencies_async(deps)
+              unless deps_success
+                channel.send(Utils::BoolResult.failure(
+                  "Failed to ensure dependencies",
+                  {"language" => language, "dependencies" => deps.join(", ")}
+                ))
+                next
+              end
+            end
+
+            # Make the grammar available (async)
+            make_channel = make_grammar_available_async(language)
+            make_result = Utils::Timeout.with_timeout_async(timeout_ms, make_channel)
+
+            unless make_result
+              channel.send(Utils::BoolResult.failure(
+                "Timeout making grammar available",
+                {"language" => language, "timeout_ms" => timeout_ms.to_s}
+              ))
+              next
+            end
+
+            channel.send(make_result)
+          rescue ex
+            channel.send(Utils::BoolResult.failure(
+              "Error ensuring grammar: #{ex.message}",
+              {"language" => language, "exception" => ex.class.to_s}
+            ))
+          end
+        end
+
+        channel
+      end
+
+      # Clear cache (async, non-blocking)
+      def clear_cache_async : Channel(Utils::BoolResult)
+        channel = Channel(Utils::BoolResult).new
+
+        spawn do
+          begin
+            cache_dir = @@cache_dir
+            unless cache_dir && Dir.exists?(cache_dir)
+              channel.send(Utils::BoolResult.failure(
+                "Cache directory does not exist",
+                {"cache_dir" => cache_dir.to_s}
+              ))
+              next
+            end
+
+            # Remove all .dylib/.so files
+            ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+            Dir.glob(File.join(cache_dir, "**", "*.#{ext}")).each do |lib_file|
+              File.delete(lib_file)
+            end
+
+            # Remove empty directories
+            Dir.children(cache_dir).each do |dir|
+              dir_path = File.join(cache_dir, dir)
+              if Dir.exists?(dir_path) && Dir.empty?(dir_path)
+                Dir.delete(dir_path)
+              end
+            end
+
+            channel.send(Utils::BoolResult.success)
+          rescue ex
+            channel.send(Utils::BoolResult.failure(
+              "Error clearing cache: #{ex.message}",
+              {"exception" => ex.class.to_s}
+            ))
+          end
+        end
+
+        channel
+      end
+
+      # Get cache directory
+      def cache_dir : String?
+        @@cache_dir
+      end
+
+      # Sync wrapper for ensure_grammar_async
+      def ensure_grammar(language : String, timeout_ms : Int32 = 120_000) : Bool
+        channel = ensure_grammar_async(language, timeout_ms)
+        result = Utils::Timeout.with_timeout_async(timeout_ms, channel)
+        result ? result.success? && result.value == true : false
+      end
+
+      # Sync wrapper for get_grammar_path_async
+      def get_grammar_path(language : String) : String?
+        channel = get_grammar_path_async(language)
+        result = Utils::Timeout.with_timeout_async(5_000, channel)
+        result && result.success? ? result.value : nil
+      end
+
+      # Sync wrapper for grammar_available_async
+      def grammar_available?(language : String) : Bool
+        channel = grammar_available_async(language)
+        result = Utils::Timeout.with_timeout_async(5_000, channel)
+        result ? result.success? && result.value == true : false
+      end
+
+      # Class method wrappers for convenience
       def self.ensure_grammar(language : String, timeout_ms : Int32 = 120_000) : Bool
-        init unless @@initialized
-
-        ensure_channel = AsyncGrammarManagerV2.ensure_grammar_async(language, timeout_ms)
-        result = Utils::Timeout.with_timeout_async(timeout_ms, ensure_channel)
-        return false unless result
-
-        result.success? && result.value == true
+        instance.ensure_grammar(language, timeout_ms)
       end
 
-      # Check if a grammar is available in the system
-      def self.grammar_available?(language : String, timeout_ms : Int32 = 5_000) : Bool
-        # Check if we can get a path to the grammar
-        get_grammar_path(language, timeout_ms) != nil
+      def self.get_grammar_path(language : String) : String?
+        instance.get_grammar_path(language)
       end
 
-      # Get the path to a built grammar shared library
-      def self.get_grammar_path(language : String, timeout_ms : Int32 = 5_000) : String?
-        init unless @@initialized
-
-        path_channel = AsyncGrammarManagerV2.get_grammar_path_async(language)
-        result = Utils::Timeout.with_timeout_async(timeout_ms, path_channel)
-        return nil unless result && result.success?
-
-        result.value
+      def self.grammar_available?(language : String) : Bool
+        instance.grammar_available?(language)
       end
+
+      # Test helper to reset state
+      def self.test_reset(cache_dir : String? = nil)
+        @@mutex.synchronize do
+          @@instance = nil
+          @@cache_dir = cache_dir
+          @@initialized = false
+        end
+      end
+
+      # Private methods
 
       private def self.default_cache_dir : String
         Utils::XDG.grammar_cache_dir
+      end
+
+      # Extract embedded grammars to cache directory
+      private def self.extract_embedded_grammars(cache_dir : String)
+        # Only extract if we have embedded grammars
+        return unless EmbeddedGrammars.embedded?("python") # Check if any grammar is embedded
+
+        puts "[GrammarManager] Extracting embedded grammars to cache..." if ENV["CHIASMUS_DEBUG"]?
+
+        # Try to extract all embedded grammars
+        # If extraction fails, we'll fall back to downloading/building
+        begin
+          EmbeddedGrammars.extract_all_to_cache(cache_dir)
+        rescue ex
+          # Silently fail - we'll download/build grammars as needed
+          puts "[GrammarManager] Failed to extract embedded grammars: #{ex.message}" if ENV["CHIASMUS_DEBUG"]?
+        end
       end
 
       private def self.migrate_legacy_cache_if_needed
@@ -148,7 +328,8 @@ module Chiasmus
         return unless legacy_dir
         return unless Dir.exists?(legacy_dir)
 
-        cache_dir = @@cache_dir.not_nil!
+        cache_dir = @@cache_dir
+        return unless cache_dir
         return if same_path?(cache_dir, legacy_dir)
 
         Dir.children(legacy_dir).each do |entry|
@@ -158,10 +339,8 @@ module Chiasmus
 
           FileUtils.cp_r(source, dest)
         end
-      rescue ex
-        # Treat migration as best-effort so parsing still works when the XDG
-        # cache starts empty and no legacy cache is present.
-        puts "Warning: failed to migrate legacy grammar cache: #{ex.message}"
+      rescue File::Error
+        nil
       end
 
       private def self.legacy_cache_dir : String?
@@ -176,456 +355,707 @@ module Chiasmus
         File.expand_path(left) == File.expand_path(right)
       end
 
-      private def self.check_tree_sitter_cli : Bool
-        # Check if tree-sitter CLI is available
-        result = Process.run("which", ["tree-sitter"], output: Process::Redirect::Pipe, error: Process::Redirect::Pipe)
+      private def grammar_cache_paths(language : String, cache_dir : String) : Array(String)
+        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+        lib_name = "libtree-sitter-#{language}.#{ext}"
 
-        unless result.success?
-          puts "Warning: tree-sitter CLI not found."
-          puts "Install with: npm install -g tree-sitter-cli"
-          puts "Or build from source: https://tree-sitter.github.io/tree-sitter/creating-parsers#installation"
-          return false
+        paths = [] of String
+
+        # 1. Check in distribution grammars directory (relative to binary)
+        if binary_dir = get_binary_dir
+          dist_grammar_dir = File.join(binary_dir, "grammars")
+          paths << File.join(dist_grammar_dir, lib_name)
         end
 
-        true
+        # 2. Check in cache directory
+        paths << File.join(cache_dir, language, lib_name)
+        paths << File.join(cache_dir, "tree-sitter-#{language}", lib_name)
+
+        paths
       end
 
-      private def self.build_from_vendored_source(language : String) : Bool
-        # Look for vendored grammar source
-        source_dir = find_vendored_grammar_source(language)
-        return false unless source_dir && Dir.exists?(source_dir)
-
-        puts "  Found vendored source at: #{source_dir}"
-
-        # Build the grammar
-        build_grammar(source_dir, language)
+      # Get directory containing the binary
+      private def get_binary_dir : String?
+        # Try to get the directory of the running executable
+        Process.executable_path.try { |path| File.dirname(path) }
       end
 
-      private def self.find_vendored_grammar_source(language : String) : String?
-        # Check our vendored grammars directory
-        vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
+      # Ensure multiple dependencies concurrently (async)
+      private def ensure_dependencies_async(dependencies : Array(String)) : Bool
+        return true if dependencies.empty?
 
-        # Try direct match
-        grammar_dir = File.join(vendor_dir, "tree-sitter-#{language}")
-        return grammar_dir if Dir.exists?(grammar_dir)
-
-        # For TypeScript/TSX, check subdirectories
-        if language == "typescript"
-          ts_dir = File.join(vendor_dir, "tree-sitter-typescript", "typescript")
-          return ts_dir if Dir.exists?(ts_dir)
-        elsif language == "tsx"
-          tsx_dir = File.join(vendor_dir, "tree-sitter-typescript", "tsx")
-          return tsx_dir if Dir.exists?(tsx_dir)
+        channels = dependencies.map do |dep|
+          ensure_grammar_async(dep, 60_000)
         end
 
-        # Try to find by scanning
-        Dir.children(vendor_dir).each do |dir|
-          full_path = File.join(vendor_dir, dir)
-          next unless Dir.exists?(full_path)
-
-          # Check if this directory contains the language we need
-          if dir == "tree-sitter-typescript" && language.in?("typescript", "tsx")
-            subdir = File.join(full_path, language)
-            return subdir if Dir.exists?(subdir)
-          elsif dir == "tree-sitter-#{language}"
-            return full_path
+        success = true
+        channels.each do |channel|
+          result = Utils::Timeout.with_timeout_async(60_000, channel)
+          unless result && result.success? && result.value == true
+            success = false
+            break
           end
         end
 
-        nil
+        success
       end
 
-      private def self.build_grammar(source_dir : String, language : String) : Bool
-        puts "  Building grammar for #{language} from #{source_dir}..."
+      # Make a grammar available (main async logic)
+      private def make_grammar_available_async(language : String) : Channel(Utils::BoolResult)
+        channel = Channel(Utils::BoolResult).new
 
-        # Check for tree-sitter CLI
-        unless check_tree_sitter_cli
-          puts "  Cannot build without tree-sitter CLI"
-          return false
+        spawn do
+          begin
+            channel.send(install_grammar(language))
+          rescue ex
+            channel.send(Utils::BoolResult.failure(
+              "Error making grammar available: #{ex.message}",
+              {"language" => language, "exception" => ex.class.to_s}
+            ))
+          end
         end
 
-        # Check for C compiler
-        unless system("which cc > /dev/null 2>&1") || system("which gcc > /dev/null 2>&1") || system("which clang > /dev/null 2>&1")
-          puts "  C compiler not found. Install gcc or clang."
-          return false
-        end
-
-        original_dir = Dir.current
-        begin
-          Dir.cd(source_dir)
-
-          # Check for grammar.js in current directory or parent
-          grammar_js = "grammar.js"
-          unless File.exists?(grammar_js)
-            # Try parent directory (for TypeScript/TSX)
-            parent_dir = File.dirname(source_dir)
-            parent_grammar_js = File.join(parent_dir, "grammar.js")
-            if File.exists?(parent_grammar_js)
-              puts "    Using grammar.js from parent directory"
-              grammar_js = parent_grammar_js
-            else
-              puts "    grammar.js not found in #{source_dir} or parent"
-              return false
-            end
-          end
-
-          # Generate parser.c
-          puts "    Generating parser..."
-          unless system("tree-sitter generate #{grammar_js}")
-            puts "    Failed to generate parser"
-            return false
-          end
-
-          # Build shared library
-          puts "    Building shared library..."
-          ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-          output_file = "libtree-sitter-#{language}.#{ext}"
-
-          # Find source files
-          src_files = Dir.glob("src/*.c")
-          if src_files.empty?
-            puts "    No C source files found in src/"
-            return false
-          end
-
-          # Build command
-          build_cmd = "cc -shared -fPIC -I./src -o #{output_file} #{src_files.join(" ")}"
-          puts "    Running: #{build_cmd}"
-
-          unless system(build_cmd)
-            puts "    Failed to build shared library"
-            return false
-          end
-
-          # Install to cache directory
-          # Use tree-sitter-{language} directory structure for repository compatibility
-          ts_language_dir = File.join(@@cache_dir.not_nil!, "tree-sitter-#{language}")
-          Dir.mkdir_p(ts_language_dir)
-
-          # Copy .dylib/.so to the root
-          dest_file = File.join(ts_language_dir, output_file)
-          FileUtils.cp(output_file, dest_file)
-
-          # Also copy src/ directory with grammar.json
-          src_dir = File.join(ts_language_dir, "src")
-          Dir.mkdir_p(src_dir)
-
-          # Copy all .c files
-          Dir.glob("src/*.c").each do |c_file|
-            FileUtils.cp(c_file, File.join(src_dir, File.basename(c_file)))
-          end
-
-          # Copy grammar.json if it exists
-          grammar_json = File.join(source_dir, "src", "grammar.json")
-          if File.exists?(grammar_json)
-            FileUtils.cp(grammar_json, File.join(src_dir, "grammar.json"))
-          end
-
-          puts "    Built and cached at: #{dest_file}"
-
-          # Update tree-sitter config to include our cache directory
-          update_tree_sitter_config(File.dirname(ts_language_dir))
-
-          true
-        rescue ex
-          puts "    Error building grammar: #{ex.message}"
-          false
-        ensure
-          Dir.cd(original_dir)
-        end
+        channel
       end
 
-      private def self.download_and_build_from_github(language : String) : Bool
-        puts "  Downloading #{language} grammar from GitHub..."
-
-        # GitHub repository URL
-        repo_url = "https://github.com/tree-sitter/tree-sitter-#{language}.git"
-
-        # Download to cache directory
-        cache_dir = File.join(@@cache_dir.not_nil!, "sources", language)
-        Dir.mkdir_p(cache_dir)
-
-        # Check if already downloaded
-        if Dir.exists?(File.join(cache_dir, ".git"))
-          puts "    Already downloaded, updating..."
-          Dir.cd(cache_dir) do
-            unless system("git pull")
-              puts "    Failed to update repository"
-              return false
-            end
-          end
-        else
-          puts "    Cloning #{repo_url}"
-          unless system("git clone #{repo_url} #{cache_dir}")
-            puts "    Failed to clone repository"
-            return false
-          end
+      private def install_grammar(language : String) : Utils::BoolResult
+        preferred_method = LanguageRegistry.preferred_method(language)
+        if preferred_method && install_with_method(language, preferred_method, 90_000)
+          return Utils::BoolResult.success
         end
 
-        # Build the downloaded grammar
-        build_grammar(cache_dir, language)
+        return Utils::BoolResult.success if install_with_fallbacks(language)
+
+        Utils::BoolResult.failure(
+          "Failed to install grammar via any method",
+          {"language" => language}
+        )
       end
 
-      private def self.install_via_npm(language : String) : Bool
-        puts "  Installing #{language} grammar via npm..."
+      private def install_with_fallbacks(language : String) : Bool
+        install_with_method(language, :npm, 60_000) || install_with_method(language, :git, 60_000)
+      end
 
-        # Check if npm is available
-        unless system("which npm > /dev/null 2>&1")
-          puts "    npm not found"
-          return false
-        end
+      private def install_with_method(language : String, method : Symbol, timeout_ms : Int32) : Bool
+        channel = case method
+                  when :npm then install_via_npm_async(language)
+                  when :git then install_via_git_async(language)
+                  else           return false
+                  end
 
-        # npm package names for tree-sitter grammars
-        package_map = {
-          # JavaScript/TypeScript family
-          "javascript" => "tree-sitter-javascript",
-          "typescript" => "tree-sitter-typescript",
-          "tsx"        => "tree-sitter-typescript",
+        successful_result?(Utils::Timeout.with_timeout_async(timeout_ms, channel))
+      end
 
-          # Other languages available on npm
-          "c"        => "tree-sitter-c",
-          "cpp"      => "tree-sitter-cpp",
-          "csharp"   => "tree-sitter-c-sharp",
-          "python"   => "tree-sitter-python",
-          "go"       => "tree-sitter-go",
-          "java"     => "tree-sitter-java",
-          "kotlin"   => "tree-sitter-kotlin",
-          "ruby"     => "tree-sitter-ruby",
-          "rust"     => "tree-sitter-rust",
-          "php"      => "tree-sitter-php",
-          "swift"    => "tree-sitter-swift",
-          "haskell"  => "tree-sitter-haskell",
-          "html"     => "tree-sitter-html",
-          "css"      => "tree-sitter-css",
-          "bash"     => "tree-sitter-bash",
-          "json"     => "tree-sitter-json",
-          "yaml"     => "tree-sitter-yaml",
-          "toml"     => "tree-sitter-toml",
-          "markdown" => "tree-sitter-markdown",
-          "sql"      => "tree-sitter-sql",
-          "lua"      => "tree-sitter-lua",
-          "dart"     => "tree-sitter-dart",
-          "elixir"   => "tree-sitter-elixir",
-          "erlang"   => "tree-sitter-erlang",
-          "ocaml"    => "tree-sitter-ocaml",
-          "perl"     => "tree-sitter-perl",
-          "r"        => "tree-sitter-r",
-          "zig"      => "tree-sitter-zig",
-          "clojure"  => "@yogthos/tree-sitter-clojure",
-          "crystal"  => "tree-sitter-crystal",
-          "scala"    => "tree-sitter-scala",
-        }
+      private def successful_result?(result : Utils::BoolResult?) : Bool
+        return false unless result
 
-        package = package_map[language]?
-        return false unless package
+        result.success? && result.value == true
+      end
 
-        # Install directory - use a shared directory for npm packages
-        # This allows dependencies to be shared between languages
-        install_dir = File.join(@@cache_dir.not_nil!, "npm")
-        Dir.mkdir_p(install_dir)
+      # Install via npm (async)
+      private def install_via_npm_async(language : String) : Channel(Utils::BoolResult)
+        channel = Channel(Utils::BoolResult).new
 
-        # Install package
-        Dir.cd(install_dir) do
-          puts "    Installing #{package}..."
-
-          # Check if package is already installed
-          node_modules = File.join(install_dir, "node_modules")
-          package_dir = File.join(node_modules, package)
-
-          if Dir.exists?(package_dir)
-            puts "    Package already installed"
-          else
-            # Initialize package.json if it doesn't exist
-            unless File.exists?("package.json")
-              unless system("npm init -y > /dev/null 2>&1")
-                puts "    Failed to initialize npm project"
-                return false
-              end
+        spawn do
+          begin
+            package_name = LanguageRegistry.package_name(language)
+            unless package_name
+              channel.send(Utils::BoolResult.failure(
+                "No package name configured for language",
+                {"language" => language}
+              ))
+              next
             end
 
-            # Install the package
-            unless system("npm install #{package} > /dev/null 2>&1")
-              puts "    Failed to install #{package}"
-              return false
+            # Create temp directory
+            temp_dir = File.join(Dir.tempdir, "chiasmus-npm-#{Random.rand(1_000_000)}")
+            Dir.mkdir_p(temp_dir)
+
+            # Run npm install
+            output = IO::Memory.new
+            error = IO::Memory.new
+            status = Process.run("npm", ["install", package_name],
+              output: output,
+              error: error
+            )
+
+            unless status.success?
+              channel.send(Utils::BoolResult.failure(
+                "npm install failed",
+                {"language" => language, "package" => package_name, "error" => error.to_s}
+              ))
+              next
             end
-          end
 
-          # For TypeScript/TSX, need to look in subdirectories
-          if language == "typescript"
-            source_dir = File.join(package_dir, "typescript")
-          elsif language == "tsx"
-            source_dir = File.join(package_dir, "tsx")
-          else
-            source_dir = package_dir
-          end
+            # Find and copy the grammar
+            node_modules_path = File.join(temp_dir, "node_modules")
+            if Dir.exists?(node_modules_path)
+              # Look for the grammar file
+              grammar_found = copy_grammar_from_node_modules(language, node_modules_path, package_name)
 
-          if Dir.exists?(source_dir)
-            # For TypeScript/TSX, we need to build from the npm root directory
-            # because grammar.js references JavaScript grammar in node_modules
-            if language.in?("typescript", "tsx")
-              # Build from the npm directory root where node_modules is available
-              if build_grammar_from_npm_root(install_dir, source_dir, language)
-                # Also ensure JavaScript is built
-                js_package_dir = File.join(node_modules, "tree-sitter-javascript")
-                if Dir.exists?(js_package_dir)
-                  puts "    Building JavaScript dependency..."
-                  build_grammar(js_package_dir, "javascript")
+              if grammar_found
+                # Try to get package version from package.json
+                version = nil
+                package_json_path = File.join(node_modules_path, package_name, "package.json")
+                if File.exists?(package_json_path)
+                  begin
+                    package_data = JSON.parse(File.read(package_json_path))
+                    version = package_data["version"]?.try(&.as_s)
+                  rescue
+                    # Ignore errors
+                  end
                 end
-                return true
+
+                # Create metadata
+                if cache_dir = @@cache_dir
+                  cache_lib_dir = File.join(cache_dir, language)
+                  metadata = GrammarMetadata.new(
+                    url: "https://registry.npmjs.org/#{package_name}",
+                    type: "npm",
+                    version: version,
+                    package_name: package_name,
+                    language: language,
+                    installed_at: Time.utc,
+                    last_updated: Time.utc
+                  )
+
+                  GrammarMetadataStore.save(cache_lib_dir, metadata)
+                end
+
+                channel.send(Utils::BoolResult.success)
+              else
+                channel.send(Utils::BoolResult.failure(
+                  "Grammar not found in npm package",
+                  {"language" => language, "package" => package_name, "path" => node_modules_path}
+                ))
               end
             else
-              # Build from the npm-installed source
-              if build_grammar(source_dir, language)
-                return true
+              channel.send(Utils::BoolResult.failure(
+                "node_modules not created",
+                {"language" => language, "package" => package_name}
+              ))
+            end
+
+            # Cleanup
+            FileUtils.rm_rf(temp_dir) if Dir.exists?(temp_dir)
+          rescue ex
+            channel.send(Utils::BoolResult.failure(
+              "Error installing via npm: #{ex.message}",
+              {"language" => language, "exception" => ex.class.to_s}
+            ))
+          end
+        end
+
+        channel
+      end
+
+      # Install via git (async)
+      private def install_via_git_async(language : String) : Channel(Utils::BoolResult)
+        channel = Channel(Utils::BoolResult).new
+
+        spawn do
+          begin
+            package_name = LanguageRegistry.package_name(language)
+            unless package_name
+              channel.send(Utils::BoolResult.failure(
+                "No package name configured for language",
+                {"language" => language}
+              ))
+              next
+            end
+
+            # Create temp directory
+            temp_dir = File.join(Dir.tempdir, "chiasmus-git-#{Random.rand(1_000_000)}")
+            Dir.mkdir_p(temp_dir)
+
+            # Clone and build
+            Dir.cd(temp_dir) do
+              # Clone repository
+              repo_url = "https://github.com/tree-sitter/#{package_name}.git"
+              output = IO::Memory.new
+              error = IO::Memory.new
+              status = Process.run("git", ["clone", "--depth", "1", repo_url, "."],
+                output: output,
+                error: error
+              )
+
+              unless status.success?
+                channel.send(Utils::BoolResult.failure(
+                  "git clone failed",
+                  {"language" => language, "repo" => repo_url, "error" => error.to_s}
+                ))
+                next
+              end
+
+              # Build the grammar
+              build_result = build_grammar_async(language, temp_dir)
+
+              if build_result
+                # Try to get commit hash
+                commit_hash = nil
+                commit_output = IO::Memory.new
+                commit_error = IO::Memory.new
+                commit_result = Process.run("git", ["rev-parse", "HEAD"],
+                  output: commit_output,
+                  error: commit_error
+                )
+                if commit_result.success?
+                  commit_hash = commit_output.to_s.strip
+                end
+
+                # Create metadata
+                if cache_dir = @@cache_dir
+                  cache_lib_dir = File.join(cache_dir, language)
+                  metadata = GrammarMetadata.new(
+                    url: repo_url,
+                    type: "git",
+                    commit_hash: commit_hash,
+                    package_name: package_name,
+                    language: language,
+                    installed_at: Time.utc,
+                    last_updated: Time.utc
+                  )
+
+                  GrammarMetadataStore.save(cache_lib_dir, metadata)
+                end
+
+                channel.send(Utils::BoolResult.success)
+              else
+                channel.send(Utils::BoolResult.failure(
+                  "Failed to build grammar",
+                  {"language" => language, "path" => temp_dir}
+                ))
               end
             end
+
+            # Cleanup
+            FileUtils.rm_rf(temp_dir) if Dir.exists?(temp_dir)
+          rescue ex
+            channel.send(Utils::BoolResult.failure(
+              "Error installing via git: #{ex.message}",
+              {"language" => language, "exception" => ex.class.to_s}
+            ))
           end
+        end
+
+        channel
+      end
+
+      # Build grammar (async)
+      private def build_grammar_async(language : String, source_dir : String) : Bool
+        Dir.cd(source_dir) do
+          # Check if tree-sitter CLI is available
+          unless system("which tree-sitter > /dev/null 2>&1")
+            return false
+          end
+
+          # Generate parser
+          generate_output = IO::Memory.new
+          generate_error = IO::Memory.new
+          generate_status = Process.run("tree-sitter", ["generate"],
+            output: generate_output,
+            error: generate_error
+          )
+
+          return false unless generate_status.success?
+
+          # Build grammar
+          build_output = IO::Memory.new
+          build_error = IO::Memory.new
+          build_status = Process.run("tree-sitter", ["build"],
+            output: build_output,
+            error: build_error
+          )
+
+          return false unless build_status.success?
+
+          # Copy to cache
+          ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+          source_lib = "#{language}.#{ext}"
+          lib_name = "libtree-sitter-#{language}.#{ext}"
+
+          # Rename if needed
+          if File.exists?(source_lib) && !File.exists?(lib_name)
+            File.rename(source_lib, lib_name)
+          end
+
+          # Copy to cache
+          if cache_dir = @@cache_dir
+            cache_lib_dir = File.join(cache_dir, language)
+            Dir.mkdir_p(cache_lib_dir)
+
+            dest_lib = File.join(cache_lib_dir, lib_name)
+            if File.exists?(lib_name)
+              FileUtils.cp(lib_name, dest_lib)
+              return true
+            end
+          end
+
+          false
+        end
+      rescue
+        false
+      end
+
+      # Copy grammar from node_modules
+      private def copy_grammar_from_node_modules(language : String, node_modules_path : String, package_name : String) : Bool
+        # Look for the grammar file in various locations
+        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+        lib_name = "libtree-sitter-#{language}.#{ext}"
+
+        possible_paths = [
+          File.join(node_modules_path, package_name, lib_name),
+          File.join(node_modules_path, package_name, "build", "Release", lib_name),
+          File.join(node_modules_path, package_name, language + ".#{ext}"),
+        ]
+
+        source_path = possible_paths.find { |path| File.exists?(path) }
+        return false unless source_path
+
+        # Copy to cache
+        if cache_dir = @@cache_dir
+          cache_lib_dir = File.join(cache_dir, language)
+          Dir.mkdir_p(cache_lib_dir)
+
+          dest_lib = File.join(cache_lib_dir, lib_name)
+          FileUtils.cp(source_path, dest_lib)
+          return true
         end
 
         false
       end
 
-      private def self.build_grammar_from_npm_root(npm_root : String, source_dir : String, language : String) : Bool
-        puts "    Building #{language} from npm root #{npm_root}..."
+      # Metadata-related methods
 
-        # Check for tree-sitter CLI
-        unless check_tree_sitter_cli
-          puts "    Cannot build without tree-sitter CLI"
-          return false
-        end
+      # Auto-create metadata for existing vendor grammars
+      private def self.auto_create_vendor_metadata
+        vendor_grammars_dir = File.expand_path("../../vendor/grammars", __DIR__)
+        return unless Dir.exists?(vendor_grammars_dir)
 
-        # Check for C compiler
-        unless system("which cc > /dev/null 2>&1") || system("which gcc > /dev/null 2>&1") || system("which clang > /dev/null 2>&1")
-          puts "    C compiler not found. Install gcc or clang."
-          return false
-        end
-
-        original_dir = Dir.current
-        begin
-          # Change to npm root where node_modules is available
-          Dir.cd(npm_root)
-
-          # Build from the source directory relative to npm root
-          relative_source_dir = Path.new(source_dir).relative_to(npm_root)
-
-          # Generate parser.c
-          puts "    Generating parser..."
-          unless system("tree-sitter generate #{relative_source_dir}/grammar.js")
-            puts "    Failed to generate parser"
-            return false
-          end
-
-          # Change to source directory for building
-          Dir.cd(source_dir)
-
-          # Build shared library
-          puts "    Building shared library..."
-          ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-          output_file = "libtree-sitter-#{language}.#{ext}"
-
-          # Find source files
-          src_files = Dir.glob("src/*.c")
-          if src_files.empty?
-            puts "    No C source files found in src/"
-            return false
-          end
-
-          # Build command
-          build_cmd = "cc -shared -fPIC -I./src -o #{output_file} #{src_files.join(" ")}"
-          puts "    Running: #{build_cmd}"
-
-          unless system(build_cmd)
-            puts "    Failed to build shared library"
-            return false
-          end
-
-          # Install to cache directory
-          # Use tree-sitter-{language} directory structure for repository compatibility
-          ts_language_dir = File.join(@@cache_dir.not_nil!, "tree-sitter-#{language}")
-          Dir.mkdir_p(ts_language_dir)
-
-          # Copy .dylib/.so to the root
-          dest_file = File.join(ts_language_dir, output_file)
-          FileUtils.cp(output_file, dest_file)
-
-          # Also copy src/ directory with grammar.json
-          src_dir = File.join(ts_language_dir, "src")
-          Dir.mkdir_p(src_dir)
-
-          # Copy all .c files
-          Dir.glob("src/*.c").each do |c_file|
-            FileUtils.cp(c_file, File.join(src_dir, File.basename(c_file)))
-          end
-
-          # Copy grammar.json if it exists
-          grammar_json = File.join(source_dir, "src", "grammar.json")
-          if File.exists?(grammar_json)
-            FileUtils.cp(grammar_json, File.join(src_dir, "grammar.json"))
-          end
-
-          puts "    Built and cached at: #{dest_file}"
-
-          # Update tree-sitter config to include our cache directory
-          update_tree_sitter_config(File.dirname(ts_language_dir))
-
-          true
-        rescue ex
-          puts "    Error building grammar: #{ex.message}"
-          false
-        ensure
-          Dir.cd(original_dir)
+        created = GrammarMetadataStore.auto_create_for_existing(vendor_grammars_dir)
+        if created && ENV["CHIASMUS_DEBUG"]?
+          puts "[GrammarManager] Auto-created metadata for existing vendor grammars"
         end
       end
 
-      private def self.update_tree_sitter_config(grammar_dir : String)
-        config_dir = get_tree_sitter_config_dir
-        tree_sitter_config_dir = File.join(config_dir, "tree-sitter")
-        Dir.mkdir_p(tree_sitter_config_dir)
+      # Get metadata for a grammar
+      def get_grammar_metadata(language : String) : GrammarMetadata?
+        # Check cache directory first
+        if cache_dir = @@cache_dir
+          language_dir = File.join(cache_dir, language)
+          if Dir.exists?(language_dir)
+            metadata = GrammarMetadataStore.load(language_dir)
+            return metadata if metadata
 
-        config_file = File.join(tree_sitter_config_dir, "config.json")
-
-        parser_dirs = [] of String
-
-        # Read existing config if it exists
-        if File.exists?(config_file)
-          begin
-            config = File.read(config_file)
-            parsed = JSON.parse(config)
-            if dirs = parsed["parser-directories"]?.try(&.as_a)
-              parser_dirs = dirs.map(&.as_s)
+            # Auto-create metadata if grammar exists but no metadata
+            if grammar_directory?(language_dir)
+              metadata = auto_create_metadata_for_cache(language, language_dir)
+              return metadata if metadata
             end
-          rescue
-            # If config is invalid, start fresh
           end
         end
 
-        # Add our grammar directory if not already present
-        return if parser_dirs.includes?(grammar_dir)
-        parser_dirs << grammar_dir
+        # Check vendor directory
+        vendor_grammars_dir = File.expand_path("../../vendor/grammars", __DIR__)
+        grammar_dir = find_grammar_dir_in_vendor(language, vendor_grammars_dir)
+        if grammar_dir && Dir.exists?(grammar_dir)
+          return GrammarMetadataStore.load(grammar_dir)
+        end
 
-        # Write updated config
-        config = {
-          "parser-directories" => parser_dirs,
-        }
-
-        File.write(config_file, config.to_json)
-        puts "    Updated tree-sitter config at #{config_file}"
+        nil
       end
 
-      private def self.get_tree_sitter_config_dir : String
-        Utils::XDG.tree_sitter_config_dir
+      # Check if a grammar has updates available (async)
+      def update_check_async(language : String) : Channel(Utils::BoolResult)
+        channel = Channel(Utils::BoolResult).new
+
+        spawn do
+          begin
+            metadata = get_grammar_metadata(language)
+            unless metadata
+              channel.send(Utils::BoolResult.failure(
+                "No metadata found for grammar",
+                {"language" => language}
+              ))
+              next
+            end
+
+            case metadata.type
+            when "git"
+              result = check_git_updates_async(metadata)
+              channel.send(result)
+            when "npm"
+              result = check_npm_updates_async(metadata)
+              channel.send(result)
+            when "local"
+              # Local grammars don't have updates
+              channel.send(Utils::BoolResult.new(value: false))
+            else
+              channel.send(Utils::BoolResult.failure(
+                "Unknown grammar type",
+                {"language" => language, "type" => metadata.type}
+              ))
+            end
+          rescue ex
+            channel.send(Utils::BoolResult.failure(
+              "Error checking for updates: #{ex.message}",
+              {"language" => language, "exception" => ex.class.to_s}
+            ))
+          end
+        end
+
+        channel
       end
 
-      # Get list of languages we can potentially support
-      def self.supported_language_list : Array(String)
-        # Common programming languages with tree-sitter grammars
-        [
-          "c", "cpp", "csharp", "go", "java", "javascript", "typescript", "tsx",
-          "python", "ruby", "rust", "php", "scala", "swift", "kotlin", "bash",
-          "lua", "html", "css", "json", "yaml", "toml", "dockerfile", "make",
-          "cmake", "sql", "markdown", "latex", "haskell", "ocaml", "elixir",
-          "clojure", "erlang", "perl", "r", "dart", "elm", "pascal", "fortran",
-        ]
+      # Install grammar from local directory (async)
+      def install_from_local_async(local_path : String, language : String? = nil) : Channel(Utils::BoolResult)
+        channel = Channel(Utils::BoolResult).new
+
+        spawn do
+          begin
+            unless Dir.exists?(local_path)
+              channel.send(Utils::BoolResult.failure(
+                "Local directory does not exist",
+                {"path" => local_path}
+              ))
+              next
+            end
+
+            # Check if it looks like a tree-sitter grammar
+            grammar_json = File.join(local_path, "grammar.json")
+            src_dir = File.join(local_path, "src")
+
+            unless File.exists?(grammar_json) || Dir.exists?(src_dir)
+              channel.send(Utils::BoolResult.failure(
+                "Directory does not appear to be a tree-sitter grammar",
+                {"path" => local_path}
+              ))
+              next
+            end
+
+            # Infer language if not provided
+            inferred_language = language
+            unless inferred_language
+              # Try to infer from directory name
+              dir_name = File.basename(local_path)
+              inferred_language = GrammarMetadataStore.infer_language_from_package(dir_name)
+
+              # Try to infer from grammar.json
+              unless inferred_language && File.exists?(grammar_json)
+                begin
+                  grammar_data = JSON.parse(File.read(grammar_json))
+                  if name = grammar_data["name"]?.try(&.as_s?)
+                    inferred_language = GrammarMetadataStore.infer_language_from_package(name)
+                  end
+                rescue
+                  # Ignore errors
+                end
+              end
+
+              unless inferred_language
+                channel.send(Utils::BoolResult.failure(
+                  "Could not infer language from local grammar. Please specify with --language option.",
+                  {"path" => local_path}
+                ))
+                next
+              end
+            end
+
+            # Build the grammar
+            build_success = build_grammar_async(local_path, inferred_language)
+            unless build_success
+              channel.send(Utils::BoolResult.failure(
+                "Failed to build local grammar",
+                {"path" => local_path, "language" => inferred_language}
+              ))
+              next
+            end
+
+            # Copy to cache
+            if cache_dir = @@cache_dir
+              ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+              lib_name = "libtree-sitter-#{inferred_language}.#{ext}"
+              source_lib = File.join(local_path, lib_name)
+
+              unless File.exists?(source_lib)
+                # Try alternative name
+                source_lib = File.join(local_path, "#{inferred_language}.#{ext}")
+              end
+
+              if File.exists?(source_lib)
+                cache_lib_dir = File.join(cache_dir, inferred_language)
+                Dir.mkdir_p(cache_lib_dir)
+                dest_lib = File.join(cache_lib_dir, lib_name)
+                FileUtils.cp(source_lib, dest_lib)
+
+                # Create metadata
+                metadata = GrammarMetadata.new(
+                  url: local_path,
+                  type: "local",
+                  package_name: File.basename(local_path),
+                  language: inferred_language,
+                  installed_at: Time.utc,
+                  last_updated: Time.utc
+                )
+
+                GrammarMetadataStore.save(cache_lib_dir, metadata)
+
+                channel.send(Utils::BoolResult.success)
+              else
+                channel.send(Utils::BoolResult.failure(
+                  "Built library not found",
+                  {"path" => local_path, "language" => inferred_language}
+                ))
+              end
+            else
+              channel.send(Utils::BoolResult.failure(
+                "Cache directory not initialized",
+                {"path" => local_path}
+              ))
+            end
+          rescue ex
+            channel.send(Utils::BoolResult.failure(
+              "Error installing local grammar: #{ex.message}",
+              {"path" => local_path, "exception" => ex.class.to_s}
+            ))
+          end
+        end
+
+        channel
+      end
+
+      # Private helper methods
+
+      private def find_grammar_dir_in_vendor(language : String, vendor_dir : String) : String?
+        # Check for tree-sitter-language directory
+        dir_name = "tree-sitter-#{language}"
+        dir_path = File.join(vendor_dir, dir_name)
+        return dir_path if Dir.exists?(dir_path)
+
+        # Check for language directory
+        dir_path = File.join(vendor_dir, language)
+        return dir_path if Dir.exists?(dir_path)
+
+        nil
+      end
+
+      private def check_git_updates_async(metadata : GrammarMetadata) : Utils::BoolResult
+        return Utils::BoolResult.failure("No URL for git grammar", {"language" => metadata.language}) if metadata.url.empty?
+
+        begin
+          # Create a temporary directory to clone into
+          temp_dir = File.join(Dir.tempdir, "chiasmus-git-check-#{Random.rand(1_000_000)}")
+          Dir.mkdir_p(temp_dir)
+
+          begin
+            # Clone the repository (shallow, single branch)
+            clone_result = Process.run("git", ["clone", "--depth", "1", "--single-branch", metadata.url, temp_dir],
+              output: Process::Redirect::Close, error: Process::Redirect::Close)
+
+            unless clone_result.success?
+              return Utils::BoolResult.failure("Failed to clone repository", {"language" => metadata.language, "url" => metadata.url})
+            end
+
+            # Get the latest commit hash
+            commit_output = IO::Memory.new
+            commit_result = Process.run("git", ["rev-parse", "HEAD"], chdir: temp_dir, output: commit_output)
+
+            unless commit_result.success?
+              return Utils::BoolResult.failure("Failed to get latest commit", {"language" => metadata.language})
+            end
+
+            latest_commit = commit_output.to_s.strip
+
+            # Compare with local commit
+            current_commit = metadata.commit_hash
+            if current_commit && latest_commit != current_commit
+              Utils::BoolResult.new(value: true, details: {
+                "language"       => metadata.language,
+                "current_commit" => current_commit,
+                "latest_commit"  => latest_commit,
+              })
+            else
+              Utils::BoolResult.new(value: false, details: {"language" => metadata.language})
+            end
+          ensure
+            # Clean up temp directory
+            FileUtils.rm_rf(temp_dir) if Dir.exists?(temp_dir)
+          end
+        rescue ex
+          Utils::BoolResult.failure("Error checking git updates: #{ex.message}", {
+            "language"  => metadata.language,
+            "exception" => ex.class.to_s,
+          })
+        end
+      end
+
+      private def check_npm_updates_async(metadata : GrammarMetadata) : Utils::BoolResult
+        return Utils::BoolResult.failure("No package name for npm grammar", {"language" => metadata.language}) if metadata.package_name.empty?
+
+        begin
+          # Check npm registry for latest version
+          # Use npm view command
+          npm_output = IO::Memory.new
+          npm_view_result = Process.run("npm", ["view", metadata.package_name, "version"], output: npm_output)
+
+          unless npm_view_result.success?
+            # Try with --json flag
+            npm_output = IO::Memory.new
+            npm_view_result = Process.run("npm", ["view", metadata.package_name, "version", "--json"], output: npm_output)
+
+            unless npm_view_result.success?
+              return Utils::BoolResult.failure("Failed to check npm registry", {
+                "language" => metadata.language,
+                "package"  => metadata.package_name,
+              })
+            end
+          end
+
+          latest_version = npm_output.to_s.strip
+          # Remove quotes if JSON response
+          latest_version = latest_version.gsub(/^"|"$/, "")
+
+          # Compare with local version
+          current_version = metadata.version
+          if current_version && latest_version != current_version
+            Utils::BoolResult.new(value: true, details: {
+              "language"        => metadata.language,
+              "current_version" => current_version,
+              "latest_version"  => latest_version,
+            })
+          else
+            Utils::BoolResult.new(value: false, details: {"language" => metadata.language})
+          end
+        rescue ex
+          Utils::BoolResult.failure("Error checking npm updates: #{ex.message}", {
+            "language"  => metadata.language,
+            "exception" => ex.class.to_s,
+          })
+        end
+      end
+
+      # Check if a directory contains a grammar library
+      private def grammar_directory?(dir_path : String) : Bool
+        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+
+        # Check for libtree-sitter-*.{so,dylib}
+        Dir.children(dir_path).any? do |filename|
+          filename.starts_with?("libtree-sitter-") && filename.ends_with?(".#{ext}")
+        end
+      end
+
+      # Auto-create metadata for a grammar in cache directory
+      private def auto_create_metadata_for_cache(language : String, language_dir : String) : GrammarMetadata?
+        # Try to infer metadata from directory name and contents
+        metadata = GrammarMetadataStore.infer_metadata(language_dir)
+        return nil unless metadata
+
+        # Save the metadata
+        if GrammarMetadataStore.save(language_dir, metadata)
+          metadata
+        else
+          nil
+        end
       end
     end
   end

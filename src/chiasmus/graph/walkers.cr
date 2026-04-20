@@ -86,7 +86,7 @@ module Chiasmus
         when "import_statement"
           source_node = node.child_by_field_name("source")
           if source_node && (source_name = extract_string_content(source_node, source))
-            import_clause = node.children.find { |c| c.type == "import_clause" }
+            import_clause = node.children.find { |child_node| child_node.type == "import_clause" }
             if import_clause
               extract_import_names(import_clause, file_path, source, imports)
             end
@@ -129,7 +129,7 @@ module Chiasmus
           # Check for re-exports: export { foo } from './bar'
           re_source = node.child_by_field_name("source")
           if re_source && (source_name = extract_string_content(re_source, source))
-            export_clause = node.children.find { |c| c.type == "export_clause" }
+            export_clause = node.children.find { |child_node| child_node.type == "export_clause" }
             if export_clause
               export_clause.children.each do |spec|
                 if spec.type == "export_specifier"
@@ -231,7 +231,7 @@ module Chiasmus
 
           # Namespace import: import * as foo from './bar'
           if child.type == "namespace_import"
-            name_node = child.children.find { |c| c.type == "identifier" }
+            name_node = child.children.find { |child_node| child_node.type == "identifier" }
             if name_node
               imports << ImportsFact.new(file: file_path, name: name_node.text(source), source: source)
             end
@@ -477,7 +477,7 @@ module Chiasmus
               if child.type == "import_spec_list"
                 child.children.each do |spec|
                   if spec.type == "import_spec"
-                    path_node = spec.children.find { |c| c.type == "interpreted_string_literal" }
+                    path_node = spec.children.find { |child_node| child_node.type == "interpreted_string_literal" }
                     if path_node
                       source = path_node.text(source)[1...-1] # strip quotes
                       name = source.split("/").last? || source
@@ -489,7 +489,7 @@ module Chiasmus
 
               # Single import without parens
               if child.type == "import_spec"
-                path_node = child.children.find { |c| c.type == "interpreted_string_literal" }
+                path_node = child.children.find { |child_node| child_node.type == "interpreted_string_literal" }
                 if path_node
                   source = path_node.text(source)[1...-1]
                   name = source.split("/").last? || source
@@ -651,7 +651,7 @@ module Chiasmus
           # Check if first element is :require keyword
           child.children.each do |kwd|
             if kwd.type == "kwd_lit"
-              kwd_name_node = kwd.children.find { |c| c.type == "kwd_name" }
+              kwd_name_node = kwd.children.find { |child_node| child_node.type == "kwd_name" }
               if kwd_name_node && kwd_name_node.text(source) == "require"
                 # Extract required namespaces from vec_lit children
                 child.children.each do |vec|

@@ -1,6 +1,6 @@
 require "tree_sitter"
 require "./parser"
-require "./async_grammar_manager_v2"
+require "./grammar_manager"
 require "./language_loader"
 require "../utils/timeout"
 require "../utils/result"
@@ -19,7 +19,7 @@ module Chiasmus
         return if @@initialized
 
         # Initialize async grammar manager
-        AsyncGrammarManagerV2.init(cache_dir)
+        GrammarManager.init(cache_dir)
 
         @@initialized = true
       end
@@ -112,7 +112,7 @@ module Chiasmus
             end
 
             # Language not available, try to ensure it with timeout
-            ensure_channel = AsyncGrammarManagerV2.ensure_grammar_async(language)
+            ensure_channel = GrammarManager.instance.ensure_grammar_async(language)
             ensure_result = Utils::Timeout.with_timeout_async(timeout_ms, ensure_channel)
 
             unless ensure_result
@@ -173,7 +173,7 @@ module Chiasmus
           end
 
           # Check if available
-          available_channel = AsyncGrammarManagerV2.grammar_available_async(language)
+          available_channel = GrammarManager.instance.grammar_available_async(language)
           available = available_channel.receive
 
           channel.send(available)
@@ -247,7 +247,7 @@ module Chiasmus
       # Helper method to try loading a language
       private def self.try_load_language(language : String) : TreeSitter::Language?
         # Try to get path
-        path_channel = AsyncGrammarManagerV2.get_grammar_path_async(language)
+        path_channel = GrammarManager.instance.get_grammar_path_async(language)
         if path_result = Utils::Timeout.with_timeout_async(5_000, path_channel)
           if path_result.success? && (path = path_result.value)
             return LanguageLoader.load_language_from_grammar_path(language, path)

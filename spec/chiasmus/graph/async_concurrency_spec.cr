@@ -6,8 +6,7 @@ require "../../../src/chiasmus/utils/timeout"
 require "../../../src/chiasmus/utils/xdg"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/grammar_operations"
-require "../../../src/chiasmus/graph/async_grammar_manager"
-require "../../../src/chiasmus/graph/async_grammar_manager_v2"
+require "../../../src/chiasmus/graph/grammar_manager"
 require "../../../src/chiasmus/graph/parser"
 require "../../../src/chiasmus/graph/async_universal_parser"
 require "../../../src/chiasmus/graph/async_universal_parser_v2"
@@ -71,17 +70,13 @@ class Chiasmus::Graph::AsyncUniversalParserV2
   end
 end
 
-class Chiasmus::Graph::AsyncGrammarManagerV2
-  def self.test_reset(cache_dir : String)
-    @@cache_dir = cache_dir
-    @@initialized = false
-  end
-end
-
 class Chiasmus::Graph::GrammarManager
   def self.test_reset(cache_dir : String? = nil)
-    @@cache_dir = cache_dir
-    @@initialized = false
+    @@mutex.synchronize do
+      @@instance = nil
+      @@cache_dir = cache_dir
+      @@initialized = false
+    end
   end
 end
 
@@ -94,6 +89,7 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
 
   TreeSitter::Config.test_reset
   TreeSitter::Repository.test_reset
+  Chiasmus::Graph::LanguageRegistry.clear_cache
   Chiasmus::Graph::GrammarManager.test_reset
   Chiasmus::Graph::AsyncUniversalParser.test_reset
   Chiasmus::Graph::AsyncUniversalParserV2.test_reset
@@ -115,6 +111,7 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
 
     TreeSitter::Config.test_reset
     TreeSitter::Repository.test_reset
+    Chiasmus::Graph::LanguageRegistry.clear_cache
     Chiasmus::Graph::GrammarManager.test_reset
     Chiasmus::Graph::AsyncUniversalParser.test_reset
     Chiasmus::Graph::AsyncUniversalParserV2.test_reset
@@ -126,8 +123,28 @@ private def stage_python_grammar(cache_home : String)
   dest_dir = File.join(cache_home, "chiasmus", "grammars", "python")
 
   Dir.mkdir_p(dest_dir)
-  Dir.children(source_dir).each do |entry|
-    FileUtils.cp_r(File.join(source_dir, entry), File.join(dest_dir, entry))
+
+  # Copy the compiled library
+  ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+  lib_name = "libtree-sitter-python.#{ext}"
+  source_lib = File.join(source_dir, lib_name)
+  dest_lib = File.join(dest_dir, lib_name)
+
+  if File.exists?(source_lib)
+    FileUtils.cp(source_lib, dest_lib)
+  else
+    # Try to compile it if not already compiled
+    Dir.cd(source_dir) do
+      `tree-sitter generate 2>/dev/null`
+      `tree-sitter build 2>/dev/null`
+      # Rename if needed
+      if File.exists?("python.#{ext}") && !File.exists?(lib_name)
+        File.rename("python.#{ext}", lib_name)
+      end
+    end
+
+    raise "Failed to compile or find python grammar library" unless File.exists?(source_lib)
+    FileUtils.cp(source_lib, dest_lib)
   end
 end
 
@@ -198,11 +215,11 @@ describe "async graph concurrency" do
   end
 
   it "treats missing cached grammar as an unavailable grammar, not a timeout failure" do
-    cache_dir = File.join(Dir.tempdir, "async-grammar-manager-v2-#{Random.rand(1_000_000)}")
+    cache_dir = File.join(Dir.tempdir, "async-grammar-manager-#{Random.rand(1_000_000)}")
     Dir.mkdir_p(cache_dir)
-    Chiasmus::Graph::AsyncGrammarManagerV2.test_reset(cache_dir)
+    Chiasmus::Graph::GrammarManager.test_reset(cache_dir)
 
-    channel = Chiasmus::Graph::AsyncGrammarManagerV2.grammar_available_async("definitely-missing-language")
+    channel = Chiasmus::Graph::GrammarManager.instance.grammar_available_async("definitely-missing-language")
     result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, channel)
 
     result.should_not be_nil

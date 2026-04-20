@@ -1,7 +1,8 @@
 require "tree_sitter"
 require "./parser"
-require "./async_grammar_manager"
+require "./grammar_manager"
 require "./language_loader"
+require "../utils/timeout"
 
 module Chiasmus
   module Graph
@@ -15,8 +16,8 @@ module Chiasmus
       def self.init(cache_dir : String? = nil)
         return if @@initialized
 
-        # Start the async grammar manager worker
-        AsyncGrammarManager.start_worker(cache_dir)
+        # Initialize async grammar manager
+        GrammarManager.init(cache_dir)
 
         @@initialized = true
       end
@@ -78,7 +79,7 @@ module Chiasmus
         spawn do
           begin
             # Check if grammar is available
-            available_channel = AsyncGrammarManager.grammar_available_async(language)
+            available_channel = GrammarManager.instance.grammar_available_async(language)
             available = available_channel.receive
 
             if available
@@ -92,7 +93,7 @@ module Chiasmus
             end
 
             # Grammar not available, try to ensure it
-            ensure_channel = AsyncGrammarManager.ensure_grammar_async(language)
+            ensure_channel = GrammarManager.instance.ensure_grammar_async(language)
             success = ensure_channel.receive
 
             if success
@@ -162,7 +163,7 @@ module Chiasmus
 
       # Shutdown async components
       def self.shutdown
-        AsyncGrammarManager.shutdown
+        # GrammarManager doesn't need shutdown in new design
         @@initialized = false
         @@grammar_cache.clear
         @@pending_requests.clear
@@ -171,9 +172,11 @@ module Chiasmus
       # Helper method to load language from system
       private def self.load_language_from_system(language : String) : TreeSitter::Language?
         # Try to get path from async manager
-        path_channel = AsyncGrammarManager.get_grammar_path_async(language)
-        if path = path_channel.receive
-          return LanguageLoader.load_language_from_grammar_path(language, path)
+        path_channel = GrammarManager.instance.get_grammar_path_async(language)
+        if path_result = Utils::Timeout.with_timeout_async(5_000, path_channel)
+          if path_result.success? && (path = path_result.value)
+            return LanguageLoader.load_language_from_grammar_path(language, path)
+          end
         end
 
         nil

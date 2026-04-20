@@ -26,7 +26,6 @@ module Chiasmus
                           {"bool_hash", JSON.parse(payload.to_json)}
                         when Hash(String, Int32)
                           {"int_hash", JSON.parse(payload.to_json)}
-
                         when Hash(String, Array(Array(String)))
                           {"array_array_hash", JSON.parse(payload.to_json)}
                         else
@@ -53,7 +52,6 @@ module Chiasmus
           hash = Hash(String, Int32).new
           @value.as_h.each { |k, v| hash[k] = v.as_i }
           hash
-
         when "array_array_hash"
           hash = Hash(String, Array(Array(String))).new
           @value.as_h.each do |k, v|
@@ -119,7 +117,7 @@ module Chiasmus
           end
         end
 
-        result = tagged_result ? tagged_result.not_nil!.to_payload : ""
+        result = tagged_result ? tagged_result.to_payload : ""
         new(analysis: analysis, result: result)
       end
     end
@@ -170,11 +168,11 @@ module Chiasmus
 
         case analysis_type
         when :callers
-          callers(graph, target.not_nil!)
+          callers(graph, target)
         when :callees
-          callees(graph, target.not_nil!)
+          callees(graph, target)
         when :impact
-          impact(graph, target.not_nil!)
+          impact(graph, target)
         else
           missing_parameter_result
         end
@@ -182,7 +180,7 @@ module Chiasmus
 
       private def handle_reachability(graph : CodeGraph, from : String?, to : String?)
         if from && to
-          {"reachable" => reachable?(graph, from.not_nil!, to.not_nil!)}
+          {"reachable" => reachable?(graph, from, to)}
         else
           missing_parameter_result
         end
@@ -190,7 +188,7 @@ module Chiasmus
 
       private def handle_path(graph : CodeGraph, from : String?, to : String?)
         if from && to
-          build_path_result(path_between(graph, from.not_nil!, to.not_nil!))
+          build_path_result(path_between(graph, from, to))
         else
           missing_parameter_result
         end
