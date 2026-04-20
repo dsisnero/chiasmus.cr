@@ -5,6 +5,13 @@ module Chiasmus
   module MCPServer
     # Factory for creating provider-specific servers
     module Factory
+      private def self.apply_optional_credentials(builder, api_key : String?, base_url : String?)
+        configured_builder = builder
+        configured_builder = configured_builder.api_key(api_key) if api_key
+        configured_builder = configured_builder.base_url(base_url) if base_url
+        configured_builder
+      end
+
       # Create a server with OpenAI provider
       def self.openai(
         api_key : String? = ENV["OPENAI_API_KEY"]?,
@@ -12,10 +19,7 @@ module Chiasmus
         model : String = Crig::Providers::OpenAI::GPT_4O_MINI,
         preamble : String = LLM::DEFAULT_PREAMBLE,
       ) : Server(Crig::Providers::OpenAI::Model)
-        client = Crig::Providers::OpenAI::Client.builder
-        client = client.api_key(api_key.not_nil!) if api_key
-        client = client.base_url(base_url.not_nil!) if base_url
-        client = client.build
+        client = apply_optional_credentials(Crig::Providers::OpenAI::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
         Server.with_agent(agent)
@@ -28,10 +32,7 @@ module Chiasmus
         model : String = Crig::Providers::DeepSeek::DEEPSEEK_CHAT,
         preamble : String = LLM::DEFAULT_PREAMBLE,
       ) : Server(Crig::Providers::DeepSeek::Model)
-        client = Crig::Providers::DeepSeek::Client.builder
-        client = client.api_key(api_key.not_nil!) if api_key
-        client = client.base_url(base_url.not_nil!) if base_url
-        client = client.build
+        client = apply_optional_credentials(Crig::Providers::DeepSeek::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
         Server.with_agent(agent)
@@ -44,10 +45,7 @@ module Chiasmus
         model : String = Crig::Providers::Anthropic::CLAUDE_3_5_SONNET,
         preamble : String = LLM::DEFAULT_PREAMBLE,
       ) : Server(Crig::Providers::Anthropic::Model)
-        client = Crig::Providers::Anthropic::Client.builder
-        client = client.api_key(api_key.not_nil!) if api_key
-        client = client.base_url(base_url.not_nil!) if base_url
-        client = client.build
+        client = apply_optional_credentials(Crig::Providers::Anthropic::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
         Server.with_agent(agent)
@@ -60,10 +58,7 @@ module Chiasmus
         model : String = "gemini-2.0-flash-exp",
         preamble : String = LLM::DEFAULT_PREAMBLE,
       ) : Server(Crig::Providers::Gemini::Model)
-        client = Crig::Providers::Gemini::Client.builder
-        client = client.api_key(api_key.not_nil!) if api_key
-        client = client.base_url(base_url.not_nil!) if base_url
-        client = client.build
+        client = apply_optional_credentials(Crig::Providers::Gemini::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
         Server.with_agent(agent)
@@ -76,10 +71,7 @@ module Chiasmus
         model : String = "llama-3.3-70b",
         preamble : String = LLM::DEFAULT_PREAMBLE,
       ) : Server(Crig::Providers::Groq::Model)
-        client = Crig::Providers::Groq::Client.builder
-        client = client.api_key(api_key.not_nil!) if api_key
-        client = client.base_url(base_url.not_nil!) if base_url
-        client = client.build
+        client = apply_optional_credentials(Crig::Providers::Groq::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
         Server.with_agent(agent)
@@ -92,10 +84,7 @@ module Chiasmus
         model : String = "llama3.2",
         preamble : String = LLM::DEFAULT_PREAMBLE,
       ) : Server(Crig::Providers::Ollama::Model)
-        client = Crig::Providers::Ollama::Client.builder
-        client = client.api_key(api_key.not_nil!) if api_key
-        client = client.base_url(base_url.not_nil!) if base_url
-        client = client.build
+        client = apply_optional_credentials(Crig::Providers::Ollama::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
         Server.with_agent(agent)
@@ -108,10 +97,7 @@ module Chiasmus
         model : String = "mistral-large-2411",
         preamble : String = LLM::DEFAULT_PREAMBLE,
       ) : Server(Crig::Providers::Mistral::Model)
-        client = Crig::Providers::Mistral::Client.builder
-        client = client.api_key(api_key.not_nil!) if api_key
-        client = client.base_url(base_url.not_nil!) if base_url
-        client = client.build
+        client = apply_optional_credentials(Crig::Providers::Mistral::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
         Server.with_agent(agent)
@@ -124,10 +110,7 @@ module Chiasmus
         model : String = "command-r-plus-08-2024",
         preamble : String = LLM::DEFAULT_PREAMBLE,
       ) : Server(Crig::Providers::Cohere::Model)
-        client = Crig::Providers::Cohere::Client.builder
-        client = client.api_key(api_key.not_nil!) if api_key
-        client = client.base_url(base_url.not_nil!) if base_url
-        client = client.build
+        client = apply_optional_credentials(Crig::Providers::Cohere::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
         Server.with_agent(agent)
@@ -137,7 +120,10 @@ module Chiasmus
       def self.from_env : Server(Crig::Providers::OpenAI::Model)
         provider = ENV["CHIASMUS_LLM_PROVIDER"]? || "openai"
         model = ENV["CHIASMUS_LLM_MODEL"]? || Crig::Providers::OpenAI::GPT_4O_MINI
+        server_for_provider(provider, model)
+      end
 
+      private def self.server_for_provider(provider : String, model : String) : Server(Crig::Providers::OpenAI::Model)
         case provider.downcase
         when "openai"
           openai(model: model)
@@ -156,7 +142,6 @@ module Chiasmus
         when "cohere"
           cohere(model: model)
         else
-          # Default to OpenAI
           openai(model: model)
         end
       end

@@ -13,7 +13,6 @@
 temp/
 
 # Temporary files from development
-chiasmus
 cleanup_docs.sh
 .env.enc.json
 .xdg-cache/
@@ -28,14 +27,10 @@ patch_*.cr
 # Build artifacts and configuration
 tree-sitter-config.json
 mise.toml
-src/parser.c
-src/grammar.json
-src/node-types.json
 walkers
 extractor
 
 # Tree-sitter build artifacts
-src/tree_sitter/
 
 # Reference implementations for study only
 vendor/ruby-tree-sitter/

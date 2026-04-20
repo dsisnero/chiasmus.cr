@@ -18,10 +18,9 @@ module Chiasmus
       end
 
       def unwrap : T
-        if @value.nil?
-          raise "Attempted to unwrap nil value: #{@error}"
-        end
-        @value.not_nil!
+        value = @value
+        raise "Attempted to unwrap nil value: #{@error}" if value.nil?
+        value
       end
 
       def unwrap_or(default : T) : T
@@ -33,19 +32,21 @@ module Chiasmus
       end
 
       def map(&block : T -> U) : Result(U) forall U
-        if success?
-          Result(U).new(value: block.call(@value.not_nil!))
-        else
-          Result(U).new(error: @error, details: @details)
+        value = @value
+        if @error || value.nil?
+          return Result(U).new(error: @error, details: @details)
         end
+
+        Result(U).new(value: block.call(value))
       end
 
       def flat_map(&block : T -> Result(U)) : Result(U) forall U
-        if success?
-          block.call(@value.not_nil!)
-        else
-          Result(U).new(error: @error, details: @details)
+        value = @value
+        if @error || value.nil?
+          return Result(U).new(error: @error, details: @details)
         end
+
+        block.call(value)
       end
 
       def and_then(&block : T -> Result(U)) : Result(U) forall U
@@ -53,11 +54,8 @@ module Chiasmus
       end
 
       def or_else(&block : String -> Result(T)) : Result(T)
-        if failure?
-          block.call(@error.not_nil!)
-        else
-          self
-        end
+        error = @error
+        error ? block.call(error) : self
       end
 
       def to_s(io : IO) : Nil
@@ -117,6 +115,62 @@ module Chiasmus
     end
 
     class ArrayResult(T) < Result(Array(T))
+    end
+
+    # Result type for batch operations with multiple results
+    class BatchResult < Result(Hash(String, BoolResult))
+      property metadata : Hash(String, String)
+
+      def initialize(
+        @value : Hash(String, BoolResult)? = nil,
+        @error : String? = nil,
+        @details = {} of String => String,
+        @metadata = {} of String => String,
+      )
+      end
+
+      # Count successful operations
+      def success_count : Int32
+        value = @value
+        value ? value.count { |_, result| result.success? && result.value == true } : 0
+      end
+
+      # Count failed operations
+      def failure_count : Int32
+        value = @value
+        value ? value.count { |_, result| result.failure? || result.value == false } : 0
+      end
+
+      # Get successful items
+      def successes : Array(String)
+        value = @value
+        value ? value.select { |_, result| result.success? && result.value == true }.keys : [] of String
+      end
+
+      # Get failed items with errors
+      def failures : Hash(String, String)
+        value = @value
+        return {} of String => String unless value
+
+        result = {} of String => String
+        value.each do |key, batch_result|
+          if batch_result.failure?
+            result[key] = batch_result.error || "Unknown error"
+          elsif batch_result.value == false
+            result[key] = "Operation returned false"
+          end
+        end
+        result
+      end
+
+      # Factory methods
+      def self.success(results : Hash(String, BoolResult), metadata = {} of String => String) : BatchResult
+        new(value: results, metadata: metadata)
+      end
+
+      def self.failure(error : String, details = {} of String => String) : BatchResult
+        new(error: error, details: details)
+      end
     end
   end
 end

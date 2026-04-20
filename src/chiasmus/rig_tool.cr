@@ -54,7 +54,8 @@ module Chiasmus
       # Initialize with provided agent or default
       if agent
         @library = Skills::Library.create(chiasmus_home)
-        @engine = Formalize::Engine.new(@library.not_nil!, agent)
+        library = @library || raise "Skill library initialization failed"
+        @engine = Formalize::Engine.new(library, agent)
       else
         # Cannot use LLM.agent directly due to type system limitations
         # Users should provide an agent or use ChiasmusAgent.create
@@ -74,7 +75,8 @@ module Chiasmus
       return error_response("LLM not available. Set API key.") unless @engine
 
       # Formalize the problem
-      formalize_result = @engine.not_nil!.formalize(problem)
+      engine = @engine || raise "Formalization engine not available"
+      formalize_result = engine.formalize(problem)
       template = formalize_result.template
 
       # Determine solver
@@ -91,7 +93,7 @@ module Chiasmus
                end
 
       # Use engine's solve method which handles the whole process
-      solve_result = @engine.not_nil!.solve(problem)
+      solve_result = engine.solve(problem)
 
       if debug
         puts "=== DEBUG ==="
@@ -196,13 +198,7 @@ module Chiasmus
 
     # Interactive REPL
     def repl
-      puts "=== Chiasmus Agent REPL ==="
-      puts "Type a problem to solve formally (or 'quit' to exit)"
-      puts "Examples:"
-      puts "  - 'Find x such that x + 5 = 10'"
-      puts "  - 'All men are mortal. Socrates is a man. Is Socrates mortal?'"
-      puts "  - 'Alice is older than Bob. Bob is older than Carol. Is Alice older than Carol?'"
-      puts "======================================"
+      print_repl_banner
 
       loop do
         print "> "
@@ -215,33 +211,7 @@ module Chiasmus
           # Use the tool directly
           result = @tool.call({"problem" => JSON::Any.new(input)})
           parsed = JSON.parse(result)
-
-          if parsed["status"] == "success"
-            puts "✓ Solved using #{parsed["template"]} (#{parsed["solver"]})"
-
-            if parsed["result_type"] == "z3"
-              if parsed["satisfiable"].as_bool
-                puts "  Model: #{parsed["model"]}"
-              else
-                puts "  Unsatisfiable"
-                if unsat = parsed["unsat_core"]?
-                  puts "  Unsat core: #{unsat}"
-                end
-              end
-            elsif parsed["result_type"] == "prolog"
-              if parsed["success"].as_bool
-                answers = parsed["answers"].as_a
-                puts "  Found #{answers.size} answer(s):"
-                answers.each_with_index do |answer, i|
-                  puts "  #{i + 1}. #{answer}"
-                end
-              else
-                puts "  No solutions found"
-              end
-            end
-          else
-            puts "✗ Error: #{parsed["error"]}"
-          end
+          display_repl_result(parsed)
         rescue ex
           puts "✗ Exception: #{ex.message}"
           puts ex.backtrace.first(3).join("\n") if ENV["DEBUG"]?
@@ -251,6 +221,56 @@ module Chiasmus
       end
 
       puts "Goodbye!"
+    end
+
+    private def print_repl_banner : Nil
+      puts "=== Chiasmus Agent REPL ==="
+      puts "Type a problem to solve formally (or 'quit' to exit)"
+      puts "Examples:"
+      puts "  - 'Find x such that x + 5 = 10'"
+      puts "  - 'All men are mortal. Socrates is a man. Is Socrates mortal?'"
+      puts "  - 'Alice is older than Bob. Bob is older than Carol. Is Alice older than Carol?'"
+      puts "======================================"
+    end
+
+    private def display_repl_result(parsed : JSON::Any) : Nil
+      unless parsed["status"] == "success"
+        puts "✗ Error: #{parsed["error"]}"
+        return
+      end
+
+      puts "✓ Solved using #{parsed["template"]} (#{parsed["solver"]})"
+
+      case parsed["result_type"].as_s
+      when "z3"
+        display_z3_repl_result(parsed)
+      when "prolog"
+        display_prolog_repl_result(parsed)
+      end
+    end
+
+    private def display_z3_repl_result(parsed : JSON::Any) : Nil
+      if parsed["satisfiable"].as_bool
+        puts "  Model: #{parsed["model"]}"
+      else
+        puts "  Unsatisfiable"
+        if unsat = parsed["unsat_core"]?
+          puts "  Unsat core: #{unsat}"
+        end
+      end
+    end
+
+    private def display_prolog_repl_result(parsed : JSON::Any) : Nil
+      unless parsed["success"].as_bool
+        puts "  No solutions found"
+        return
+      end
+
+      answers = parsed["answers"].as_a
+      puts "  Found #{answers.size} answer(s):"
+      answers.each_with_index do |answer, index|
+        puts "  #{index + 1}. #{answer}"
+      end
     end
 
     # Solve a single problem
