@@ -862,7 +862,7 @@ module Chiasmus
             end
 
             # Build the grammar
-            build_success = build_grammar_async(local_path, inferred_language)
+            build_success = build_grammar_async(inferred_language, local_path)
             unless build_success
               channel.send(Utils::BoolResult.failure(
                 "Failed to build local grammar",
