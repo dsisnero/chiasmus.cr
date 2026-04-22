@@ -42,21 +42,21 @@ tests/correction-loop.test.ts::test::passes through a correct Prolog program wit
 tests/correction-loop.test.ts::test::passes through a correct spec without correction	missing	-	baseline
 tests/correction-loop.test.ts::test::provides error history for debugging	missing	-	baseline
 tests/correction-loop.test.ts::test::stops early when fixer gives up (returns null)	missing	-	baseline
-tests/craft.test.ts::test::craftTemplate	missing	-	baseline
-tests/craft.test.ts::test::duplicate name returns error	missing	-	baseline
-tests/craft.test.ts::test::empty normalizations array returns error	missing	-	baseline
-tests/craft.test.ts::test::empty slots array returns error	missing	-	baseline
-tests/craft.test.ts::test::invalid solver returns error	missing	-	baseline
-tests/craft.test.ts::test::missing required field returns specific error	missing	-	baseline
-tests/craft.test.ts::test::slot in array not in skeleton returns error	missing	-	baseline
-tests/craft.test.ts::test::slot in skeleton not in slots array returns error	missing	-	baseline
-tests/craft.test.ts::test::template with test=true and broken example returns error but still creates	missing	-	baseline
-tests/craft.test.ts::test::template with test=true and valid Prolog example runs solver	missing	-	baseline
-tests/craft.test.ts::test::template with test=true and valid Z3 example runs solver	missing	-	baseline
-tests/craft.test.ts::test::valid template is added to library and searchable	missing	-	baseline
-tests/craft.test.ts::test::valid template passes validation with no errors	missing	-	baseline
-tests/craft.test.ts::test::validateTemplate	missing	-	baseline
-tests/craft.test.ts::test::validation errors prevent creation	missing	-	baseline
+tests/craft.test.ts::test::craftTemplate	ported	spec/chiasmus/skills/craft_spec.cr:128	Covered by the Crystal craft_template spec group
+tests/craft.test.ts::test::duplicate name returns error	ported	spec/chiasmus/skills/craft_spec.cr:104	Ported duplicate-name craft validation coverage
+tests/craft.test.ts::test::empty normalizations array returns error	ported	spec/chiasmus/skills/craft_spec.cr:120	Ported empty-normalizations validation coverage
+tests/craft.test.ts::test::empty slots array returns error	ported	spec/chiasmus/skills/craft_spec.cr:113	Ported empty-slots validation coverage
+tests/craft.test.ts::test::invalid solver returns error	ported	spec/chiasmus/skills/craft_spec.cr:68	Ported invalid-solver validation coverage
+tests/craft.test.ts::test::missing required field returns specific error	ported	spec/chiasmus/skills/craft_spec.cr:61	Ported required-field validation coverage
+tests/craft.test.ts::test::slot in array not in skeleton returns error	ported	spec/chiasmus/skills/craft_spec.cr:89	Ported extra-slot validation coverage
+tests/craft.test.ts::test::slot in skeleton not in slots array returns error	ported	spec/chiasmus/skills/craft_spec.cr:75	Ported missing-slot validation coverage
+tests/craft.test.ts::test::template with test=true and broken example returns error but still creates	ported	spec/chiasmus/skills/craft_spec.cr:152	Ported broken-example craft coverage
+tests/craft.test.ts::test::template with test=true and valid Prolog example runs solver	ported	spec/chiasmus/skills/craft_spec.cr:165	Ported Prolog craft solver coverage
+tests/craft.test.ts::test::template with test=true and valid Z3 example runs solver	ported	spec/chiasmus/skills/craft_spec.cr:139	Ported Z3 craft solver coverage
+tests/craft.test.ts::test::valid template is added to library and searchable	ported	spec/chiasmus/skills/craft_spec.cr:129	Ported searchable post-create coverage
+tests/craft.test.ts::test::valid template passes validation with no errors	ported	spec/chiasmus/skills/craft_spec.cr:54	Ported valid-template craft validation coverage
+tests/craft.test.ts::test::validateTemplate	ported	spec/chiasmus/skills/craft_spec.cr:53	Covered by the Crystal validate_template spec group
+tests/craft.test.ts::test::validation errors prevent creation	ported	spec/chiasmus/skills/craft_spec.cr:184	Ported failed-creation validation coverage
 tests/dogfood.test.ts::test::Dogfood: realistic problem domains	missing	-	baseline
 tests/dogfood.test.ts::test::Prolog: Rule-based reasoning	missing	-	baseline
 tests/dogfood.test.ts::test::Z3: Policy contradiction detection	missing	-	baseline
@@ -77,17 +77,17 @@ tests/feedback.test.ts::test::classifyFeedback	ported	spec/chiasmus/formalize/fe
 tests/formalize.test.ts::test::FormalizationEngine	ported	spec/chiasmus/formalize/engine_spec.cr:19	Covered by the Crystal FormalizationEngine spec group.
 tests/formalize.test.ts::test::formalize (template + instructions, no execution)	ported	spec/chiasmus/formalize/engine_spec.cr:20	Covered by the Crystal formalize-selection spec group.
 tests/formalize.test.ts::test::includes normalization guidance in instructions	ported	spec/chiasmus/formalize/engine_spec.cr:58	Ported normalization-guidance coverage.
-tests/formalize.test.ts::test::records template use in skill library	missing	-	baseline
-tests/formalize.test.ts::test::returns failure with diagnostics when correction loop exhausts	missing	-	baseline
+tests/formalize.test.ts::test::records template use in skill library	ported	spec/chiasmus/formalize/engine_spec.cr:170	Ported template-use recording coverage
+tests/formalize.test.ts::test::returns failure with diagnostics when correction loop exhausts	ported	spec/chiasmus/formalize/engine_spec.cr:143	Ported exhausted correction-loop diagnostics coverage
 tests/formalize.test.ts::test::selects a Prolog template for rule inference problems	ported	spec/chiasmus/formalize/engine_spec.cr:32	Ported Prolog-template selection coverage.
 tests/formalize.test.ts::test::selects constraint-satisfaction for dependency problems	ported	spec/chiasmus/formalize/engine_spec.cr:51	Ported dependency-template selection coverage.
 tests/formalize.test.ts::test::selects graph-reachability for data flow problems	ported	spec/chiasmus/formalize/engine_spec.cr:43	Ported graph-reachability selection coverage.
 tests/formalize.test.ts::test::selects the right template for a policy conflict problem	ported	spec/chiasmus/formalize/engine_spec.cr:21	Ported policy-conflict template selection coverage.
-tests/formalize.test.ts::test::solve (end-to-end with LLM)	missing	-	baseline
-tests/formalize.test.ts::test::solves a Prolog reachability problem end-to-end	missing	-	baseline
-tests/formalize.test.ts::test::solves a Z3 policy contradiction problem end-to-end	missing	-	baseline
-tests/formalize.test.ts::test::uses correction loop when initial formalization has errors	missing	-	baseline
-tests/formalize.test.ts::test::uses enriched feedback in correction prompts	missing	-	baseline
+tests/formalize.test.ts::test::solve (end-to-end with LLM)	ported	spec/chiasmus/formalize/engine_spec.cr:90	Covered by the Crystal solve spec group
+tests/formalize.test.ts::test::solves a Prolog reachability problem end-to-end	ported	spec/chiasmus/formalize/engine_spec.cr:106	Ported Prolog end-to-end solve coverage
+tests/formalize.test.ts::test::solves a Z3 policy contradiction problem end-to-end	ported	spec/chiasmus/formalize/engine_spec.cr:91	Ported Z3 end-to-end solve coverage
+tests/formalize.test.ts::test::uses correction loop when initial formalization has errors	ported	spec/chiasmus/formalize/engine_spec.cr:128	Ported correction-loop solve coverage
+tests/formalize.test.ts::test::uses enriched feedback in correction prompts	ported	spec/chiasmus/formalize/engine_spec.cr:155	Ported enriched feedback prompt coverage
 tests/graph/adapter-registry.test.ts::test::adapter integration with extractor	ported	spec/chiasmus/graph/adapter_registry_spec.cr:129	Covered by extractor dispatch and built-in isolation specs
 tests/graph/adapter-registry.test.ts::test::adapter integration with parser	ported	spec/chiasmus/graph/adapter_registry_spec.cr:107	Covered by parser adapter resolution specs
 tests/graph/adapter-registry.test.ts::test::adapter with searchPaths is accepted by registerAdapter	ported	spec/chiasmus/graph/adapter_registry_spec.cr:89	Ported search_paths registration coverage
@@ -215,18 +215,18 @@ tests/learning.test.ts::test::returns null when LLM produces invalid JSON	ported
 tests/learning.test.ts::test::template extraction	ported	spec/chiasmus/skills/learner_spec.cr:14	Covered by the Crystal extraction spec group
 tests/mcp-server.test.ts::test::Chiasmus MCP Server	missing	-	baseline
 tests/mcp-server.test.ts::test::appears in tool list	missing	-	baseline
-tests/mcp-server.test.ts::test::auto-fixes check-sat in Z3 spec	missing	-	baseline
-tests/mcp-server.test.ts::test::catches missing periods in Prolog	missing	-	baseline
-tests/mcp-server.test.ts::test::catches unbalanced parentheses	missing	-	baseline
-tests/mcp-server.test.ts::test::chiasmus_craft	missing	-	baseline
+tests/mcp-server.test.ts::test::auto-fixes check-sat in Z3 spec	ported	spec/mcp_server/tools/lint_spec.cr:28	Ported lint auto-fix coverage
+tests/mcp-server.test.ts::test::catches missing periods in Prolog	ported	spec/mcp_server/tools/lint_spec.cr:42	Ported Prolog lint-error coverage
+tests/mcp-server.test.ts::test::catches unbalanced parentheses	ported	spec/mcp_server/tools/lint_spec.cr:42	Lint tool now returns structural errors for malformed specs
+tests/mcp-server.test.ts::test::chiasmus_craft	ported	spec/mcp_server/tools/craft_spec.cr:23	Covered by the Crystal craft-tool spec group
 tests/mcp-server.test.ts::test::chiasmus_formalize	ported	spec/mcp_server/tools/formalize_spec.cr:3	Covered by the Crystal formalize-tool spec group.
-tests/mcp-server.test.ts::test::chiasmus_lint	missing	-	baseline
+tests/mcp-server.test.ts::test::chiasmus_lint	ported	spec/mcp_server/tools/lint_spec.cr:3	Covered by the Crystal lint-tool spec group
 tests/mcp-server.test.ts::test::chiasmus_skills	ported	spec/mcp_server/tools/skills_spec.cr:3	Covered by the Crystal skills-tool spec group.
 tests/mcp-server.test.ts::test::chiasmus_solve	ported	spec/mcp_server/tools/solve_spec.cr:3	Covered by the Crystal solve-tool spec group.
 tests/mcp-server.test.ts::test::chiasmus_verify	missing	-	baseline
 tests/mcp-server.test.ts::test::chiasmus_verify batch queries	missing	-	baseline
-tests/mcp-server.test.ts::test::created template appears in chiasmus_skills search	missing	-	baseline
-tests/mcp-server.test.ts::test::creates a template via MCP	missing	-	baseline
+tests/mcp-server.test.ts::test::created template appears in chiasmus_skills search	ported	spec/mcp_server/tools/craft_spec.cr:24	Created templates are added to the shared skill library and covered via MCP craft creation
+tests/mcp-server.test.ts::test::creates a template via MCP	ported	spec/mcp_server/tools/craft_spec.cr:24	Ported MCP craft creation coverage
 tests/mcp-server.test.ts::test::filters by solver type	missing	-	baseline
 tests/mcp-server.test.ts::test::gets a template by exact name	missing	-	baseline
 tests/mcp-server.test.ts::test::includes related templates in by-name lookup	missing	-	baseline
@@ -234,11 +234,11 @@ tests/mcp-server.test.ts::test::includes suggestions for related templates	missi
 tests/mcp-server.test.ts::test::includes unsatCore in unsat Z3 response	missing	-	baseline
 tests/mcp-server.test.ts::test::lists all templates when no query or name given	missing	-	baseline
 tests/mcp-server.test.ts::test::lists chiasmus_formalize in available tools	missing	-	baseline
-tests/mcp-server.test.ts::test::lists chiasmus_lint in available tools	missing	-	baseline
+tests/mcp-server.test.ts::test::lists chiasmus_lint in available tools	ported	spec/mcp_server/tools/lint_spec.cr:3	Tool is registered and covered by the Crystal lint-tool spec group
 tests/mcp-server.test.ts::test::lists chiasmus_skills in available tools	missing	-	baseline
 tests/mcp-server.test.ts::test::lists chiasmus_solve in available tools	missing	-	baseline
 tests/mcp-server.test.ts::test::lists chiasmus_verify in available tools	missing	-	baseline
-tests/mcp-server.test.ts::test::passes clean spec with no issues	missing	-	baseline
+tests/mcp-server.test.ts::test::passes clean spec with no issues	ported	spec/mcp_server/tools/lint_spec.cr:28	Ported clean lint result coverage
 tests/mcp-server.test.ts::test::requires query parameter for prolog solver	missing	-	baseline
 tests/mcp-server.test.ts::test::returns error for unknown template name	ported	spec/mcp_server/tools/skills_spec.cr:56	Ported unknown-template error coverage.
 tests/mcp-server.test.ts::test::returns error when problem is missing	ported	spec/mcp_server/tools/formalize_spec.cr:23,spec/mcp_server/tools/solve_spec.cr:18	Ported problem-required error coverage for formalize and solve.
@@ -246,10 +246,10 @@ tests/mcp-server.test.ts::test::returns structured error for malformed Prolog in
 tests/mcp-server.test.ts::test::returns structured error for malformed Z3 input	missing	-	baseline
 tests/mcp-server.test.ts::test::returns template and instructions for a problem	ported	spec/mcp_server/tools/formalize_spec.cr:4	Ported formalize template and instructions coverage.
 tests/mcp-server.test.ts::test::returns trace when explain=true for Prolog	missing	-	baseline
-tests/mcp-server.test.ts::test::returns validation errors for bad input	missing	-	baseline
+tests/mcp-server.test.ts::test::returns validation errors for bad input	ported	spec/mcp_server/tools/craft_spec.cr:48	Ported MCP craft validation-error coverage
 tests/mcp-server.test.ts::test::runs multiple Prolog queries against same program	missing	-	baseline
 tests/mcp-server.test.ts::test::searches for templates by query	ported	spec/mcp_server/tools/skills_spec.cr:4	Ported skills search coverage.
-tests/mcp-server.test.ts::test::solves a problem end-to-end with mock LLM	missing	-	baseline
+tests/mcp-server.test.ts::test::solves a problem end-to-end with mock LLM	ported	spec/mcp_server/tools/solve_spec.cr:28	Ported mock-LLM solve-tool coverage
 tests/mcp-server.test.ts::test::verifies Prolog queries	missing	-	baseline
 tests/mcp-server.test.ts::test::verifies satisfiable Z3 SMT-LIB input	missing	-	baseline
 tests/mcp-server.test.ts::test::verifies unsatisfiable Z3 input	missing	-	baseline
@@ -301,24 +301,24 @@ tests/skill-library.test.ts::test::returns null for unknown name	ported	spec/chi
 tests/skill-library.test.ts::test::returns results sorted by relevance score	ported	spec/chiasmus/skills/library_spec.cr:74	Ported relevance-sort coverage.
 tests/skill-library.test.ts::test::search	ported	spec/chiasmus/skills/library_spec.cr:34	Covered by the Crystal search spec group.
 tests/skill-library.test.ts::test::template structure	ported	spec/chiasmus/skills/library_spec.cr:103	Covered by the Crystal template-structure spec group.
-tests/validate.test.ts::test::Prolog with comments passes	missing	-	baseline
-tests/validate.test.ts::test::Spec Linting	missing	-	baseline
-tests/validate.test.ts::test::Z3 with comments passes	missing	-	baseline
-tests/validate.test.ts::test::auto-fixes	missing	-	baseline
-tests/validate.test.ts::test::catches empty spec	missing	-	baseline
-tests/validate.test.ts::test::catches missing periods in Prolog	missing	-	baseline
-tests/validate.test.ts::test::catches unbalanced Prolog parentheses	missing	-	baseline
-tests/validate.test.ts::test::catches unbalanced Z3 parentheses (extra close)	missing	-	baseline
-tests/validate.test.ts::test::catches unbalanced Z3 parentheses (unclosed)	missing	-	baseline
-tests/validate.test.ts::test::catches unfilled template slots	missing	-	baseline
-tests/validate.test.ts::test::error detection	missing	-	baseline
-tests/validate.test.ts::test::removes check-sat from Z3 specs	missing	-	baseline
-tests/validate.test.ts::test::removes get-model from Z3 specs	missing	-	baseline
-tests/validate.test.ts::test::removes set-logic from Z3 specs	missing	-	baseline
-tests/validate.test.ts::test::strips markdown fences	missing	-	baseline
-tests/validate.test.ts::test::valid Prolog passes with no errors or fixes	missing	-	baseline
-tests/validate.test.ts::test::valid Z3 passes with no errors or fixes	missing	-	baseline
-tests/validate.test.ts::test::valid specs pass clean	missing	-	baseline
+tests/validate.test.ts::test::Prolog with comments passes	ported	spec/chiasmus/formalize/validate_spec.cr:103	Ported Prolog comment-handling coverage
+tests/validate.test.ts::test::Spec Linting	ported	spec/chiasmus/formalize/validate_spec.cr:3	Covered by the Crystal lint_spec spec group
+tests/validate.test.ts::test::Z3 with comments passes	ported	spec/chiasmus/formalize/validate_spec.cr:97	Ported Z3 comment-handling coverage
+tests/validate.test.ts::test::auto-fixes	ported	spec/chiasmus/formalize/validate_spec.cr:5	Covered by the Crystal lint auto-fixes spec group
+tests/validate.test.ts::test::catches empty spec	ported	spec/chiasmus/formalize/validate_spec.cr:39	Ported empty-spec lint coverage
+tests/validate.test.ts::test::catches missing periods in Prolog	ported	spec/chiasmus/formalize/validate_spec.cr:67	Ported missing-period lint coverage
+tests/validate.test.ts::test::catches unbalanced Prolog parentheses	ported	spec/chiasmus/formalize/validate_spec.cr:74	Ported Prolog parenthesis lint coverage
+tests/validate.test.ts::test::catches unbalanced Z3 parentheses (extra close)	ported	spec/chiasmus/formalize/validate_spec.cr:60	Ported unmatched-closing lint coverage
+tests/validate.test.ts::test::catches unbalanced Z3 parentheses (unclosed)	ported	spec/chiasmus/formalize/validate_spec.cr:53	Ported unclosed-parenthesis lint coverage
+tests/validate.test.ts::test::catches unfilled template slots	ported	spec/chiasmus/formalize/validate_spec.cr:46	Ported SLOT marker lint coverage
+tests/validate.test.ts::test::error detection	ported	spec/chiasmus/formalize/validate_spec.cr:38	Covered by the Crystal lint error-detection spec group
+tests/validate.test.ts::test::removes check-sat from Z3 specs	ported	spec/chiasmus/formalize/validate_spec.cr:15	Ported check-sat auto-fix coverage
+tests/validate.test.ts::test::removes get-model from Z3 specs	ported	spec/chiasmus/formalize/validate_spec.cr:23	Ported get-model auto-fix coverage
+tests/validate.test.ts::test::removes set-logic from Z3 specs	ported	spec/chiasmus/formalize/validate_spec.cr:30	Ported set-logic auto-fix coverage
+tests/validate.test.ts::test::strips markdown fences	ported	spec/chiasmus/formalize/validate_spec.cr:6	Ported markdown-fence stripping coverage
+tests/validate.test.ts::test::valid Prolog passes with no errors or fixes	ported	spec/chiasmus/formalize/validate_spec.cr:90	Ported valid-Prolog lint coverage
+tests/validate.test.ts::test::valid Z3 passes with no errors or fixes	ported	spec/chiasmus/formalize/validate_spec.cr:83	Ported valid-Z3 lint coverage
+tests/validate.test.ts::test::valid specs pass clean	ported	spec/chiasmus/formalize/validate_spec.cr:82	Covered by the Crystal valid-spec lint spec group
 tests/z3-solver.test.ts::test::Z3Solver	missing	-	baseline
 tests/z3-solver.test.ts::test::does not include unsatCore field for SAT results	missing	-	baseline
 tests/z3-solver.test.ts::test::handles boolean satisfiability	missing	-	baseline

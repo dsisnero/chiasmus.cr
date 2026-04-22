@@ -7,126 +7,15 @@ module Chiasmus
   module MCPServer
     module Tools
       class CraftTool
-        VALID_DOMAINS = ["authorization", "configuration", "dependency", "validation", "rules", "analysis", "custom"]
-
         def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          params = extract_params(arguments)
-          error = validate_required_params(params)
-          return error if error
+          server = MCPServer.current_server
+          return json_hash(Types::ErrorResponse.new("Server not available")) unless server
 
-          solver_type = parse_solver_type(params[:solver])
-          return error_response("Unknown solver: #{params[:solver]}") unless solver_type
-
-          domain = params[:domain]
-          return invalid_domain_response(domain) unless VALID_DOMAINS.includes?(domain)
-
-          template = build_template(params, solver_type)
-          test_failure = verify_template(template, params[:test], params[:test_example])
-          return test_failure if test_failure
-
-          Skills::Library.instance.add_template(template)
-          success_response(template.name)
+          input = parse_input(arguments)
+          result = Skills.craft_template(input, server.skill_library)
+          craft_hash(result)
         rescue ex
-          error_response(ex.message || ex.class.name)
-        end
-
-        private def extract_params(arguments : Hash(String, JSON::Any)) : NamedTuple(
-          name: String?,
-          domain: String?,
-          solver: String?,
-          signature: String?,
-          skeleton: String?,
-          slots: Hash(String, JSON::Any)?,
-          normalization: Hash(String, JSON::Any)?,
-          test: Bool,
-          test_example: String?)
-          {
-            name:          arguments["name"]?.try(&.as_s?),
-            domain:        arguments["domain"]?.try(&.as_s?),
-            solver:        arguments["solver"]?.try(&.as_s?),
-            signature:     arguments["signature"]?.try(&.as_s?),
-            skeleton:      arguments["skeleton"]?.try(&.as_s?),
-            slots:         arguments["slots"]?.try(&.as_h?),
-            normalization: arguments["normalization"]?.try(&.as_h?),
-            test:          arguments["test"]?.try(&.as_bool?) || false,
-            test_example:  arguments["test_example"]?.try(&.as_s?),
-          }
-        end
-
-        private def validate_required_params(params) : Hash(String, JSON::Any)?
-          return if params[:name] && params[:domain] && params[:solver] && params[:signature] && params[:skeleton] && params[:slots]
-
-          error_response("Missing required parameters: name, domain, solver, signature, skeleton, slots")
-        end
-
-        private def parse_solver_type(solver : String?) : Solvers::SolverType?
-          case solver
-          when "z3"     then Solvers::SolverType::Z3
-          when "prolog" then Solvers::SolverType::Prolog
-          else               nil
-          end
-        end
-
-        private def build_template(params, solver_type : Solvers::SolverType) : Skills::Template
-          Skills::Template.new(
-            name: params[:name].as(String),
-            domain: params[:domain].as(String),
-            solver: solver_type,
-            signature: params[:signature].as(String),
-            skeleton: params[:skeleton].as(String),
-            slots: parse_slots(params[:slots].as(Hash(String, JSON::Any))),
-            normalization: params[:normalization] ? parse_normalization(params[:normalization].as(Hash(String, JSON::Any))) : {} of String => String,
-            uses: 0,
-            successes: 0,
-            created_at: Time.utc
-          )
-        end
-
-        private def verify_template(template : Skills::Template, test : Bool, test_example : String?) : Hash(String, JSON::Any)?
-          return unless test
-          return error_response("Test example required when test=true") unless test_example
-
-          test_result = Formalize.verify_spec(spec: test_example, solver: template.solver)
-          return if test_result.success?
-
-          {
-            "status"      => JSON::Any.new("test_failed"),
-            "template"    => JSON::Any.new(template.name),
-            "test_result" => JSON::Any.new(test_result.to_h),
-            "message"     => JSON::Any.new("Template created but test failed"),
-          }
-        end
-
-        private def success_response(name : String) : Hash(String, JSON::Any)
-          {
-            "status"   => JSON::Any.new("success"),
-            "template" => JSON::Any.new(name),
-            "message"  => JSON::Any.new("Template created and added to skill library"),
-          }
-        end
-
-        private def invalid_domain_response(domain : String?) : Hash(String, JSON::Any)
-          error_response("Invalid domain: #{domain}. Must be one of: #{VALID_DOMAINS.join(", ")}")
-        end
-
-        private def error_response(message : String) : Hash(String, JSON::Any)
-          Types::ErrorResponse.new(message).to_json.as_h
-        end
-
-        private def parse_slots(slots_hash : Hash(String, JSON::Any)) : Hash(String, String)
-          result = {} of String => String
-          slots_hash.each do |key, value|
-            result[key] = value.as_s
-          end
-          result
-        end
-
-        private def parse_normalization(norm_hash : Hash(String, JSON::Any)) : Hash(String, String)
-          result = {} of String => String
-          norm_hash.each do |key, value|
-            result[key] = value.as_s
-          end
-          result
+          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
         end
 
         def self.tool_name : String
@@ -137,30 +26,109 @@ module Chiasmus
           <<-DESC
           Create a new formalization template and add it to the skill library.
 
-          The calling LLM designs the template — no API key needed. Describe your problem, then submit a template with a skeleton (formal spec with {{SLOT:name}} markers), slot definitions, and normalization recipes.
-
-          After creation, the template appears in chiasmus_skills and chiasmus_formalize.
-
-          Validation: checks slot/skeleton consistency, required fields, name uniqueness.
-          Optional: set test=true with an example to run it through the solver.
+          The calling LLM designs the template. Submit a skeleton with {{SLOT:name}} markers, slot definitions, and normalization recipes.
+          Optionally set test=true with an example to run it through the solver after validation.
           DESC
         end
 
         def self.input_schema : MCP::Protocol::Tool::Input
           ToolSchemas::ToolInputSchema.new(
             properties: {
-              "name"          => ToolSchemas::Common.name_property,
-              "domain"        => ToolSchemas::Common.domain_property,
-              "solver"        => ToolSchemas::Common.solver_property,
-              "signature"     => ToolSchemas::Common.signature_property,
-              "skeleton"      => ToolSchemas::Common.skeleton_property,
-              "slots"         => ToolSchemas::Common.slots_property,
-              "normalization" => ToolSchemas::Common.normalization_property,
-              "test"          => ToolSchemas::Common.test_property,
-              "test_example"  => ToolSchemas::Common.test_example_property,
+              "name"           => ToolSchemas::Common.name_property,
+              "domain"         => ToolSchemas::Common.domain_property,
+              "solver"         => ToolSchemas::Common.solver_property,
+              "signature"      => ToolSchemas::Common.signature_property,
+              "skeleton"       => ToolSchemas::Common.skeleton_property,
+              "slots"          => ToolSchemas::Common.slots_property,
+              "normalizations" => ToolSchemas::Common.normalizations_property,
+              "tips"           => ToolSchemas::Common.tips_property,
+              "example"        => ToolSchemas::Common.example_property,
+              "test"           => ToolSchemas::Common.test_property,
             },
-            required: ["name", "domain", "solver", "signature", "skeleton", "slots"]
+            required: ["name", "domain", "solver", "signature", "skeleton", "slots", "normalizations"]
           ).to_mcp_input
+        end
+
+        private def parse_input(arguments : Hash(String, JSON::Any)) : Skills::CraftInput
+          Skills::CraftInput.new(
+            name: string_arg(arguments, "name"),
+            domain: string_arg(arguments, "domain"),
+            solver: string_arg(arguments, "solver"),
+            signature: string_arg(arguments, "signature"),
+            skeleton: string_arg(arguments, "skeleton"),
+            slots: parse_slots(arguments["slots"]?),
+            normalizations: parse_normalizations(arguments["normalizations"]?),
+            tips: parse_tips(arguments["tips"]?),
+            example: arguments["example"]?.try(&.as_s?),
+            test: arguments["test"]?.try(&.as_bool?) || false
+          )
+        end
+
+        private def string_arg(arguments : Hash(String, JSON::Any), key : String) : String
+          arguments[key]?.try(&.as_s?) || ""
+        end
+
+        private def parse_slots(value : JSON::Any?) : Array(Skills::SlotDef)
+          array = value.try(&.as_a?) || [] of JSON::Any
+          array.map do |item|
+            hash = item.as_h
+            Skills::SlotDef.new(
+              name: hash["name"]?.try(&.as_s?) || "",
+              description: hash["description"]?.try(&.as_s?) || "",
+              format: hash["format"]?.try(&.as_s?) || ""
+            )
+          end
+        end
+
+        private def parse_normalizations(value : JSON::Any?) : Array(Skills::Normalization)
+          array = value.try(&.as_a?) || [] of JSON::Any
+          array.map do |item|
+            hash = item.as_h
+            Skills::Normalization.new(
+              source: hash["source"]?.try(&.as_s?) || "",
+              transform: hash["transform"]?.try(&.as_s?) || ""
+            )
+          end
+        end
+
+        private def parse_tips(value : JSON::Any?) : Array(String)?
+          array = value.try(&.as_a?)
+          return nil unless array
+
+          array.map(&.as_s)
+        end
+
+        private def craft_hash(result : Skills::CraftResult) : Hash(String, JSON::Any)
+          {
+            "created"    => JSON::Any.new(result.created),
+            "template"   => json_string(result.template),
+            "domain"     => json_string(result.domain),
+            "solver"     => json_string(result.solver),
+            "slots"      => json_int(result.slots),
+            "tested"     => JSON::Any.new(result.tested),
+            "testResult" => json_string(result.test_result),
+            "errors"     => JSON::Any.new(string_array(result.errors || [] of String)),
+          }
+        end
+
+        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
+          JSON.parse(response.to_json).as_h
+        end
+
+        private def string_array(values : Array(String)) : Array(JSON::Any)
+          values.map { |value| JSON::Any.new(value) }
+        end
+
+        private def json_string(value : String?) : JSON::Any
+          value ? JSON::Any.new(value) : JSON::Any.new(nil)
+        end
+
+        private def json_int(value : Int32?) : JSON::Any
+          if value
+            JSON::Any.new(value.to_i64)
+          else
+            JSON::Any.new(nil)
+          end
         end
       end
     end

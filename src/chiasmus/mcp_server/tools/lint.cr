@@ -11,13 +11,13 @@ module Chiasmus
           solver = arguments["solver"]?.try(&.as_s?)
           input = arguments["input"]?.try(&.as_s?)
 
-          return Types::ErrorResponse.new("Missing required parameters: solver and input").to_json.as_h unless solver && input
+          return json_hash(Types::ErrorResponse.new("Missing required parameters: solver and input")) unless solver && input
 
           solver_type = case solver
                         when "z3"     then Solvers::SolverType::Z3
                         when "prolog" then Solvers::SolverType::Prolog
                         else
-                          return Types::ErrorResponse.new("Unknown solver: #{solver}").to_json.as_h
+                          return json_hash(Types::ErrorResponse.new("Unknown solver: #{solver}"))
                         end
 
           # Use the formalize module's lint_spec function
@@ -27,11 +27,11 @@ module Chiasmus
           {
             "status" => JSON::Any.new("success"),
             "spec"   => JSON::Any.new(lint_result.spec),
-            "fixes"  => JSON::Any.new(lint_result.fixes),
-            "errors" => JSON::Any.new(lint_result.errors),
+            "fixes"  => JSON::Any.new(string_array(lint_result.fixes)),
+            "errors" => JSON::Any.new(string_array(lint_result.errors)),
           }
         rescue ex
-          Types::ErrorResponse.new(ex.message || ex.class.name).to_json.as_h
+          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
         end
 
         def self.tool_name : String
@@ -56,6 +56,14 @@ module Chiasmus
             },
             required: ["solver", "input"]
           ).to_mcp_input
+        end
+
+        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
+          JSON.parse(response.to_json).as_h
+        end
+
+        private def string_array(values : Array(String)) : Array(JSON::Any)
+          values.map { |value| JSON::Any.new(value) }
         end
       end
     end

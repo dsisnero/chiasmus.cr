@@ -25,10 +25,10 @@ src/formalize/engine.ts::interface::SolveResult	ported	src/chiasmus/formalize/en
 src/formalize/engine.ts::method::FormalizationEngine.constructor	ported	src/chiasmus/formalize/engine.cr:34	Ported constructor taking skill library and Crig agent.
 src/formalize/feedback.ts::function::classifyFeedback	ported	src/chiasmus/formalize/feedback.cr:4	Ported as Chiasmus::Formalize.classify_feedback
 src/formalize/feedback.ts::function::core	ported	src/chiasmus/formalize/feedback.cr:19	Represented by unsat-core handling in classify_feedback
-src/formalize/validate.ts::function::lintProlog	missing	-	baseline
-src/formalize/validate.ts::function::lintSmtlib	missing	-	baseline
-src/formalize/validate.ts::function::lintSpec	missing	-	baseline
-src/formalize/validate.ts::interface::LintResult	missing	-	baseline
+src/formalize/validate.ts::function::lintProlog	ported	src/chiasmus/formalize/validate.cr:123	Ported as Chiasmus::Formalize.lint_prolog
+src/formalize/validate.ts::function::lintSmtlib	ported	src/chiasmus/formalize/validate.cr:47	Ported as Chiasmus::Formalize.lint_smtlib
+src/formalize/validate.ts::function::lintSpec	ported	src/chiasmus/formalize/validate.cr:10	Ported as Chiasmus::Formalize.lint_spec
+src/formalize/validate.ts::interface::LintResult	ported	src/chiasmus/formalize/validate.cr:3	Ported as Chiasmus::Formalize::LintResult
 src/graph/adapter-registry.ts::function::clearAdapters	ported	src/chiasmus/graph/adapter_registry.cr:29	Ported as AdapterRegistry.clear_adapters
 src/graph/adapter-registry.ts::function::getAdapter	ported	src/chiasmus/graph/adapter_registry.cr:21	Ported as AdapterRegistry.get_adapter
 src/graph/adapter-registry.ts::function::getAdapterExtensions	ported	src/chiasmus/graph/adapter_registry.cr:34	Ported as AdapterRegistry.adapter_extensions
@@ -123,10 +123,10 @@ src/skills/bm25.ts::function::search	missing	-	baseline
 src/skills/bm25.ts::function::tokenize	missing	-	baseline
 src/skills/bm25.ts::interface::BM25Index	missing	-	baseline
 src/skills/bm25.ts::interface::DocEntry	missing	-	baseline
-src/skills/craft.ts::function::buildPrologInput	missing	-	baseline
-src/skills/craft.ts::function::validateTemplate	missing	-	baseline
-src/skills/craft.ts::interface::CraftInput	missing	-	baseline
-src/skills/craft.ts::interface::CraftResult	missing	-	baseline
+src/skills/craft.ts::function::buildPrologInput	ported	src/chiasmus/skills/craft.cr:186	Ported as Skills.build_prolog_input
+src/skills/craft.ts::function::validateTemplate	ported	src/chiasmus/skills/craft.cr:27	Ported as Chiasmus::Skills.validate_template
+src/skills/craft.ts::interface::CraftInput	ported	src/chiasmus/skills/craft.cr:3	Ported as Chiasmus::Skills::CraftInput
+src/skills/craft.ts::interface::CraftResult	ported	src/chiasmus/skills/craft.cr:15	Ported as Chiasmus::Skills::CraftResult
 src/skills/learner.ts::class::SkillLearner	ported	src/chiasmus/skills/learner.cr:5	Ported as Skills::Learner
 src/skills/learner.ts::const::DEDUP_SIMILARITY_THRESHOLD	ported	src/chiasmus/skills/learner.cr:8	Ported as Learner::DEDUP_SIMILARITY_THRESHOLD
 src/skills/learner.ts::const::EXTRACT_SYSTEM	ported	src/chiasmus/skills/learner.cr:10	Ported as Learner::EXTRACT_SYSTEM

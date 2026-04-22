@@ -6,7 +6,7 @@ module Chiasmus
   module MCPServer
     module ToolSchemas
       # Base schema properties
-      alias Property = SchemaProperty | ArraySchemaProperty | ObjectSchemaProperty | BooleanSchemaProperty
+      alias Property = SchemaProperty | ArraySchemaProperty | ObjectSchemaProperty | ObjectArraySchemaProperty | BooleanSchemaProperty
 
       struct SchemaProperty
         include JSON::Serializable
@@ -62,6 +62,25 @@ module Chiasmus
             "type"        => @type,
             "description" => @description,
           }.transform_values { |v| JSON::Any.new(v) }
+        end
+      end
+
+      struct ObjectArraySchemaProperty
+        include JSON::Serializable
+
+        getter type : String = "array"
+        getter description : String
+        getter items : Hash(String, JSON::Any)
+
+        def initialize(@description : String, @items : Hash(String, JSON::Any))
+        end
+
+        def to_json_schema : Hash(String, JSON::Any)
+          {
+            "type"        => JSON::Any.new(@type),
+            "items"       => JSON::Any.new(@items),
+            "description" => JSON::Any.new(@description),
+          }
         end
       end
 
@@ -218,23 +237,48 @@ module Chiasmus
           )
         end
 
-        def self.slots_property : ObjectSchemaProperty
-          ObjectSchemaProperty.new("Slot definitions: {slot_name: description}")
+        def self.slots_property : ObjectArraySchemaProperty
+          ObjectArraySchemaProperty.new(
+            "Slot definitions",
+            {
+              "type"       => JSON::Any.new("object"),
+              "properties" => JSON::Any.new({
+                "name"        => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("Slot name")}),
+                "description" => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("What this slot expects")}),
+                "format"      => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("Expected format/type hint")}),
+              }),
+              "required" => JSON::Any.new(["name", "description", "format"]),
+            }
+          )
         end
 
-        def self.normalization_property : ObjectSchemaProperty
-          ObjectSchemaProperty.new("Optional normalization recipes: {slot_name: recipe}")
+        def self.normalizations_property : ObjectArraySchemaProperty
+          ObjectArraySchemaProperty.new(
+            "Normalization recipes",
+            {
+              "type"       => JSON::Any.new("object"),
+              "properties" => JSON::Any.new({
+                "source"    => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("Input source type")}),
+                "transform" => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("How to transform the source")}),
+              }),
+              "required" => JSON::Any.new(["source", "transform"]),
+            }
+          )
         end
 
         def self.test_property : BooleanSchemaProperty
           BooleanSchemaProperty.new("Test the template with an example (requires test_example)")
         end
 
-        def self.test_example_property : SchemaProperty
+        def self.example_property : SchemaProperty
           SchemaProperty.new(
             type: "string",
-            description: "Example spec to test the template"
+            description: "Example spec or program to test the template"
           )
+        end
+
+        def self.tips_property : ArraySchemaProperty
+          ArraySchemaProperty.new("Optional template-specific tips")
         end
 
         def self.prompt_property : SchemaProperty
