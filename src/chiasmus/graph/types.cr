@@ -47,7 +47,11 @@ module Chiasmus
     abstract class LanguageAdapter
       abstract def language : String
       abstract def extensions : Array(String)
-      abstract def extract(root_node : TreeSitter::Node, file_path : String) : CodeGraph
+      abstract def extract(root_node : TreeSitter::Node, source : String, file_path : String) : CodeGraph
+
+      def grammar_language : String
+        language
+      end
 
       def search_paths : Array(String)?
         nil

@@ -9,6 +9,7 @@ module Chiasmus
         include JSON::Serializable
 
         # Enable auto-discovery of chiasmus-adapter-* packages at startup (default: false)
+        @[JSON::Field(key: "adapterDiscovery")]
         property? adapter_discovery : Bool = false
 
         def initialize(@adapter_discovery = false)

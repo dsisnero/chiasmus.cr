@@ -30,7 +30,7 @@ module Chiasmus
       end
 
       def completion_request(prompt : Crig::Completion::Message | String) : Crig::Completion::Request::CompletionRequestBuilder
-        Crig::Completion::Request::CompletionRequestBuilder.new(prompt)
+        Crig::Completion::Request::CompletionRequestBuilder.from_prompt(prompt)
       end
     end
 

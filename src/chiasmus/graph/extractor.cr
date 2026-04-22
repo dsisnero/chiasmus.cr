@@ -1,5 +1,6 @@
 require "./parser"
 require "./walkers"
+require "./adapter_registry"
 
 module Chiasmus
   module Graph
@@ -28,7 +29,7 @@ module Chiasmus
           # Check for a registered adapter first
           adapter = get_adapter(lang)
           if adapter
-            partial = adapter.extract(tree.root_node, file.path)
+            partial = adapter.extract(tree.root_node, file.content, file.path)
             defines.concat(partial.defines)
             partial.calls.each do |call_fact|
               key = "#{call_fact.caller}->#{call_fact.callee}"
@@ -69,8 +70,7 @@ module Chiasmus
       end
 
       private def get_adapter(language : String) : LanguageAdapter?
-        # Adapter registry integration is still pending.
-        nil
+        AdapterRegistry.get_adapter(language)
       end
     end
   end

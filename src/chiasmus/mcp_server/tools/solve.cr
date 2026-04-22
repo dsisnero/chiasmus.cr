@@ -10,21 +10,17 @@ module Chiasmus
           problem = arguments["problem"]?.try(&.as_s?)
 
           if problem.nil? || problem.empty?
-            return Types::ErrorResponse.new("The 'problem' parameter (string) is required").to_json.as_h
+            return json_hash(Types::ErrorResponse.new("The 'problem' parameter (string) is required"))
           end
 
-          server = MCPServer::Server.instance rescue nil
-          return Types::ErrorResponse.new("Server not available").to_json.as_h unless server
-
-          formalization_engine = server.formalization_engine
+          server = MCPServer.current_server
+          return json_hash(Types::ErrorResponse.new("Server not available")) unless server
 
           # If no LLM configured, fall back to formalize
-          unless formalization_engine
+          result = server.solve(problem)
+          unless result
             return fallback_to_formalize(server.skill_library, problem)
           end
-
-          # Solve the problem end-to-end
-          result = formalization_engine.solve(problem)
 
           response = Types::SolveResponse.new(
             result: Types.solver_result_to_json(result.result),
@@ -35,15 +31,15 @@ module Chiasmus
             history: result.history.map { |attempt|
               Types::CorrectionAttemptJSON.new(
                 Types.solver_input_to_json(attempt.input),
-                attempt.result ? Types.solver_result_to_json(attempt.result) : nil,
+                attempt.result.try { |solver_result| Types.solver_result_to_json(solver_result) },
                 attempt.error
               )
             }
           )
 
-          response.to_json.as_h
+          json_hash(response)
         rescue ex
-          Types::ErrorResponse.new(ex.message || ex.class.name).to_json.as_h
+          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
         end
 
         def self.tool_name : String
@@ -72,11 +68,7 @@ module Chiasmus
         end
 
         private def fallback_to_formalize(library : Skills::Library, problem : String) : Hash(String, JSON::Any)
-          # Create a dummy engine for formalize only
-          dummy_agent = LLM::MockAdapter.new
-          dummy_agent.add_response("formalize", "Mock response")
-
-          engine = Formalize::Engine.new(library, dummy_agent)
+          engine = Formalize::Engine.new(library, LLM::MockAdapter.create_agent)
           formalize_result = engine.formalize(problem)
 
           # Create a formalize response instead of solve response
@@ -85,14 +77,18 @@ module Chiasmus
             solver: formalize_result.template.solver.to_s.downcase,
             domain: formalize_result.template.domain,
             instructions: formalize_result.instructions,
-            suggestions: [] of String
+            suggestions: [] of JSON::Any
           )
 
           # Wrap in a hash with fallback flag
-          json = response.to_json.as_h
+          json = json_hash(response)
           json["fallback"] = JSON::Any.new(true)
           json["message"] = JSON::Any.new("No LLM API key configured. Returning template instructions instead. Fill the slots and use chiasmus_verify.")
           json
+        end
+
+        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
+          JSON.parse(response.to_json).as_h
         end
       end
     end

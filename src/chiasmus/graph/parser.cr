@@ -3,6 +3,7 @@ require "./types"
 require "./universal_parser"
 require "./async_universal_parser_v2"
 require "./language_registry"
+require "./adapter_registry"
 require "../utils/timeout"
 
 module Chiasmus
@@ -17,12 +18,21 @@ module Chiasmus
       def get_language_for_file(file_path : String) : String?
         ext = File.extname(file_path).downcase
         # Use LanguageRegistry for extension mapping
-        LanguageRegistry.language_for_extension(ext) || get_adapter_for_ext(ext).try(&.language)
+        LanguageRegistry.language_for_extension(ext) || AdapterRegistry.get_adapter_for_ext(ext).try(&.language)
       end
 
       # Get all supported file extensions
       def supported_extensions : Array(String)
-        LanguageRegistry.supported_extensions + get_adapter_extensions
+        (LanguageRegistry.supported_extensions + AdapterRegistry.adapter_extensions).uniq.sort!
+      end
+
+      # Get the tree-sitter grammar language used to parse a file path.
+      def grammar_language_for_file(file_path : String) : String?
+        ext = File.extname(file_path).downcase
+        built_in = LanguageRegistry.language_for_extension(ext)
+        return built_in if built_in
+
+        AdapterRegistry.get_adapter_for_ext(ext).try(&.grammar_language)
       end
 
       # Parse source code synchronously
@@ -60,16 +70,6 @@ module Chiasmus
       rescue ex
         # Language not available
         nil
-      end
-
-      # Helper methods that delegate to adapter registry
-      # These will be implemented when adapter registry is ported
-      private def get_adapter_for_ext(ext : String) : LanguageAdapter?
-        nil
-      end
-
-      private def get_adapter_extensions : Array(String)
-        [] of String
       end
     end
   end

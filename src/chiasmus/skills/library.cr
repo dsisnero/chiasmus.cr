@@ -1,3 +1,5 @@
+require "json"
+
 module Chiasmus
   module Skills
     class SearchOptions
@@ -10,38 +12,39 @@ module Chiasmus
     end
 
     class Library
+      TOKEN_NORMALIZATIONS = {
+        "contradict" => "contradiction",
+        "conflict"   => "contradiction",
+        "equival"    => "equivalence",
+        "depend"     => "dependency",
+        "configur"   => "configuration",
+        "permiss"    => "permission",
+        "validat"    => "validation",
+        "infer"      => "inference",
+        "reach"      => "reachability",
+        "call"       => "call",
+        "function"   => "call",
+        "chain"      => "chain",
+        "flow"       => "flow",
+      }
+
       @templates : Hash(String, SkillTemplate)
       @metadata : Hash(String, SkillMetadata)
       @template_order : Array(String)
+      @metadata_path : String
 
       def self.create(base_path : String) : Library
         Dir.mkdir_p(base_path)
 
-        # Load starter templates (simplified for now)
         templates = Hash(String, SkillTemplate).new
+        STARTER_TEMPLATES.each do |template|
+          templates[template.name] = template
+        end
 
-        # Starter templates are still bootstrapped inline for now.
-        templates["policy-contradiction"] = SkillTemplate.new(
-          name: "policy-contradiction",
-          domain: "authorization",
-          solver: Solvers::SolverType::Z3,
-          signature: "Detect contradictory authorization rules",
-          skeleton: "(declare-const {{SLOT:rule1}} Bool)\n(declare-const {{SLOT:rule2}} Bool)\n(assert (and {{SLOT:rule1}} {{SLOT:rule2}}))",
-          slots: [
-            SlotDef.new(name: "rule1", description: "First authorization rule", format: "Boolean expression"),
-            SlotDef.new(name: "rule2", description: "Second authorization rule", format: "Boolean expression"),
-          ],
-          normalizations: [
-            Normalization.new(source: "natural language rule", transform: "Convert to Boolean logic"),
-          ],
-          tips: ["Use (= flag (or ...)) not (=> ... flag) for Z3"],
-          example: nil
-        )
-
-        # Create metadata
-        metadata = Hash(String, SkillMetadata).new
+        metadata_path = File.join(base_path, "skill_metadata.json")
+        metadata = load_persisted_metadata(metadata_path)
         templates.each_key do |name|
-          metadata[name] = SkillMetadata.new(
+          metadata[name] ||= SkillMetadata.new(
             name: name,
             reuse_count: 0,
             success_count: 0,
@@ -50,24 +53,55 @@ module Chiasmus
           )
         end
 
-        new(templates, metadata)
+        library = new(templates, metadata, metadata_path)
+        library.save_metadata
+        library
       end
 
-      def initialize(@templates : Hash(String, SkillTemplate), @metadata : Hash(String, SkillMetadata))
+      def self.load_persisted_metadata(path : String) : Hash(String, SkillMetadata)
+        return Hash(String, SkillMetadata).new unless File.exists?(path)
+
+        payload = JSON.parse(File.read(path)).as_a
+        payload.each_with_object(Hash(String, SkillMetadata).new) do |item, acc|
+          hash = item.as_h
+          name = hash["name"].as_s
+          acc[name] = SkillMetadata.new(
+            name: name,
+            reuse_count: hash["reuse_count"].as_i,
+            success_count: hash["success_count"].as_i,
+            last_used: parse_time(hash["last_used"]?),
+            promoted: hash["promoted"].as_bool
+          )
+        end
+      rescue JSON::ParseException
+        Hash(String, SkillMetadata).new
+      end
+
+      def self.parse_time(value : JSON::Any?) : Time?
+        string_value = value.try(&.as_s?)
+        return nil unless string_value
+
+        Time.parse_rfc3339(string_value)
+      rescue Time::Format::Error
+        nil
+      end
+
+      def initialize(@templates : Hash(String, SkillTemplate), @metadata : Hash(String, SkillMetadata), @metadata_path : String)
         @template_order = @templates.keys.to_a
       end
 
-      # List all templates with metadata
       def list : Array(SkillWithMetadata)
-        @templates.map do |name, template|
+        @template_order.compact_map do |name|
+          template = @templates[name]?
+          next unless template
+
           SkillWithMetadata.new(
             template: template,
             metadata: load_metadata(name)
           )
-        end.to_a
+        end
       end
 
-      # Get a single template by name
       def get(name : String) : SkillWithMetadata?
         template = @templates[name]?
         return nil unless template
@@ -78,39 +112,29 @@ module Chiasmus
         )
       end
 
-      # Search templates by natural language query (simplified)
+      def get_related(name : String) : Array(RelatedTemplate)
+        Skills.get_related_templates(name)
+      end
+
       def search(query : String, options : SearchOptions = SearchOptions.new) : Array(SkillSearchResult)
         limit = options.limit || 10
-        results = [] of SkillSearchResult
 
-        # Simple keyword matching for now
-        @template_order.each do |name|
-          template = @templates[name]
+        results = @template_order.compact_map do |name|
+          template = @templates[name]?
+          next unless template
+          next if options.domain && template.domain != options.domain
+          next if options.solver && template.solver != options.solver
 
-          # Filter by domain and solver if specified
-          if options.domain && template.domain != options.domain
-            next
-          end
-
-          if options.solver && template.solver != options.solver
-            next
-          end
-
-          # Simple relevance scoring
-          score = calculate_relevance_score(template, query)
-
-          results << SkillSearchResult.new(
+          SkillSearchResult.new(
             template: template,
             metadata: load_metadata(name),
-            score: score
+            score: calculate_relevance_score(template, query)
           )
         end
 
-        # Sort by score and limit
         results.sort_by(&.score).reverse!.first(limit)
       end
 
-      # Record a template use (success or failure)
       def record_use(name : String, success : Bool) : Nil
         metadata = @metadata[name]?
         return unless metadata
@@ -122,20 +146,18 @@ module Chiasmus
           last_used: Time.utc,
           promoted: metadata.promoted
         )
+        save_metadata
       end
 
-      # Get metadata for a template
       def get_metadata(name : String) : SkillMetadata?
         @metadata[name]?
       end
 
-      # Add a learned (candidate) template to the library
       def add_learned(template : SkillTemplate) : Bool
         return false if @templates.has_key?(template.name)
 
         @templates[template.name] = template
         @template_order << template.name
-
         @metadata[template.name] = SkillMetadata.new(
           name: template.name,
           reuse_count: 0,
@@ -143,10 +165,10 @@ module Chiasmus
           last_used: nil,
           promoted: false
         )
+        save_metadata
         true
       end
 
-      # Promote a candidate template to starter status
       def promote(name : String) : Bool
         metadata = @metadata[name]?
         return false unless metadata
@@ -158,32 +180,59 @@ module Chiasmus
           last_used: metadata.last_used,
           promoted: true
         )
+        save_metadata
         true
       end
 
-      # Get candidate templates (not promoted)
+      def remove(name : String) : Nil
+        @templates.delete(name)
+        @template_order.reject! { |entry| entry == name }
+        @metadata.delete(name)
+        save_metadata
+      end
+
       def candidates : Array(SkillWithMetadata)
-        list.select do |swm|
-          !swm.metadata.promoted
+        list.reject(&.metadata.promoted)
+      end
+
+      def close : Nil
+        save_metadata
+      end
+
+      def save_metadata : Nil
+        payload = @metadata.values.map do |metadata|
+          {
+            "name"          => metadata.name,
+            "reuse_count"   => metadata.reuse_count,
+            "success_count" => metadata.success_count,
+            "last_used"     => metadata.last_used.try(&.to_rfc3339),
+            "promoted"      => metadata.promoted,
+          }
         end
+        File.write(@metadata_path, payload.to_json)
+      rescue File::Error
+        # Sandboxed environments may not allow writes under the configured home dir.
       end
 
       private def calculate_relevance_score(template : SkillTemplate, query : String) : Float64
-        # Simple keyword matching
-        text_to_search = [
-          template.name,
-          template.domain,
-          template.signature,
-          *template.slots.map(&.description),
-          *template.normalizations.map { |normalization| "#{normalization.source} #{normalization.transform}" },
-        ].join(" ").downcase
+        return 0.0 if query.blank?
 
-        query_terms = query.downcase.split(/\s+/)
+        query_terms = tokenize(query)
+        score_texts = {
+          4.0 => [template.name, template.domain],
+          3.0 => [template.signature],
+          2.0 => template.slots.map(&.description),
+          1.5 => template.normalizations.map { |normalization| "#{normalization.source} #{normalization.transform}" },
+          1.0 => template.tips || [] of String,
+        }
 
         score = 0.0
-        query_terms.each do |term|
-          if text_to_search.includes?(term)
-            score += 1.0
+        score_texts.each do |weight, texts|
+          haystack = tokenize(texts.join(" "))
+          next if haystack.empty?
+
+          query_terms.each do |term|
+            score += weight if haystack.includes?(term)
           end
         end
 
@@ -198,6 +247,23 @@ module Chiasmus
           last_used: nil,
           promoted: false
         )
+      end
+
+      private def tokenize(text : String) : Array(String)
+        text.downcase
+          .gsub(/[^a-z0-9]+/, " ")
+          .split(/\s+/)
+          .reject(&.empty?)
+          .map { |token| normalize_token(token) }
+          .uniq!
+      end
+
+      private def normalize_token(token : String) : String
+        TOKEN_NORMALIZATIONS.each do |prefix, normalized|
+          return normalized if token.starts_with?(prefix)
+        end
+
+        token
       end
     end
   end

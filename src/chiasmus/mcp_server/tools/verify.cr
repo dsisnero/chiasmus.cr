@@ -4,6 +4,7 @@ require "../../solvers/factory"
 require "../../solvers/z3_solver"
 require "../../solvers/prolog_cr_solver"
 require "../../solvers/prolog_solver"
+require "../../graph/mermaid"
 
 module Chiasmus
   module MCPServer
@@ -27,10 +28,9 @@ module Chiasmus
             success_hash(run_z3(spec))
           when "prolog"
             return error_hash("queries array is not supported yet") if queries
-            return error_hash("Only raw prolog input is supported") unless format == "raw"
             return error_hash("Query parameter required for prolog solver") unless query
 
-            success_hash(run_prolog(spec, query, explain))
+            success_hash(run_prolog(normalize_prolog_spec(spec, format), query, explain))
           else
             error_hash("Unknown solver: #{solver}")
           end
@@ -137,7 +137,7 @@ DESC
             return error_result("Query parameter required for prolog solver")
           end
 
-          result = execute_prolog(spec, query, explain)
+          result = execute_prolog(normalize_prolog_spec(spec, format), query, explain)
 
           content = case result
                     when Solvers::SuccessResult
@@ -191,6 +191,21 @@ DESC
 
         private def run_prolog(spec : String, query : String, explain : Bool) : JSON::Any
           prolog_result_json(execute_prolog(spec, query, explain))
+        end
+
+        def self.normalize_prolog_spec(spec : String, format : String) : String
+          case format
+          when "raw"
+            spec
+          when "mermaid"
+            Graph::Mermaid.parse(spec)
+          else
+            raise "Unsupported prolog format: #{format}"
+          end
+        end
+
+        private def normalize_prolog_spec(spec : String, format : String) : String
+          self.class.normalize_prolog_spec(spec, format)
         end
 
         private def execute_z3(spec : String) : Solvers::SolverResult

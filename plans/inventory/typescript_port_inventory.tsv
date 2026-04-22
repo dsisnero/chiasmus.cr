@@ -39,26 +39,26 @@ benchmark/traditional/p3-taint.ts::function::reachableFrom	function	missing	-	au
 benchmark/traditional/p3-taint.ts::interface::TaintResult	interface	missing	-	auto-generated
 benchmark/traditional/p4-workflow.ts::interface::WorkflowResult	interface	missing	-	auto-generated
 benchmark/traditional/p5-validation.ts::interface::ValidationGapResult	interface	missing	-	auto-generated
-src/config.ts::function::loadConfig	function	missing	-	auto-generated
-src/config.ts::interface::ChiasmusConfig	interface	missing	-	auto-generated
-src/formalize/engine.ts::class::FormalizationEngine	class	missing	-	auto-generated
-src/formalize/engine.ts::const::FIX_SYSTEM	const	missing	-	auto-generated
-src/formalize/engine.ts::const::FORMALIZE_SYSTEM	const	missing	-	auto-generated
-src/formalize/engine.ts::interface::FormalizeResult	interface	missing	-	auto-generated
-src/formalize/engine.ts::interface::SolveResult	interface	missing	-	auto-generated
-src/formalize/engine.ts::method::FormalizationEngine.constructor	method	missing	-	auto-generated
-src/formalize/feedback.ts::function::classifyFeedback	function	missing	-	auto-generated
-src/formalize/feedback.ts::function::core	function	missing	-	auto-generated
+src/config.ts::function::loadConfig	function	ported	src/chiasmus/utils/config.cr:43	Ported as Chiasmus::Utils::Config.load with upstream adapterDiscovery compatibility
+src/config.ts::interface::ChiasmusConfig	interface	ported	src/chiasmus/utils/config.cr:7	Ported as Chiasmus::Utils::Config::ChiasmusConfig
+src/formalize/engine.ts::class::FormalizationEngine	class	ported	src/chiasmus/formalize/engine.cr:30	Ported as Chiasmus::Formalize::Engine with direct formalize and solve coverage.
+src/formalize/engine.ts::const::FIX_SYSTEM	const	ported	src/chiasmus/formalize/engine.cr:20	Ported as Chiasmus::Formalize::FIX_SYSTEM.
+src/formalize/engine.ts::const::FORMALIZE_SYSTEM	const	ported	src/chiasmus/formalize/engine.cr:13	Ported as Chiasmus::Formalize::FORMALIZE_SYSTEM.
+src/formalize/engine.ts::interface::FormalizeResult	interface	ported	src/chiasmus/formalize/engine.cr:4	Ported as Chiasmus::Formalize::FormalizeResult.
+src/formalize/engine.ts::interface::SolveResult	interface	ported	src/chiasmus/formalize/engine.cr:9	Ported as Chiasmus::Formalize::SolveResult.
+src/formalize/engine.ts::method::FormalizationEngine.constructor	method	ported	src/chiasmus/formalize/engine.cr:34	Ported constructor taking skill library and Crig agent.
+src/formalize/feedback.ts::function::classifyFeedback	function	ported	src/chiasmus/formalize/feedback.cr:4	Ported as Chiasmus::Formalize.classify_feedback
+src/formalize/feedback.ts::function::core	function	ported	src/chiasmus/formalize/feedback.cr:19	Represented by unsat-core handling in classify_feedback
 src/formalize/validate.ts::function::lintProlog	function	missing	-	auto-generated
 src/formalize/validate.ts::function::lintSmtlib	function	missing	-	auto-generated
 src/formalize/validate.ts::function::lintSpec	function	missing	-	auto-generated
 src/formalize/validate.ts::interface::LintResult	interface	missing	-	auto-generated
-src/graph/adapter-registry.ts::function::clearAdapters	function	missing	-	auto-generated
-src/graph/adapter-registry.ts::function::getAdapter	function	missing	-	auto-generated
-src/graph/adapter-registry.ts::function::getAdapterExtensions	function	missing	-	auto-generated
-src/graph/adapter-registry.ts::function::getAdapterForExt	function	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::clearAdapters	function	ported	src/chiasmus/graph/adapter_registry.cr:29	Ported as AdapterRegistry.clear_adapters
+src/graph/adapter-registry.ts::function::getAdapter	function	ported	src/chiasmus/graph/adapter_registry.cr:21	Ported as AdapterRegistry.get_adapter
+src/graph/adapter-registry.ts::function::getAdapterExtensions	function	ported	src/chiasmus/graph/adapter_registry.cr:34	Ported as AdapterRegistry.adapter_extensions
+src/graph/adapter-registry.ts::function::getAdapterForExt	function	ported	src/chiasmus/graph/adapter_registry.cr:25	Ported as AdapterRegistry.get_adapter_for_ext
 src/graph/adapter-registry.ts::function::isLanguageAdapter	function	missing	-	auto-generated
-src/graph/adapter-registry.ts::function::registerAdapter	function	missing	-	auto-generated
+src/graph/adapter-registry.ts::function::registerAdapter	function	ported	src/chiasmus/graph/adapter_registry.cr:13	Ported as AdapterRegistry.register_adapter
 src/graph/adapter-registry.ts::function::registerFromModule	function	missing	-	auto-generated
 src/graph/analyses.ts::function::buildQuery	function	ported	src/chiasmus/graph/analyses.cr:1	Ported graph analyses with direct Crystal traversal instead of Prolog query construction
 src/graph/analyses.ts::function::buildSummary	function	ported	src/chiasmus/graph/analyses.cr:1	Ported in-memory graph summary generation
@@ -89,20 +89,20 @@ src/graph/extractor.ts::function::walkPythonChildren	function	missing	-	auto-gen
 src/graph/facts.ts::const::BUILTIN_RULES	const	ported	src/chiasmus/graph/facts.cr:1	Ported builtin graph-analysis Prolog rules
 src/graph/facts.ts::function::escapeAtom	function	ported	src/chiasmus/graph/facts.cr:1	Ported Prolog atom escaping
 src/graph/facts.ts::function::graphToProlog	function	ported	src/chiasmus/graph/facts.cr:1	Ported CodeGraph-to-Prolog serialization
-src/graph/mermaid.ts::const::FLOWCHART_RULES	const	missing	-	auto-generated
-src/graph/mermaid.ts::const::STATE_RULES	const	missing	-	auto-generated
-src/graph/mermaid.ts::function::detectDiagramType	function	missing	-	auto-generated
-src/graph/mermaid.ts::function::extractLabel	function	missing	-	auto-generated
-src/graph/mermaid.ts::function::extractMermaidGraph	function	missing	-	auto-generated
-src/graph/mermaid.ts::function::generateProlog	function	missing	-	auto-generated
-src/graph/mermaid.ts::function::normalizeId	function	missing	-	auto-generated
-src/graph/mermaid.ts::function::parseFlowchartLine	function	missing	-	auto-generated
-src/graph/mermaid.ts::function::parseMermaid	function	missing	-	auto-generated
-src/graph/mermaid.ts::function::parseStateLine	function	missing	-	auto-generated
-src/graph/mermaid.ts::interface::MermaidEdge	interface	missing	-	auto-generated
-src/graph/mermaid.ts::interface::MermaidGraph	interface	missing	-	auto-generated
-src/graph/mermaid.ts::interface::MermaidNode	interface	missing	-	auto-generated
-src/graph/mermaid.ts::type::DiagramType	type	missing	-	auto-generated
+src/graph/mermaid.ts::const::FLOWCHART_RULES	const	ported	src/chiasmus/graph/mermaid.cr:23	Ported as Mermaid::FLOWCHART_RULES
+src/graph/mermaid.ts::const::STATE_RULES	const	ported	src/chiasmus/graph/mermaid.cr:31	Ported as Mermaid::STATE_RULES
+src/graph/mermaid.ts::function::detectDiagramType	function	ported	src/chiasmus/graph/mermaid.cr:68	Ported as Mermaid.detect_diagram_type
+src/graph/mermaid.ts::function::extractLabel	function	ported	src/chiasmus/graph/mermaid.cr:78	Ported as Mermaid.extract_label
+src/graph/mermaid.ts::function::extractMermaidGraph	function	ported	src/chiasmus/graph/mermaid.cr:51	Ported as Mermaid.extract_graph
+src/graph/mermaid.ts::function::generateProlog	function	ported	src/chiasmus/graph/mermaid.cr:116	Ported as Mermaid.generate_prolog
+src/graph/mermaid.ts::function::normalizeId	function	ported	src/chiasmus/graph/mermaid.cr:44	Ported as Mermaid.normalize_id
+src/graph/mermaid.ts::function::parseFlowchartLine	function	ported	src/chiasmus/graph/mermaid.cr:85	Ported as Mermaid.parse_flowchart_line
+src/graph/mermaid.ts::function::parseMermaid	function	ported	src/chiasmus/graph/mermaid.cr:40	Ported as Mermaid.parse
+src/graph/mermaid.ts::function::parseStateLine	function	ported	src/chiasmus/graph/mermaid.cr:104	Ported as Mermaid.parse_state_line
+src/graph/mermaid.ts::interface::MermaidEdge	interface	ported	src/chiasmus/graph/mermaid.cr:17	Ported as MermaidEdge record
+src/graph/mermaid.ts::interface::MermaidGraph	interface	ported	src/chiasmus/graph/mermaid.cr:22	Ported as MermaidGraph record
+src/graph/mermaid.ts::interface::MermaidNode	interface	ported	src/chiasmus/graph/mermaid.cr:13	Ported as MermaidNode record
+src/graph/mermaid.ts::type::DiagramType	type	ported	src/chiasmus/graph/mermaid.cr:8	Ported as DiagramType enum
 src/graph/parser.ts::function::getLangConfig	function	ported	src/chiasmus/graph/parser.cr:11	Ported as LANGUAGE_CONFIG constant used by parser loading helpers
 src/graph/parser.ts::function::getLanguageForFile	function	ported	src/chiasmus/graph/parser.cr:220	Ported extension-to-language resolution
 src/graph/parser.ts::function::getNativeParser	function	missing	-	auto-generated
@@ -139,7 +139,7 @@ src/mcp-server.ts::const::TOOLS	const	ported	src/chiasmus/mcp_server/tools/verif
 src/mcp-server.ts::const::VALID_ANALYSES	const	missing	-	auto-generated
 src/mcp-server.ts::function::getChiasmusHome	function	ported	src/chiasmus/utils/config.cr:21	Port with XDG support
 src/mcp-server.ts::function::handleLint	function	missing	-	auto-generated
-src/mcp-server.ts::function::handleSkills	function	missing	-	auto-generated
+src/mcp-server.ts::function::handleSkills	function	ported	src/chiasmus/mcp_server/tools/skills.cr:7	Ported as Chiasmus::MCPServer::Tools::SkillsTool#invoke.
 src/skills/bm25.ts::const::N	const	missing	-	auto-generated
 src/skills/bm25.ts::const::STOPWORDS	const	missing	-	auto-generated
 src/skills/bm25.ts::function::buildIndex	function	missing	-	auto-generated
@@ -151,16 +151,16 @@ src/skills/craft.ts::function::buildPrologInput	function	missing	-	auto-generate
 src/skills/craft.ts::function::validateTemplate	function	missing	-	auto-generated
 src/skills/craft.ts::interface::CraftInput	interface	missing	-	auto-generated
 src/skills/craft.ts::interface::CraftResult	interface	missing	-	auto-generated
-src/skills/learner.ts::class::SkillLearner	class	missing	-	auto-generated
-src/skills/learner.ts::const::DEDUP_SIMILARITY_THRESHOLD	const	missing	-	auto-generated
-src/skills/learner.ts::const::EXTRACT_SYSTEM	const	missing	-	auto-generated
-src/skills/learner.ts::const::PROMOTION_SUCCESS_RATE	const	missing	-	auto-generated
-src/skills/learner.ts::const::PROMOTION_THRESHOLD	const	missing	-	auto-generated
-src/skills/learner.ts::method::SkillLearner.constructor	method	missing	-	auto-generated
-src/skills/library.ts::class::SkillLibrary	class	missing	-	auto-generated
-src/skills/library.ts::interface::SearchOptions	interface	missing	-	auto-generated
-src/skills/relationships.ts::function::getRelatedTemplates	function	missing	-	auto-generated
-src/skills/relationships.ts::interface::RelatedTemplate	interface	missing	-	auto-generated
+src/skills/learner.ts::class::SkillLearner	class	ported	src/chiasmus/skills/learner.cr:5	Ported as Skills::Learner
+src/skills/learner.ts::const::DEDUP_SIMILARITY_THRESHOLD	const	ported	src/chiasmus/skills/learner.cr:8	Ported as Learner::DEDUP_SIMILARITY_THRESHOLD
+src/skills/learner.ts::const::EXTRACT_SYSTEM	const	ported	src/chiasmus/skills/learner.cr:10	Ported as Learner::EXTRACT_SYSTEM
+src/skills/learner.ts::const::PROMOTION_SUCCESS_RATE	const	ported	src/chiasmus/skills/learner.cr:7	Ported as Learner::PROMOTION_SUCCESS_RATE
+src/skills/learner.ts::const::PROMOTION_THRESHOLD	const	ported	src/chiasmus/skills/learner.cr:6	Ported as Learner::PROMOTION_THRESHOLD
+src/skills/learner.ts::method::SkillLearner.constructor	method	ported	src/chiasmus/skills/learner.cr:26	Ported constructor with injectable extractor and library
+src/skills/library.ts::class::SkillLibrary	class	ported	src/chiasmus/skills/library.cr:12	Ported with starter-template loading, persisted metadata, search, related-template lookup, and learned-template management.
+src/skills/library.ts::interface::SearchOptions	interface	ported	src/chiasmus/skills/library.cr:5	Ported as Chiasmus::Skills::SearchOptions.
+src/skills/relationships.ts::function::getRelatedTemplates	function	ported	src/chiasmus/skills/relationships.cr:37	Ported as Chiasmus::Skills.get_related_templates.
+src/skills/relationships.ts::interface::RelatedTemplate	interface	ported	src/chiasmus/skills/relationships.cr:3	Ported as Chiasmus::Skills::RelatedTemplate.
 src/skills/types.ts::interface::Normalization	interface	missing	-	auto-generated
 src/skills/types.ts::interface::SkillMetadata	interface	missing	-	auto-generated
 src/skills/types.ts::interface::SkillSearchResult	interface	missing	-	auto-generated
@@ -196,11 +196,11 @@ src/tau-prolog.d.ts::function::format_answer	function	missing	-	auto-generated
 src/tau-prolog.d.ts::interface::PrologSession	interface	missing	-	auto-generated
 src/tau-prolog.d.ts::interface::PrologSubstitution	interface	missing	-	auto-generated
 src/tau-prolog.d.ts::interface::PrologTerm	interface	missing	-	auto-generated
-tests/config.test.ts::test::falls back to defaults for invalid JSON	test	missing	-	auto-generated
-tests/config.test.ts::test::ignores unknown keys and wrong types	test	missing	-	auto-generated
-tests/config.test.ts::test::loadConfig	test	missing	-	auto-generated
-tests/config.test.ts::test::reads adapterDiscovery from config.json	test	missing	-	auto-generated
-tests/config.test.ts::test::returns defaults when config.json does not exist	test	missing	-	auto-generated
+tests/config.test.ts::test::falls back to defaults for invalid JSON	test	ported	spec/chiasmus/utils/config_spec.cr:28	Ported invalid JSON fallback coverage
+tests/config.test.ts::test::ignores unknown keys and wrong types	test	ported	spec/chiasmus/utils/config_spec.cr:37	Ported wrong-type and unknown-key handling coverage
+tests/config.test.ts::test::loadConfig	test	ported	spec/chiasmus/utils/config_spec.cr:11	Covered by the Crystal config load spec group
+tests/config.test.ts::test::reads adapterDiscovery from config.json	test	ported	spec/chiasmus/utils/config_spec.cr:19	Ported camelCase adapterDiscovery config key coverage
+tests/config.test.ts::test::returns defaults when config.json does not exist	test	ported	spec/chiasmus/utils/config_spec.cr:12	Ported missing config file fallback coverage
 tests/correction-loop.test.ts::test::Correction Loop	test	missing	-	auto-generated
 tests/correction-loop.test.ts::test::Prolog	test	missing	-	auto-generated
 tests/correction-loop.test.ts::test::Z3	test	missing	-	auto-generated
@@ -239,47 +239,47 @@ tests/dogfood.test.ts::test::detects contradictory firewall rules	test	missing	-
 tests/dogfood.test.ts::test::detects that 3 tasks cannot fit in 2 non-overlapping slots	test	missing	-	auto-generated
 tests/dogfood.test.ts::test::finds valid dependency version resolution	test	missing	-	auto-generated
 tests/dogfood.test.ts::test::validates workflow state machine transitions	test	missing	-	auto-generated
-tests/feedback.test.ts::test::classifies error result	test	missing	-	auto-generated
-tests/feedback.test.ts::test::classifies prolog success with answers	test	missing	-	auto-generated
-tests/feedback.test.ts::test::classifies prolog success with no answers	test	missing	-	auto-generated
-tests/feedback.test.ts::test::classifies sat result with model	test	missing	-	auto-generated
-tests/feedback.test.ts::test::classifies unknown result	test	missing	-	auto-generated
-tests/feedback.test.ts::test::classifies unsat result with core	test	missing	-	auto-generated
-tests/feedback.test.ts::test::classifies unsat result without core	test	missing	-	auto-generated
-tests/feedback.test.ts::test::classifyFeedback	test	missing	-	auto-generated
-tests/formalize.test.ts::test::FormalizationEngine	test	missing	-	auto-generated
-tests/formalize.test.ts::test::formalize (template + instructions, no execution)	test	missing	-	auto-generated
-tests/formalize.test.ts::test::includes normalization guidance in instructions	test	missing	-	auto-generated
+tests/feedback.test.ts::test::classifies error result	test	ported	spec/chiasmus/formalize/feedback_spec.cr:5	Ported error feedback coverage
+tests/feedback.test.ts::test::classifies prolog success with answers	test	ported	spec/chiasmus/formalize/feedback_spec.cr:44	Ported Prolog answer feedback coverage
+tests/feedback.test.ts::test::classifies prolog success with no answers	test	ported	spec/chiasmus/formalize/feedback_spec.cr:36	Ported empty Prolog answer feedback coverage
+tests/feedback.test.ts::test::classifies sat result with model	test	ported	spec/chiasmus/formalize/feedback_spec.cr:28	Ported SAT model feedback coverage
+tests/feedback.test.ts::test::classifies unknown result	test	ported	spec/chiasmus/formalize/feedback_spec.cr:55	Ported UNKNOWN feedback coverage
+tests/feedback.test.ts::test::classifies unsat result with core	test	ported	spec/chiasmus/formalize/feedback_spec.cr:12	Ported unsat-core feedback coverage
+tests/feedback.test.ts::test::classifies unsat result without core	test	ported	spec/chiasmus/formalize/feedback_spec.cr:21	Ported generic UNSAT feedback coverage
+tests/feedback.test.ts::test::classifyFeedback	test	ported	spec/chiasmus/formalize/feedback_spec.cr:3	Covered by the Crystal classify_feedback spec group
+tests/formalize.test.ts::test::FormalizationEngine	test	ported	spec/chiasmus/formalize/engine_spec.cr:19	Covered by the Crystal FormalizationEngine spec group.
+tests/formalize.test.ts::test::formalize (template + instructions, no execution)	test	ported	spec/chiasmus/formalize/engine_spec.cr:20	Covered by the Crystal formalize-selection spec group.
+tests/formalize.test.ts::test::includes normalization guidance in instructions	test	ported	spec/chiasmus/formalize/engine_spec.cr:58	Ported normalization-guidance coverage.
 tests/formalize.test.ts::test::records template use in skill library	test	missing	-	auto-generated
 tests/formalize.test.ts::test::returns failure with diagnostics when correction loop exhausts	test	missing	-	auto-generated
-tests/formalize.test.ts::test::selects a Prolog template for rule inference problems	test	missing	-	auto-generated
-tests/formalize.test.ts::test::selects constraint-satisfaction for dependency problems	test	missing	-	auto-generated
-tests/formalize.test.ts::test::selects graph-reachability for data flow problems	test	missing	-	auto-generated
-tests/formalize.test.ts::test::selects the right template for a policy conflict problem	test	missing	-	auto-generated
+tests/formalize.test.ts::test::selects a Prolog template for rule inference problems	test	ported	spec/chiasmus/formalize/engine_spec.cr:32	Ported Prolog-template selection coverage.
+tests/formalize.test.ts::test::selects constraint-satisfaction for dependency problems	test	ported	spec/chiasmus/formalize/engine_spec.cr:51	Ported dependency-template selection coverage.
+tests/formalize.test.ts::test::selects graph-reachability for data flow problems	test	ported	spec/chiasmus/formalize/engine_spec.cr:43	Ported graph-reachability selection coverage.
+tests/formalize.test.ts::test::selects the right template for a policy conflict problem	test	ported	spec/chiasmus/formalize/engine_spec.cr:21	Ported policy-conflict template selection coverage.
 tests/formalize.test.ts::test::solve (end-to-end with LLM)	test	missing	-	auto-generated
 tests/formalize.test.ts::test::solves a Prolog reachability problem end-to-end	test	missing	-	auto-generated
 tests/formalize.test.ts::test::solves a Z3 policy contradiction problem end-to-end	test	missing	-	auto-generated
 tests/formalize.test.ts::test::uses correction loop when initial formalization has errors	test	missing	-	auto-generated
 tests/formalize.test.ts::test::uses enriched feedback in correction prompts	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::adapter integration with extractor	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::adapter integration with parser	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::adapter with searchPaths is accepted by registerAdapter	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::adapter-registry	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::built-in extensions take precedence over adapters	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::clearAdapters removes all registrations	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::deduplicates calls across adapter-extracted files	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::discoverAdapters	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::dispatches to adapter.extract for registered language	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::does not affect built-in languages	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::does not throw when no chiasmus-adapter-* packages exist	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::getAdapterExtensions includes registered extensions	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::getAdapterForExt resolves by extension	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::getLanguageForFile resolves adapter extensions	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::getSupportedExtensions includes adapter extensions	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::is idempotent (only runs once)	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::normalizes extensions without leading dot	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::registerAdapter + getAdapter round-trips	test	missing	-	auto-generated
-tests/graph/adapter-registry.test.ts::test::searchPaths	test	missing	-	auto-generated
+tests/graph/adapter-registry.test.ts::test::adapter integration with extractor	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:129	Covered by extractor dispatch and built-in isolation specs
+tests/graph/adapter-registry.test.ts::test::adapter integration with parser	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:107	Covered by parser adapter resolution specs
+tests/graph/adapter-registry.test.ts::test::adapter with searchPaths is accepted by registerAdapter	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:89	Ported search_paths registration coverage
+tests/graph/adapter-registry.test.ts::test::adapter-registry	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:62	Covered by the Crystal AdapterRegistry spec group
+tests/graph/adapter-registry.test.ts::test::built-in extensions take precedence over adapters	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:114	Ported parser precedence coverage
+tests/graph/adapter-registry.test.ts::test::clearAdapters removes all registrations	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:95	Ported registry reset coverage
+tests/graph/adapter-registry.test.ts::test::deduplicates calls across adapter-extracted files	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:158	Ported multi-file adapter extraction coverage
+tests/graph/adapter-registry.test.ts::test::discoverAdapters	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:103	Ported as explicit-registration discovery contract; dynamic module loading remains unported
+tests/graph/adapter-registry.test.ts::test::dispatches to adapter.extract for registered language	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:129	Ported extractor dispatch coverage
+tests/graph/adapter-registry.test.ts::test::does not affect built-in languages	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:146	Ported built-in language isolation coverage
+tests/graph/adapter-registry.test.ts::test::does not throw when no chiasmus-adapter-* packages exist	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:103	Non-throwing discovery behavior is covered; dynamic package scanning remains unported
+tests/graph/adapter-registry.test.ts::test::getAdapterExtensions includes registered extensions	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:83	Ported adapter extension listing coverage
+tests/graph/adapter-registry.test.ts::test::getAdapterForExt resolves by extension	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:74	Ported extension lookup coverage
+tests/graph/adapter-registry.test.ts::test::getLanguageForFile resolves adapter extensions	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:107	Ported parser adapter extension resolution coverage
+tests/graph/adapter-registry.test.ts::test::getSupportedExtensions includes adapter extensions	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:120	Ported supported extension merge coverage
+tests/graph/adapter-registry.test.ts::test::is idempotent (only runs once)	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:103	Ported discovery idempotence coverage
+tests/graph/adapter-registry.test.ts::test::normalizes extensions without leading dot	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:74	Normalization is covered by extension lookup without a leading dot
+tests/graph/adapter-registry.test.ts::test::registerAdapter + getAdapter round-trips	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:67	Ported registration round-trip coverage
+tests/graph/adapter-registry.test.ts::test::searchPaths	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:89	Ported search_paths storage coverage
 tests/graph/analyses.test.ts::test::callees returns correct callees	test	ported	spec/chiasmus/graph/analyses_spec.cr:36	Ported Crystal graph analysis spec
 tests/graph/analyses.test.ts::test::callers returns correct callers	test	ported	spec/chiasmus/graph/analyses_spec.cr:18	Ported Crystal graph analysis spec
 tests/graph/analyses.test.ts::test::cycles detects circular call dependencies	test	ported	spec/chiasmus/graph/analyses_spec.cr:113	Ported Crystal graph analysis spec
@@ -349,67 +349,67 @@ tests/graph/mcp-integration.test.ts::test::returns dead code analysis	test	missi
 tests/graph/mcp-integration.test.ts::test::returns error for missing parameters	test	missing	-	auto-generated
 tests/graph/mcp-integration.test.ts::test::returns facts as raw Prolog	test	missing	-	auto-generated
 tests/graph/mcp-integration.test.ts::test::returns summary with correct counts	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::flowchart	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::flowchart output is valid Prolog	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::handles [*] start/end markers	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::handles different arrow styles	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::handles flowchart keyword	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::handles transitions without events	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::ignores comments and empty lines	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::includes can_reach rules	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::includes reachability rules	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::normalizes IDs to lowercase	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::parseMermaid	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::parses labeled edges	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::parses multiple edges	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::parses nodes with labels	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::parses simple edge A --> B	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::parses state transitions	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::reachability works on flowchart	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::solver integration	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::state diagram output is valid Prolog	test	missing	-	auto-generated
-tests/graph/mermaid.test.ts::test::stateDiagram	test	missing	-	auto-generated
+tests/graph/mermaid.test.ts::test::flowchart	test	ported	spec/chiasmus/graph/mermaid_spec.cr:5	Covered by the Crystal Mermaid flowchart spec group
+tests/graph/mermaid.test.ts::test::flowchart output is valid Prolog	test	ported	spec/chiasmus/graph/mermaid_spec.cr:87	Ported flowchart solver integration coverage
+tests/graph/mermaid.test.ts::test::handles [*] start/end markers	test	ported	spec/chiasmus/graph/mermaid_spec.cr:70	Ported start/end marker coverage
+tests/graph/mermaid.test.ts::test::handles different arrow styles	test	ported	spec/chiasmus/graph/mermaid_spec.cr:56	Ported alternate arrow style coverage
+tests/graph/mermaid.test.ts::test::handles flowchart keyword	test	ported	spec/chiasmus/graph/mermaid_spec.cr:51	Ported flowchart keyword coverage
+tests/graph/mermaid.test.ts::test::handles transitions without events	test	ported	spec/chiasmus/graph/mermaid_spec.cr:76	Ported default auto-event coverage
+tests/graph/mermaid.test.ts::test::ignores comments and empty lines	test	ported	spec/chiasmus/graph/mermaid_spec.cr:39	Ported comment and blank-line handling coverage
+tests/graph/mermaid.test.ts::test::includes can_reach rules	test	ported	spec/chiasmus/graph/mermaid_spec.cr:81	Ported state-diagram reachability rule coverage
+tests/graph/mermaid.test.ts::test::includes reachability rules	test	ported	spec/chiasmus/graph/mermaid_spec.cr:45	Ported flowchart reachability rule coverage
+tests/graph/mermaid.test.ts::test::normalizes IDs to lowercase	test	ported	spec/chiasmus/graph/mermaid_spec.cr:34	Ported ID normalization coverage
+tests/graph/mermaid.test.ts::test::parseMermaid	test	ported	spec/chiasmus/graph/mermaid_spec.cr:3	Covered by the Crystal Mermaid parse spec group
+tests/graph/mermaid.test.ts::test::parses labeled edges	test	ported	spec/chiasmus/graph/mermaid_spec.cr:18	Ported labeled edge coverage
+tests/graph/mermaid.test.ts::test::parses multiple edges	test	ported	spec/chiasmus/graph/mermaid_spec.cr:26	Ported multiple-edge coverage
+tests/graph/mermaid.test.ts::test::parses nodes with labels	test	ported	spec/chiasmus/graph/mermaid_spec.cr:10	Ported node label coverage
+tests/graph/mermaid.test.ts::test::parses simple edge A --> B	test	ported	spec/chiasmus/graph/mermaid_spec.cr:6	Ported simple edge coverage
+tests/graph/mermaid.test.ts::test::parses state transitions	test	ported	spec/chiasmus/graph/mermaid_spec.cr:64	Ported state transition coverage
+tests/graph/mermaid.test.ts::test::reachability works on flowchart	test	ported	spec/chiasmus/graph/mermaid_spec.cr:97	Ported flowchart reachability solver coverage
+tests/graph/mermaid.test.ts::test::solver integration	test	ported	spec/chiasmus/graph/mermaid_spec.cr:85	Covered by the Crystal Mermaid solver integration spec group
+tests/graph/mermaid.test.ts::test::state diagram output is valid Prolog	test	ported	spec/chiasmus/graph/mermaid_spec.cr:108	Ported state diagram solver integration coverage
+tests/graph/mermaid.test.ts::test::stateDiagram	test	ported	spec/chiasmus/graph/mermaid_spec.cr:63	Covered by the Crystal Mermaid stateDiagram spec group
 tests/graph/parser.test.ts::test::lists supported extensions	test	ported	spec/chiasmus/graph/parser_spec.cr:28	Ported Crystal parser spec
 tests/graph/parser.test.ts::test::maps extensions to languages correctly	test	ported	spec/chiasmus/graph/parser_spec.cr:16	Ported Crystal parser spec
 tests/graph/parser.test.ts::test::parser	test	ported	spec/chiasmus/graph/parser_spec.cr:44	Ported parser surface coverage with graceful nil when grammar unavailable
 tests/graph/parser.test.ts::test::parses JavaScript source	test	missing	-	auto-generated
 tests/graph/parser.test.ts::test::parses TypeScript source and returns tree with rootNode	test	missing	-	auto-generated
 tests/graph/parser.test.ts::test::returns null for unsupported extension	test	ported	spec/chiasmus/graph/parser_spec.cr:39	Ported Crystal parser spec
-tests/learning.test.ts::test::SkillLearner	test	missing	-	auto-generated
-tests/learning.test.ts::test::deduplication	test	missing	-	auto-generated
-tests/learning.test.ts::test::does not promote templates with low success rate	test	missing	-	auto-generated
-tests/learning.test.ts::test::extracts a Prolog template from a verified solution	test	missing	-	auto-generated
-tests/learning.test.ts::test::extracts a Z3 template from a verified solution	test	missing	-	auto-generated
-tests/learning.test.ts::test::promotes a template after sufficient successful reuses	test	missing	-	auto-generated
-tests/learning.test.ts::test::promotion and quality tracking	test	missing	-	auto-generated
-tests/learning.test.ts::test::rejects near-duplicate templates	test	missing	-	auto-generated
-tests/learning.test.ts::test::rejects templates with missing required fields	test	missing	-	auto-generated
-tests/learning.test.ts::test::returns null when LLM produces invalid JSON	test	missing	-	auto-generated
-tests/learning.test.ts::test::template extraction	test	missing	-	auto-generated
+tests/learning.test.ts::test::SkillLearner	test	ported	spec/chiasmus/skills/learner_spec.cr:13	Covered by the Crystal Skills::Learner spec group
+tests/learning.test.ts::test::deduplication	test	ported	spec/chiasmus/skills/learner_spec.cr:86	Ported duplicate-rejection coverage
+tests/learning.test.ts::test::does not promote templates with low success rate	test	ported	spec/chiasmus/skills/learner_spec.cr:123	Ported low-success promotion guard coverage
+tests/learning.test.ts::test::extracts a Prolog template from a verified solution	test	ported	spec/chiasmus/skills/learner_spec.cr:42	Ported Prolog template extraction coverage
+tests/learning.test.ts::test::extracts a Z3 template from a verified solution	test	ported	spec/chiasmus/skills/learner_spec.cr:15	Ported Z3 template extraction coverage
+tests/learning.test.ts::test::promotes a template after sufficient successful reuses	test	ported	spec/chiasmus/skills/learner_spec.cr:107	Ported promotion threshold coverage
+tests/learning.test.ts::test::promotion and quality tracking	test	ported	spec/chiasmus/skills/learner_spec.cr:105	Covered by the Crystal promotion spec group
+tests/learning.test.ts::test::rejects near-duplicate templates	test	ported	spec/chiasmus/skills/learner_spec.cr:86	Ported near-duplicate rejection coverage
+tests/learning.test.ts::test::rejects templates with missing required fields	test	ported	spec/chiasmus/skills/learner_spec.cr:75	Ported required-field validation coverage
+tests/learning.test.ts::test::returns null when LLM produces invalid JSON	test	ported	spec/chiasmus/skills/learner_spec.cr:63	Ported invalid JSON rejection coverage
+tests/learning.test.ts::test::template extraction	test	ported	spec/chiasmus/skills/learner_spec.cr:14	Covered by the Crystal extraction spec group
 tests/mcp-server.test.ts::test::Chiasmus MCP Server	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::appears in tool list	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::auto-fixes check-sat in Z3 spec	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::catches missing periods in Prolog	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::catches unbalanced parentheses	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::chiasmus_craft	test	missing	-	auto-generated
-tests/mcp-server.test.ts::test::chiasmus_formalize	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::chiasmus_formalize	test	ported	spec/mcp_server/tools/formalize_spec.cr:3	Covered by the Crystal formalize-tool spec group.
 tests/mcp-server.test.ts::test::chiasmus_lint	test	missing	-	auto-generated
-tests/mcp-server.test.ts::test::chiasmus_skills	test	missing	-	auto-generated
-tests/mcp-server.test.ts::test::chiasmus_solve	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::chiasmus_skills	test	ported	spec/mcp_server/tools/skills_spec.cr:3	Covered by the Crystal skills-tool spec group.
+tests/mcp-server.test.ts::test::chiasmus_solve	test	ported	spec/mcp_server/tools/solve_spec.cr:3	Covered by the Crystal solve-tool spec group.
 tests/mcp-server.test.ts::test::chiasmus_verify	test	ported	spec/mcp_server/tools/verify_spec.cr:5	Basic verify tool tests ported to Crystal
 tests/mcp-server.test.ts::test::chiasmus_verify batch queries	test	ported	spec/mcp_server/tools/verify_spec.cr:5	Batch queries test ported
 tests/mcp-server.test.ts::test::lists chiasmus_verify in available tools	test	ported	spec/mcp_server/tools/verify_spec.cr:5	Tool listing test ported
 tests/mcp-server.test.ts::test::passes clean spec with no issues	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::requires query parameter for prolog solver	test	missing	-	auto-generated
-tests/mcp-server.test.ts::test::returns error for unknown template name	test	missing	-	auto-generated
-tests/mcp-server.test.ts::test::returns error when problem is missing	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns error for unknown template name	test	ported	spec/mcp_server/tools/skills_spec.cr:56	Ported unknown-template error coverage.
+tests/mcp-server.test.ts::test::returns error when problem is missing	test	ported	spec/mcp_server/tools/formalize_spec.cr:23,spec/mcp_server/tools/solve_spec.cr:18	Ported problem-required error coverage for formalize and solve.
 tests/mcp-server.test.ts::test::returns structured error for malformed Prolog input	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::returns structured error for malformed Z3 input	test	missing	-	auto-generated
-tests/mcp-server.test.ts::test::returns template and instructions for a problem	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::returns template and instructions for a problem	test	ported	spec/mcp_server/tools/formalize_spec.cr:4	Ported formalize template and instructions coverage.
 tests/mcp-server.test.ts::test::returns trace when explain=true for Prolog	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::returns validation errors for bad input	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::runs multiple Prolog queries against same program	test	missing	-	auto-generated
-tests/mcp-server.test.ts::test::searches for templates by query	test	missing	-	auto-generated
+tests/mcp-server.test.ts::test::searches for templates by query	test	ported	spec/mcp_server/tools/skills_spec.cr:4	Ported skills search coverage.
 tests/mcp-server.test.ts::test::solves a problem end-to-end with mock LLM	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::verifies Prolog queries	test	missing	-	auto-generated
 tests/mcp-server.test.ts::test::verifies satisfiable Z3 SMT-LIB input	test	missing	-	auto-generated
@@ -428,40 +428,40 @@ tests/prolog-solver.test.ts::test::returns no trace when explain is false (defau
 tests/prolog-solver.test.ts::test::returns trace for ground query with explain=true	test	missing	-	auto-generated
 tests/prolog-solver.test.ts::test::returns trace for rule chain when explain=true	test	missing	-	auto-generated
 tests/prolog-solver.test.ts::test::returns trace with multiple rule applications	test	missing	-	auto-generated
-tests/relationships.test.ts::test::all reason strings are non-empty and descriptive	test	missing	-	auto-generated
-tests/relationships.test.ts::test::all starter templates have at least one related template	test	missing	-	auto-generated
-tests/relationships.test.ts::test::getRelatedTemplates	test	missing	-	auto-generated
-tests/relationships.test.ts::test::returns empty array for unknown template	test	missing	-	auto-generated
-tests/relationships.test.ts::test::returns related templates for policy-contradiction	test	missing	-	auto-generated
-tests/relationships.test.ts::test::returns related templates for schema-consistency	test	missing	-	auto-generated
+tests/relationships.test.ts::test::all reason strings are non-empty and descriptive	test	ported	spec/chiasmus/skills/relationships_spec.cr:25	Ported relationship-reason coverage.
+tests/relationships.test.ts::test::all starter templates have at least one related template	test	ported	spec/chiasmus/skills/relationships_spec.cr:19	Ported starter-coverage relationship check.
+tests/relationships.test.ts::test::getRelatedTemplates	test	ported	spec/chiasmus/skills/relationships_spec.cr:4	Covered by the Crystal related-template spec group.
+tests/relationships.test.ts::test::returns empty array for unknown template	test	ported	spec/chiasmus/skills/relationships_spec.cr:16	Ported unknown-template relationship behavior.
+tests/relationships.test.ts::test::returns related templates for policy-contradiction	test	ported	spec/chiasmus/skills/relationships_spec.cr:5	Ported policy-contradiction related-template coverage.
+tests/relationships.test.ts::test::returns related templates for schema-consistency	test	ported	spec/chiasmus/skills/relationships_spec.cr:11	Ported schema-consistency related-template coverage.
 tests/session.test.ts::test::SolverSession	test	missing	-	auto-generated
 tests/session.test.ts::test::assigns unique session IDs	test	missing	-	auto-generated
 tests/session.test.ts::test::creates isolated Prolog sessions	test	missing	-	auto-generated
 tests/session.test.ts::test::creates isolated Z3 sessions	test	missing	-	auto-generated
 tests/session.test.ts::test::runs Z3 and Prolog concurrently without interference	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::SkillLibrary	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::all templates have at least one normalization	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::all templates have valid skeletons with matching slot markers	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::can filter by domain	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::can filter by solver type	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::each template has metadata initialized	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::finds config-equivalence for configuration comparison	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::finds constraint-satisfaction for dependency version queries	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::finds graph-reachability for data flow queries	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::finds permission-derivation for role hierarchy queries	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::finds policy-contradiction for authorization conflict queries	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::finds rule-inference for eligibility/compliance queries	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::get by name	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::initialization	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::loads all starter templates	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::metadata tracking	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::persists metadata across library instances	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::records reuse and success	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::retrieves a template by exact name	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::returns null for unknown name	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::returns results sorted by relevance score	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::search	test	missing	-	auto-generated
-tests/skill-library.test.ts::test::template structure	test	missing	-	auto-generated
+tests/skill-library.test.ts::test::SkillLibrary	test	ported	spec/chiasmus/skills/library_spec.cr:15	Covered by the Crystal SkillLibrary spec group.
+tests/skill-library.test.ts::test::all templates have at least one normalization	test	ported	spec/chiasmus/skills/library_spec.cr:123	Ported normalization coverage for starter templates.
+tests/skill-library.test.ts::test::all templates have valid skeletons with matching slot markers	test	ported	spec/chiasmus/skills/library_spec.cr:106	Ported skeleton-slot consistency coverage.
+tests/skill-library.test.ts::test::can filter by domain	test	ported	spec/chiasmus/skills/library_spec.cr:86	Ported domain-filter coverage.
+tests/skill-library.test.ts::test::can filter by solver type	test	ported	spec/chiasmus/skills/library_spec.cr:94	Ported solver-filter coverage.
+tests/skill-library.test.ts::test::each template has metadata initialized	test	ported	spec/chiasmus/skills/library_spec.cr:23	Ported starter metadata initialization coverage.
+tests/skill-library.test.ts::test::finds config-equivalence for configuration comparison	test	ported	spec/chiasmus/skills/library_spec.cr:56	Ported config-equivalence search coverage.
+tests/skill-library.test.ts::test::finds constraint-satisfaction for dependency version queries	test	ported	spec/chiasmus/skills/library_spec.cr:44	Ported constraint-satisfaction search coverage.
+tests/skill-library.test.ts::test::finds graph-reachability for data flow queries	test	ported	spec/chiasmus/skills/library_spec.cr:50	Ported graph-reachability search coverage.
+tests/skill-library.test.ts::test::finds permission-derivation for role hierarchy queries	test	ported	spec/chiasmus/skills/library_spec.cr:68	Ported permission-derivation search coverage.
+tests/skill-library.test.ts::test::finds policy-contradiction for authorization conflict queries	test	ported	spec/chiasmus/skills/library_spec.cr:36	Ported policy-contradiction search coverage.
+tests/skill-library.test.ts::test::finds rule-inference for eligibility/compliance queries	test	ported	spec/chiasmus/skills/library_spec.cr:62	Ported rule-inference search coverage.
+tests/skill-library.test.ts::test::get by name	test	ported	spec/chiasmus/skills/library_spec.cr:165	Covered by the Crystal get-by-name spec group.
+tests/skill-library.test.ts::test::initialization	test	ported	spec/chiasmus/skills/library_spec.cr:16	Covered by the Crystal initialization spec group.
+tests/skill-library.test.ts::test::loads all starter templates	test	ported	spec/chiasmus/skills/library_spec.cr:17	Ported starter-template load coverage.
+tests/skill-library.test.ts::test::metadata tracking	test	ported	spec/chiasmus/skills/library_spec.cr:129	Covered by the Crystal metadata-tracking spec group.
+tests/skill-library.test.ts::test::persists metadata across library instances	test	ported	spec/chiasmus/skills/library_spec.cr:143	Ported metadata persistence coverage.
+tests/skill-library.test.ts::test::records reuse and success	test	ported	spec/chiasmus/skills/library_spec.cr:130	Ported reuse and success tracking coverage.
+tests/skill-library.test.ts::test::retrieves a template by exact name	test	ported	spec/chiasmus/skills/library_spec.cr:166	Ported exact-name lookup coverage.
+tests/skill-library.test.ts::test::returns null for unknown name	test	ported	spec/chiasmus/skills/library_spec.cr:174	Ported unknown-name lookup coverage.
+tests/skill-library.test.ts::test::returns results sorted by relevance score	test	ported	spec/chiasmus/skills/library_spec.cr:74	Ported relevance-sort coverage.
+tests/skill-library.test.ts::test::search	test	ported	spec/chiasmus/skills/library_spec.cr:34	Covered by the Crystal search spec group.
+tests/skill-library.test.ts::test::template structure	test	ported	spec/chiasmus/skills/library_spec.cr:103	Covered by the Crystal template-structure spec group.
 tests/validate.test.ts::test::Prolog with comments passes	test	missing	-	auto-generated
 tests/validate.test.ts::test::Spec Linting	test	missing	-	auto-generated
 tests/validate.test.ts::test::Z3 with comments passes	test	missing	-	auto-generated

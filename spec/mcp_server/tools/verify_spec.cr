@@ -56,17 +56,18 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       result_hash["answers"].as_a.size.should be >= 1
     end
 
-    it "handles prolog with format parameter" do
+    it "handles prolog mermaid format" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
       input = "graph TD\n  A --> B"
       result = tool.invoke({
         "solver" => JSON::Any.new("prolog"),
         "input"  => JSON::Any.new(input),
         "format" => JSON::Any.new("mermaid"),
+        "query"  => JSON::Any.new("edge(a, b)."),
       })
 
-      result["status"].as_s.should eq "error"
-      result["error"].to_s.should_not be_empty
+      result["status"].as_s.should eq "success"
+      result["result"].as_h["status"].as_s.should eq "success"
     end
 
     it "handles prolog with queries array" do

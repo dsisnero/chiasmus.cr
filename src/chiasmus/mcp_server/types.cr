@@ -34,10 +34,10 @@ module Chiasmus
         getter solver : String
         getter domain : String
         getter instructions : String
-        getter suggestions : Array(String)
+        getter suggestions : Array(JSON::Any)
 
         def initialize(@template : String, @solver : String, @domain : String,
-                       @instructions : String, @suggestions : Array(String) = [] of String)
+                       @instructions : String, @suggestions : Array(JSON::Any) = [] of JSON::Any)
           super("success")
         end
       end
@@ -72,9 +72,9 @@ module Chiasmus
       # Skills tool response
       struct SkillsResponse < Response
         getter templates : Array(TemplateJSON)
-        getter suggestions : Array(String)? = nil
+        getter suggestions : Array(JSON::Any)? = nil
 
-        def initialize(@templates : Array(TemplateJSON), @suggestions : Array(String)? = nil)
+        def initialize(@templates : Array(TemplateJSON), @suggestions : Array(JSON::Any)? = nil)
           super("success")
         end
       end

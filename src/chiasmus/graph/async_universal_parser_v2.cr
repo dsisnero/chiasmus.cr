@@ -34,7 +34,8 @@ module Chiasmus
         spawn do
           begin
             language = Parser.get_language_for_file(file_path)
-            unless language
+            parser_language = Parser.grammar_language_for_file(file_path)
+            unless language && parser_language
               result_channel.send(Utils::Result(TreeSitter::Tree?).failure(
                 "Unsupported file extension",
                 {"file_path" => file_path}
@@ -43,13 +44,13 @@ module Chiasmus
             end
 
             # Get language asynchronously with timeout
-            lang_channel = get_language_async(language)
+            lang_channel = get_language_async(parser_language)
             lang_result = Utils::Timeout.with_timeout_async(timeout_ms, lang_channel)
 
             unless lang_result
               result_channel.send(Utils::Result(TreeSitter::Tree?).failure(
                 "Timeout getting language",
-                {"language" => language, "file_path" => file_path, "timeout_ms" => timeout_ms.to_s}
+                {"language" => parser_language, "logical_language" => language, "file_path" => file_path, "timeout_ms" => timeout_ms.to_s}
               ))
               next
             end
@@ -57,7 +58,7 @@ module Chiasmus
             if lang_result.failure?
               result_channel.send(Utils::Result(TreeSitter::Tree?).failure(
                 "Failed to get language: #{lang_result.error}",
-                lang_result.details.merge({"language" => language, "file_path" => file_path})
+                lang_result.details.merge({"language" => parser_language, "logical_language" => language, "file_path" => file_path})
               ))
               next
             end

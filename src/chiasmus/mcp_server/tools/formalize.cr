@@ -10,19 +10,22 @@ module Chiasmus
           problem = arguments["problem"]?.try(&.as_s?)
 
           if problem.nil? || problem.empty?
-            return Types::ErrorResponse.new("The 'problem' parameter (string) is required").to_json.as_h
+            return json_hash(Types::ErrorResponse.new("The 'problem' parameter (string) is required"))
           end
 
-          server = MCPServer::Server.instance rescue nil
-          return Types::ErrorResponse.new("Server not available").to_json.as_h unless server
-
-          formalization_engine = server.formalization_engine
-          return Types::ErrorResponse.new("Formalization engine not available").to_json.as_h unless formalization_engine
+          server = MCPServer.current_server
+          return json_hash(Types::ErrorResponse.new("Server not available")) unless server
 
           # Formalize the problem
-          result = formalization_engine.formalize(problem)
+          result = server.formalize(problem)
+          return json_hash(Types::ErrorResponse.new("Formalization engine not available")) unless result
 
-          suggestions = [] of String
+          suggestions = server.skill_library.get_related(result.template.name).map do |related|
+            JSON.parse({
+              "name"   => related.name,
+              "reason" => related.reason,
+            }.to_json)
+          end
 
           response = Types::FormalizeResponse.new(
             template: result.template.name,
@@ -32,9 +35,9 @@ module Chiasmus
             suggestions: suggestions
           )
 
-          response.to_json.as_h
+          json_hash(response)
         rescue ex
-          Types::ErrorResponse.new(ex.message || ex.class.name).to_json.as_h
+          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
         end
 
         def self.tool_name : String
@@ -62,6 +65,10 @@ module Chiasmus
             },
             required: ["problem"]
           )
+        end
+
+        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
+          JSON.parse(response.to_json).as_h
         end
       end
     end

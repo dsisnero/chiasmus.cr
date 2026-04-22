@@ -13,20 +13,25 @@ module Chiasmus
           solver = arguments["solver"]?.try(&.as_s?)
           limit = arguments["limit"]?.try(&.as_i?) || 10
 
-          server = MCPServer::Server.instance rescue nil
-          return Types::ErrorResponse.new("Server not available").to_json.as_h unless server
+          server = MCPServer.current_server
+          return json_hash(Types::ErrorResponse.new("Server not available")) unless server
 
           library = server.skill_library
 
           if name
             # Get template by exact name
             template = library.get(name)
-            return Types::ErrorResponse.new("Template '#{name}' not found").to_json.as_h unless template
+            return json_hash(Types::ErrorResponse.new("Template '#{name}' not found")) unless template
 
-            suggestions = [] of String
+            suggestions = library.get_related(name).map do |related|
+              JSON.parse({
+                "name"   => related.name,
+                "reason" => related.reason,
+              }.to_json)
+            end
 
             response = Types::SkillsResponse.new(
-              templates: [Types.template_to_json(template)],
+              templates: [Types.template_to_json(template.template)],
               suggestions: suggestions
             )
           else
@@ -44,9 +49,9 @@ module Chiasmus
             )
           end
 
-          response.to_json.as_h
+          json_hash(response)
         rescue ex
-          Types::ErrorResponse.new(ex.message || ex.class.name).to_json.as_h
+          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
         end
 
         def self.tool_name : String
@@ -101,6 +106,10 @@ module Chiasmus
           else
             nil
           end
+        end
+
+        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
+          JSON.parse(response.to_json).as_h
         end
       end
     end
