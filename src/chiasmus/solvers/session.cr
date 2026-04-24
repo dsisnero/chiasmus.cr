@@ -1,8 +1,36 @@
+require "uuid"
 require "./types"
 require "crolog"
 
 module Chiasmus
   module Solvers
+    # SolverSession wraps a solver instance with a unique ID for isolation.
+    # Mirrors the upstream SolverSession API.
+    class SolverSession
+      getter id : String
+
+      def initialize(@id : String, @solver : Solver)
+      end
+
+      def self.create(type : String) : SolverSession
+        id = UUID.random.to_s
+        solver = case type.downcase
+                 when "z3"     then Z3Solver.new
+                 when "prolog" then PrologSolver.new
+                 else               raise "Unknown solver type: #{type}"
+                 end
+        SolverSession.new(id, solver)
+      end
+
+      def solve(input : SolverInput) : SolverResult
+        @solver.solve(input)
+      end
+
+      def dispose : Nil
+        @solver.dispose
+      end
+    end
+
     class Session
       record PrologRequest, program : String, query : String, explain : Bool, response : Channel(SolverResult)
 

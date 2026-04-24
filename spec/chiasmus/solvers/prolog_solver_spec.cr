@@ -1,6 +1,7 @@
 require "../../spec_helper"
 
 private def swipl_available? : Bool
+  # crolog requires the SWI-Prolog shared library at runtime
   Process.run("which", ["swipl"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
 rescue
   false
@@ -97,5 +98,76 @@ describe Chiasmus::Solvers::PrologSolver do
     trace = result.as(Chiasmus::Solvers::SuccessResult).trace
     trace.should_not be_nil
     trace.not_nil!.join(" ").should contain("ancestor")
+  end
+
+  it "handles ground queries (no variables)" do
+    next pending("swipl not installed") unless swipl_available?
+
+    solver = Chiasmus::Solvers::PrologSolver.new
+    result = solver.solve("parent(tom, bob).", "parent(tom, bob).")
+
+    result.should be_a(Chiasmus::Solvers::SuccessResult)
+    result.as(Chiasmus::Solvers::SuccessResult).answers.size.should be >= 1
+  end
+
+  it "returns nil trace when explain is false (default)" do
+    next pending("swipl not installed") unless swipl_available?
+
+    solver = Chiasmus::Solvers::PrologSolver.new
+    result = solver.solve(<<-PROLOG, "ancestor(tom, X).")
+      parent(tom, bob).
+      ancestor(X, Y) :- parent(X, Y).
+    PROLOG
+
+    result.should be_a(Chiasmus::Solvers::SuccessResult)
+    result.as(Chiasmus::Solvers::SuccessResult).trace.should be_nil
+  end
+
+  it "returns trace for ground query with explain=true" do
+    next pending("swipl not installed") unless swipl_available?
+
+    solver = Chiasmus::Solvers::PrologSolver.new
+    result = solver.solve(<<-PROLOG, "ancestor(tom, bob).", explain: true)
+      parent(tom, bob).
+      ancestor(X, Y) :- parent(X, Y).
+    PROLOG
+
+    result.should be_a(Chiasmus::Solvers::SuccessResult)
+    trace = result.as(Chiasmus::Solvers::SuccessResult).trace
+    trace.should_not be_nil
+    trace.not_nil!.size.should be > 0
+  end
+
+  it "returns trace with multiple rule applications" do
+    next pending("swipl not installed") unless swipl_available?
+
+    solver = Chiasmus::Solvers::PrologSolver.new
+    result = solver.solve(<<-PROLOG, "path(a, c).", explain: true)
+      edge(a, b).
+      edge(b, c).
+      path(X, Y) :- edge(X, Y).
+      path(X, Y) :- edge(X, Z), path(Z, Y).
+    PROLOG
+
+    result.should be_a(Chiasmus::Solvers::SuccessResult)
+    trace = result.as(Chiasmus::Solvers::SuccessResult).trace
+    trace.should_not be_nil
+    trace.not_nil!.join(" ").should contain("path")
+  end
+
+  it "handles list operations" do
+    next pending("swipl not installed") unless swipl_available?
+
+    solver = Chiasmus::Solvers::PrologSolver.new
+    result = solver.solve(<<-PROLOG, "member(X, [a, b, c]).")
+      member(X, [X|_]).
+      member(X, [_|T]) :- member(X, T).
+    PROLOG
+
+    result.should be_a(Chiasmus::Solvers::SuccessResult)
+    values = result.as(Chiasmus::Solvers::SuccessResult).answers.map { |a| a.bindings["X"]? }.compact
+    values.should contain("a")
+    values.should contain("b")
+    values.should contain("c")
   end
 end
