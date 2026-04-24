@@ -32,6 +32,9 @@ extractor
 
 # Tree-sitter build artifacts
 
+# Compiled tree-sitter parser binary
+parser
+
 # Reference implementations for study only
 vendor/ruby-tree-sitter/
 vendor/tree-sitter-rust/
