@@ -13,125 +13,57 @@ This plan focuses on the major unresolved parity gaps that still materially affe
 
 ## Current State
 
-Already in good shape:
+### What is now in good shape (ported in inventory):
 
-- grammar management and metadata
-- solver core port and basic solver specs
-- learning core
-- skill library starters and relationships
-- adapter registry core, excluding dynamic discovery
-- Mermaid support
-- formalize template selection basics
-- MCP tool slices for `verify`, `learn`, `skills`, `formalize`, and `solve`
+- **Validation and linting** — `lintSpec`, `lintSmtlib`, `lintProlog`, `LintResult` all ported; all `validate.test.ts` rows ported; MCP `chiasmus_lint` tool wired with direct specs.
+- **Craft template flow** — `validateTemplate`, `buildPrologInput`, `CraftInput`, `CraftResult` all ported; all `craft.test.ts` rows ported; MCP craft tool with validation and solver testing covered.
+- **Formalize solve-path depth** — all `formalize.test.ts` rows ported including correction-loop retry, enriched feedback coverage, template-use recording, Z3 and Prolog end-to-end solve.
+- **Graph analyses** — all `analyses.ts` API surface ported; all `analyses.test.ts` analysis modes (callers, callees, reachability, dead-code, path, impact, cycles, summary, facts, error handling) covered.
+- **Graph facts** — `BUILTIN_RULES`, `escapeAtom`, `graphToProlog` ported; all `facts.test.ts` rows ported.
+- **Graph Mermaid** — all source functions and interface types ported; all test rows ported including flowchart, state diagram, solver integration, reachability.
+- **Graph adapter-registry** — all core adapter operations ported; all `adapter-registry.test.ts` rows ported including discovery, precedence, deduplication, integration.
+- **Graph parser** — parser surface ported; basic parser specs for extension mapping, supported extensions, unsupported extension behavior.
+- **Graph types** — all fact types, `LanguageAdapter`, `SymbolKind` ported.
+- **Config** — `loadConfig`, `ChiasmusConfig` ported; all `config.test.ts` rows ported including JSON fallback, unknown-key handling, adapterDiscovery key.
+- **Feedback** — `classifyFeedback` and `core` ported; all `feedback.test.ts` rows ported.
+- **Skills library** — `SkillLibrary`, `SearchOptions` ported; all `skill-library.test.ts` rows ported including search, filter, metadata persistence, template structure.
+- **Skills relationships** — `getRelatedTemplates`, `RelatedTemplate` ported; all `relationships.test.ts` rows ported.
+- **Skills learner** — `SkillLearner` and all constants ported; all `learning.test.ts` rows ported including extraction, dedup, promotion, validation.
+- **Skills types** — all `SkillTemplate`, `SlotDef`, `Normalization`, `SkillMetadata`, `SkillSearchResult`, `SkillWithMetadata` ported.
+- **MCP tools** — `chiasmus_verify`, `chiasmus_formalize`, `chiasmus_solve`, `chiasmus_skills`, `chiasmus_lint`, `chiasmus_craft` all have direct Crystal tool specs covering tool listing, response shape, error handling, and end-to-end flows.
+- **MCP `handleSkills`** source ported.
+- **Mermaid support** — all source and test coverage complete.
+- **Solver core** — basic solver ports and specs exist (inferred from downstream formalize and craft solver tests).
 
-Still missing in major ways:
+### Still missing in major ways:
 
-- validation/lint parity
-- craft parity
-- deeper formalize solve-path parity
-- broad MCP server parity
-- graph analysis and graph MCP parity
-- Clojure graph support parity
-- session isolation/concurrency parity
-- benchmark and dogfood parity suites
-- dynamic adapter discovery
-- richer LLM compatibility surface
-- inventory cleanup for stale duplicate missing rows
+- **Broad MCP server parity** — several `mcp-server.test.ts` rows remain missing (verify Prolog/Z3 queries, trace with explain=true, multiple Prolog queries, structured error for malformed input, solver type filtering, tool listing for formalize/skills/solve/verify). Some rows have duplicate `missing` and `ported` entries in the combined port_inventory that need reconciliation.
+- **MCP `chiasmus_verify`** tool spec — basic tests exist but upstream `verify` test rows remain unported (Prolog query verification, satisfiable Z3, unsatisfiable Z3, batch queries).
+- **Clojure graph support** — all `graph/clojure.test.ts` rows still missing (extractor, parser, ns/defn/calls, multi-file, dead code). Corresponding source extractor functions all missing.
+- **Graph extractor (JS/TS/Python/Go)** — all `extractor.test.ts` rows still missing. Source-level `walkNode`, `walkPython`, `walkGo`, resolve functions all missing. Only adapter-based extraction is tested.
+- **Dynamic adapter discovery** — `registerFromModule`, `isLanguageAdapter` still missing. Discovery is explicit-registration only.
+- **Solver session isolation** — `session.test.ts` all rows missing. `SolverSession` class and `session.ts` source unported.
+- **Prolog solver** — all `prolog-solver.test.ts` rows missing. Prolog solver functions (`createPrologSolver`, `consult`, `query`, `nextAnswer`, tracing) unported.
+- **Z3 solver** — all `z3-solver.test.ts` rows missing. Z3 solver functions (`getZ3`, `sanitizeSmtlib`) and constants (`SOLVER_TIMEOUT_MS`) unported.
+- **Correction loop** — all `correction-loop.test.ts` rows missing. Source correction-loop types and interface unported.
+- **Benchmark suites** — all benchmark source interfaces and test rows missing.
+- **Dogfood suites** — all `dogfood.test.ts` rows missing.
+- **Graph MCP integration** — all `graph/mcp-integration.test.ts` rows missing.
+- **LLM adapters** — `AnthropicAdapter`, `OpenAICompatibleAdapter`, `MockLLMAdapter`, `LLMAdapter` interface, `LLMMessage` all missing (intentional divergence — Crig replaces vendor adapters).
+- **BM25 search** — all `bm25.ts` source functions and types missing.
+- **Skills low-level types** — some `skills/types.ts` interfaces now ported (see above), but `SkillExtractResult`, `SkillExtraction`, `ExtractionResult` types may still have gaps.
+- **MCP server constants** — `VALID_ANALYSES` still missing. `TOOLS` const ported implicitly via individual tool registrations.
+- **Prolog solver constants** — `MAX_ANSWERS`, `MAX_INFERENCES`, `MAX_TRACE_ENTRIES` missing.
+- **Inventory cleanup** — stale duplicate rows in port_inventory.tsv where the same test is listed as both `missing` (rows 216-251, 389-416) and `ported` (rows 495-506) with different spec refs.
 
 ## Major Gap Areas
 
-### 1. Validation And Linting
+### 1. MCP Server Breadth
 
-Upstream source still missing or underrepresented locally:
-
-- `vendor/chiasmus/src/formalize/validate.ts`
-- `vendor/chiasmus/tests/validate.test.ts`
-- MCP-facing lint behavior in `vendor/chiasmus/tests/mcp-server.test.ts`
-
-Why this matters:
-
-- linting is part of the correction-loop contract
-- MCP `chiasmus_lint` parity is still incomplete
-- several MCP tests depend on structured validation behavior
-
-Work:
-
-1. Port `lintSpec`, `lintSmtlib`, `lintProlog`, and `LintResult`.
-2. Add direct Crystal specs for upstream validation cases.
-3. Wire/verify `chiasmus_lint` output shape against upstream expectations.
-
-Acceptance:
-
-- upstream `validate.test.ts` behaviors are represented in Crystal specs
-- MCP lint cases for bad Z3/Prolog input are covered
-- inventory rows for `src/formalize/validate.ts` and `tests/validate.test.ts` are updated
-
-### 2. Craft Template Flow
-
-Upstream source still missing or only partially represented:
-
-- `vendor/chiasmus/src/skills/craft.ts`
-- `vendor/chiasmus/tests/craft.test.ts`
-- MCP craft cases in `vendor/chiasmus/tests/mcp-server.test.ts`
-
-Why this matters:
-
-- `chiasmus_craft` is still not parity-complete
-- template validation and creation are a core extensibility path
-- craft and library behavior are tightly coupled
-
-Work:
-
-1. Port `validateTemplate` and `buildPrologInput` behavior faithfully.
-2. Add direct craft specs for:
-   - required field validation
-   - duplicate names
-   - slot/skeleton mismatch
-   - test-mode solver validation
-   - searchable post-create behavior
-3. Align MCP craft tool outputs with upstream JSON shape.
-
-Acceptance:
-
-- `tests/craft.test.ts` behaviors are ported or intentionally mapped
-- `chiasmus_craft` MCP cases pass with direct Crystal specs
-- library/search integration for crafted templates is covered
-
-### 3. Formalize Solve-Path Depth
-
-Basic formalize parity exists, but the deeper solve path is still undercovered:
-
-- `tests/formalize.test.ts` solve-path rows remain missing
-- correction-loop behavior is only partially represented through older solver specs
-
-Why this matters:
-
-- this is the highest-risk end-to-end path in the system
-- upstream formalize coverage includes correction-loop usage, diagnostics, and library recording
-
-Work:
-
-1. Port the remaining solve-path cases from `formalize.test.ts`:
-   - successful Z3 end-to-end solve
-   - successful Prolog reachability solve
-   - correction-loop retry on bad initial formalization
-   - failure/diagnostics when retries exhaust
-   - enriched feedback prompt coverage
-   - template use recording
-2. Remove any reliance on accidental mock behavior.
-3. Keep tests deterministic with explicit mock-agent responses.
-
-Acceptance:
-
-- all feasible `formalize.test.ts` rows are ported
-- inventory rows for remaining formalize tests are updated
-
-### 4. MCP Server Breadth
-
-The repo now has several direct tool specs, but the upstream MCP surface is still only partially covered:
+The repo has several direct tool specs, but the upstream MCP test surface is still only partially covered:
 
 - many rows in `tests/mcp-server.test.ts` remain missing
-- some rows are duplicated in the ledger as both missing and ported summaries
+- some rows are duplicated in the combined inventory as both missing and ported summaries
 
 Why this matters:
 
@@ -142,49 +74,42 @@ Work:
 
 1. Continue direct tool-level parity specs for missing cases:
    - `verify` malformed inputs, trace behavior, query requirements
-   - `skills` search/list/by-name/error cases
-   - `formalize` missing-problem and suggestion behavior
-   - `solve` end-to-end and fallback behavior
-   - `lint` parity once validation is ported
-   - `craft` parity once craft is ported
+   - `skills` search/list/by-name/error cases (most covered, verify/filter missing)
+   - `formalize` missing-problem and suggestion behavior (most covered)
+   - `solve` end-to-end and fallback behavior (most covered)
+   - `lint` parity (completed — already ported)
+   - `craft` parity (completed — already ported)
 2. Decide whether to add a lightweight Crystal in-memory MCP harness later.
-3. Clean duplicate inventory rows so tool parity status is not contradictory.
+3. Reconcile duplicate inventory rows so tool parity status is not contradictory.
 
 Acceptance:
 
 - major MCP behaviors are covered via direct tool specs even if transport-layer MCP harness is deferred
 - stale duplicate missing rows are removed or reconciled in manifests
 
-### 5. Graph Analysis And Graph MCP
+### 2. MCP chiasmus_verify Tool Gap
 
-Large unresolved graph tranche:
+The MCP verify tool has basic specs but upstream `verify` test cases are still underported:
 
-- `vendor/chiasmus/src/graph/analyses.ts`
-- `vendor/chiasmus/tests/graph/analyses.test.ts`
-- `vendor/chiasmus/tests/graph/mcp-integration.test.ts`
+- `tests/mcp-server.test.ts` rows for `chiasmus_verify` overall, batch queries, tool listing
+- Prolog query verification, satisfiable/unsatisfiable Z3 verification
 
 Why this matters:
 
-- the extractor/parser foundation is mostly there
-- graph analyses are a major user-facing capability still under-ported
+- verify is a core user-facing workflow
+- missing test parity leaves response-shape drift undetected
 
 Work:
 
-1. Audit current Crystal graph analysis code against upstream API and test surface.
-2. Port missing analysis behaviors:
-   - callers/callees
-   - transitive impact/path
-   - dead-code
-   - summary
-   - facts/raw Prolog output
-3. Add direct graph MCP tool specs for analysis requests and parameter validation.
+1. Port missing `chiasmus_verify` test cases from upstream MCP tests.
+2. Ensure verify output shape matches upstream expectations.
+3. These are a subset of the broader MCP gap — treat as part of that work.
 
 Acceptance:
 
-- `graph/analyses.test.ts` major behaviors are covered
-- graph MCP integration cases have Crystal equivalents
+- all upstream verify-related MCP test behaviors are represented in Crystal specs
 
-### 6. Clojure Graph Support
+### 3. Clojure Graph Support
 
 Still a major missing feature block:
 
@@ -212,7 +137,35 @@ Acceptance:
 - `graph/clojure.test.ts` major rows are ported
 - Clojure files participate in graph extraction and analysis
 
-### 7. Session Isolation And Concurrency
+### 4. Graph Extractor (JS/TS/Python/Go)
+
+Large unresolved extraction tranche:
+
+- `vendor/chiasmus/src/graph/extractor.ts` — walk functions for JS, Python, Go, Clojure
+- `vendor/chiasmus/tests/graph/extractor.test.ts`
+
+Why this matters:
+
+- extractor is the foundation of all graph analysis
+- adapter-based extraction is tested, but direct tree-sitter walker functions are not ported
+- upstream has detailed behavior around method calls, exports, imports, classes, receivers
+
+Work:
+
+1. Audit current Crystal adapter-based extraction against upstream tree-sitter walker behavior.
+2. Port missing extractor functions:
+   - `walkNode`, `walkChildren`, `resolveCallee`
+   - `walkPython`, `walkPythonChildren`, `findPythonEnclosingClass`, `resolvePythonCallee`
+   - `walkGo`, `extractGoCalls`, `extractGoReceiverType`, `resolveGoCallee`
+   - `extractImportNames`, `extractStringContent`, `findEnclosingClassName`
+3. Add direct Crystal extractor specs for each walker.
+
+Acceptance:
+
+- `extractor.test.ts` major behaviors are covered in Crystal
+- extracted facts match upstream structure for JS, Python, Go sources
+
+### 5. Solver Session Isolation And Concurrency
 
 Still largely missing:
 
@@ -239,7 +192,64 @@ Acceptance:
 - session test equivalents exist and are stable
 - no shared-session contamination under concurrent specs
 
-### 8. Benchmark And Dogfood Suites
+### 6. Prolog Solver
+
+- `vendor/chiasmus/src/solvers/prolog-solver.ts`
+- `vendor/chiasmus/tests/prolog-solver.test.ts`
+
+Why this matters:
+
+- Prolog solver is used throughout formalize, craft, and solve paths
+- tests for query, consult, answers, tracing, structured errors are all unported
+
+Work:
+
+1. Port `createPrologSolver`, `consult`, `query`, `nextAnswer`, `entry`, `links` functions.
+2. Add specs for fact queries, recursive rules, arithmetic, list operations, ground queries, tracing, malformed input errors.
+
+Acceptance:
+
+- `prolog-solver.test.ts` behaviors are represented in Crystal specs
+
+### 7. Z3 Solver
+
+- `vendor/chiasmus/src/solvers/z3-solver.ts`
+- `vendor/chiasmus/tests/z3-solver.test.ts`
+
+Why this matters:
+
+- Z3 solver is used throughout formalize and solve paths
+- tests for sat/unsat, unsat core, model, structured errors, custom datatypes are all unported
+
+Work:
+
+1. Port `getZ3`, `sanitizeSmtlib`, `SOLVER_TIMEOUT_MS`.
+2. Add specs for boolean satisfiability, contradictory constraints, unsat core (named and unnamed), model for SAT, malformed input, empty input, custom datatypes.
+
+Acceptance:
+
+- `z3-solver.test.ts` behaviors are represented in Crystal specs
+
+### 8. Correction Loop
+
+- `vendor/chiasmus/src/solvers/correction-loop.ts`
+- `vendor/chiasmus/tests/correction-loop.test.ts`
+
+Why this matters:
+
+- correction loop is used by formalize engine for fix-retry behavior
+- formalize engine solve-path tests cover correction-loop indirectly, but direct loop specs are missing
+
+Work:
+
+1. Port `CorrectionLoopOptions`, `CorrectionAttempt`, `CorrectionResult`, `SpecFixer` types.
+2. Add direct specs for correction-loop behavior.
+
+Acceptance:
+
+- `correction-loop.test.ts` behaviors are represented in Crystal specs
+
+### 9. Benchmark And Dogfood Suites
 
 Still unported:
 
@@ -262,11 +272,28 @@ Acceptance:
 - benchmark and dogfood suites run as characterization parity checks
 - failures map to actionable missing capabilities rather than harness issues
 
-### 9. Dynamic Adapter Discovery
+### 10. Graph MCP Integration
+
+- `vendor/chiasmus/tests/graph/mcp-integration.test.ts`
+
+Why this matters:
+
+- graph MCP tool is a user-facing capability
+- graph analyses are ported but graph MCP wire-up and integration tests are missing
+
+Work:
+
+1. Port graph MCP integration cases for callers, dead-code, summary, facts, missing parameters, tool listing.
+
+Acceptance:
+
+- graph MCP integration cases have Crystal equivalents
+
+### 11. Dynamic Adapter Discovery
 
 Still intentionally deferred, but still a major source-level gap:
 
-- `vendor/chiasmus/src/graph/adapter-registry.ts` runtime discovery path
+- `vendor/chiasmus/src/graph/adapter-registry.ts` runtime discovery path (`registerFromModule`, `isLanguageAdapter`)
 - current Crystal `discover_adapters` remains explicit-registration only
 
 Why this matters:
@@ -289,14 +316,14 @@ Acceptance:
 - discovered adapters can be loaded without manual registration
 - discovery remains idempotent and non-throwing
 
-### 10. LLM Compatibility Surface
+### 12. LLM Compatibility Surface
 
 Still missing compared to upstream:
 
 - `vendor/chiasmus/src/llm/anthropic.ts`
 - `vendor/chiasmus/src/llm/openai-compatible.ts`
-- some `llm/types` parity rows
-- streaming behavior in the mock adapter
+- `vendor/chiasmus/src/llm/mock.ts`
+- `vendor/chiasmus/src/llm/types.ts` (`LLMAdapter`, `LLMMessage`)
 
 Why this matters:
 
@@ -309,55 +336,66 @@ Work:
    - real missing parity
    - intentional architectural divergence because Crig replaces vendor adapters
 2. For intentional divergence:
-   - mark rows with explicit notes
+   - mark rows with explicit notes in the inventory
 3. For retained behavior:
    - port the minimal needed compatibility wrapper and tests
 4. Implement mock streaming if upstream behavior depends on it.
 
 Acceptance:
 
-- no ambiguous “missing” rows remain for LLM adapters without an explicit rationale
+- no ambiguous "missing" rows remain for LLM adapters without an explicit rationale
 
 ## Recommended Execution Order
 
-### Phase 1: Complete Core User-Facing Workflow
+### Phase 1: Complete MCP Tool Surface
 
-1. Validation/lint
-2. Craft
-3. Remaining formalize solve-path cases
-4. Remaining MCP tool cases tied to the above
+1. MCP `chiasmus_verify` deep parity
+2. Remaining MCP tool cases (explain=true, solver-type filter, tool listing, structured error for malformed input)
+3. Graph MCP integration
+4. Reconcile duplicate inventory rows
 
 Reason:
 
 - this closes the biggest user-visible parity gaps first
-- it also reduces false negatives in later integration suites
+- fixes contradictory inventory state
 
-### Phase 2: Finish Graph Feature Parity
+### Phase 2: Solver Completeness
 
-1. Graph analyses
-2. Graph MCP integration
-3. Clojure graph support
+1. Prolog solver
+2. Z3 solver
+3. Correction loop
+4. Session isolation/concurrency
 
 Reason:
 
-- parser/extractor foundation is already mostly present
-- remaining work is primarily behavior completion and test coverage
+- solver layer is used by everything downstream
+- formalize/craft/solve tests already exercise parts of this, but direct solver specs are missing
 
-### Phase 3: Concurrency And End-To-End Confidence
+### Phase 3: Graph Feature Parity
 
-1. Session isolation/concurrency
-2. Dogfood scenarios
-3. Benchmark suites
+1. Graph extractor (JS/TS/Python/Go walkers)
+2. Clojure graph support
+
+Reason:
+
+- extractor foundation is partially present via adapter pattern
+- remaining work is behavior completion of language-specific walkers
+
+### Phase 4: End-To-End Confidence
+
+1. Dogfood scenarios
+2. Benchmark suites
 
 Reason:
 
 - these are better signoff gates after core functional parity is stable
 
-### Phase 4: Deferred Architectural Gaps
+### Phase 5: Deferred Architectural Gaps
 
 1. Dynamic adapter discovery
 2. LLM compatibility cleanup
-3. Inventory hygiene and explicit divergence notes
+3. BM25 search
+4. Inventory hygiene and explicit divergence notes
 
 Reason:
 
@@ -365,13 +403,14 @@ Reason:
 
 ## Inventory Cleanup Tasks
 
-The manifests currently still contain contradictory or stale rows in a few areas. This needs to be treated as part of the parity work, not as optional cleanup.
+The manifests currently contain contradictory or stale rows in a few areas. This needs to be treated as part of the parity work, not as optional cleanup.
 
 Work:
 
-1. Reconcile duplicate MCP rows where summary rows are marked ported but concrete rows remain missing.
-2. Reconcile any source rows now ported in Crystal but still marked missing.
-3. Add explicit notes for intentional divergences, especially around Crig replacing upstream LLM adapter architecture.
+1. Reconcile duplicate MCP rows where rows 389-416 are marked `missing` but rows 495-506 are marked `ported` with wildcard spec refs.
+2. Reconcile `typescript_source_parity.tsv` rows for `graph/analyses.ts`, `graph/facts.ts`, `graph/types.ts`, `graph/parser.ts`, `skills/types.ts` — these are marked `missing` but are actually ported in Crystal.
+3. Reconcile `typescript_test_parity.tsv` rows for `graph/analyses.test.ts`, `graph/facts.test.ts`, `graph/parser.test.ts`, `tests/mcp-server.test.ts` (chiasmus_verify, tool listing rows) — these are marked `missing` but have Crystal equivalents or partial coverage.
+4. Add explicit notes for intentional divergences, especially around Crig replacing upstream LLM adapter architecture.
 
 Acceptance:
 
@@ -387,7 +426,4 @@ The remaining parity effort is complete when all of these are true:
 4. `plans/inventory/typescript_port_inventory.tsv` has no stale high-signal missing rows for already-ported areas.
 5. MCP tool behavior matches upstream expectations for the core verification workflow.
 6. Graph and session behavior are covered by dedicated parity specs, not only by indirect integration tests.
-
-## Immediate Next Step
-
-Start with `validate` and `chiasmus_lint`, then move directly into `craft`. Those two slices unlock the largest remaining MCP and formalize gaps with the least architectural uncertainty.
+7. No contradictory duplicate rows remain in any inventory file.
