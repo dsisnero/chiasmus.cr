@@ -1,75 +1,94 @@
 require "tree_sitter"
 require "./types"
-require "./universal_parser"
-require "./async_universal_parser_v2"
-require "./language_registry"
-require "./adapter_registry"
-require "../utils/timeout"
+require "./parser_environment"
+require "./parser_language_resolver"
+require "./parser_service"
 
 module Chiasmus
   module Graph
     module Parser
       extend self
 
-      # Delegate to LanguageRegistry for language metadata
-      # Following Dependency Inversion Principle - depends on abstraction
+      @@service = Service.new
 
-      # Get the tree-sitter language name for a file path
+      def service : Service
+        @@service
+      end
+
+      def service=(service : Service) : Service
+        @@service = service
+      end
+
+      def init(cache_dir : String? = nil) : Nil
+        service.init(cache_dir)
+      end
+
       def get_language_for_file(file_path : String) : String?
-        ext = File.extname(file_path).downcase
-        # Use LanguageRegistry for extension mapping
-        LanguageRegistry.language_for_extension(ext) || AdapterRegistry.get_adapter_for_ext(ext).try(&.language)
+        service.get_language_for_file(file_path)
       end
 
-      # Get all supported file extensions
-      def supported_extensions : Array(String)
-        (LanguageRegistry.supported_extensions + AdapterRegistry.adapter_extensions).uniq.sort!
+      def language_for_file(file_path : String) : String?
+        get_language_for_file(file_path)
       end
 
-      # Get the tree-sitter grammar language used to parse a file path.
       def grammar_language_for_file(file_path : String) : String?
-        ext = File.extname(file_path).downcase
-        built_in = LanguageRegistry.language_for_extension(ext)
-        return built_in if built_in
-
-        AdapterRegistry.get_adapter_for_ext(ext).try(&.grammar_language)
+        service.grammar_language_for_file(file_path)
       end
 
-      # Parse source code synchronously
-      # Returns a TreeSitter::Tree or nil if language is not supported
+      def supported_extensions : Array(String)
+        service.supported_extensions
+      end
+
+      def parse_async(content : String, file_path : String, timeout_ms : Int32 = 30_000) : Channel(Utils::Result(ParseArtifact))
+        service.parse_async(content, file_path, timeout_ms)
+      end
+
+      def parse_source_async(content : String, file_path : String, timeout_ms : Int32 = 30_000) : Channel(Utils::Result(ParseArtifact))
+        service.parse_async(content, file_path, timeout_ms)
+      end
+
+      def parse(content : String, file_path : String, timeout_ms : Int32 = 30_000) : TreeSitter::Tree?
+        service.parse(content, file_path, timeout_ms)
+      end
+
       def parse_source(content : String, file_path : String, timeout_ms : Int32 = 30_000) : TreeSitter::Tree?
-        result_channel = parse_source_async(content, file_path, timeout_ms)
-        result = Utils::Timeout.with_timeout_async(timeout_ms, result_channel)
-        return nil unless result && result.success?
-
-        result.value
+        service.parse(content, file_path, timeout_ms)
       end
 
-      # Parse source code asynchronously using fibers/channels
-      # Returns a Channel that will receive a Result(TreeSitter::Tree?)
-      def parse_source_async(content : String, file_path : String, timeout_ms : Int32 = 30_000) : Channel(Utils::Result(TreeSitter::Tree?))
-        # Use the async universal parser
-        AsyncUniversalParserV2.parse_async(content, file_path, timeout_ms)
+      def get_language_async(language : String, timeout_ms : Int32 = 60_000) : Channel(Utils::Result(TreeSitter::Language?))
+        service.get_language_async(language, timeout_ms)
       end
 
-      private def load_language_sync(language : String) : TreeSitter::Language?
-        # Check if language is in LanguageRegistry
-        info = LanguageRegistry.get_language_info(language)
-        return nil unless info
+      def get_language(language : String, timeout_ms : Int32 = 60_000) : TreeSitter::Language?
+        service.get_language(language, timeout_ms)
+      end
 
-        # For WASM languages (like Clojure), we can't load them synchronously
-        # in the same way as native tree-sitter grammars
-        if info.wasm
-          # WASM grammars require special handling
-          # For now, return nil since we don't have web-tree-sitter equivalent in Crystal
-          return nil
-        end
+      def supports_language_async?(language : String) : Channel(Bool)
+        service.supports_language_async?(language)
+      end
 
-        # Try to load the language from tree-sitter repository
-        TreeSitter::Repository.load_language?(language)
-      rescue ex
-        # Language not available
-        nil
+      def supports_language?(language : String) : Bool
+        service.supports_language?(language)
+      end
+
+      def supported_languages_async : Channel(Array(String))
+        service.supported_languages_async
+      end
+
+      def supported_languages : Array(String)
+        service.supported_languages
+      end
+
+      def clear_cache : Nil
+        service.clear_cache
+      end
+
+      def shutdown : Nil
+        service.shutdown
+      end
+
+      def reset_service : Nil
+        @@service = Service.new
       end
     end
   end

@@ -108,53 +108,5 @@ module Chiasmus
         {% end %}
       end
     end
-
-    # Now let's create a parser that uses our extended repository
-    class UniversalParser
-      def self.parse_source(content : String, file_path : String) : TreeSitter::Tree?
-        language = Parser.get_language_for_file(file_path)
-        return nil unless language
-
-        # Try to load the language using our extended repository
-        lang = TreeSitterRepositoryExtension.load_language_ext(language)
-        return nil unless lang
-
-        # Create parser and parse
-        parser = TreeSitter::Parser.new(language: lang)
-        io = IO::Memory.new(content)
-        parser.parse(nil, io)
-      end
-
-      # Build a grammar from source if not available
-      def self.build_grammar_if_needed(language : String) : Bool
-        # Check if already available
-        return true if TreeSitterRepositoryExtension.available_languages.includes?(language)
-
-        # Check if we have source code for this grammar
-        grammar_source_dir = find_grammar_source(language)
-        return false unless grammar_source_dir && Dir.exists?(grammar_source_dir)
-
-        # Try to build the grammar
-        build_grammar(grammar_source_dir, language)
-      end
-
-      private def self.find_grammar_source(language : String) : String?
-        # Look in our vendored grammars
-        vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
-        grammar_dir = File.join(vendor_dir, "tree-sitter-#{language}")
-
-        if Dir.exists?(grammar_dir)
-          return grammar_dir
-        end
-
-        nil
-      end
-
-      private def self.build_grammar(source_dir : String, language : String) : Bool
-        # This would require tree-sitter CLI to be installed
-        # For now, just return false
-        false
-      end
-    end
   end
 end
