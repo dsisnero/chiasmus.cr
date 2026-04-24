@@ -66,6 +66,19 @@ module Chiasmus
       end
     end
 
+    class FakeParserClient
+      def initialize(@language : String?, @tree : TreeSitter::Tree?)
+      end
+
+      def language_for_file(file_path : String) : String?
+        @language
+      end
+
+      def parse_source(content : String, file_path : String) : TreeSitter::Tree?
+        @tree
+      end
+    end
+
     describe AdapterRegistry do
       before_each do
         AdapterRegistry.clear_adapters
@@ -190,6 +203,21 @@ module Chiasmus
 
         graph.calls.map { |call| "#{call.caller}->#{call.callee}" }.should contain("a->shared")
         graph.calls.map { |call| "#{call.caller}->#{call.callee}" }.should contain("b->shared")
+      end
+
+      it "supports parser injection for extractor services" do
+        AdapterRegistry.register_adapter(TestAdapter.new)
+        source = "function alpha() { beta(); }\nfunction beta() {}"
+        tree = Parser.parse_source(source, "test.js")
+        tree.should_not be_nil
+
+        graph = Extractor.extract_graph(
+          [SourceFile.new(path: "virtual.tl", content: source)],
+          FakeParserClient.new("test-lang", tree)
+        )
+
+        graph.defines.map(&.name).should contain("alpha")
+        graph.calls.map { |call| "#{call.caller}->#{call.callee}" }.should contain("alpha->beta")
       end
     end
   end

@@ -1,98 +1,165 @@
 require "spec"
-require "file_utils"
 require "tree_sitter"
-require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/utils/result"
 require "../../../src/chiasmus/utils/timeout"
-require "../../../src/chiasmus/utils/xdg"
-require "../../../src/chiasmus/graph/grammar_operations"
-require "../../../src/chiasmus/graph/grammar_manager"
-require "../../../src/chiasmus/graph/universal_parser"
-require "../../../src/chiasmus/graph/async_universal_parser_v2"
 require "../../../src/chiasmus/graph/parser"
 
-class TreeSitter::Config
-  def self.test_reset
-    @@current = nil
+private def build_test_language(name : String) : TreeSitter::Language
+  ptr = Pointer(LibTreeSitter::TSLanguage).malloc(1_u64)
+  TreeSitter::Language.new(name, ptr)
+end
+
+class FakeParserEnvironment < Chiasmus::Graph::Parser::Environment
+  getter ensure_calls = 0
+
+  def ensure_tree_sitter_config : Nil
+    @ensure_calls += 1
   end
 end
 
-class TreeSitter::Repository
-  def self.test_reset
-    @@language_paths = nil
+class FakeGrammarGateway < Chiasmus::Graph::Parser::GrammarGateway
+  property current_path : String?
+  property available = true
+  getter ensure_calls = 0
+  getter init_calls = 0
+
+  def initialize(@current_path : String? = nil, @available : Bool = true, @path_after_ensure : String? = nil)
   end
-end
 
-class Chiasmus::Graph::GrammarManager
-  def self.test_reset(cache_dir : String? = nil)
-    @@mutex.synchronize do
-      @@instance = nil
-      @@cache_dir = cache_dir
-      @@initialized = false
-    end
+  def init(cache_dir : String? = nil) : Nil
+    @init_calls += 1
   end
-end
 
-class Chiasmus::Graph::UniversalParser
-  def self.test_reset
-    @@initialized = false
-    @@grammar_cache.clear
+  def ensure_grammar_async(language : String, timeout_ms : Int32 = 120_000) : Channel(Chiasmus::Utils::BoolResult)
+    @ensure_calls += 1
+    @current_path = @path_after_ensure
+    channel = Channel(Chiasmus::Utils::BoolResult).new(1)
+    channel.send(Chiasmus::Utils::BoolResult.success)
+    channel
   end
-end
 
-private def with_xdg_dirs(cache_home : String, config_home : String, &)
-  previous_cache = ENV["XDG_CACHE_HOME"]?
-  previous_config = ENV["XDG_CONFIG_HOME"]?
-
-  ENV["XDG_CACHE_HOME"] = cache_home
-  ENV["XDG_CONFIG_HOME"] = config_home
-
-  TreeSitter::Config.test_reset
-  TreeSitter::Repository.test_reset
-  Chiasmus::Graph::GrammarManager.test_reset
-  Chiasmus::Graph::UniversalParser.test_reset
-
-  begin
-    yield
-  ensure
-    if previous_cache
-      ENV["XDG_CACHE_HOME"] = previous_cache
+  def grammar_available_async(language : String) : Channel(Chiasmus::Utils::BoolResult)
+    channel = Channel(Chiasmus::Utils::BoolResult).new(1)
+    if @available
+      channel.send(Chiasmus::Utils::BoolResult.success)
     else
-      ENV.delete("XDG_CACHE_HOME")
+      channel.send(Chiasmus::Utils::BoolResult.new(value: false))
     end
+    channel
+  end
 
-    if previous_config
-      ENV["XDG_CONFIG_HOME"] = previous_config
+  def get_grammar_path_async(language : String) : Channel(Chiasmus::Utils::StringResult)
+    channel = Channel(Chiasmus::Utils::StringResult).new(1)
+    if path = @current_path
+      channel.send(Chiasmus::Utils::StringResult.success(path))
     else
-      ENV.delete("XDG_CONFIG_HOME")
+      channel.send(Chiasmus::Utils::StringResult.failure("missing", {"language" => language}))
     end
+    channel
+  end
 
-    TreeSitter::Config.test_reset
-    TreeSitter::Repository.test_reset
-    Chiasmus::Graph::GrammarManager.test_reset
-    Chiasmus::Graph::UniversalParser.test_reset
+  def ensure_grammar(language : String, timeout_ms : Int32 = 120_000) : Bool
+    @ensure_calls += 1
+    @current_path = @path_after_ensure
+    true
+  end
+
+  def get_grammar_path(language : String) : String?
+    @current_path
   end
 end
 
-private def stage_python_grammar(cache_home : String)
-  source_dir = File.expand_path("../../../vendor/grammars/tree-sitter-python", __DIR__)
-  dest_dir = File.join(cache_home, "chiasmus", "grammars", "python")
+class FakeLanguageGateway < Chiasmus::Graph::Parser::LanguageGateway
+  property repository_names : Array(String)
+  getter loads = [] of {String, String}
 
-  Dir.mkdir_p(dest_dir)
-  Dir.children(source_dir).each do |entry|
-    FileUtils.cp_r(File.join(source_dir, entry), File.join(dest_dir, entry))
+  def initialize(@repository_names = [] of String)
+    @languages = {} of String => TreeSitter::Language
+  end
+
+  def register(language : String, path : String, value : TreeSitter::Language) : Nil
+    @languages["#{language}:#{path}"] = value
+  end
+
+  def repository_language_names : Array(String)
+    @repository_names
+  end
+
+  def load_language_from_grammar_path(language : String, grammar_path : String) : TreeSitter::Language?
+    @loads << {language, grammar_path}
+    @languages["#{language}:#{grammar_path}"]?
   end
 end
 
-private def write_empty_tree_sitter_config(config_home : String)
-  config_dir = File.join(config_home, "tree-sitter")
-  Dir.mkdir_p(config_dir)
-  File.write(File.join(config_dir, "config.json"), %({"parser-directories":[]}))
+class FakeTreeBuilder < Chiasmus::Graph::Parser::TreeBuilder
+  getter calls = [] of {String, String}
+
+  def initialize(@raise_error = false)
+  end
+
+  def build(lang : TreeSitter::Language, content : String) : TreeSitter::Tree?
+    @calls << {lang.name, content}
+    raise "boom" if @raise_error
+    nil
+  end
+end
+
+class FakeResolver < Chiasmus::Graph::Parser::LanguageResolver
+  def initialize(
+    @logical_language : String? = nil,
+    @grammar_language : String? = nil,
+    @extensions = [".fake"] of String,
+    @known = true,
+  )
+  end
+
+  def language_for_file(file_path : String) : String?
+    @logical_language
+  end
+
+  def grammar_language_for_file(file_path : String) : String?
+    @grammar_language
+  end
+
+  def supported_extensions : Array(String)
+    @extensions
+  end
+
+  def supported_languages : Array(String)
+    @logical_language ? [@logical_language.not_nil!] : [] of String
+  end
+
+  def known_language?(language : String) : Bool
+    @known
+  end
+end
+
+class RecordingParserService < Chiasmus::Graph::Parser::Service
+  getter extension_calls = 0
+
+  def initialize
+    super(
+      FakeResolver.new,
+      FakeParserEnvironment.new,
+      FakeGrammarGateway.new,
+      FakeLanguageGateway.new,
+      FakeTreeBuilder.new
+    )
+  end
+
+  def supported_extensions : Array(String)
+    @extension_calls += 1
+    [".custom"]
+  end
 end
 
 module Chiasmus
   module Graph
     describe Parser do
+      after_each do
+        Parser.reset_service
+      end
+
       it "maps extensions to languages correctly" do
         Parser.get_language_for_file("foo.ts").should eq "typescript"
         Parser.get_language_for_file("foo.tsx").should eq "tsx"
@@ -116,58 +183,118 @@ module Chiasmus
         exts.should contain ".cr"
       end
 
-      it "returns null for unsupported extension" do
-        tree = Parser.parse_source("some content", "test.unknown")
-        tree.should be_nil
+      it "returns nil for unsupported files through the synchronous parser API" do
+        Parser.parse_source("some content", "test.unknown").should be_nil
       end
 
-      it "parses Crystal source when grammar is available and otherwise returns nil cleanly" do
-        tree = Parser.parse_source("def hello\nend", "test.cr")
+      it "returns a failure result for unsupported files through the async parser API" do
+        result = Chiasmus::Utils::Timeout.with_timeout_async(100, Parser.parse_async("some content", "test.unknown"))
 
-        if tree.nil?
-          tree.should be_nil
-        else
-          root = tree.root_node
-          root.should_not be_nil
-        end
+        result.should_not be_nil
+        result.not_nil!.failure?.should be_true
+        result.not_nil!.error.should eq("Unsupported file extension")
       end
 
-      it "parses from an XDG-cached grammar even when repository config has no parser directories" do
-        root_dir = File.join(Dir.tempdir, "xdg-parser-spec-#{Random.rand(1_000_000)}")
-        cache_home = File.join(root_dir, "cache")
-        config_home = File.join(root_dir, "config")
+      it "loads a language through injected collaborators" do
+        language = build_test_language("python")
+        resolver = FakeResolver.new("python", "python")
+        environment = FakeParserEnvironment.new
+        grammar = FakeGrammarGateway.new("/tmp/python.so")
+        loader = FakeLanguageGateway.new
+        loader.register("python", "/tmp/python.so", language)
+        service = Parser::Service.new(resolver, environment, grammar, loader, FakeTreeBuilder.new)
 
-        stage_python_grammar(cache_home)
-        write_empty_tree_sitter_config(config_home)
+        result = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
 
-        with_xdg_dirs(cache_home, config_home) do
-          ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-          GrammarManager.ensure_grammar("python").should be_true
-          GrammarManager.get_grammar_path("python").should eq(
-            File.join(cache_home, "chiasmus", "grammars", "python", "libtree-sitter-python.#{ext}")
-          )
-
-          parser_tree = Parser.parse_source("def hello():\n    return 1\n", "test.py")
-          parser_tree.should_not be_nil
-          parser_tree.not_nil!.root_node.type.should eq("module")
-
-          tree = UniversalParser.parse("def hello():\n    return 1\n", "test.py")
-
-          tree.should_not be_nil
-          tree.not_nil!.root_node.type.should eq("module")
-        end
+        result.should_not be_nil
+        result.not_nil!.success?.should be_true
+        result.not_nil!.value.should eq(language)
+        environment.ensure_calls.should eq(1)
+        grammar.init_calls.should eq(1)
+        grammar.ensure_calls.should eq(0)
+        loader.loads.should eq([{"python", "/tmp/python.so"}])
       end
 
-      it "does not raise when the tree-sitter config file is missing" do
-        root_dir = File.join(Dir.tempdir, "xdg-missing-config-spec-#{Random.rand(1_000_000)}")
-        cache_home = File.join(root_dir, "cache")
-        config_home = File.join(root_dir, "config")
+      it "ensures the grammar when the initial lookup misses" do
+        language = build_test_language("python")
+        resolver = FakeResolver.new("python", "python")
+        grammar = FakeGrammarGateway.new(nil, true, "/tmp/python.so")
+        loader = FakeLanguageGateway.new
+        loader.register("python", "/tmp/python.so", language)
+        service = Parser::Service.new(
+          resolver,
+          FakeParserEnvironment.new,
+          grammar,
+          loader,
+          FakeTreeBuilder.new
+        )
 
-        with_xdg_dirs(cache_home, config_home) do
-          ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-          path = GrammarManager.get_grammar_path("go")
-          (path.nil? || path.ends_with?("libtree-sitter-go.#{ext}")).should be_true
+        result = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
+
+        result.should_not be_nil
+        result.not_nil!.success?.should be_true
+        result.not_nil!.value.should eq(language)
+        grammar.ensure_calls.should eq(1)
+        loader.loads.should eq([{"python", "/tmp/python.so"}])
+      end
+
+      it "reuses the cached language after the first load" do
+        language = build_test_language("python")
+        resolver = FakeResolver.new("python", "python")
+        grammar = FakeGrammarGateway.new("/tmp/python.so")
+        loader = FakeLanguageGateway.new
+        loader.register("python", "/tmp/python.so", language)
+        service = Parser::Service.new(
+          resolver,
+          FakeParserEnvironment.new,
+          grammar,
+          loader,
+          FakeTreeBuilder.new
+        )
+
+        first = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
+        second = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
+
+        first.should_not be_nil
+        second.should_not be_nil
+        first.not_nil!.value.should eq(language)
+        second.not_nil!.value.should eq(language)
+        loader.loads.should eq([{"python", "/tmp/python.so"}])
+      end
+
+      it "computes supported languages from repository and grammar availability" do
+        resolver = FakeResolver.new(
+          "python",
+          "python",
+          [".fake"] of String,
+          true
+        )
+        grammar = FakeGrammarGateway.new(nil, false)
+        loader = FakeLanguageGateway.new(["python"])
+        service = Parser::Service.new(
+          resolver,
+          FakeParserEnvironment.new,
+          grammar,
+          loader,
+          FakeTreeBuilder.new
+        )
+
+        service.supported_languages.should eq(["python"])
+        service.supports_language?("python").should be_false
+      end
+
+      it "lets the parser facade swap in a test service" do
+        recording = RecordingParserService.new
+        previous = Parser.service
+        Parser.service = recording
+
+        begin
+          Parser.supported_extensions.should eq([".custom"])
+        ensure
+          Parser.service = previous
         end
+
+        recording.extension_calls.should eq(1)
       end
     end
   end

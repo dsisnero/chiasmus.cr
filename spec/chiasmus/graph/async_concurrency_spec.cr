@@ -8,8 +8,6 @@ require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/grammar_operations"
 require "../../../src/chiasmus/graph/grammar_manager"
 require "../../../src/chiasmus/graph/parser"
-require "../../../src/chiasmus/graph/async_universal_parser"
-require "../../../src/chiasmus/graph/async_universal_parser_v2"
 
 class TreeSitter::Config
   def self.test_reset
@@ -23,50 +21,21 @@ class TreeSitter::Repository
   end
 end
 
-class Chiasmus::Graph::AsyncUniversalParser
+module Chiasmus::Graph::Parser
   def self.test_reset
-    @@initialized = false
-    @@grammar_cache.clear
-    @@pending_requests.clear
+    service.reset_for_test
   end
 
   def self.test_seed_cache(language : String, lang : TreeSitter::Language)
-    @@grammar_cache[language] = lang
-  end
-
-  def self.test_seed_waiters(language : String, count : Int32) : Array(Channel(TreeSitter::Language?))
-    waiters = Array(Channel(TreeSitter::Language?)).new(count) { Channel(TreeSitter::Language?).new(1) }
-    @@pending_requests[language] = waiters
-    waiters
-  end
-
-  def self.test_notify(language : String, lang : TreeSitter::Language?)
-    notify_waiters(language, lang)
-  end
-end
-
-class Chiasmus::Graph::AsyncUniversalParserV2
-  def self.test_reset
-    @@initialized = false
-    @@grammar_cache.clear
-    @@pending_requests.clear
-    @@supported_languages_cache = nil
-  end
-
-  def self.test_seed_cache(language : String, lang : TreeSitter::Language)
-    @@grammar_cache[language] = lang
+    service.seed_cache_for_test(language, lang)
   end
 
   def self.test_seed_waiters(language : String, count : Int32) : Array(Channel(Chiasmus::Utils::Result(TreeSitter::Language?)))
-    waiters = Array(Channel(Chiasmus::Utils::Result(TreeSitter::Language?))).new(count) do
-      Channel(Chiasmus::Utils::Result(TreeSitter::Language?)).new(1)
-    end
-    @@pending_requests[language] = waiters
-    waiters
+    service.seed_waiters_for_test(language, count)
   end
 
   def self.test_notify(language : String, result : Chiasmus::Utils::Result(TreeSitter::Language?))
-    notify_waiters(language, result)
+    service.notify_for_test(language, result)
   end
 end
 
@@ -91,8 +60,7 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
   TreeSitter::Repository.test_reset
   Chiasmus::Graph::LanguageRegistry.clear_cache
   Chiasmus::Graph::GrammarManager.test_reset
-  Chiasmus::Graph::AsyncUniversalParser.test_reset
-  Chiasmus::Graph::AsyncUniversalParserV2.test_reset
+  Chiasmus::Graph::Parser.test_reset
 
   begin
     yield
@@ -113,8 +81,7 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
     TreeSitter::Repository.test_reset
     Chiasmus::Graph::LanguageRegistry.clear_cache
     Chiasmus::Graph::GrammarManager.test_reset
-    Chiasmus::Graph::AsyncUniversalParser.test_reset
-    Chiasmus::Graph::AsyncUniversalParserV2.test_reset
+    Chiasmus::Graph::Parser.test_reset
   end
 end
 
@@ -161,33 +128,11 @@ end
 
 describe "async graph concurrency" do
   it "returns cached async parser languages without deadlocking" do
-    Chiasmus::Graph::AsyncUniversalParser.test_reset
+    Chiasmus::Graph::Parser.test_reset
     lang = build_test_language("cached-lang")
-    Chiasmus::Graph::AsyncUniversalParser.test_seed_cache("cached-lang", lang)
+    Chiasmus::Graph::Parser.test_seed_cache("cached-lang", lang)
 
-    channel = Chiasmus::Graph::AsyncUniversalParser.get_language_async("cached-lang")
-    result = Chiasmus::Utils::Timeout.with_timeout_async(100, channel)
-
-    result.should eq(lang)
-  end
-
-  it "broadcasts async parser results to all pending waiters" do
-    Chiasmus::Graph::AsyncUniversalParser.test_reset
-    lang = build_test_language("shared-lang")
-    waiters = Chiasmus::Graph::AsyncUniversalParser.test_seed_waiters("shared-lang", 2)
-
-    Chiasmus::Graph::AsyncUniversalParser.test_notify("shared-lang", lang)
-
-    Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[0]).should eq(lang)
-    Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[1]).should eq(lang)
-  end
-
-  it "returns cached async parser v2 languages without deadlocking" do
-    Chiasmus::Graph::AsyncUniversalParserV2.test_reset
-    lang = build_test_language("cached-lang-v2")
-    Chiasmus::Graph::AsyncUniversalParserV2.test_seed_cache("cached-lang-v2", lang)
-
-    channel = Chiasmus::Graph::AsyncUniversalParserV2.get_language_async("cached-lang-v2")
+    channel = Chiasmus::Graph::Parser.get_language_async("cached-lang")
     result = Chiasmus::Utils::Timeout.with_timeout_async(100, channel)
 
     result.should_not be_nil
@@ -195,13 +140,44 @@ describe "async graph concurrency" do
     result.not_nil!.value.should eq(lang)
   end
 
-  it "broadcasts async parser v2 results to all pending waiters" do
-    Chiasmus::Graph::AsyncUniversalParserV2.test_reset
-    lang = build_test_language("shared-lang-v2")
-    waiters = Chiasmus::Graph::AsyncUniversalParserV2.test_seed_waiters("shared-lang-v2", 2)
+  it "broadcasts parser results to all pending waiters" do
+    Chiasmus::Graph::Parser.test_reset
+    lang = build_test_language("shared-lang")
+    waiters = Chiasmus::Graph::Parser.test_seed_waiters("shared-lang", 2)
+
+    success = Chiasmus::Utils::Result(TreeSitter::Language?).success(lang)
+    Chiasmus::Graph::Parser.test_notify("shared-lang", success)
+
+    first = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[0])
+    second = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[1])
+    first.should_not be_nil
+    second.should_not be_nil
+    first.not_nil!.success?.should be_true
+    second.not_nil!.success?.should be_true
+    first.not_nil!.value.should eq(lang)
+    second.not_nil!.value.should eq(lang)
+  end
+
+  it "returns cached parser languages without deadlocking" do
+    Chiasmus::Graph::Parser.test_reset
+    lang = build_test_language("cached-lang-second")
+    Chiasmus::Graph::Parser.test_seed_cache("cached-lang-second", lang)
+
+    channel = Chiasmus::Graph::Parser.get_language_async("cached-lang-second")
+    result = Chiasmus::Utils::Timeout.with_timeout_async(100, channel)
+
+    result.should_not be_nil
+    result.not_nil!.success?.should be_true
+    result.not_nil!.value.should eq(lang)
+  end
+
+  it "broadcasts parser results to another waiter set" do
+    Chiasmus::Graph::Parser.test_reset
+    lang = build_test_language("shared-lang-second")
+    waiters = Chiasmus::Graph::Parser.test_seed_waiters("shared-lang-second", 2)
     success = Chiasmus::Utils::Result(TreeSitter::Language?).success(lang)
 
-    Chiasmus::Graph::AsyncUniversalParserV2.test_notify("shared-lang-v2", success)
+    Chiasmus::Graph::Parser.test_notify("shared-lang-second", success)
 
     first = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[0])
     second = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[1])
@@ -236,7 +212,7 @@ describe "async graph concurrency" do
     write_empty_tree_sitter_config(config_home)
 
     with_xdg_dirs(cache_home, config_home) do
-      channel = Chiasmus::Graph::AsyncUniversalParserV2.get_language_async("python")
+      channel = Chiasmus::Graph::Parser.get_language_async("python")
       result = Chiasmus::Utils::Timeout.with_timeout_async(5_000, channel)
 
       result.should_not be_nil
