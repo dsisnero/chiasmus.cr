@@ -9,13 +9,16 @@ module Chiasmus
       @@mutex = Mutex.new
       @@adapters = {} of String => LanguageAdapter
       @@extension_map = {} of String => String
+      @@grammar_extension_map = {} of String => String
       @@discovered = false
 
       def register_adapter(adapter : LanguageAdapter) : Nil
         @@mutex.synchronize do
           @@adapters[adapter.language] = adapter
           adapter.extensions.each do |ext|
-            @@extension_map[normalize_extension(ext)] = adapter.language
+            normalized = normalize_extension(ext)
+            @@extension_map[normalized] = adapter.language
+            @@grammar_extension_map[normalized] = adapter.grammar_language
           end
         end
       end
@@ -31,6 +34,14 @@ module Chiasmus
         get_adapter(language)
       end
 
+      def language_for_ext(ext : String) : String?
+        @@mutex.synchronize { @@extension_map[normalize_extension(ext)]? }
+      end
+
+      def grammar_language_for_ext(ext : String) : String?
+        @@mutex.synchronize { @@grammar_extension_map[normalize_extension(ext)]? }
+      end
+
       def adapter_extensions : Array(String)
         @@mutex.synchronize { @@extension_map.keys.sort! }
       end
@@ -39,6 +50,7 @@ module Chiasmus
         @@mutex.synchronize do
           @@adapters.clear
           @@extension_map.clear
+          @@grammar_extension_map.clear
           @@discovered = false
         end
       end
