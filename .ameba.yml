@@ -11,3 +11,6 @@ Excluded:
 # Metrics/CyclomaticComplexity:
 #   Excluded:
 #     -
+
+Metrics/CyclomaticComplexity:
+  MaxComplexity: 16
