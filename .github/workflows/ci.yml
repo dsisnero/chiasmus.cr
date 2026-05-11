@@ -62,6 +62,9 @@ jobs:
     - name: Install shards
       run: shards install
 
+    - name: Build linter
+      run: crystal build lib/ameba/src/cli.cr -o bin/ameba
+
     - name: Compile grammar libraries
       continue-on-error: true
       run: crystal run scripts/setup_grammars.cr
