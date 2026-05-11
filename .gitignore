@@ -31,9 +31,6 @@ patch_*.cr
 # Build artifacts and configuration
 tree-sitter-config.json
 mise.toml
-walkers
-extractor
-
 # Tree-sitter build artifacts
 
 # Compiled tree-sitter parser binary
