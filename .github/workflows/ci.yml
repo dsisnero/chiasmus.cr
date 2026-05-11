@@ -40,6 +40,12 @@ jobs:
         key: grammars-${{ runner.os }}-${{ hashFiles('scripts/setup_grammars.cr') }}
         restore-keys: grammars-${{ runner.os }}-
 
+    - name: Cache linter binary
+      uses: actions/cache@v4
+      with:
+        path: bin/ameba
+        key: ameba-${{ runner.os }}-${{ hashFiles('shard.lock') }}
+
     # Platform-specific system dependencies
     - name: Install Linux dependencies
       if: runner.os == 'Linux'
@@ -63,7 +69,9 @@ jobs:
       run: shards install
 
     - name: Build linter
-      run: crystal build lib/ameba/src/cli.cr -o bin/ameba
+      run: |
+        mkdir -p bin
+        crystal build lib/ameba/src/cli.cr -o bin/ameba
 
     - name: Compile grammar libraries
       continue-on-error: true
