@@ -4,10 +4,9 @@ require "json-schema"
 
 module Chiasmus
   module MCPServer
-    module ToolSchemas
-      # Base schema properties
-      alias Property = SchemaProperty | ArraySchemaProperty | ObjectSchemaProperty | ObjectArraySchemaProperty | BooleanSchemaProperty
+    VALID_ANALYSES = ["summary", "callers", "callees", "reachability", "dead-code", "cycles", "path", "impact", "facts"]
 
+    module ToolSchemas
       struct SchemaProperty
         include JSON::Serializable
 
@@ -20,11 +19,13 @@ module Chiasmus
 
         def to_json_schema : Hash(String, JSON::Any)
           schema = {
-            "type"        => @type,
-            "description" => @description,
+            "type"        => JSON::Any.new(@type),
+            "description" => JSON::Any.new(@description),
           }
-          schema["enum"] = @enum if @enum
-          schema.transform_values { |v| JSON::Any.new(v) }
+          if enum_val = @enum
+            schema["enum"] = JSON::Any.new(enum_val.map { |e| JSON::Any.new(e) })
+          end
+          schema
         end
       end
 
@@ -41,10 +42,10 @@ module Chiasmus
 
         def to_json_schema : Hash(String, JSON::Any)
           {
-            "type"        => @type,
+            "type"        => JSON::Any.new(@type),
             "items"       => JSON::Any.new(@items.transform_values { |v| JSON::Any.new(v) }),
-            "description" => @description,
-          }.transform_values { |v| JSON::Any.new(v) }
+            "description" => JSON::Any.new(@description),
+          }
         end
       end
 
@@ -102,21 +103,28 @@ module Chiasmus
       end
 
       # Tool input schema
+      alias Property = SchemaProperty | ArraySchemaProperty | ObjectSchemaProperty | ObjectArraySchemaProperty | BooleanSchemaProperty
+
       struct ToolInputSchema
         include JSON::Serializable
 
         getter type : String = "object"
-        getter properties : Hash(String, Property)
+        getter properties : Hash(String, JSON::Any)
         getter required : Array(String)
 
-        def initialize(@properties : Hash(String, Property), @required : Array(String))
+        def initialize(@properties : Hash(String, JSON::Any), @required : Array(String))
+        end
+
+        def initialize(properties : Hash(String, Property), required : Array(String))
+          @properties = properties.transform_values { |v| JSON::Any.new(v.to_json_schema) }
+          @required = required
         end
 
         def to_mcp_input : MCP::Protocol::Tool::Input
           properties_json = {} of String => JSON::Any
 
           @properties.each do |key, prop|
-            properties_json[key] = JSON::Any.new(prop.to_json_schema)
+            properties_json[key] = prop
           end
 
           MCP::Protocol::Tool::Input.new(
@@ -127,16 +135,11 @@ module Chiasmus
 
         # Generate JSON Schema for this tool input
         def to_json_schema : Hash(String, JSON::Any)
-          properties = {} of String => JSON::Any
-          @properties.each do |key, prop|
-            properties[key] = JSON::Any.new(prop.to_json_schema)
-          end
-
           {
             "type"       => @type,
-            "properties" => JSON::Any.new(properties),
+            "properties" => JSON::Any.new(@properties),
             "required"   => JSON::Any.new(@required),
-          }.transform_values { |v| JSON::Any.new(v) }
+          }
         end
       end
 
@@ -165,7 +168,7 @@ module Chiasmus
           SchemaProperty.new(
             type: "string",
             description: "Which analysis to run",
-            enum: ["summary", "callers", "callees", "reachability", "dead-code", "cycles", "path", "impact", "facts"]
+            enum: VALID_ANALYSES
           )
         end
 
@@ -247,7 +250,7 @@ module Chiasmus
                 "description" => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("What this slot expects")}),
                 "format"      => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("Expected format/type hint")}),
               }),
-              "required" => JSON::Any.new(["name", "description", "format"]),
+              "required" => JSON::Any.new(["name", "description", "format"].map { |v| JSON::Any.new(v) }),
             }
           )
         end
@@ -261,7 +264,7 @@ module Chiasmus
                 "source"    => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("Input source type")}),
                 "transform" => JSON::Any.new({"type" => JSON::Any.new("string"), "description" => JSON::Any.new("How to transform the source")}),
               }),
-              "required" => JSON::Any.new(["source", "transform"]),
+              "required" => JSON::Any.new(["source", "transform"].map { |v| JSON::Any.new(v) }),
             }
           )
         end

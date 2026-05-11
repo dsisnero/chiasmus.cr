@@ -41,7 +41,7 @@ module Chiasmus
         return false unless grammar_data
 
         # Determine library name based on platform
-        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+        ext = Platform.shared_library_extension
         lib_name = "libtree-sitter-#{language}.#{ext}"
 
         # Create language directory in cache
@@ -90,7 +90,7 @@ module Chiasmus
       private def find_vendor_grammar(language : String) : String?
         vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
 
-        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+        ext = Platform.shared_library_extension
         lib_name = "libtree-sitter-#{language}.#{ext}"
 
         # Check in language-specific directory

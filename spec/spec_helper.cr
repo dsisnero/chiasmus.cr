@@ -1,5 +1,6 @@
 require "spec"
 require "../src/chiasmus"
+require "../src/benchmark/**"
 
 # Helper to temporarily set environment variables for tests
 def with_env(env_vars : Hash(String, String?), &)

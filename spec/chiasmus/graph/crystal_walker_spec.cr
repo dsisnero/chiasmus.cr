@@ -191,23 +191,108 @@ describe "Crystal walker" do
     file = Chiasmus::Graph::SourceFile.new("test.cr", crystal_code)
     facts = Chiasmus::Graph::Extractor.extract_graph([file])
 
-    # Check calls - we get operators like + and to_s as well
     calls = facts.calls.sort_by(&.caller)
-    calls.size.should be >= 3 # At least 3 calls, but may include operators
+    calls.size.should be >= 3
 
-    # add should call print_result
     add_calls = calls.select { |c| c.caller == "add" }
     add_calls.should_not be_empty
 
-    # Should include print_result call from add
     print_result_call_from_add = add_calls.find { |c| c.callee == "print_result" }
     print_result_call_from_add.should_not be_nil
 
-    # print_result should call puts
     print_result_calls = calls.select { |c| c.caller == "print_result" }
     print_result_calls.should_not be_empty
 
     puts_call_from_print_result = print_result_calls.find { |c| c.callee == "puts" }
     puts_call_from_print_result.should_not be_nil
+  end
+
+  it "extracts call relationships across functions" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
+        def greet(name)
+          helper(name)
+        end
+
+        def helper(name)
+          format(name)
+        end
+
+        def main
+          greet("world")
+        end
+      CRYSTAL
+      ),
+    ])
+
+    call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+    call_pairs.should contain("greet->helper")
+    call_pairs.should contain("helper->format")
+    call_pairs.should contain("main->greet")
+  end
+
+  it "extracts cross-file call graph" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("main.cr", <<-CRYSTAL
+        def main
+          handle
+        end
+
+        def handle
+          query
+        end
+      CRYSTAL
+      ),
+      Chiasmus::Graph::SourceFile.new("db.cr", <<-CRYSTAL
+        def query
+          connect
+        end
+
+        def connect
+        end
+      CRYSTAL
+      ),
+    ])
+
+    call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+    call_pairs.should contain("main->handle")
+    call_pairs.should contain("handle->query")
+    call_pairs.should contain("query->connect")
+  end
+
+  it "deduplicates call edges" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
+        def a
+          b
+          b
+          b
+        end
+
+        def b
+        end
+      CRYSTAL
+      ),
+    ])
+
+    a_to_b = graph.calls.select { |c| c.caller == "a" && c.callee == "b" }
+    a_to_b.size.should eq(1)
+  end
+
+  it "extracts abstract def and alias" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
+        abstract class Animal
+          abstract def speak
+        end
+
+        alias StringList = Array(String)
+      CRYSTAL
+      ),
+    ])
+
+    names = graph.defines.map(&.name)
+    names.should contain("Animal")
+    names.should contain("speak")
   end
 end

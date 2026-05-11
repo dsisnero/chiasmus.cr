@@ -8,6 +8,10 @@ shards:
     git: https://github.com/dsisnero/bidi.git
     version: 0.1.0+git.commit.a849cf60bac065668fe70e5ce09854b2bd5f5cbc
 
+  bm25:
+    git: https://github.com/dsisnero/bm25.git
+    version: 0.1.0+git.commit.ddfb5a3b8b970aa54c5efe412b927ec8402129fc
+
   cml:
     git: https://github.com/dsisnero/cml.git
     version: 0.5.0+git.commit.b7bfd828d2533fc3f5e2bade212f8a5eba240daf

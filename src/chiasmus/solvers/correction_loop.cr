@@ -51,7 +51,11 @@ module Chiasmus
         end
 
         # Ask fixer to patch the spec
-        fixed_input = fixer.call(attempt, result.error, round, result, current_input)
+        fixed_input = begin
+          fixer.call(attempt, result.error, round, result, current_input)
+        rescue
+          break # fixer raised an exception — treated as giving up
+        end
         break unless fixed_input # fixer gave up
 
         current_input = fixed_input

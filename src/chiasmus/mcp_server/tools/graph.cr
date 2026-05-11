@@ -27,7 +27,7 @@ module Chiasmus
 
           # Validate analysis type
           unless Graph::AnalysisType.parse?(analysis)
-            return error_response("Unknown analysis: #{analysis}. Must be one of: summary, callers, callees, reachability, dead-code, cycles, path, impact, facts")
+            return error_response("Unknown analysis: #{analysis}. Use one of: #{VALID_ANALYSES.join(", ")}")
           end
 
           analysis_type = Graph::AnalysisType.parse(analysis)

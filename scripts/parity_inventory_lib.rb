@@ -2,6 +2,8 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'pathname'
+require 'set'
 
 module ParityInventory
   SUPPORTED_LANGUAGES = %w[go rust crystal java ruby typescript].freeze
@@ -45,6 +47,64 @@ module ParityInventory
     end
   end
 
+  def discover_with_crystal_discovery(base, language)
+    discover_bin = discover_crystal_binary
+    unless discover_bin
+      warn "Crystal discovery binary not found; falling back to regex"
+      return discover_with_regex(base, language)
+    end
+
+    begin
+      output = IO.popen([discover_bin, '--language', language, '--dir', base.to_s, '--parser', 'tree-sitter'], &:read)
+      items = []
+      output.each_line do |line|
+        next if line.start_with?('#') || line.strip.empty?
+        cols = line.split("\t", -1)
+        next unless cols.length >= 2
+
+        source_id = cols[0].strip
+        kind = cols[1].strip
+        # Parse the ID format: {file}::{kind}::{name}
+        parts = source_id.split('::', 3)
+        next unless parts.length >= 3
+
+        file = parts[0]
+        item_kind = parts[1]
+        name = parts[2]
+        scope = item_kind == 'test' ? 'test' : 'source'
+
+        items << Item.new(
+          id: source_id,
+          kind: kind,
+          scope: scope,
+          file: file,
+          name: name
+        )
+      end
+      items
+    rescue => e
+      warn "Crystal discovery failed: #{e.message}; falling back to regex"
+      discover_with_regex(base, language)
+    end
+  end
+
+  def discover_crystal_binary
+    @discover_crystal_binary ||= begin
+      # Check for compiled binary first
+      candidates = [
+        File.join(__dir__, '..', 'bin', 'chiasmus-discover'),
+        File.join(__dir__, '..', 'bin', 'chiasmus_discover'),
+      ]
+      found = candidates.find { |p| File.executable?(p) }
+      unless found
+        # Try crystal run as fallback
+        src = File.join(__dir__, '..', 'src', 'chiasmus_discover.cr')
+        found = "crystal run #{src} --" if File.exist?(src)
+      end
+      found
+    end
+  end
+
   def discover_items(root_dir:, source_path:, language:, parser_mode: 'auto')
     raise ArgumentError, "Unsupported language: #{language}" unless SUPPORTED_LANGUAGES.include?(language)
 
@@ -57,8 +117,12 @@ module ParityInventory
     end
 
     items = if parser == 'tree-sitter'
-              # Placeholder: parser selection logic is ready; regex extraction remains canonical for now.
-              discover_with_regex(base, language)
+              result = discover_with_crystal_discovery(base, language)
+              unless result.empty?
+                # Merge parser mode into notes for visibility
+                result.each { |item| item[:parser_mode] = 'tree-sitter' }
+              end
+              result
             else
               discover_with_regex(base, language)
             end

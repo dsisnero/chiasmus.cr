@@ -1,4 +1,5 @@
 require "json"
+require "bm25"
 
 module Chiasmus
   module Skills
@@ -32,6 +33,7 @@ module Chiasmus
       @metadata : Hash(String, SkillMetadata)
       @template_order : Array(String)
       @metadata_path : String
+      @search_engine : Bm25::SearchEngine(String, UInt32, Bm25::DefaultTokenizer)
 
       def self.create(base_path : String) : Library
         Dir.mkdir_p(base_path)
@@ -88,6 +90,14 @@ module Chiasmus
 
       def initialize(@templates : Hash(String, SkillTemplate), @metadata : Hash(String, SkillMetadata), @metadata_path : String)
         @template_order = @templates.keys.to_a
+
+        tokenizer = Bm25::DefaultTokenizer.new(stemming: true, stopwords: true, normalization: true)
+        embedder = Bm25::Embedder(UInt32, Bm25::DefaultTokenizer).new(
+          tokenizer,
+          Bm25::U32Embedder.new,
+        )
+        @search_engine = Bm25::SearchEngine(String, UInt32, Bm25::DefaultTokenizer).new(embedder)
+        rebuild_search_index
       end
 
       def list : Array(SkillWithMetadata)
@@ -119,7 +129,12 @@ module Chiasmus
       def search(query : String, options : SearchOptions = SearchOptions.new) : Array(SkillSearchResult)
         limit = options.limit || 10
 
-        results = @template_order.compact_map do |name|
+        if query.blank?
+          return list_all_filtered(options).first(limit)
+        end
+
+        @search_engine.search(query, limit: nil).compact_map do |bm25_result|
+          name = bm25_result.document.id
           template = @templates[name]?
           next unless template
           next if options.domain && template.domain != options.domain
@@ -128,11 +143,24 @@ module Chiasmus
           SkillSearchResult.new(
             template: template,
             metadata: load_metadata(name),
-            score: calculate_relevance_score(template, query)
+            score: bm25_result.score.to_f64
+          )
+        end.first(limit)
+      end
+
+      private def list_all_filtered(options : SearchOptions) : Array(SkillSearchResult)
+        @template_order.compact_map do |tpl_name|
+          template = @templates[tpl_name]?
+          next unless template
+          next if options.domain && template.domain != options.domain
+          next if options.solver && template.solver != options.solver
+
+          SkillSearchResult.new(
+            template: template,
+            metadata: load_metadata(tpl_name),
+            score: 0.0
           )
         end
-
-        results.sort_by(&.score).reverse!.first(limit)
       end
 
       def record_use(name : String, success : Bool) : Nil
@@ -158,6 +186,7 @@ module Chiasmus
 
         @templates[template.name] = template
         @template_order << template.name
+        @search_engine.upsert(build_document(template.name, template))
         @metadata[template.name] = SkillMetadata.new(
           name: template.name,
           reuse_count: 0,
@@ -186,7 +215,9 @@ module Chiasmus
 
       def remove(name : String) : Nil
         @templates.delete(name)
+        idx = @template_order.index(name)
         @template_order.reject! { |entry| entry == name }
+        @search_engine.remove(idx.to_s) if idx
         @metadata.delete(name)
         save_metadata
       end
@@ -214,29 +245,27 @@ module Chiasmus
         # Sandboxed environments may not allow writes under the configured home dir.
       end
 
-      private def calculate_relevance_score(template : SkillTemplate, query : String) : Float64
-        return 0.0 if query.blank?
+      private def build_search_text(template : SkillTemplate) : String
+        [
+          template.name,
+          template.domain,
+          template.signature,
+          *template.slots.map(&.description),
+          *template.normalizations.map { |norm| "#{norm.source} #{norm.transform}" },
+          *(template.tips || [] of String),
+        ].join(" ")
+      end
 
-        query_terms = tokenize(query)
-        score_texts = {
-          4.0 => [template.name, template.domain],
-          3.0 => [template.signature],
-          2.0 => template.slots.map(&.description),
-          1.5 => template.normalizations.map { |normalization| "#{normalization.source} #{normalization.transform}" },
-          1.0 => template.tips || [] of String,
-        }
+      private def build_document(name : String, template : SkillTemplate) : Bm25::Document(String)
+        Bm25::Document(String).new(name, build_search_text(template))
+      end
 
-        score = 0.0
-        score_texts.each do |weight, texts|
-          haystack = tokenize(texts.join(" "))
-          next if haystack.empty?
-
-          query_terms.each do |term|
-            score += weight if haystack.includes?(term)
-          end
+      private def rebuild_search_index : Nil
+        @template_order.each do |name|
+          template = @templates[name]?
+          next unless template
+          @search_engine.upsert(build_document(name, template))
         end
-
-        score
       end
 
       private def load_metadata(name : String) : SkillMetadata
@@ -247,23 +276,6 @@ module Chiasmus
           last_used: nil,
           promoted: false
         )
-      end
-
-      private def tokenize(text : String) : Array(String)
-        text.downcase
-          .gsub(/[^a-z0-9]+/, " ")
-          .split(/\s+/)
-          .reject(&.empty?)
-          .map { |token| normalize_token(token) }
-          .uniq!
-      end
-
-      private def normalize_token(token : String) : String
-        TOKEN_NORMALIZATIONS.each do |prefix, normalized|
-          return normalized if token.starts_with?(prefix)
-        end
-
-        token
       end
     end
   end

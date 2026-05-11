@@ -145,18 +145,35 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       result["result"].as_h["status"].as_s.should eq "success"
     end
 
-    it "handles prolog with queries array" do
+    it "runs multiple prolog queries against the same program" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
-      input = "parent(tom, bob). parent(bob, ann)."
-      queries = JSON.parse(%(["parent(tom, X).", "parent(bob, X)."]))
+      input = "edge(a, b). edge(b, c). edge(c, d)."
+      queries = JSON.parse(%(["edge(a, X).", "edge(b, X).", "edge(c, X)."]))
       result = tool.invoke({
         "solver"  => JSON::Any.new("prolog"),
         "input"   => JSON::Any.new(input),
         "queries" => queries,
       })
 
+      result["status"].as_s.should eq "success"
+      results = result["result"].as_a
+      results.size.should eq(3)
+      results[0]["status"].as_s.should eq("success")
+      results[0]["answers"].as_a.first["bindings"].as_h["X"].as_s.should eq("b")
+      results[1]["answers"].as_a.first["bindings"].as_h["X"].as_s.should eq("c")
+      results[2]["answers"].as_a.first["bindings"].as_h["X"].as_s.should eq("d")
+    end
+
+    it "rejects prolog queries arrays containing non-strings" do
+      tool = Chiasmus::MCPServer::Tools::VerifyTool.new
+      result = tool.invoke({
+        "solver"  => JSON::Any.new("prolog"),
+        "input"   => JSON::Any.new("edge(a, b)."),
+        "queries" => JSON.parse(%(["edge(a, X).", 1])),
+      })
+
       result["status"].as_s.should eq "error"
-      result["error"].to_s.should_not be_empty
+      result["error"].as_s.should contain("queries array must contain only strings")
     end
 
     it "handles prolog with explain flag" do

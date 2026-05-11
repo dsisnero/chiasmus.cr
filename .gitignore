@@ -3,6 +3,10 @@
 /.shards/
 *.dwarf
 
+# macOS metadata sidecars commonly created on exFAT/removable volumes
+._*
+.DS_Store
+
 # Don't ignore docs/ - baseline docs must be committed
 
 # Ignore all lib/ dependencies (installed by shards)
@@ -47,3 +51,4 @@ vendor/tree-sitter-rust/
 simple_deepseek_test.cr
 test.cr
 fetch_docs.sh
+spec/tmp_cr_*.cr

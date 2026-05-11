@@ -1,4 +1,6 @@
 require "spec"
+require "json"
+require "file_utils"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/adapter_registry"
 require "../../../src/chiasmus/graph/parser"
@@ -7,16 +9,24 @@ require "../../../src/chiasmus/graph/extractor"
 module Chiasmus
   module Graph
     class TestAdapter < LanguageAdapter
+      def initialize(
+        @language = "test-lang",
+        @extensions = [".tl"],
+        @grammar_language = "javascript",
+        @search_paths : Array(String)? = ["/nonexistent/path"],
+      )
+      end
+
       def language : String
-        "test-lang"
+        @language
       end
 
       def grammar_language : String
-        "javascript"
+        @grammar_language
       end
 
       def extensions : Array(String)
-        [".tl"]
+        @extensions
       end
 
       def extract(root_node : TreeSitter::Node, source : String, file_path : String) : CodeGraph
@@ -44,7 +54,7 @@ module Chiasmus
       end
 
       def search_paths : Array(String)?
-        ["/nonexistent/path"]
+        @search_paths
       end
 
       private def walk_calls(node : TreeSitter::Node, source : String, caller : String, calls : Array(CallsFact), seen : Set(String)) : Nil
@@ -66,6 +76,20 @@ module Chiasmus
       end
     end
 
+    class TestAdapterFactory < AdapterFactory
+      getter build_count = 0
+
+      def build(descriptor : AdapterDescriptor) : LanguageAdapter?
+        @build_count += 1
+        TestAdapter.new(
+          descriptor.language,
+          descriptor.extensions,
+          descriptor.grammar_language,
+          descriptor.search_paths
+        )
+      end
+    end
+
     class FakeParserClient
       def initialize(@language : String?, @tree : TreeSitter::Tree?)
       end
@@ -79,9 +103,18 @@ module Chiasmus
       end
     end
 
+    def self.with_temp_dir(prefix : String, & : String -> Nil) : Nil
+      dir = File.join(Dir.tempdir, "#{prefix}-#{Random.rand(1_000_000_000)}")
+      Dir.mkdir_p(dir)
+      yield dir
+    ensure
+      FileUtils.rm_rf(dir) if dir
+    end
+
     describe AdapterRegistry do
       before_each do
         AdapterRegistry.clear_adapters
+        AdapterRegistry.clear_adapter_factories
       end
 
       it "registers adapters and resolves them by language" do
@@ -130,6 +163,120 @@ module Chiasmus
         AdapterRegistry.discover_adapters
 
         AdapterRegistry.get_adapter("test-lang").should_not be_nil
+      end
+
+      it "discovers adapters from a manifest through a registered factory" do
+        Chiasmus::Graph.with_temp_dir("chiasmus-adapters") do |dir|
+          manifest_path = File.join(dir, "chiasmus.adapters.json")
+          File.write(manifest_path, {
+            "adapters" => [
+              {
+                "language"         => "manifest-lang",
+                "extensions"       => [".mf", "MF2"],
+                "grammar_language" => "javascript",
+                "entrypoint"       => "test-adapter",
+                "search_paths"     => [File.join(dir, "nested")],
+              },
+            ],
+          }.to_json)
+
+          factory = TestAdapterFactory.new
+          diagnostics = [] of String
+          AdapterRegistry.register_adapter_factory("test-adapter", factory)
+          AdapterRegistry.discover_adapters([manifest_path], diagnostics)
+
+          AdapterRegistry.get_adapter("manifest-lang").should_not be_nil
+          AdapterRegistry.language_for_ext(".mf").should eq("manifest-lang")
+          AdapterRegistry.language_for_ext("mf2").should eq("manifest-lang")
+          AdapterRegistry.grammar_language_for_ext(".mf").should eq("javascript")
+          AdapterRegistry.get_adapter("manifest-lang").not_nil!.search_paths.should eq([File.join(dir, "nested")])
+          diagnostics.should be_empty
+          factory.build_count.should eq(1)
+        end
+      end
+
+      it "skips invalid manifest descriptors without throwing" do
+        Chiasmus::Graph.with_temp_dir("chiasmus-adapters") do |dir|
+          manifest_path = File.join(dir, "chiasmus.adapters.json")
+          File.write(manifest_path, {
+            "adapters" => [
+              {"language" => "missing-extensions", "entrypoint" => "test-adapter"},
+              {"language" => "missing-factory", "extensions" => [".mf"], "entrypoint" => "missing"},
+            ],
+          }.to_json)
+
+          diagnostics = [] of String
+          AdapterRegistry.register_adapter_factory("test-adapter", TestAdapterFactory.new)
+
+          AdapterRegistry.discover_adapters([manifest_path], diagnostics)
+
+          AdapterRegistry.get_adapter("missing-extensions").should be_nil
+          AdapterRegistry.get_adapter("missing-factory").should be_nil
+          diagnostics.size.should eq(2)
+        end
+      end
+
+      it "runs manifest discovery only once" do
+        Chiasmus::Graph.with_temp_dir("chiasmus-adapters") do |dir|
+          manifest_path = File.join(dir, "chiasmus.adapters.json")
+          File.write(manifest_path, {
+            "adapters" => [
+              {
+                "language"   => "manifest-lang",
+                "extensions" => [".mf"],
+                "entrypoint" => "test-adapter",
+              },
+            ],
+          }.to_json)
+
+          factory = TestAdapterFactory.new
+          AdapterRegistry.register_adapter_factory("test-adapter", factory)
+
+          AdapterRegistry.discover_adapters([manifest_path])
+          AdapterRegistry.discover_adapters([manifest_path])
+
+          factory.build_count.should eq(1)
+          AdapterRegistry.adapter_extensions.should contain(".mf")
+        end
+      end
+
+      it "follows discovered adapter search paths for additional manifests" do
+        Chiasmus::Graph.with_temp_dir("chiasmus-adapters") do |dir|
+          nested_dir = File.join(dir, "nested")
+          Dir.mkdir_p(nested_dir)
+
+          manifest_path = File.join(dir, "chiasmus.adapters.json")
+          File.write(manifest_path, {
+            "adapters" => [
+              {
+                "language"     => "manifest-lang",
+                "extensions"   => [".mf"],
+                "entrypoint"   => "test-adapter",
+                "search_paths" => [nested_dir],
+              },
+            ],
+          }.to_json)
+
+          nested_manifest_path = File.join(nested_dir, "extra.adapters.json")
+          File.write(nested_manifest_path, {
+            "adapters" => [
+              {
+                "language"   => "extra-lang",
+                "extensions" => [".extra"],
+                "entrypoint" => "test-adapter",
+              },
+            ],
+          }.to_json)
+
+          factory = TestAdapterFactory.new
+          AdapterRegistry.register_adapter_factory("test-adapter", factory)
+
+          AdapterRegistry.discover_adapters([manifest_path])
+
+          AdapterRegistry.language_for_ext(".mf").should eq("manifest-lang")
+          AdapterRegistry.language_for_ext(".extra").should eq("extra-lang")
+          factory.build_count.should eq(2)
+        end
       end
     end
 

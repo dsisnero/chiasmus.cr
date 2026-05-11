@@ -104,7 +104,7 @@ module Chiasmus
             # Check tree-sitter repository first
             language_paths = LanguageLoader.repository_language_paths
             if path = language_paths[language]?
-              ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+              ext = Platform.shared_library_extension
               so_path = path.join("libtree-sitter-#{language}.#{ext}")
 
               exists_channel = GrammarOperations.file_exists_async(so_path.to_s)
@@ -227,7 +227,7 @@ module Chiasmus
             end
 
             # Remove all .dylib/.so files
-            ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+            ext = Platform.shared_library_extension
             Dir.glob(File.join(cache_dir, "**", "*.#{ext}")).each do |lib_file|
               File.delete(lib_file)
             end
@@ -356,7 +356,7 @@ module Chiasmus
       end
 
       private def grammar_cache_paths(language : String, cache_dir : String) : Array(String)
-        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+        ext = Platform.shared_library_extension
         lib_name = "libtree-sitter-#{language}.#{ext}"
 
         paths = [] of String
@@ -670,7 +670,7 @@ module Chiasmus
           return false unless build_status.success?
 
           # Copy to cache
-          ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+          ext = Platform.shared_library_extension
           source_lib = "#{language}.#{ext}"
           lib_name = "libtree-sitter-#{language}.#{ext}"
 
@@ -700,7 +700,7 @@ module Chiasmus
       # Copy grammar from node_modules
       private def copy_grammar_from_node_modules(language : String, node_modules_path : String, package_name : String) : Bool
         # Look for the grammar file in various locations
-        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+        ext = Platform.shared_library_extension
         lib_name = "libtree-sitter-#{language}.#{ext}"
 
         possible_paths = [
@@ -873,7 +873,7 @@ module Chiasmus
 
             # Copy to cache
             if cache_dir = @@cache_dir
-              ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+              ext = Platform.shared_library_extension
               lib_name = "libtree-sitter-#{inferred_language}.#{ext}"
               source_lib = File.join(local_path, lib_name)
 
@@ -1036,7 +1036,7 @@ module Chiasmus
 
       # Check if a directory contains a grammar library
       private def grammar_directory?(dir_path : String) : Bool
-        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+        ext = Platform.shared_library_extension
 
         # Check for libtree-sitter-*.{so,dylib}
         Dir.children(dir_path).any? do |filename|

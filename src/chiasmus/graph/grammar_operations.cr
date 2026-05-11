@@ -160,7 +160,7 @@ module Chiasmus
             end
 
             # Build command
-            ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+            ext = Platform.shared_library_extension
             output_file = "libtree-sitter-#{language}.#{ext}"
 
             build_cmd = "cc -shared -fPIC -I./src -o #{output_file} #{src_files.join(" ")}"

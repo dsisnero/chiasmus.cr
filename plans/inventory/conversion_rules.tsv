@@ -1,0 +1,23 @@
+# Conversion rules: upstream TypeScript pattern → Crystal replacement
+# Format: from_language to_language upstream_kind crystal_kind notes
+#
+# These rules explain why certain port rows are intentional_divergence.
+# They are consumed by generate_inventory_facts.rb to produce parity_facts.pl.
+typescript	crystal	LLMAdapter		Crig agent		Upstream vendor adapters (Anthropic, OpenAI-compatible, mock) replaced by Crig as sole LLM driver
+typescript	crystal	LLMMessage		Crig message		Upstream message types replaced by Crig API message handling
+typescript	crystal	AnthropicConfig		Crig config		Vendor-specific LLM config replaced by Crig configuration
+typescript	crystal	AnthropicAdapter	Crig agent		Vendor-specific LLM adapter replaced by injected Crig agent
+typescript	crystal	OpenAICompatibleAdapter	Crig agent		Vendor-specific LLM adapter replaced by injected Crig agent
+typescript	crystal	OpenAICompatibleConfig	Crig config		Vendor-specific LLM config replaced by Crig configuration
+typescript	crystal	MockLLMAdapter		injectable spec fake		Upstream mock adapter replaced by injectable fake agents/procs in specs
+typescript	crystal	PrologSession		crolog session		Tau Prolog replaced by crolog/SWI-Prolog for Prolog queries
+typescript	crystal	PrologSubstitution		crolog substitution		Tau Prolog replaced by crolog/SWI-Prolog for Prolog queries
+typescript	crystal	PrologTerm		crolog term		Tau Prolog replaced by crolog/SWI-Prolog for Prolog queries
+typescript	crystal	BM25Index		Bm25::SearchEngine		Upstream BM25 index replaced by dsisnero/bm25 shard with Porter2 + stopwords
+typescript	crystal	DocEntry		Bm25::Document		Upstream document entry type replaced by Bm25::Document
+typescript	crystal	registerFromModule	adapter manifest discovery		Node.js dynamic module loading replaced by idempotent JSON manifest discovery + AdapterFactory
+typescript	crystal	isLanguageAdapter	descriptor validation		Node.js duck-typed runtime guard replaced by JSON descriptor validation
+typescript	crystal	getNativeParser	tree_sitter shard		Tree-sitter initialization handled by tree_sitter shard at compile time
+typescript	crystal	WASMParser		source-form extractor		Clojure WASM parser deferred; Crystal uses ClojureSourceExtractor as parser-independent path
+typescript	crystal	SOLVER_TIMEOUT_MS	solver constructor config		Z3 timeout configured via solver constructor, not a global constant
+typescript	crystal	getZ3		system PATH/ENV		Z3 binary discovery handled by system PATH or env in Crystal port

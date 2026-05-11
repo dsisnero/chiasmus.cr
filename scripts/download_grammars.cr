@@ -6,7 +6,7 @@ require "process"
 # Required languages for static binary
 REQUIRED_LANGUAGES = [
   "ruby",
-  "python", 
+  "python",
   "java",
   "go",
   "rust",
@@ -37,18 +37,18 @@ Dir.mkdir_p(VENDOR_DIR)
 
 def download_and_compile(language : String, package : String)
   puts "Processing #{language} (#{package})..."
-  
+
   target_dir = File.join(VENDOR_DIR, package)
-  
+
   # Check if already exists
   if Dir.exists?(target_dir)
     puts "  ✓ Already exists in vendor"
-    
+
     # Check if compiled library exists
-    ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+    ext = {% if flag?(:darwin) %} "dylib" {% elsif flag?(:win32) %} "dll" {% else %} "so" {% end %}
     lib_name = "libtree-sitter-#{language}.#{ext}"
     lib_path = File.join(target_dir, lib_name)
-    
+
     if File.exists?(lib_path)
       puts "  ✓ Compiled library exists"
       return true
@@ -57,23 +57,23 @@ def download_and_compile(language : String, package : String)
     end
   else
     puts "  Downloading from GitHub..."
-    
+
     # Clone repository
     repo_url = "https://github.com/tree-sitter/#{package}.git"
-    success = Process.run("git", ["clone", "--depth", "1", repo_url, target_dir], 
+    success = Process.run("git", ["clone", "--depth", "1", repo_url, target_dir],
       output: Process::Redirect::Close,
       error: Process::Redirect::Close
     ).success?
-    
+
     unless success
       puts "  ✗ Failed to clone #{package}"
       return false
     end
   end
-  
+
   # Compile the grammar
   puts "  Compiling #{language} grammar..."
-  
+
   Dir.cd(target_dir) do
     # For TypeScript/TSX, need to compile in subdirectories
     if language == "typescript"
@@ -95,7 +95,7 @@ def download_and_compile(language : String, package : String)
       end
     end
   end
-  
+
   puts "  ✓ Successfully compiled #{language}"
   true
 end
@@ -107,46 +107,46 @@ def compile_grammar(source_dir : String, language : String) : Bool
       puts "    ✗ tree-sitter CLI not found"
       return false
     end
-    
+
     # Check for C compiler
     unless system("which cc > /dev/null 2>&1") || system("which gcc > /dev/null 2>&1") || system("which clang > /dev/null 2>&1")
       puts "    ✗ C compiler not found"
       return false
     end
-    
+
     # Generate parser
     puts "    Generating parser..."
-    generate_status = Process.run("tree-sitter", ["generate"], 
+    generate_status = Process.run("tree-sitter", ["generate"],
       output: Process::Redirect::Close,
       error: Process::Redirect::Close
     ).success?
-    
+
     unless generate_status
       puts "    ✗ Failed to generate parser"
       return false
     end
-    
+
     # Build grammar
     puts "    Building grammar..."
-    build_status = Process.run("tree-sitter", ["build"], 
+    build_status = Process.run("tree-sitter", ["build"],
       output: Process::Redirect::Close,
       error: Process::Redirect::Close
     ).success?
-    
+
     unless build_status
       puts "    ✗ Failed to build grammar"
       return false
     end
-    
+
     # Rename library if needed
-    ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+    ext = {% if flag?(:darwin) %} "dylib" {% elsif flag?(:win32) %} "dll" {% else %} "so" {% end %}
     source_lib = "#{language}.#{ext}"
     lib_name = "libtree-sitter-#{language}.#{ext}"
-    
+
     if File.exists?(source_lib) && !File.exists?(lib_name)
       File.rename(source_lib, lib_name)
     end
-    
+
     # Verify library exists
     if File.exists?(lib_name)
       puts "    ✓ Library created: #{lib_name}"
@@ -165,10 +165,10 @@ def main
   puts "Downloading and compiling required grammars..."
   puts "Vendor directory: #{VENDOR_DIR}"
   puts ""
-  
+
   success_count = 0
   fail_count = 0
-  
+
   REQUIRED_LANGUAGES.each do |language|
     package = PACKAGE_MAP[language]
     if package
@@ -183,11 +183,11 @@ def main
     end
     puts ""
   end
-  
+
   puts "Summary:"
   puts "  Success: #{success_count}/#{REQUIRED_LANGUAGES.size}"
   puts "  Failed: #{fail_count}/#{REQUIRED_LANGUAGES.size}"
-  
+
   if fail_count > 0
     puts "\nWarning: Some grammars failed to compile!"
     puts "The static binary may not include all required parsers."

@@ -1,5 +1,3 @@
-require "../../spec_helper"
-
 describe Chiasmus::Formalize do
   describe ".classify_feedback" do
     it "classifies error result" do

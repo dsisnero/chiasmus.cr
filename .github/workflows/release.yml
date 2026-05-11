@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,   arch: x86_64,  ext: "" }
+          - { os: macos-13,        arch: x86_64,  ext: "" }
+          - { os: macos-latest,    arch: aarch64, ext: "" }
+          - { os: windows-latest,  arch: x86_64,  ext: ".exe" }
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Crystal
+      uses: crystal-lang/install-crystal@v1
+      with:
+        crystal: latest
+
+    - name: Install tree-sitter CLI
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: tree-sitter-cli
+
+    - name: Install dependencies
+      run: shards install
+
+    - name: Compile grammar libraries
+      run: crystal run scripts/setup_grammars.cr
+
+    - name: Build binaries
+      run: |
+        mkdir -p dist/chiasmus/grammars
+        crystal build --release --static -o dist/chiasmus/chiasmus${{ matrix.ext }} src/chiasmus.cr
+        crystal build --release --static -o dist/chiasmus/chiasmus-discover${{ matrix.ext }} src/chiasmus_discover.cr
+        crystal build --release --static -o dist/chiasmus/chiasmus-grammar${{ matrix.ext }} src/chiasmus_grammar.cr
+
+    - name: Copy grammar libraries
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          macOS)   ext=dylib ;;
+          Linux)   ext=so ;;
+          Windows) ext=dll ;;
+        esac
+        for lang in ruby python java go rust scala javascript typescript tsx crystal; do
+          lib=libtree-sitter-$lang.$ext
+          find vendor/grammars -name "$lib" -exec cp {} dist/chiasmus/grammars/ \; 2>/dev/null || echo "Warning: $lib not found"
+        done
+        ls dist/chiasmus/grammars/
+
+    - name: Package (unix)
+      if: runner.os != 'Windows'
+      run: |
+        cd dist
+        tar czf ../chiasmus-${{ matrix.arch }}-${{ github.ref_name }}.tar.gz chiasmus/
+
+    - name: Package (windows)
+      if: runner.os == 'Windows'
+      run: |
+        cd dist
+        7z a ../chiasmus-${{ matrix.arch }}-${{ github.ref_name }}.zip chiasmus/
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: chiasmus-${{ matrix.arch }}
+        path: chiasmus-${{ matrix.arch }}-${{ github.ref_name }}.*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        merge-multiple: true
+    - run: ls -laR artifacts/
+    - uses: softprops/action-gh-release@v2
+      with:
+        files: artifacts/*
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

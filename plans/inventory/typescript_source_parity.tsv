@@ -1,20 +1,20 @@
 # source_api_id	status	crystal_refs	notes
-benchmark/chiasmus/p1-rbac.ts::interface::ConflictResult	missing	-	baseline
-benchmark/chiasmus/p1-rbac.ts::interface::Rule	missing	-	baseline
-benchmark/chiasmus/p2-deps.ts::interface::DependencyResult	missing	-	baseline
-benchmark/chiasmus/p3-taint.ts::interface::TaintResult	missing	-	baseline
-benchmark/chiasmus/p4-workflow.ts::interface::WorkflowResult	missing	-	baseline
-benchmark/chiasmus/p5-validation.ts::function::buildGapCheck	missing	-	baseline
-benchmark/chiasmus/p5-validation.ts::interface::ValidationGapResult	missing	-	baseline
-benchmark/traditional/p1-rbac.ts::interface::ConflictResult	missing	-	baseline
-benchmark/traditional/p1-rbac.ts::interface::Rule	missing	-	baseline
-benchmark/traditional/p2-deps.ts::function::backtrack	missing	-	baseline
-benchmark/traditional/p2-deps.ts::function::isValid	missing	-	baseline
-benchmark/traditional/p2-deps.ts::interface::DependencyResult	missing	-	baseline
-benchmark/traditional/p3-taint.ts::function::reachableFrom	missing	-	baseline
-benchmark/traditional/p3-taint.ts::interface::TaintResult	missing	-	baseline
-benchmark/traditional/p4-workflow.ts::interface::WorkflowResult	missing	-	baseline
-benchmark/traditional/p5-validation.ts::interface::ValidationGapResult	missing	-	baseline
+benchmark/chiasmus/p1-rbac.ts::interface::ConflictResult	ported	src/benchmark/chiasmus/p1_rbac.cr:5	Ported as Benchmark::Chiasmus::ConflictResult
+benchmark/chiasmus/p1-rbac.ts::interface::Rule	ported	src/benchmark/problems/definitions.cr:5	Represented by typed benchmark problem rule inputs
+benchmark/chiasmus/p2-deps.ts::interface::DependencyResult	ported	src/benchmark/chiasmus/p2_deps.cr:5	Ported as Benchmark::Chiasmus::DependencyResult
+benchmark/chiasmus/p3-taint.ts::interface::TaintResult	ported	src/benchmark/chiasmus/p3_taint.cr:5	Ported as Benchmark::Chiasmus::TaintResult
+benchmark/chiasmus/p4-workflow.ts::interface::WorkflowResult	ported	src/benchmark/chiasmus/p4_workflow.cr:5	Ported as Benchmark::Chiasmus::WorkflowResult
+benchmark/chiasmus/p5-validation.ts::function::buildGapCheck	ported	src/benchmark/chiasmus/p5_validation.cr:37	Ported as build_gap_check
+benchmark/chiasmus/p5-validation.ts::interface::ValidationGapResult	ported	src/benchmark/chiasmus/p5_validation.cr:6	Ported as Benchmark::Chiasmus::ValidationGapResult
+benchmark/traditional/p1-rbac.ts::interface::ConflictResult	ported	src/benchmark/traditional/p1_rbac.cr:3	Ported as Benchmark::Traditional::ConflictResult
+benchmark/traditional/p1-rbac.ts::interface::Rule	ported	src/benchmark/problems/definitions.cr:5	Represented by typed benchmark problem rule inputs
+benchmark/traditional/p2-deps.ts::function::backtrack	ported	src/benchmark/traditional/p2_deps.cr:12	Ported as recursive backtracking closure in solve_deps
+benchmark/traditional/p2-deps.ts::function::isValid	ported	src/benchmark/traditional/p2_deps.cr:34	Ported as valid_dependency_assignment? with requirement/incompatibility helpers
+benchmark/traditional/p2-deps.ts::interface::DependencyResult	ported	src/benchmark/traditional/p2_deps.cr:3	Ported as Benchmark::Traditional::DependencyResult
+benchmark/traditional/p3-taint.ts::function::reachableFrom	ported	src/benchmark/traditional/p3_taint.cr:15	Ported as reachability closure in solve_taint
+benchmark/traditional/p3-taint.ts::interface::TaintResult	ported	src/benchmark/traditional/p3_taint.cr:3	Ported as Benchmark::Traditional::TaintResult
+benchmark/traditional/p4-workflow.ts::interface::WorkflowResult	ported	src/benchmark/traditional/p4_workflow.cr:3	Ported as Benchmark::Traditional::WorkflowResult
+benchmark/traditional/p5-validation.ts::interface::ValidationGapResult	ported	src/benchmark/traditional/p5_validation.cr:4	Ported as Benchmark::Traditional::ValidationGapResult
 src/config.ts::function::loadConfig	ported	src/chiasmus/utils/config.cr:43	Ported as Chiasmus::Utils::Config.load with upstream adapterDiscovery JSON key compatibility
 src/config.ts::interface::ChiasmusConfig	ported	src/chiasmus/utils/config.cr:7	Ported as Chiasmus::Utils::Config::ChiasmusConfig
 src/formalize/engine.ts::class::FormalizationEngine	ported	src/chiasmus/formalize/engine.cr:30	Ported as Chiasmus::Formalize::Engine with direct formalize and solve coverage.
@@ -33,38 +33,38 @@ src/graph/adapter-registry.ts::function::clearAdapters	ported	src/chiasmus/graph
 src/graph/adapter-registry.ts::function::getAdapter	ported	src/chiasmus/graph/adapter_registry.cr:21	Ported as AdapterRegistry.get_adapter
 src/graph/adapter-registry.ts::function::getAdapterExtensions	ported	src/chiasmus/graph/adapter_registry.cr:34	Ported as AdapterRegistry.adapter_extensions
 src/graph/adapter-registry.ts::function::getAdapterForExt	ported	src/chiasmus/graph/adapter_registry.cr:25	Ported as AdapterRegistry.get_adapter_for_ext
-src/graph/adapter-registry.ts::function::isLanguageAdapter	missing	-	baseline
+src/graph/adapter-registry.ts::function::isLanguageAdapter	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:123	Node.js duck-typed runtime guard is replaced by JSON descriptor validation plus AdapterFactory typing
 src/graph/adapter-registry.ts::function::registerAdapter	ported	src/chiasmus/graph/adapter_registry.cr:13	Ported as AdapterRegistry.register_adapter
-src/graph/adapter-registry.ts::function::registerFromModule	missing	-	baseline
-src/graph/analyses.ts::function::buildQuery	missing	-	baseline
-src/graph/analyses.ts::function::buildSummary	missing	-	baseline
-src/graph/analyses.ts::function::extractUniqueValues	missing	-	baseline
-src/graph/analyses.ts::function::formatResult	missing	-	baseline
-src/graph/analyses.ts::interface::AnalysisRequest	missing	-	baseline
-src/graph/analyses.ts::interface::AnalysisResult	missing	-	baseline
-src/graph/analyses.ts::type::AnalysisType	missing	-	baseline
-src/graph/extractor.ts::function::cljDefnName	missing	-	baseline
-src/graph/extractor.ts::function::cljExtractCalls	missing	-	baseline
-src/graph/extractor.ts::function::cljExtractNs	missing	-	baseline
-src/graph/extractor.ts::function::cljSymName	missing	-	baseline
-src/graph/extractor.ts::function::extractGoCalls	missing	-	baseline
-src/graph/extractor.ts::function::extractGoReceiverType	missing	-	baseline
-src/graph/extractor.ts::function::extractImportNames	missing	-	baseline
-src/graph/extractor.ts::function::extractStringContent	missing	-	baseline
-src/graph/extractor.ts::function::findEnclosingClassName	missing	-	baseline
-src/graph/extractor.ts::function::findPythonEnclosingClass	missing	-	baseline
-src/graph/extractor.ts::function::resolveCallee	missing	-	baseline
-src/graph/extractor.ts::function::resolveGoCallee	missing	-	baseline
-src/graph/extractor.ts::function::resolvePythonCallee	missing	-	baseline
-src/graph/extractor.ts::function::walkChildren	missing	-	baseline
-src/graph/extractor.ts::function::walkClojure	missing	-	baseline
-src/graph/extractor.ts::function::walkGo	missing	-	baseline
-src/graph/extractor.ts::function::walkNode	missing	-	baseline
-src/graph/extractor.ts::function::walkPython	missing	-	baseline
-src/graph/extractor.ts::function::walkPythonChildren	missing	-	baseline
-src/graph/facts.ts::const::BUILTIN_RULES	missing	-	baseline
-src/graph/facts.ts::function::escapeAtom	missing	-	baseline
-src/graph/facts.ts::function::graphToProlog	missing	-	baseline
+src/graph/adapter-registry.ts::function::registerFromModule	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:74	Node.js dynamic module loading is replaced by idempotent manifest discovery and registered AdapterFactory entrypoints
+src/graph/analyses.ts::function::buildQuery	ported	src/chiasmus/graph/analyses.cr:1	Ported graph analyses with direct Crystal traversal instead of Prolog query construction
+src/graph/analyses.ts::function::buildSummary	ported	src/chiasmus/graph/analyses.cr:1	Ported in-memory graph summary generation
+src/graph/analyses.ts::function::extractUniqueValues	ported	src/chiasmus/graph/analyses.cr:1	Ported through uniq-preserving collection of analysis outputs
+src/graph/analyses.ts::function::formatResult	ported	src/chiasmus/graph/analyses.cr:1	Ported via typed Crystal payloads per analysis mode
+src/graph/analyses.ts::interface::AnalysisRequest	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal record
+src/graph/analyses.ts::interface::AnalysisResult	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal record
+src/graph/analyses.ts::type::AnalysisType	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal enum
+src/graph/extractor.ts::function::cljDefnName	ported	src/chiasmus/graph/walkers.cr:748	Ported as clj_defn_name
+src/graph/extractor.ts::function::cljExtractCalls	ported	src/chiasmus/graph/walkers.cr:888	Ported as clj_extract_calls
+src/graph/extractor.ts::function::cljExtractNs	ported	src/chiasmus/graph/walkers.cr:776	Ported as clj_extract_ns
+src/graph/extractor.ts::function::cljSymName	ported	src/chiasmus/graph/walkers.cr:735	Ported as clj_sym_name
+src/graph/extractor.ts::function::extractGoCalls	ported	src/chiasmus/graph/walkers.cr:664	Ported as extract_go_calls
+src/graph/extractor.ts::function::extractGoReceiverType	ported	src/chiasmus/graph/walkers.cr:706	Ported as extract_go_receiver_type
+src/graph/extractor.ts::function::extractImportNames	ported	src/chiasmus/graph/walkers.cr:305	Ported as extract_import_names
+src/graph/extractor.ts::function::extractStringContent	ported	src/chiasmus/graph/walkers.cr:340	Ported as extract_string_content
+src/graph/extractor.ts::function::findEnclosingClassName	ported	src/chiasmus/graph/walkers.cr:287	Ported as find_enclosing_class_name
+src/graph/extractor.ts::function::findPythonEnclosingClass	ported	src/chiasmus/graph/walkers.cr:536	Ported as find_python_enclosing_class
+src/graph/extractor.ts::function::resolveCallee	ported	src/chiasmus/graph/walkers.cr:266	Ported as resolve_callee
+src/graph/extractor.ts::function::resolveGoCallee	ported	src/chiasmus/graph/walkers.cr:689	Ported as resolve_go_callee
+src/graph/extractor.ts::function::resolvePythonCallee	ported	src/chiasmus/graph/walkers.cr:519	Ported as resolve_python_callee
+src/graph/extractor.ts::function::walkChildren	ported	src/chiasmus/graph/walkers.cr:247	Ported as walk_children
+src/graph/extractor.ts::function::walkClojure	ported	src/chiasmus/graph/walkers.cr:839	Ported as walk_clojure
+src/graph/extractor.ts::function::walkGo	ported	src/chiasmus/graph/walkers.cr:555	Ported as walk_go
+src/graph/extractor.ts::function::walkNode	ported	src/chiasmus/graph/walkers.cr:11	Ported as walk_node
+src/graph/extractor.ts::function::walkPython	ported	src/chiasmus/graph/walkers.cr:359	Ported as walk_python
+src/graph/extractor.ts::function::walkPythonChildren	ported	src/chiasmus/graph/walkers.cr:501	Ported as walk_python_children
+src/graph/facts.ts::const::BUILTIN_RULES	ported	src/chiasmus/graph/facts.cr:1	Ported builtin graph-analysis Prolog rules
+src/graph/facts.ts::function::escapeAtom	ported	src/chiasmus/graph/facts.cr:1	Ported Prolog atom escaping
+src/graph/facts.ts::function::graphToProlog	ported	src/chiasmus/graph/facts.cr:1	Ported CodeGraph-to-Prolog serialization
 src/graph/mermaid.ts::const::FLOWCHART_RULES	ported	src/chiasmus/graph/mermaid.cr:23	Ported as Mermaid::FLOWCHART_RULES
 src/graph/mermaid.ts::const::STATE_RULES	ported	src/chiasmus/graph/mermaid.cr:31	Ported as Mermaid::STATE_RULES
 src/graph/mermaid.ts::function::detectDiagramType	ported	src/chiasmus/graph/mermaid.cr:68	Ported as Mermaid.detect_diagram_type
@@ -79,50 +79,50 @@ src/graph/mermaid.ts::interface::MermaidEdge	ported	src/chiasmus/graph/mermaid.c
 src/graph/mermaid.ts::interface::MermaidGraph	ported	src/chiasmus/graph/mermaid.cr:22	Ported as MermaidGraph record
 src/graph/mermaid.ts::interface::MermaidNode	ported	src/chiasmus/graph/mermaid.cr:13	Ported as MermaidNode record
 src/graph/mermaid.ts::type::DiagramType	ported	src/chiasmus/graph/mermaid.cr:8	Ported as DiagramType enum
-src/graph/parser.ts::function::getLangConfig	missing	-	baseline
-src/graph/parser.ts::function::getLanguageForFile	missing	-	baseline
-src/graph/parser.ts::function::getNativeParser	missing	-	baseline
-src/graph/parser.ts::function::getSupportedExtensions	missing	-	baseline
-src/graph/parser.ts::function::loadLanguageSync	missing	-	baseline
-src/graph/parser.ts::function::parseSource	missing	-	baseline
-src/graph/parser.ts::interface::LangConfig	missing	-	baseline
-src/graph/types.ts::interface::CallsFact	missing	-	baseline
-src/graph/types.ts::interface::CodeGraph	missing	-	baseline
-src/graph/types.ts::interface::ContainsFact	missing	-	baseline
-src/graph/types.ts::interface::DefinesFact	missing	-	baseline
-src/graph/types.ts::interface::ExportsFact	missing	-	baseline
-src/graph/types.ts::interface::ImportsFact	missing	-	baseline
-src/graph/types.ts::interface::LanguageAdapter	missing	-	baseline
-src/graph/types.ts::type::SymbolKind	missing	-	baseline
-src/llm/anthropic.ts::class::AnthropicAdapter	missing	-	baseline
-src/llm/anthropic.ts::const::DEFAULT_MAX_TOKENS	missing	-	baseline
-src/llm/anthropic.ts::const::DEFAULT_MODEL	missing	-	baseline
-src/llm/anthropic.ts::const::DEFAULT_URL	missing	-	baseline
-src/llm/anthropic.ts::function::createLLMFromEnv	missing	-	baseline
-src/llm/anthropic.ts::function::data	missing	-	baseline
-src/llm/anthropic.ts::interface::AnthropicConfig	missing	-	baseline
-src/llm/anthropic.ts::method::AnthropicAdapter.constructor	missing	-	baseline
-src/llm/mock.ts::class::MockLLMAdapter	missing	-	baseline
-src/llm/mock.ts::method::MockLLMAdapter.constructor	missing	-	baseline
-src/llm/openai-compatible.ts::class::OpenAICompatibleAdapter	missing	-	baseline
-src/llm/openai-compatible.ts::const::DEFAULT_MAX_TOKENS	missing	-	baseline
-src/llm/openai-compatible.ts::function::data	missing	-	baseline
-src/llm/openai-compatible.ts::interface::OpenAICompatibleConfig	missing	-	baseline
-src/llm/openai-compatible.ts::method::OpenAICompatibleAdapter.constructor	missing	-	baseline
-src/llm/types.ts::interface::LLMAdapter	missing	-	baseline
-src/llm/types.ts::interface::LLMMessage	missing	-	baseline
-src/mcp-server.ts::const::TOOLS	missing	-	baseline
-src/mcp-server.ts::const::VALID_ANALYSES	missing	-	baseline
-src/mcp-server.ts::function::getChiasmusHome	missing	-	baseline
-src/mcp-server.ts::function::handleLint	missing	-	baseline
+src/graph/parser.ts::function::getLangConfig	ported	src/chiasmus/graph/parser.cr:222	Ported as get_lang_config
+src/graph/parser.ts::function::getLanguageForFile	ported	src/chiasmus/graph/parser.cr:1	Ported as get_language_for_file
+src/graph/parser.ts::function::getNativeParser	intentional_divergence	-	Tree-sitter initialization handled by tree_sitter shard at compile time
+src/graph/parser.ts::function::getSupportedExtensions	ported	src/chiasmus/graph/parser.cr:1	Ported as get_supported_extensions
+src/graph/parser.ts::function::loadLanguageSync	ported	src/chiasmus/graph/parser.cr:246	Ported synchronous language load helper
+src/graph/parser.ts::function::parseSource	ported	src/chiasmus/graph/parser.cr:232	Ported sync parse entrypoint via UniversalParser
+src/graph/parser.ts::interface::LangConfig	ported	src/chiasmus/graph/parser.cr:14	Represented by Crystal named tuples inside LANGUAGE_CONFIG
+src/graph/types.ts::interface::CallsFact	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::CodeGraph	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::ContainsFact	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::DefinesFact	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::ExportsFact	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::ImportsFact	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal record
+src/graph/types.ts::interface::LanguageAdapter	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal abstract class
+src/graph/types.ts::type::SymbolKind	ported	src/chiasmus/graph/types.cr:1	Ported as Crystal enum
+src/llm/anthropic.ts::class::AnthropicAdapter	intentional_divergence	-	Crig is the project LLM driver; vendor-specific Anthropic adapter is intentionally not ported
+src/llm/anthropic.ts::const::DEFAULT_MAX_TOKENS	intentional_divergence	-	Crig owns provider defaults; upstream Anthropic default is intentionally not duplicated
+src/llm/anthropic.ts::const::DEFAULT_MODEL	intentional_divergence	-	Crig owns provider/model selection; upstream Anthropic default is intentionally not duplicated
+src/llm/anthropic.ts::const::DEFAULT_URL	intentional_divergence	-	Crig owns provider endpoint configuration; upstream Anthropic URL is intentionally not duplicated
+src/llm/anthropic.ts::function::createLLMFromEnv	intentional_divergence	src/chiasmus/formalize/engine.cr:30	FormalizationEngine uses injected Crig agent instead of constructing vendor adapters from env
+src/llm/anthropic.ts::function::data	intentional_divergence	-	Anthropic HTTP payload construction replaced by Crig API
+src/llm/anthropic.ts::interface::AnthropicConfig	intentional_divergence	-	Vendor-specific config replaced by Crig configuration
+src/llm/anthropic.ts::method::AnthropicAdapter.constructor	intentional_divergence	-	Vendor-specific constructor replaced by injected Crig agent
+src/llm/mock.ts::class::MockLLMAdapter	intentional_divergence	spec/chiasmus/formalize/engine_spec.cr:4	Specs use injectable fake agents/procs instead of upstream MockLLMAdapter
+src/llm/mock.ts::method::MockLLMAdapter.constructor	intentional_divergence	spec/chiasmus/formalize/engine_spec.cr:4	Specs use injectable fake agents/procs instead of upstream MockLLMAdapter construction
+src/llm/openai-compatible.ts::class::OpenAICompatibleAdapter	intentional_divergence	-	Crig is the project LLM driver; vendor-compatible HTTP adapter is intentionally not ported
+src/llm/openai-compatible.ts::const::DEFAULT_MAX_TOKENS	intentional_divergence	-	Crig owns provider defaults; upstream OpenAI-compatible default is intentionally not duplicated
+src/llm/openai-compatible.ts::function::data	intentional_divergence	-	OpenAI-compatible HTTP payload construction replaced by Crig API
+src/llm/openai-compatible.ts::interface::OpenAICompatibleConfig	intentional_divergence	-	Vendor-specific config replaced by Crig configuration
+src/llm/openai-compatible.ts::method::OpenAICompatibleAdapter.constructor	intentional_divergence	-	Vendor-specific constructor replaced by injected Crig agent
+src/llm/types.ts::interface::LLMAdapter	intentional_divergence	src/chiasmus/formalize/engine.cr:30	Upstream adapter interface replaced by Crig agent dependency
+src/llm/types.ts::interface::LLMMessage	intentional_divergence	src/chiasmus/formalize/engine.cr:30	Upstream message type replaced by Crig API message handling
+src/mcp-server.ts::const::TOOLS	ported	src/chiasmus/mcp_server/tools/verify.cr:7	chiasmus_verify tool ported to Crystal
+src/mcp-server.ts::const::VALID_ANALYSES	ported	src/chiasmus/mcp_server/tool_schemas.cr:6	Ported as shared MCPServer::VALID_ANALYSES and used by graph schema/errors
+src/mcp-server.ts::function::getChiasmusHome	ported	src/chiasmus/utils/config.cr:21	Ported with XDG support
+src/mcp-server.ts::function::handleLint	ported	src/chiasmus/mcp_server/tools/lint.cr:7	Ported as Chiasmus::MCPServer::Tools::LintTool#invoke
 src/mcp-server.ts::function::handleSkills	ported	src/chiasmus/mcp_server/tools/skills.cr:7	Ported as Chiasmus::MCPServer::Tools::SkillsTool#invoke.
-src/skills/bm25.ts::const::N	missing	-	baseline
-src/skills/bm25.ts::const::STOPWORDS	missing	-	baseline
-src/skills/bm25.ts::function::buildIndex	missing	-	baseline
-src/skills/bm25.ts::function::search	missing	-	baseline
-src/skills/bm25.ts::function::tokenize	missing	-	baseline
-src/skills/bm25.ts::interface::BM25Index	missing	-	baseline
-src/skills/bm25.ts::interface::DocEntry	missing	-	baseline
+src/skills/bm25.ts::const::N	intentional_divergence	-	Replaced by dsisnero/bm25 shard (Porter2 + stopwords + embedding)
+src/skills/bm25.ts::const::STOPWORDS	intentional_divergence	-	Replaced by dsisnero/bm25 shard with its own STOP_WORDS_ENGLISH set
+src/skills/bm25.ts::function::buildIndex	intentional_divergence	lib/bm25/src/bm25/search.cr:55	Replaced by Bm25::SearchEngine#search with incremental upsert
+src/skills/bm25.ts::function::search	intentional_divergence	lib/bm25/src/bm25/search.cr:55	Replaced by Bm25::SearchEngine#search with BM25 k1=1.2 b=0.75
+src/skills/bm25.ts::function::tokenize	intentional_divergence	lib/bm25/src/bm25/default_tokenizer.cr:374	Replaced by Bm25::DefaultTokenizer with Porter2 + Unicode folding + stopwords
+src/skills/bm25.ts::interface::BM25Index	intentional_divergence	-	Replaced by Bm25::SearchEngine and Bm25::Scorer types
+src/skills/bm25.ts::interface::DocEntry	intentional_divergence	-	Replaced by Bm25::Document(String) in search.cr:2
 src/skills/craft.ts::function::buildPrologInput	ported	src/chiasmus/skills/craft.cr:186	Ported as Skills.build_prolog_input
 src/skills/craft.ts::function::validateTemplate	ported	src/chiasmus/skills/craft.cr:27	Ported as Chiasmus::Skills.validate_template
 src/skills/craft.ts::interface::CraftInput	ported	src/chiasmus/skills/craft.cr:3	Ported as Chiasmus::Skills::CraftInput
@@ -143,32 +143,32 @@ src/skills/types.ts::interface::SkillSearchResult	ported	src/chiasmus/skills/typ
 src/skills/types.ts::interface::SkillTemplate	ported	src/chiasmus/skills/types.cr:19	Ported as Chiasmus::Skills::SkillTemplate.
 src/skills/types.ts::interface::SkillWithMetadata	ported	src/chiasmus/skills/types.cr:39	Ported as Chiasmus::Skills::SkillWithMetadata.
 src/skills/types.ts::interface::SlotDef	ported	src/chiasmus/skills/types.cr:4	Ported as Chiasmus::Skills::SlotDef.
-src/solvers/correction-loop.ts::interface::CorrectionLoopOptions	missing	-	baseline
-src/solvers/correction-loop.ts::type::CorrectionAttempt	missing	-	baseline
-src/solvers/correction-loop.ts::type::CorrectionResult	missing	-	baseline
-src/solvers/correction-loop.ts::type::SpecFixer	missing	-	baseline
-src/solvers/prolog-solver.ts::const::MAX_ANSWERS	missing	-	baseline
-src/solvers/prolog-solver.ts::const::MAX_INFERENCES	missing	-	baseline
-src/solvers/prolog-solver.ts::const::MAX_TRACE_ENTRIES	missing	-	baseline
-src/solvers/prolog-solver.ts::function::consult	missing	-	baseline
-src/solvers/prolog-solver.ts::function::createPrologSolver	missing	-	baseline
-src/solvers/prolog-solver.ts::function::entry	missing	-	baseline
-src/solvers/prolog-solver.ts::function::formatError	missing	-	baseline
-src/solvers/prolog-solver.ts::function::instrumentForTracing	missing	-	baseline
-src/solvers/prolog-solver.ts::function::links	missing	-	baseline
-src/solvers/prolog-solver.ts::function::nextAnswer	missing	-	baseline
-src/solvers/prolog-solver.ts::function::query	missing	-	baseline
-src/solvers/session.ts::class::SolverSession	missing	-	baseline
-src/solvers/types.ts::interface::PrologAnswer	missing	-	baseline
-src/solvers/types.ts::interface::Solver	missing	-	baseline
-src/solvers/types.ts::type::SolverInput	missing	-	baseline
-src/solvers/types.ts::type::SolverResult	missing	-	baseline
-src/solvers/types.ts::type::SolverType	missing	-	baseline
-src/solvers/z3-solver.ts::const::SOLVER_TIMEOUT_MS	missing	-	baseline
-src/solvers/z3-solver.ts::function::getZ3	missing	-	baseline
-src/solvers/z3-solver.ts::function::sanitizeSmtlib	missing	-	baseline
-src/tau-prolog.d.ts::function::create	missing	-	baseline
-src/tau-prolog.d.ts::function::format_answer	missing	-	baseline
-src/tau-prolog.d.ts::interface::PrologSession	missing	-	baseline
-src/tau-prolog.d.ts::interface::PrologSubstitution	missing	-	baseline
-src/tau-prolog.d.ts::interface::PrologTerm	missing	-	baseline
+src/solvers/correction-loop.ts::interface::CorrectionLoopOptions	ported	src/chiasmus/solvers/correction_loop.cr:12	Ported as CorrectionLoopOptions struct
+src/solvers/correction-loop.ts::type::CorrectionAttempt	ported	src/chiasmus/solvers/correction_loop.cr:5	Ported as CorrectionAttempt struct
+src/solvers/correction-loop.ts::type::CorrectionResult	ported	src/chiasmus/solvers/correction_loop.cr:7	Ported as CorrectionResult struct
+src/solvers/correction-loop.ts::type::SpecFixer	ported	src/chiasmus/solvers/correction_loop.cr:10	Ported as SpecFixer alias
+src/solvers/prolog-solver.ts::const::MAX_ANSWERS	ported	src/chiasmus/solvers/prolog_solver.cr:8	Ported as PrologSolver::MAX_ANSWERS and enforced when building answers
+src/solvers/prolog-solver.ts::const::MAX_INFERENCES	ported	src/chiasmus/solvers/prolog_solver.cr:9	Ported as PrologSolver::MAX_INFERENCES constant for parity with upstream limit
+src/solvers/prolog-solver.ts::const::MAX_TRACE_ENTRIES	ported	src/chiasmus/solvers/prolog_solver.cr:10	Ported as PrologSolver::MAX_TRACE_ENTRIES and enforced during trace collection
+src/solvers/prolog-solver.ts::function::consult	ported	src/chiasmus/solvers/prolog_solver.cr:16	Ported through crolog wrapper
+src/solvers/prolog-solver.ts::function::createPrologSolver	ported	src/chiasmus/solvers/prolog_solver.cr:8	Ported through PrologSolver factory path
+src/solvers/prolog-solver.ts::function::entry	ported	src/chiasmus/solvers/prolog_solver.cr:37	Ported through crolog wrapper
+src/solvers/prolog-solver.ts::function::formatError	ported	src/chiasmus/solvers/prolog_solver.cr:62	Ported as PrologRuntime error formatting
+src/solvers/prolog-solver.ts::function::instrumentForTracing	ported	src/chiasmus/solvers/prolog_solver.cr:81	Ported through crolog wrapper
+src/solvers/prolog-solver.ts::function::links	ported	src/chiasmus/solvers/prolog_solver.cr:110	Ported through binding extraction
+src/solvers/prolog-solver.ts::function::nextAnswer	ported	src/chiasmus/solvers/prolog_solver.cr:28	Ported through answer collection
+src/solvers/prolog-solver.ts::function::query	ported	src/chiasmus/solvers/prolog_solver.cr:22	Ported through crolog wrapper
+src/solvers/session.ts::class::SolverSession	ported	src/chiasmus/solvers/session.cr:1	Ported as Solvers::Session
+src/solvers/types.ts::interface::PrologAnswer	ported	src/chiasmus/solvers/types.cr:40	Ported as PrologAnswer struct
+src/solvers/types.ts::interface::Solver	ported	src/chiasmus/solvers/types.cr:72	Ported as abstract Solver class
+src/solvers/types.ts::type::SolverInput	ported	src/chiasmus/solvers/types.cr:69	Ported as SolverInput alias
+src/solvers/types.ts::type::SolverResult	ported	src/chiasmus/solvers/types.cr:67	Ported as SolverResult alias
+src/solvers/types.ts::type::SolverType	ported	src/chiasmus/solvers/types.cr:4	Ported as SolverType enum
+src/solvers/z3-solver.ts::const::SOLVER_TIMEOUT_MS	intentional_divergence	-	Timeout configured via solver constructor, not a global constant
+src/solvers/z3-solver.ts::function::getZ3	intentional_divergence	-	Z3 binary discovery handled by system PATH or env in Crystal port
+src/solvers/z3-solver.ts::function::sanitizeSmtlib	ported	src/chiasmus/solvers/z3_solver.cr:62	Ported as private sanitize_smtlib method
+src/tau-prolog.d.ts::function::create	intentional_divergence	-	Use crolog instead of tau-prolog
+src/tau-prolog.d.ts::function::format_answer	intentional_divergence	-	Use crolog instead of tau-prolog
+src/tau-prolog.d.ts::interface::PrologSession	intentional_divergence	-	Use crolog instead of tau-prolog
+src/tau-prolog.d.ts::interface::PrologSubstitution	intentional_divergence	-	Use crolog instead of tau-prolog
+src/tau-prolog.d.ts::interface::PrologTerm	intentional_divergence	-	Use crolog instead of tau-prolog

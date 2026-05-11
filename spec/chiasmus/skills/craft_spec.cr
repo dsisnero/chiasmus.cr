@@ -1,4 +1,3 @@
-require "../../spec_helper"
 require "file_utils"
 
 def with_craft_library(&)

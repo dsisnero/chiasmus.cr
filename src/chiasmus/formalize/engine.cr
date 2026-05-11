@@ -1,3 +1,10 @@
+require "crig"
+require "../solvers/types"
+require "../solvers/factory"
+require "../solvers/correction_loop"
+require "../skills/types"
+require "../skills/library"
+
 module Chiasmus
   module Formalize
     # Result of formalize() — template + instructions for the calling LLM

@@ -1,5 +1,3 @@
-require "../../spec_helper"
-
 describe Chiasmus::Formalize do
   describe ".lint_spec" do
     describe "auto-fixes" do

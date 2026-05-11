@@ -86,7 +86,7 @@ module Chiasmus
               }),
               "solver" => JSON::Any.new({
                 "type"        => JSON::Any.new("string"),
-                "enum"        => JSON::Any.new(["z3", "prolog"]),
+                "enum"        => JSON::Any.new(["z3", "prolog"].map { |v| JSON::Any.new(v) }),
                 "description" => JSON::Any.new("Filter by solver type"),
               }),
               "limit" => JSON::Any.new({

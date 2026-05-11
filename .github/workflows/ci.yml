@@ -8,7 +8,13 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        crystal: [latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -18,19 +24,47 @@ jobs:
     - name: Setup Crystal
       uses: crystal-lang/install-crystal@v1
       with:
-        crystal: latest
+        crystal: ${{ matrix.crystal }}
 
-    - name: Install dependencies
+    # Platform-specific system dependencies
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y libgmp-dev libssl-dev pkg-config swi-prolog
-        shards install
+
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install gmp openssl pkg-config swi-prolog
+
+    - name: Install tree-sitter CLI
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: tree-sitter-cli
+
+    - name: Install shards
+      run: shards install
+
+    - name: Compile grammar libraries
+      run: crystal run scripts/setup_grammars.cr
 
     - name: Run formatter
-      run: make format
+      run: crystal tool format --check src spec
 
     - name: Run linter
-      run: make lint
+      if: runner.os != 'Windows'
+      run: bin/ameba src
 
-    - name: Run tests
-      run: make test
+    - name: Run tests (all platforms)
+      run: |
+        crystal spec spec/chiasmus/discovery/ spec/chiasmus/graph/ spec/chiasmus/mcp_server/ spec/scripts/ spec/chiasmus/utils/ --fail-fast
+      env:
+        CI: true
+
+    - name: Run solver + LLM tests (unix only)
+      if: runner.os != 'Windows'
+      run: |
+        crystal spec spec/chiasmus/solvers/ spec/chiasmus/formalize/ spec/chiasmus/skills/ spec/chiasmus/dogfood_spec.cr spec/chiasmus/cli_spec.cr spec/chiasmus/agent_cli_spec.cr --fail-fast
+      env:
+        CI: true

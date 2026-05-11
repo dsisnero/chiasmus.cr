@@ -5,7 +5,7 @@ require "optparse"
 require "set"
 require_relative "parity_inventory_lib"
 
-VALID_STATUS = Set.new(%w[mapped partial missing]).freeze
+VALID_STATUS = Set.new(%w[mapped missing in_progress ported partial skipped intentional_divergence]).freeze
 
 options = {
   root_dir: Dir.pwd,
@@ -20,7 +20,7 @@ OptionParser.new do |opts|
   opts.on("--root DIR", "Project root (default: pwd)") { |v| options[:root_dir] = v }
   opts.on("--manifest FILE", "Source parity TSV path") { |v| options[:manifest] = v }
   opts.on("--source PATH", "Source path (absolute or relative to root)") { |v| options[:source_path] = v }
-  opts.on("--language LANG", "Language: go|rust|crystal|java|ruby") { |v| options[:language] = v }
+  opts.on("--language LANG", "Language: go|rust|crystal|java|ruby|typescript") { |v| options[:language] = v }
   opts.on("--parser MODE", "Parser: auto|regex|tree-sitter") { |v| options[:parser] = v }
 end.parse!
 

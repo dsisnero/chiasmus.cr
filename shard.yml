@@ -8,6 +8,8 @@ targets:
     main: src/chiasmus.cr
   chiasmus-grammar:
     main: src/chiasmus_grammar.cr
+  chiasmus-discover:
+    main: src/chiasmus_discover.cr
 crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:
@@ -24,6 +26,10 @@ dependencies:
     github: dsisnero/crig
   json-schema:
     github: spider-gazelle/json-schema
+  crig-sqlite:
+    github: dsisnero/crig-sqlite
+  bm25:
+    github: dsisnero/bm25
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba

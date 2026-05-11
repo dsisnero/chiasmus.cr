@@ -1,4 +1,3 @@
-require "../../spec_helper"
 require "../../support/formalize_scripted_agent"
 require "file_utils"
 

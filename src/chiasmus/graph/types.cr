@@ -57,5 +57,16 @@ module Chiasmus
         nil
       end
     end
+
+    record AdapterDescriptor,
+      language : String,
+      extensions : Array(String),
+      grammar_language : String,
+      entrypoint : String,
+      search_paths : Array(String)? = nil
+
+    abstract class AdapterFactory
+      abstract def build(descriptor : AdapterDescriptor) : LanguageAdapter?
+    end
   end
 end

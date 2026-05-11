@@ -1,6 +1,7 @@
 require "./parser"
 require "./walkers"
 require "./adapter_registry"
+require "./clojure_source_extractor"
 
 module Chiasmus
   module Graph
@@ -21,6 +22,19 @@ module Chiasmus
         files.each do |file|
           lang = parser.language_for_file(file.path)
           next unless lang
+
+          if lang == "clojure"
+            merge_adapter_graph(
+              ClojureSourceExtractor.extract(file),
+              defines,
+              calls,
+              imports,
+              exports,
+              contains,
+              call_set
+            )
+            next
+          end
 
           tree = parser.parse_source(file.content, file.path)
           next unless tree
@@ -103,6 +117,10 @@ module Chiasmus
           Walkers.walk_go(tree.root_node, file.content, file.path, defines, calls, imports, exports, contains, call_set)
         when "crystal"
           Walkers.walk_crystal(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "rust"
+          Walkers.walk_rust(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "java"
+          Walkers.walk_java(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
         else
           Walkers.walk_node(tree.root_node, file.content, file.path, lang, scope_stack, defines, calls, imports, exports, contains, call_set)
         end

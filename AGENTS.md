@@ -6,11 +6,13 @@ This repository is a Crystal port of [yogthos/chiasmus](https://github.com/yogth
 
 ## Technology Stack
 
-- **LLM Driver**: Using `crig` as the LLM driver with the crig API (not vendor API)
+- **LLM Driver**: Using `crig` (`dsisnero/crig`) as the LLM driver with its native API. The upstream TypeScript LLM adapters (Anthropic, OpenAI-compatible, mock) are **not ported** — Crig replaces all of them. See `src/chiasmus/llm/` for the Crig-based wrapper and `src/chiasmus/server_factory.cr` for provider-specific factory methods (OpenAI, DeepSeek, Anthropic, Gemini, Groq, Ollama, Mistral, Cohere, Azure).
 - **Prolog Integration**: Using `crolog` to drive SWI-Prolog
 - **Concurrency**: Ensure non-blocking operations using Go/Crystal concurrency patterns (spawn, channels, fibers)
 
 **Important**: When implementing LLM or Prolog interactions, use non-blocking patterns to maintain system responsiveness. Prefer Crystal's `spawn` for concurrent operations and `Channel` for communication between fibers.
+
+**Key divergence from upstream**: The upstream `src/llm/` and `src/solvers/prolog-solver.ts` constants are replaced by Crig and crolog respectively. These are marked as `intentional_divergence` in the port inventory and do not require porting.
 
 ## Source of Truth
 

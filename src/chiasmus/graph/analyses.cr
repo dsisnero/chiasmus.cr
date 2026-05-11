@@ -1,3 +1,7 @@
+require "./extractor"
+require "./facts"
+require "./types"
+
 module Chiasmus
   module Graph
     # Analysis payload that can be properly serialized to JSON

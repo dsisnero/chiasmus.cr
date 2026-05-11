@@ -1,47 +1,47 @@
 # source_test_id	status	crystal_refs	notes
-benchmark/tests/p1-rbac.test.ts::test::Problem 1: RBAC Policy Conflict Detection	missing	-	baseline
-benchmark/tests/p1-rbac.test.ts::test::detects the auditor read/billing conflict	missing	-	baseline
-benchmark/tests/p1-rbac.test.ts::test::finds exactly one conflict in this ruleset	missing	-	baseline
-benchmark/tests/p1-rbac.test.ts::test::returns the specific conflicting triple	missing	-	baseline
-benchmark/tests/p2-deps.test.ts::test::Problem 2: Package Dependency Resolution	missing	-	baseline
-benchmark/tests/p2-deps.test.ts::test::all versions are within allowed ranges	missing	-	baseline
-benchmark/tests/p2-deps.test.ts::test::finds a satisfiable assignment	missing	-	baseline
-benchmark/tests/p2-deps.test.ts::test::respects dependency requirements	missing	-	baseline
-benchmark/tests/p2-deps.test.ts::test::respects incompatibilities	missing	-	baseline
-benchmark/tests/p3-taint.test.ts::test::Problem 3: Data Flow Taint Analysis	missing	-	baseline
-benchmark/tests/p3-taint.test.ts::test::all three sinks are reachable	missing	-	baseline
-benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach db_query	missing	-	baseline
-benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach eval_engine	missing	-	baseline
-benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach file_write	missing	-	baseline
-benchmark/tests/p4-workflow.test.ts::test::Problem 4: Workflow State Machine Validation	missing	-	baseline
-benchmark/tests/p4-workflow.test.ts::test::does not flag reachable states as unreachable	missing	-	baseline
-benchmark/tests/p4-workflow.test.ts::test::does not flag states with outgoing transitions as dead-ends	missing	-	baseline
-benchmark/tests/p4-workflow.test.ts::test::identifies 	missing	-	baseline
-benchmark/tests/p5-validation.test.ts::test::Problem 5: API Validation Rule Consistency	missing	-	baseline
-benchmark/tests/p5-validation.test.ts::test::finds exactly 2 gaps	missing	-	baseline
-benchmark/tests/p5-validation.test.ts::test::finds the age gap (frontend allows 13-17, backend rejects)	missing	-	baseline
-benchmark/tests/p5-validation.test.ts::test::finds the username_length gap (frontend allows 21-30, backend max 20)	missing	-	baseline
-benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the age gap	missing	-	baseline
-benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the username_length gap	missing	-	baseline
+benchmark/tests/p1-rbac.test.ts::test::Problem 1: RBAC Policy Conflict Detection	ported	spec/benchmark/p1_rbac_spec.cr:9	Covered by Traditional and Chiasmus benchmark parity spec groups
+benchmark/tests/p1-rbac.test.ts::test::detects the auditor read/billing conflict	ported	spec/benchmark/p1_rbac_spec.cr:11	Ported conflict detection coverage for traditional and Z3-backed paths
+benchmark/tests/p1-rbac.test.ts::test::finds exactly one conflict in this ruleset	ported	spec/benchmark/p1_rbac_spec.cr:22	Ported exact-conflict-count coverage for traditional and Z3-backed paths
+benchmark/tests/p1-rbac.test.ts::test::returns the specific conflicting triple	ported	spec/benchmark/p1_rbac_spec.cr:16	Ported role/action/resource triple coverage for traditional and Z3-backed paths
+benchmark/tests/p2-deps.test.ts::test::Problem 2: Package Dependency Resolution	ported	spec/benchmark/p2_deps_spec.cr:9	Covered by Traditional and Chiasmus benchmark parity spec groups
+benchmark/tests/p2-deps.test.ts::test::all versions are within allowed ranges	ported	spec/benchmark/p2_deps_spec.cr:23	Ported allowed-version coverage for traditional and Z3-backed paths
+benchmark/tests/p2-deps.test.ts::test::finds a satisfiable assignment	ported	spec/benchmark/p2_deps_spec.cr:17	Ported satisfiable-assignment coverage for traditional and Z3-backed paths
+benchmark/tests/p2-deps.test.ts::test::respects dependency requirements	ported	spec/benchmark/p2_deps_spec.cr:31	Ported dependency-requirement coverage for traditional and Z3-backed paths
+benchmark/tests/p2-deps.test.ts::test::respects incompatibilities	ported	spec/benchmark/p2_deps_spec.cr:40	Ported incompatibility coverage for traditional and Z3-backed paths
+benchmark/tests/p3-taint.test.ts::test::Problem 3: Data Flow Taint Analysis	ported	spec/benchmark/p3_taint_spec.cr:9	Covered by Traditional and Chiasmus benchmark parity spec groups
+benchmark/tests/p3-taint.test.ts::test::all three sinks are reachable	ported	spec/benchmark/p3_taint_spec.cr:35	Ported reachable-sink count coverage for traditional and Prolog-backed paths
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach db_query	ported	spec/benchmark/p3_taint_spec.cr:17	Ported db_query reachability coverage for traditional and Prolog-backed paths
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach eval_engine	ported	spec/benchmark/p3_taint_spec.cr:23	Ported eval_engine reachability coverage for traditional and Prolog-backed paths
+benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach file_write	ported	spec/benchmark/p3_taint_spec.cr:29	Ported file_write reachability coverage for traditional and Prolog-backed paths
+benchmark/tests/p4-workflow.test.ts::test::Problem 4: Workflow State Machine Validation	ported	spec/benchmark/p4_workflow_spec.cr:9	Covered by Traditional and Chiasmus benchmark parity spec groups
+benchmark/tests/p4-workflow.test.ts::test::does not flag reachable states as unreachable	ported	spec/benchmark/p4_workflow_spec.cr:32	Ported reachable-state exclusion coverage for traditional and Prolog-backed paths
+benchmark/tests/p4-workflow.test.ts::test::does not flag states with outgoing transitions as dead-ends	ported	spec/benchmark/p4_workflow_spec.cr:39	Ported outgoing-transition exclusion coverage for traditional and Prolog-backed paths
+benchmark/tests/p4-workflow.test.ts::test::identifies 	ported	spec/benchmark/p4_workflow_spec.cr:22	Ported upstream truncated-row behavior as deleted-unreachable and archived-dead-end coverage
+benchmark/tests/p5-validation.test.ts::test::Problem 5: API Validation Rule Consistency	ported	spec/benchmark/p5_validation_spec.cr:9	Covered by Traditional and Chiasmus benchmark parity spec groups
+benchmark/tests/p5-validation.test.ts::test::finds exactly 2 gaps	ported	spec/benchmark/p5_validation_spec.cr:51	Ported exact-gap-count coverage for traditional and Z3-backed paths
+benchmark/tests/p5-validation.test.ts::test::finds the age gap (frontend allows 13-17, backend rejects)	ported	spec/benchmark/p5_validation_spec.cr:17	Ported age-gap coverage for traditional and Z3-backed paths
+benchmark/tests/p5-validation.test.ts::test::finds the username_length gap (frontend allows 21-30, backend max 20)	ported	spec/benchmark/p5_validation_spec.cr:23	Ported username-length gap coverage for traditional and Z3-backed paths
+benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the age gap	ported	spec/benchmark/p5_validation_spec.cr:29	Ported concrete age example coverage for traditional and Z3-backed paths
+benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the username_length gap	ported	spec/benchmark/p5_validation_spec.cr:40	Ported concrete username-length example coverage for traditional and Z3-backed paths
 tests/config.test.ts::test::falls back to defaults for invalid JSON	ported	spec/chiasmus/utils/config_spec.cr:28	Ported invalid JSON fallback coverage
 tests/config.test.ts::test::ignores unknown keys and wrong types	ported	spec/chiasmus/utils/config_spec.cr:37	Ported wrong-type and unknown-key handling coverage
 tests/config.test.ts::test::loadConfig	ported	spec/chiasmus/utils/config_spec.cr:11	Covered by the Crystal config load spec group
 tests/config.test.ts::test::reads adapterDiscovery from config.json	ported	spec/chiasmus/utils/config_spec.cr:19	Ported camelCase adapterDiscovery config key coverage
 tests/config.test.ts::test::returns defaults when config.json does not exist	ported	spec/chiasmus/utils/config_spec.cr:12	Ported missing config file fallback coverage
-tests/correction-loop.test.ts::test::Correction Loop	missing	-	baseline
-tests/correction-loop.test.ts::test::Prolog	missing	-	baseline
-tests/correction-loop.test.ts::test::Z3	missing	-	baseline
-tests/correction-loop.test.ts::test::correctly distinguishes solver errors from valid UNSAT	missing	-	baseline
-tests/correction-loop.test.ts::test::enhanced feedback	missing	-	baseline
-tests/correction-loop.test.ts::test::fixes a malformed Prolog program	missing	-	baseline
-tests/correction-loop.test.ts::test::fixes a minor syntax error within 2 rounds	missing	-	baseline
-tests/correction-loop.test.ts::test::handles multi-round fixes for semantic errors	missing	-	baseline
-tests/correction-loop.test.ts::test::hits max rounds on unfixable spec and returns diagnostics	missing	-	baseline
-tests/correction-loop.test.ts::test::passes full SolverResult to fixer via result parameter	missing	-	baseline
-tests/correction-loop.test.ts::test::passes through a correct Prolog program without correction	missing	-	baseline
-tests/correction-loop.test.ts::test::passes through a correct spec without correction	missing	-	baseline
-tests/correction-loop.test.ts::test::provides error history for debugging	missing	-	baseline
-tests/correction-loop.test.ts::test::stops early when fixer gives up (returns null)	missing	-	baseline
+tests/correction-loop.test.ts::test::Correction Loop	ported	spec/chiasmus/solvers/correction_loop_spec.cr:9	Covered by the Crystal correction_loop spec group.
+tests/correction-loop.test.ts::test::Prolog	ported	spec/chiasmus/solvers/correction_loop_spec.cr:140	Ported Prolog pass-through coverage.
+tests/correction-loop.test.ts::test::Z3	ported	spec/chiasmus/solvers/correction_loop_spec.cr:9	Ported Z3 pass-through coverage.
+tests/correction-loop.test.ts::test::correctly distinguishes solver errors from valid UNSAT	ported	spec/chiasmus/solvers/correction_loop_spec.cr:65	Ported UNSAT-valid coverage (Z3 UNSAT is valid, not an error).
+tests/correction-loop.test.ts::test::enhanced feedback	ported	spec/chiasmus/solvers/correction_loop_spec.cr:91	Ported enhanced feedback with result parameter coverage.
+tests/correction-loop.test.ts::test::fixes a malformed Prolog program	ported	spec/chiasmus/solvers/correction_loop_spec.cr:157	Ported malformed Prolog fix coverage.
+tests/correction-loop.test.ts::test::fixes a minor syntax error within 2 rounds	ported	spec/chiasmus/solvers/correction_loop_spec.cr:27	Ported 2-round fix coverage.
+tests/correction-loop.test.ts::test::handles multi-round fixes for semantic errors	ported	spec/chiasmus/solvers/correction_loop_spec.cr:46	Ported multi-round fix coverage.
+tests/correction-loop.test.ts::test::hits max rounds on unfixable spec and returns diagnostics	ported	spec/chiasmus/solvers/correction_loop_spec.cr:55	Ported max-rounds diagnostics coverage.
+tests/correction-loop.test.ts::test::passes full SolverResult to fixer via result parameter	ported	spec/chiasmus/solvers/correction_loop_spec.cr:91	Ported enhanced feedback with result parameter.
+tests/correction-loop.test.ts::test::passes through a correct Prolog program without correction	ported	spec/chiasmus/solvers/correction_loop_spec.cr:140	Ported Prolog pass-through coverage.
+tests/correction-loop.test.ts::test::passes through a correct spec without correction	ported	spec/chiasmus/solvers/correction_loop_spec.cr:17	Ported Z3 pass-through coverage.
+tests/correction-loop.test.ts::test::provides error history for debugging	ported	spec/chiasmus/solvers/correction_loop_spec.cr:130	Ported error history coverage.
+tests/correction-loop.test.ts::test::stops early when fixer gives up (returns null)	ported	spec/chiasmus/solvers/correction_loop_spec.cr:76	Ported fixer give-up coverage.
 tests/craft.test.ts::test::craftTemplate	ported	spec/chiasmus/skills/craft_spec.cr:128	Covered by the Crystal craft_template spec group
 tests/craft.test.ts::test::duplicate name returns error	ported	spec/chiasmus/skills/craft_spec.cr:104	Ported duplicate-name craft validation coverage
 tests/craft.test.ts::test::empty normalizations array returns error	ported	spec/chiasmus/skills/craft_spec.cr:120	Ported empty-normalizations validation coverage
@@ -57,15 +57,15 @@ tests/craft.test.ts::test::valid template is added to library and searchable	por
 tests/craft.test.ts::test::valid template passes validation with no errors	ported	spec/chiasmus/skills/craft_spec.cr:54	Ported valid-template craft validation coverage
 tests/craft.test.ts::test::validateTemplate	ported	spec/chiasmus/skills/craft_spec.cr:53	Covered by the Crystal validate_template spec group
 tests/craft.test.ts::test::validation errors prevent creation	ported	spec/chiasmus/skills/craft_spec.cr:184	Ported failed-creation validation coverage
-tests/dogfood.test.ts::test::Dogfood: realistic problem domains	missing	-	baseline
-tests/dogfood.test.ts::test::Prolog: Rule-based reasoning	missing	-	baseline
-tests/dogfood.test.ts::test::Z3: Policy contradiction detection	missing	-	baseline
-tests/dogfood.test.ts::test::checks data lineage / reachability	missing	-	baseline
-tests/dogfood.test.ts::test::derives transitive permissions through role hierarchy	missing	-	baseline
-tests/dogfood.test.ts::test::detects contradictory firewall rules	missing	-	baseline
-tests/dogfood.test.ts::test::detects that 3 tasks cannot fit in 2 non-overlapping slots	missing	-	baseline
-tests/dogfood.test.ts::test::finds valid dependency version resolution	missing	-	baseline
-tests/dogfood.test.ts::test::validates workflow state machine transitions	missing	-	baseline
+tests/dogfood.test.ts::test::Dogfood: realistic problem domains	ported	spec/chiasmus/dogfood_spec.cr:15	Covered by realistic Z3 and Prolog dogfood spec groups
+tests/dogfood.test.ts::test::Prolog: Rule-based reasoning	ported	spec/chiasmus/dogfood_spec.cr:93	Covered by Prolog hierarchy, lineage, and workflow dogfood specs
+tests/dogfood.test.ts::test::Z3: Policy contradiction detection	ported	spec/chiasmus/dogfood_spec.cr:16	Covered by Z3 scheduling, dependency, and firewall dogfood specs
+tests/dogfood.test.ts::test::checks data lineage / reachability	ported	spec/chiasmus/dogfood_spec.cr:127	Ported data-lineage reachability coverage
+tests/dogfood.test.ts::test::derives transitive permissions through role hierarchy	ported	spec/chiasmus/dogfood_spec.cr:94	Ported transitive role-permission coverage
+tests/dogfood.test.ts::test::detects contradictory firewall rules	ported	spec/chiasmus/dogfood_spec.cr:64	Ported firewall-overlap satisfiability coverage
+tests/dogfood.test.ts::test::detects that 3 tasks cannot fit in 2 non-overlapping slots	ported	spec/chiasmus/dogfood_spec.cr:17	Ported unsatisfiable scheduling coverage
+tests/dogfood.test.ts::test::finds valid dependency version resolution	ported	spec/chiasmus/dogfood_spec.cr:36	Ported satisfiable dependency-resolution coverage
+tests/dogfood.test.ts::test::validates workflow state machine transitions	ported	spec/chiasmus/dogfood_spec.cr:149	Ported workflow transition reachability coverage
 tests/feedback.test.ts::test::classifies error result	ported	spec/chiasmus/formalize/feedback_spec.cr:5	Ported error feedback coverage
 tests/feedback.test.ts::test::classifies prolog success with answers	ported	spec/chiasmus/formalize/feedback_spec.cr:44	Ported Prolog answer feedback coverage
 tests/feedback.test.ts::test::classifies prolog success with no answers	ported	spec/chiasmus/formalize/feedback_spec.cr:36	Ported empty Prolog answer feedback coverage
@@ -95,10 +95,10 @@ tests/graph/adapter-registry.test.ts::test::adapter-registry	ported	spec/chiasmu
 tests/graph/adapter-registry.test.ts::test::built-in extensions take precedence over adapters	ported	spec/chiasmus/graph/adapter_registry_spec.cr:114	Ported parser precedence coverage
 tests/graph/adapter-registry.test.ts::test::clearAdapters removes all registrations	ported	spec/chiasmus/graph/adapter_registry_spec.cr:95	Ported registry reset coverage
 tests/graph/adapter-registry.test.ts::test::deduplicates calls across adapter-extracted files	ported	spec/chiasmus/graph/adapter_registry_spec.cr:158	Ported multi-file adapter extraction coverage
-tests/graph/adapter-registry.test.ts::test::discoverAdapters	ported	spec/chiasmus/graph/adapter_registry_spec.cr:103	Ported as explicit-registration discovery contract; dynamic module loading remains unported
+tests/graph/adapter-registry.test.ts::test::discoverAdapters	ported	spec/chiasmus/graph/adapter_registry_spec.cr:168	Ported as Crystal-native manifest/factory discovery with idempotency, diagnostics, and search-path coverage
 tests/graph/adapter-registry.test.ts::test::dispatches to adapter.extract for registered language	ported	spec/chiasmus/graph/adapter_registry_spec.cr:129	Ported extractor dispatch coverage
 tests/graph/adapter-registry.test.ts::test::does not affect built-in languages	ported	spec/chiasmus/graph/adapter_registry_spec.cr:146	Ported built-in language isolation coverage
-tests/graph/adapter-registry.test.ts::test::does not throw when no chiasmus-adapter-* packages exist	ported	spec/chiasmus/graph/adapter_registry_spec.cr:103	Non-throwing discovery behavior is covered; dynamic package scanning remains unported
+tests/graph/adapter-registry.test.ts::test::does not throw when no chiasmus-adapter-* packages exist	ported	spec/chiasmus/graph/adapter_registry_spec.cr:160	Non-throwing discovery behavior is covered by no-manifest and invalid-descriptor cases
 tests/graph/adapter-registry.test.ts::test::getAdapterExtensions includes registered extensions	ported	spec/chiasmus/graph/adapter_registry_spec.cr:83	Ported adapter extension listing coverage
 tests/graph/adapter-registry.test.ts::test::getAdapterForExt resolves by extension	ported	spec/chiasmus/graph/adapter_registry_spec.cr:74	Ported extension lookup coverage
 tests/graph/adapter-registry.test.ts::test::getLanguageForFile resolves adapter extensions	ported	spec/chiasmus/graph/adapter_registry_spec.cr:107	Ported parser adapter extension resolution coverage
@@ -107,75 +107,75 @@ tests/graph/adapter-registry.test.ts::test::is idempotent (only runs once)	porte
 tests/graph/adapter-registry.test.ts::test::normalizes extensions without leading dot	ported	spec/chiasmus/graph/adapter_registry_spec.cr:74	Normalization is covered by extension lookup without a leading dot
 tests/graph/adapter-registry.test.ts::test::registerAdapter + getAdapter round-trips	ported	spec/chiasmus/graph/adapter_registry_spec.cr:67	Ported registration round-trip coverage
 tests/graph/adapter-registry.test.ts::test::searchPaths	ported	spec/chiasmus/graph/adapter_registry_spec.cr:89	Ported search_paths storage coverage
-tests/graph/analyses.test.ts::test::callees returns correct callees	missing	-	baseline
-tests/graph/analyses.test.ts::test::callers returns correct callers	missing	-	baseline
-tests/graph/analyses.test.ts::test::cycles detects circular call dependencies	missing	-	baseline
-tests/graph/analyses.test.ts::test::dead-code finds unreachable functions	missing	-	baseline
-tests/graph/analyses.test.ts::test::facts returns valid Prolog string	missing	-	baseline
-tests/graph/analyses.test.ts::test::impact returns all transitive callers	missing	-	baseline
-tests/graph/analyses.test.ts::test::path returns call chain	missing	-	baseline
-tests/graph/analyses.test.ts::test::reachability returns false for unconnected nodes	missing	-	baseline
-tests/graph/analyses.test.ts::test::reachability returns true for transitive path	missing	-	baseline
-tests/graph/analyses.test.ts::test::returns error for missing target parameter	missing	-	baseline
-tests/graph/analyses.test.ts::test::runAnalysisFromGraph	missing	-	baseline
-tests/graph/analyses.test.ts::test::summary returns correct counts	missing	-	baseline
-tests/graph/clojure.test.ts::test::Clojure graph produces valid Prolog facts	missing	-	baseline
-tests/graph/clojure.test.ts::test::Clojure support	missing	-	baseline
-tests/graph/clojure.test.ts::test::Prolog integration	missing	-	baseline
-tests/graph/clojure.test.ts::test::dead code detection works on Clojure graph	missing	-	baseline
-tests/graph/clojure.test.ts::test::deduplicates call edges	missing	-	baseline
-tests/graph/clojure.test.ts::test::extractor	missing	-	baseline
-tests/graph/clojure.test.ts::test::extracts call relationships	missing	-	baseline
-tests/graph/clojure.test.ts::test::extracts defn function definitions	missing	-	baseline
-tests/graph/clojure.test.ts::test::extracts defn- as private (not exported)	missing	-	baseline
-tests/graph/clojure.test.ts::test::extracts namespace-qualified calls (db/query → query)	missing	-	baseline
-tests/graph/clojure.test.ts::test::extracts require imports from ns form	missing	-	baseline
-tests/graph/clojure.test.ts::test::maps .clj extension to clojure	missing	-	baseline
-tests/graph/clojure.test.ts::test::multi-file cross-namespace extraction	missing	-	baseline
-tests/graph/clojure.test.ts::test::parser	missing	-	baseline
-tests/graph/clojure.test.ts::test::parses Clojure source via WASM	missing	-	baseline
-tests/graph/extractor.test.ts::test::combines facts across multiple files	missing	-	baseline
-tests/graph/extractor.test.ts::test::deduplicates call edges	missing	-	baseline
-tests/graph/extractor.test.ts::test::does not export underscore-prefixed or lowercase identifiers	missing	-	baseline
-tests/graph/extractor.test.ts::test::exports uppercase symbols only	missing	-	baseline
-tests/graph/extractor.test.ts::test::extractGraph	missing	-	baseline
-tests/graph/extractor.test.ts::test::extractGraph — Go	missing	-	baseline
-tests/graph/extractor.test.ts::test::extractGraph — Python	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts arrow functions assigned to const	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts call relationships	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts class with methods and contains	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts class with methods and produces defines + contains	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts cross-file call graph	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts export statements	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts function declarations	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts function definitions	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts import declarations	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts import statements	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts interface definitions	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts method calls from member expressions	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts method calls via attribute access	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts methods with receiver type and contains	missing	-	baseline
-tests/graph/extractor.test.ts::test::extracts multiple imports from a single from-import statement	missing	-	baseline
-tests/graph/extractor.test.ts::test::nested functions inside functions are kind=function not method	missing	-	baseline
-tests/graph/extractor.test.ts::test::skips unsupported file extensions	missing	-	baseline
-tests/graph/facts.test.ts::test::auto-detects entry points from exports	missing	-	baseline
-tests/graph/facts.test.ts::test::cycle-safe reachability works for transitive calls	missing	-	baseline
-tests/graph/facts.test.ts::test::dead code detection finds unreachable functions	missing	-	baseline
-tests/graph/facts.test.ts::test::escapeAtom	missing	-	baseline
-tests/graph/facts.test.ts::test::escapes internal single quotes	missing	-	baseline
-tests/graph/facts.test.ts::test::generates syntactically valid Prolog accepted by solver	missing	-	baseline
-tests/graph/facts.test.ts::test::graphToProlog	missing	-	baseline
-tests/graph/facts.test.ts::test::handles file paths with slashes in atoms	missing	-	baseline
-tests/graph/facts.test.ts::test::leaves simple atoms unquoted	missing	-	baseline
-tests/graph/facts.test.ts::test::produces queryable call facts	missing	-	baseline
-tests/graph/facts.test.ts::test::quotes atoms with special characters	missing	-	baseline
-tests/graph/mcp-integration.test.ts::test::appears in tool list	missing	-	baseline
-tests/graph/mcp-integration.test.ts::test::chiasmus_graph MCP tool	missing	-	baseline
-tests/graph/mcp-integration.test.ts::test::returns callers via MCP	missing	-	baseline
-tests/graph/mcp-integration.test.ts::test::returns dead code analysis	missing	-	baseline
-tests/graph/mcp-integration.test.ts::test::returns error for missing parameters	missing	-	baseline
-tests/graph/mcp-integration.test.ts::test::returns facts as raw Prolog	missing	-	baseline
-tests/graph/mcp-integration.test.ts::test::returns summary with correct counts	missing	-	baseline
+tests/graph/analyses.test.ts::test::callees returns correct callees	ported	spec/chiasmus/graph/analyses_spec.cr:42	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::callers returns correct callers	ported	spec/chiasmus/graph/analyses_spec.cr:24	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::cycles detects circular call dependencies	ported	spec/chiasmus/graph/analyses_spec.cr:131	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::dead-code finds unreachable functions	ported	spec/chiasmus/graph/analyses_spec.cr:108	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::facts returns valid Prolog string	ported	spec/chiasmus/graph/analyses_spec.cr:195	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::impact returns all transitive callers	ported	spec/chiasmus/graph/analyses_spec.cr:178	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::path returns call chain	ported	spec/chiasmus/graph/analyses_spec.cr:153	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::reachability returns false for unconnected nodes	ported	spec/chiasmus/graph/analyses_spec.cr:93	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::reachability returns true for transitive path	ported	spec/chiasmus/graph/analyses_spec.cr:71	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::returns error for missing target parameter	ported	spec/chiasmus/graph/analyses_spec.cr:258	Ported Crystal graph analysis spec
+tests/graph/analyses.test.ts::test::runAnalysisFromGraph	ported	spec/chiasmus/graph/analyses_spec.cr:23	Ported run_analysis_from_graph coverage across analysis modes
+tests/graph/analyses.test.ts::test::summary returns correct counts	ported	spec/chiasmus/graph/analyses_spec.cr:222	Ported Crystal graph analysis spec
+tests/graph/clojure.test.ts::test::Clojure graph produces valid Prolog facts	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:123	Ported via Crystal Clojure source-form extractor plus graph_to_prolog and PrologSolver
+tests/graph/clojure.test.ts::test::Clojure support	intentional_divergence	spec/chiasmus/graph/clojure_extractor_spec.cr:12	Outer describe includes the WASM parser case, which remains deferred; extractor/prolog behavior is covered
+tests/graph/clojure.test.ts::test::Prolog integration	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:123	Ported reachability and dead-code Prolog integration for Clojure graphs
+tests/graph/clojure.test.ts::test::dead code detection works on Clojure graph	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:141	Ported Clojure dead-code query coverage
+tests/graph/clojure.test.ts::test::deduplicates call edges	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:110	Ported Clojure call edge deduplication coverage
+tests/graph/clojure.test.ts::test::extractor	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:13	Ported Clojure extractor behavior through the runtime Extractor boundary
+tests/graph/clojure.test.ts::test::extracts call relationships	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:39	Ported Clojure call relationship coverage
+tests/graph/clojure.test.ts::test::extracts defn function definitions	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:13	Ported Clojure defn definition coverage
+tests/graph/clojure.test.ts::test::extracts defn- as private (not exported)	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:28	Ported Clojure private defn export coverage
+tests/graph/clojure.test.ts::test::extracts namespace-qualified calls (db/query → query)	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:54	Ported namespace-qualified callee normalization coverage
+tests/graph/clojure.test.ts::test::extracts require imports from ns form	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:66	Ported Clojure ns require import coverage
+tests/graph/clojure.test.ts::test::maps .clj extension to clojure	ported	spec/chiasmus/graph/parser_spec.cr:170	Ported: Parser.get_language_for_file("foo.clj") -> "clojure"
+tests/graph/clojure.test.ts::test::multi-file cross-namespace extraction	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:80	Ported Clojure multi-file cross-namespace extraction coverage
+tests/graph/clojure.test.ts::test::parser	intentional_divergence	spec/chiasmus/graph/parser_spec.cr:170	Parser mapping is ported; actual WASM parse remains deferred
+tests/graph/clojure.test.ts::test::parses Clojure source via WASM	intentional_divergence	src/chiasmus/graph/clojure_source_extractor.cr:96	WASM-dependent parser behavior is replaced for now by Crystal source-form extraction; actual tree-sitter WASM parse remains deferred
+tests/graph/extractor.test.ts::test::combines facts across multiple files	ported	spec/chiasmus/graph/extractor_spec.cr:118	Ported via JS/TS multi-file extractor spec
+tests/graph/extractor.test.ts::test::deduplicates call edges	ported	spec/chiasmus/graph/extractor_spec.cr:145	Ported via JS/TS dedup spec
+tests/graph/extractor.test.ts::test::does not export underscore-prefixed or lowercase identifiers	ported	spec/chiasmus/graph/extractor_spec.cr:331	Ported via Go underscore-export spec
+tests/graph/extractor.test.ts::test::exports uppercase symbols only	ported	spec/chiasmus/graph/extractor_spec.cr:297	Ported via Go export-case spec
+tests/graph/extractor.test.ts::test::extractGraph	ported	spec/chiasmus/graph/extractor_spec.cr	JS/TS describe block covered by individual specs
+tests/graph/extractor.test.ts::test::extractGraph — Go	ported	spec/chiasmus/graph/extractor_spec.cr:231	Go describe block covered by individual specs
+tests/graph/extractor.test.ts::test::extractGraph — Python	ported	spec/chiasmus/graph/extractor_spec.cr:162	Python describe block covered by individual specs
+tests/graph/extractor.test.ts::test::extracts arrow functions assigned to const	ported	spec/chiasmus/graph/extractor_spec.cr:26	Ported via JS/TS arrow-function spec
+tests/graph/extractor.test.ts::test::extracts call relationships	ported	spec/chiasmus/graph/extractor_spec.cr:37	Ported via JS/TS call-relationships spec
+tests/graph/extractor.test.ts::test::extracts class with methods and contains	ported	spec/chiasmus/graph/extractor_spec.cr:63	Ported via Go method+contains spec
+tests/graph/extractor.test.ts::test::extracts class with methods and produces defines + contains	ported	spec/chiasmus/graph/extractor_spec.cr:48	Ported via JS/TS class+contains spec
+tests/graph/extractor.test.ts::test::extracts cross-file call graph	ported	spec/chiasmus/graph/extractor_spec.cr:255	Ported via Go cross-file spec
+tests/graph/extractor.test.ts::test::extracts export statements	ported	spec/chiasmus/graph/extractor_spec.cr:106	Ported via JS/TS export spec
+tests/graph/extractor.test.ts::test::extracts function declarations	ported	spec/chiasmus/graph/extractor_spec.cr:8	Ported via JS/TS func-decl spec
+tests/graph/extractor.test.ts::test::extracts function definitions	ported	spec/chiasmus/graph/extractor_spec.cr:163	Ported via Python func-def spec
+tests/graph/extractor.test.ts::test::extracts import declarations	ported	spec/chiasmus/graph/extractor_spec.cr:280	Ported via Go import spec
+tests/graph/extractor.test.ts::test::extracts import statements	ported	spec/chiasmus/graph/extractor_spec.cr:92	Ported via JS/TS import spec
+tests/graph/extractor.test.ts::test::extracts interface definitions	ported	spec/chiasmus/graph/extractor_spec.cr:270	Ported via Go interface spec
+tests/graph/extractor.test.ts::test::extracts method calls from member expressions	ported	spec/chiasmus/graph/extractor_spec.cr:56	Ported via JS/TS member-expression spec
+tests/graph/extractor.test.ts::test::extracts method calls via attribute access	ported	spec/chiasmus/graph/extractor_spec.cr:205	Ported via Python attribute-access spec
+tests/graph/extractor.test.ts::test::extracts methods with receiver type and contains	ported	spec/chiasmus/graph/extractor_spec.cr:239	Ported via Go receiver-type spec
+tests/graph/extractor.test.ts::test::extracts multiple imports from a single from-import statement	ported	spec/chiasmus/graph/extractor_spec.cr:331	Ported via Python multi-import spec
+tests/graph/extractor.test.ts::test::nested functions inside functions are kind=function not method	ported	spec/chiasmus/graph/extractor_spec.cr:315	Ported via Python nested-func spec
+tests/graph/extractor.test.ts::test::skips unsupported file extensions	ported	spec/chiasmus/graph/extractor_spec.cr:154	Ported via unsupported-extension spec
+tests/graph/facts.test.ts::test::auto-detects entry points from exports	ported	spec/chiasmus/graph/facts_spec.cr:108	Ported solver-integration coverage with real Prolog queries
+tests/graph/facts.test.ts::test::cycle-safe reachability works for transitive calls	ported	spec/chiasmus/graph/facts_spec.cr:127	Ported solver-integration coverage with real Prolog queries
+tests/graph/facts.test.ts::test::dead code detection finds unreachable functions	ported	spec/chiasmus/graph/facts_spec.cr:149	Ported solver-integration coverage with real Prolog queries
+tests/graph/facts.test.ts::test::escapeAtom	ported	spec/chiasmus/graph/facts_spec.cr:3	Ported Crystal graph facts spec
+tests/graph/facts.test.ts::test::escapes internal single quotes	ported	spec/chiasmus/graph/facts_spec.cr:14	Ported Crystal graph facts spec
+tests/graph/facts.test.ts::test::generates syntactically valid Prolog accepted by solver	ported	spec/chiasmus/graph/facts_spec.cr:57	Ported solver-integration coverage with real Prolog queries
+tests/graph/facts.test.ts::test::graphToProlog	ported	spec/chiasmus/graph/facts_spec.cr:55	Ported Crystal graph facts spec with solver-integration
+tests/graph/facts.test.ts::test::handles file paths with slashes in atoms	ported	spec/chiasmus/graph/facts_spec.cr:91	Ported solver-integration coverage with real Prolog queries
+tests/graph/facts.test.ts::test::leaves simple atoms unquoted	ported	spec/chiasmus/graph/facts_spec.cr:3	Ported Crystal graph facts spec
+tests/graph/facts.test.ts::test::produces queryable call facts	ported	spec/chiasmus/graph/facts_spec.cr:73	Ported solver-integration coverage with real Prolog queries
+tests/graph/facts.test.ts::test::quotes atoms with special characters	ported	spec/chiasmus/graph/facts_spec.cr:8	Ported Crystal graph facts spec
+tests/graph/mcp-integration.test.ts::test::appears in tool list	ported	spec/chiasmus/graph/mcp_integration_spec.cr:81	-
+tests/graph/mcp-integration.test.ts::test::chiasmus_graph MCP tool	ported	spec/chiasmus/graph/mcp_integration_spec.cr:39	merged into the tool handler setup
+tests/graph/mcp-integration.test.ts::test::returns callers via MCP	ported	spec/chiasmus/graph/mcp_integration_spec.cr:89	-
+tests/graph/mcp-integration.test.ts::test::returns dead code analysis	ported	spec/chiasmus/graph/mcp_integration_spec.cr:122	-
+tests/graph/mcp-integration.test.ts::test::returns error for missing parameters	ported	spec/chiasmus/graph/mcp_integration_spec.cr:141	-
+tests/graph/mcp-integration.test.ts::test::returns facts as raw Prolog	ported	spec/chiasmus/graph/mcp_integration_spec.cr:151	-
+tests/graph/mcp-integration.test.ts::test::returns summary with correct counts	ported	spec/chiasmus/graph/mcp_integration_spec.cr:106	-
 tests/graph/mermaid.test.ts::test::flowchart	ported	spec/chiasmus/graph/mermaid_spec.cr:5	Covered by the Crystal Mermaid flowchart spec group
 tests/graph/mermaid.test.ts::test::flowchart output is valid Prolog	ported	spec/chiasmus/graph/mermaid_spec.cr:87	Ported flowchart solver integration coverage
 tests/graph/mermaid.test.ts::test::handles [*] start/end markers	ported	spec/chiasmus/graph/mermaid_spec.cr:70	Ported start/end marker coverage
@@ -196,25 +196,14 @@ tests/graph/mermaid.test.ts::test::reachability works on flowchart	ported	spec/c
 tests/graph/mermaid.test.ts::test::solver integration	ported	spec/chiasmus/graph/mermaid_spec.cr:85	Covered by the Crystal Mermaid solver integration spec group
 tests/graph/mermaid.test.ts::test::state diagram output is valid Prolog	ported	spec/chiasmus/graph/mermaid_spec.cr:108	Ported state diagram solver integration coverage
 tests/graph/mermaid.test.ts::test::stateDiagram	ported	spec/chiasmus/graph/mermaid_spec.cr:63	Covered by the Crystal Mermaid stateDiagram spec group
-tests/graph/parser.test.ts::test::lists supported extensions	missing	-	baseline
-tests/graph/parser.test.ts::test::maps extensions to languages correctly	missing	-	baseline
-tests/graph/parser.test.ts::test::parser	missing	-	baseline
-tests/graph/parser.test.ts::test::parses JavaScript source	missing	-	baseline
-tests/graph/parser.test.ts::test::parses TypeScript source and returns tree with rootNode	missing	-	baseline
-tests/graph/parser.test.ts::test::returns null for unsupported extension	missing	-	baseline
-tests/learning.test.ts::test::SkillLearner	ported	spec/chiasmus/skills/learner_spec.cr:13	Covered by the Crystal Skills::Learner spec group
-tests/learning.test.ts::test::deduplication	ported	spec/chiasmus/skills/learner_spec.cr:86	Ported duplicate-rejection coverage
-tests/learning.test.ts::test::does not promote templates with low success rate	ported	spec/chiasmus/skills/learner_spec.cr:123	Ported low-success promotion guard coverage
-tests/learning.test.ts::test::extracts a Prolog template from a verified solution	ported	spec/chiasmus/skills/learner_spec.cr:42	Ported Prolog template extraction coverage
-tests/learning.test.ts::test::extracts a Z3 template from a verified solution	ported	spec/chiasmus/skills/learner_spec.cr:15	Ported Z3 template extraction coverage
-tests/learning.test.ts::test::promotes a template after sufficient successful reuses	ported	spec/chiasmus/skills/learner_spec.cr:107	Ported promotion threshold coverage
-tests/learning.test.ts::test::promotion and quality tracking	ported	spec/chiasmus/skills/learner_spec.cr:105	Covered by the Crystal promotion spec group
-tests/learning.test.ts::test::rejects near-duplicate templates	ported	spec/chiasmus/skills/learner_spec.cr:86	Ported near-duplicate rejection coverage
-tests/learning.test.ts::test::rejects templates with missing required fields	ported	spec/chiasmus/skills/learner_spec.cr:75	Ported required-field validation coverage
-tests/learning.test.ts::test::returns null when LLM produces invalid JSON	ported	spec/chiasmus/skills/learner_spec.cr:63	Ported invalid JSON rejection coverage
-tests/learning.test.ts::test::template extraction	ported	spec/chiasmus/skills/learner_spec.cr:14	Covered by the Crystal extraction spec group
-tests/mcp-server.test.ts::test::Chiasmus MCP Server	missing	-	baseline
-tests/mcp-server.test.ts::test::appears in tool list	missing	-	baseline
+tests/graph/parser.test.ts::test::lists supported extensions	ported	spec/chiasmus/graph/adapter_registry_spec.cr:120	Ported as adapter_extensions listing
+tests/graph/parser.test.ts::test::maps extensions to languages correctly	ported	spec/chiasmus/graph/adapter_registry_spec.cr:74	Ported as extension-to-language mapping coverage
+tests/graph/parser.test.ts::test::parser	ported	spec/chiasmus/graph/parser_spec.cr:8	Covered by Crystal Parser spec group
+tests/graph/parser.test.ts::test::parses JavaScript source	ported	spec/chiasmus/graph/parser_spec.cr:13	Ported JS parsing coverage using the tree_sitter shard
+tests/graph/parser.test.ts::test::parses TypeScript source and returns tree with rootNode	ported	spec/chiasmus/graph/parser_spec.cr:22	Ported TS parsing coverage
+tests/graph/parser.test.ts::test::returns null for unsupported extension	ported	spec/chiasmus/graph/adapter_registry_spec.cr:129	Ported as nil-return for unknown extension
+tests/mcp-server.test.ts::test::Chiasmus MCP Server	ported	spec/chiasmus/graph/mcp_integration_spec.cr:29	Covered by the MCP integration spec server setup
+tests/mcp-server.test.ts::test::appears in tool list	ported	spec/chiasmus/graph/mcp_integration_spec.cr:81	Ported as tool listing via MCP client
 tests/mcp-server.test.ts::test::auto-fixes check-sat in Z3 spec	ported	spec/mcp_server/tools/lint_spec.cr:28	Ported lint auto-fix coverage
 tests/mcp-server.test.ts::test::catches missing periods in Prolog	ported	spec/mcp_server/tools/lint_spec.cr:42	Ported Prolog lint-error coverage
 tests/mcp-server.test.ts::test::catches unbalanced parentheses	ported	spec/mcp_server/tools/lint_spec.cr:42	Lint tool now returns structural errors for malformed specs
@@ -224,7 +213,7 @@ tests/mcp-server.test.ts::test::chiasmus_lint	ported	spec/mcp_server/tools/lint_
 tests/mcp-server.test.ts::test::chiasmus_skills	ported	spec/mcp_server/tools/skills_spec.cr:3	Covered by the Crystal skills-tool spec group.
 tests/mcp-server.test.ts::test::chiasmus_solve	ported	spec/mcp_server/tools/solve_spec.cr:3	Covered by the Crystal solve-tool spec group.
 tests/mcp-server.test.ts::test::chiasmus_verify	ported	spec/mcp_server/tools/verify_spec.cr:30	Basic verify tool tests ported to Crystal
-tests/mcp-server.test.ts::test::chiasmus_verify batch queries	partial	-	Batch queries raise error in Crystal (upstream expects success)
+tests/mcp-server.test.ts::test::chiasmus_verify batch queries	ported	spec/mcp_server/tools/verify_spec.cr:148	Ported batch Prolog query support for the verify tool.
 tests/mcp-server.test.ts::test::created template appears in chiasmus_skills search	ported	spec/mcp_server/tools/tool_listing_spec.cr:30	Ported created-template-in-skills-search coverage
 tests/mcp-server.test.ts::test::creates a template via MCP	ported	spec/mcp_server/tools/craft_spec.cr:24	Ported MCP craft creation coverage
 tests/mcp-server.test.ts::test::filters by solver type	ported	spec/mcp_server/tools/skills_spec.cr:44	Ported solver-type filter coverage
@@ -247,7 +236,7 @@ tests/mcp-server.test.ts::test::returns structured error for malformed Z3 input	
 tests/mcp-server.test.ts::test::returns template and instructions for a problem	ported	spec/mcp_server/tools/formalize_spec.cr:4	Ported formalize template and instructions coverage.
 tests/mcp-server.test.ts::test::returns trace when explain=true for Prolog	ported	spec/mcp_server/tools/verify_spec.cr:87	Ported explain-trace coverage
 tests/mcp-server.test.ts::test::returns validation errors for bad input	ported	spec/mcp_server/tools/craft_spec.cr:48	Ported MCP craft validation-error coverage
-tests/mcp-server.test.ts::test::runs multiple Prolog queries against same program	partial	-	Interface covered but Crystal returns error (upstream expects success array)
+tests/mcp-server.test.ts::test::runs multiple Prolog queries against same program	ported	spec/mcp_server/tools/verify_spec.cr:148	Ported upstream batch query behavior; returns one Prolog result per query.
 tests/mcp-server.test.ts::test::searches for templates by query	ported	spec/mcp_server/tools/skills_spec.cr:4	Ported skills search coverage.
 tests/mcp-server.test.ts::test::solves a problem end-to-end with mock LLM	ported	spec/mcp_server/tools/solve_spec.cr:28	Ported mock-LLM solve-tool coverage
 tests/mcp-server.test.ts::test::verifies Prolog queries	ported	spec/mcp_server/tools/verify_spec.cr:44	Ported Prolog verify coverage
@@ -359,3 +348,14 @@ tests/z3-solver.test.ts::test::returns unsat core with named assertions for cont
 tests/z3-solver.test.ts::test::returns unsat for contradictory constraints	ported	spec/chiasmus/solvers/z3_solver_spec.cr:37	Ported unsat (contradictory) coverage
 
 tests/z3-solver.test.ts::test::strips check-sat and get-model from input without breaking	ported	spec/chiasmus/solvers/z3_solver_spec.cr:60	Ported check-sat stripping coverage
+tests/learning.test.ts::test::SkillLearner	ported	spec/chiasmus/skills/learner_spec.cr:13	Covered by the Crystal SkillLearner spec group.
+tests/learning.test.ts::test::deduplication	ported	spec/chiasmus/skills/learner_spec.cr:108	Covered by Crystal near-duplicate rejection coverage.
+tests/learning.test.ts::test::does not promote templates with low success rate	ported	spec/chiasmus/skills/learner_spec.cr:154	Ported low-success non-promotion coverage.
+tests/learning.test.ts::test::extracts a Prolog template from a verified solution	ported	spec/chiasmus/skills/learner_spec.cr:58	Ported Prolog template extraction coverage using injected extractor.
+tests/learning.test.ts::test::extracts a Z3 template from a verified solution	ported	spec/chiasmus/skills/learner_spec.cr:15	Ported Z3 template extraction coverage using injected extractor.
+tests/learning.test.ts::test::promotes a template after sufficient successful reuses	ported	spec/chiasmus/skills/learner_spec.cr:130	Ported promotion threshold coverage.
+tests/learning.test.ts::test::promotion and quality tracking	ported	spec/chiasmus/skills/learner_spec.cr:129	Covered by Crystal promotion and non-promotion examples.
+tests/learning.test.ts::test::rejects near-duplicate templates	ported	spec/chiasmus/skills/learner_spec.cr:109	Ported duplicate-template rejection coverage.
+tests/learning.test.ts::test::rejects templates with missing required fields	ported	spec/chiasmus/skills/learner_spec.cr:93	Ported required-field validation coverage.
+tests/learning.test.ts::test::returns null when LLM produces invalid JSON	ported	spec/chiasmus/skills/learner_spec.cr:80	Ported invalid extractor JSON handling as nil.
+tests/learning.test.ts::test::template extraction	ported	spec/chiasmus/skills/learner_spec.cr:14	Covered by Crystal template extraction examples.

@@ -5,7 +5,9 @@ require "crolog"
 module Chiasmus
   module Solvers
     class PrologSolver < Solver
-      MAX_TRACE_ENTRIES = 500
+      MAX_ANSWERS       =    1000
+      MAX_INFERENCES    = 100_000
+      MAX_TRACE_ENTRIES =     500
 
       def type : SolverType
         SolverType::Prolog
@@ -30,6 +32,8 @@ module Chiasmus
     end
 
     class PrologRuntime
+      MAX_ANSWERS       = PrologSolver::MAX_ANSWERS
+      MAX_INFERENCES    = PrologSolver::MAX_INFERENCES
       MAX_TRACE_ENTRIES = PrologSolver::MAX_TRACE_ENTRIES
 
       @@init_lock = Mutex.new
@@ -126,7 +130,7 @@ module Chiasmus
       end
 
       private def build_answers(rows : Array(Array(String)), variables : Array(String)) : Array(PrologAnswer)
-        rows.map do |values|
+        rows.first(MAX_ANSWERS).map do |values|
           bindings = {} of String => String
           variables.each_with_index do |name, index|
             bindings[name] = values[index] if index < values.size

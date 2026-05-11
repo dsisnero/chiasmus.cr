@@ -170,4 +170,26 @@ describe Chiasmus::Solvers::PrologSolver do
     values.should contain("b")
     values.should contain("c")
   end
+
+  it "exposes upstream Prolog solver limits" do
+    Chiasmus::Solvers::PrologSolver::MAX_ANSWERS.should eq(1000)
+    Chiasmus::Solvers::PrologSolver::MAX_INFERENCES.should eq(100_000)
+    Chiasmus::Solvers::PrologSolver::MAX_TRACE_ENTRIES.should eq(500)
+  end
+
+  it "caps collected answers at the upstream answer limit" do
+    next pending("swipl not installed") unless swipl_available?
+
+    program = String.build do |io|
+      (0..Chiasmus::Solvers::PrologSolver::MAX_ANSWERS).each do |index|
+        io << "value(" << index << ").\n"
+      end
+    end
+
+    solver = Chiasmus::Solvers::PrologSolver.new
+    result = solver.solve(program, "value(X).")
+
+    result.should be_a(Chiasmus::Solvers::SuccessResult)
+    result.as(Chiasmus::Solvers::SuccessResult).answers.size.should eq(Chiasmus::Solvers::PrologSolver::MAX_ANSWERS)
+  end
 end
