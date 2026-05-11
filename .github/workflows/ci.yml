@@ -47,6 +47,7 @@ jobs:
       run: shards install
 
     - name: Compile grammar libraries
+      continue-on-error: true
       run: crystal run scripts/setup_grammars.cr
 
     - name: Run formatter

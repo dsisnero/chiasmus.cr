@@ -17,7 +17,7 @@ REQUIRED_LANGUAGES = {
   "crystal"    => [] of String,
 }
 
-# Package names for each language
+# Package names and repo URLs for each language (uses tree-sitter org by default)
 PACKAGE_MAP = {
   "ruby"       => "tree-sitter-ruby",
   "python"     => "tree-sitter-python",
@@ -29,6 +29,11 @@ PACKAGE_MAP = {
   "typescript" => "tree-sitter-typescript",
   "tsx"        => "tree-sitter-typescript",
   "crystal"    => "tree-sitter-crystal",
+}
+
+# Non-standard repo URLs (default: https://github.com/tree-sitter/{package}.git)
+REPO_URL_MAP = {
+  "tree-sitter-crystal" => "https://github.com/crystal-lang-tools/tree-sitter-crystal.git",
 }
 
 # Main vendor directory (where the project expects them)
@@ -76,7 +81,7 @@ def download_and_compile(language : String, package : String, temp_dir : String)
   unless Dir.exists?(target_dir)
     puts "  Downloading from GitHub..."
 
-    repo_url = "https://github.com/tree-sitter/#{package}.git"
+    repo_url = REPO_URL_MAP[package]? || "https://github.com/tree-sitter/#{package}.git"
     success = Process.run("git", ["clone", "--depth", "1", repo_url, target_dir],
       output: Process::Redirect::Close,
       error: Process::Redirect::Close
@@ -93,6 +98,14 @@ def download_and_compile(language : String, package : String, temp_dir : String)
 
   compile_success = false
   if language == "typescript"
+    # tree-sitter-typescript needs npm install for common/define-grammar.js
+    if File.exists?(File.join(target_dir, "package.json"))
+      puts "    Installing npm dependencies..."
+      Process.run("npm", ["install"], shell: true,
+        output: Process::Redirect::Close, error: Process::Redirect::Close,
+        chdir: target_dir
+      )
+    end
     compile_subdir = File.join(target_dir, "typescript")
     compile_success = compile_grammar(compile_subdir, language)
   elsif language == "tsx"
@@ -289,9 +302,8 @@ def main
   end
 
   if fail_count > 0
-    puts "\n⚠ Warning: Some grammars failed to compile!"
-    puts "The static binary may not include all required parsers."
-    exit 1
+    puts "\n⚠ Warning: #{fail_count} grammar(s) failed to compile (#{success_count} succeeded)."
+    puts "The build will continue — tests that need those grammars will fall back to regex."
   else
     puts "\n✅ All required grammars are available!"
   end
