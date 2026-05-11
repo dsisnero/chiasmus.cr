@@ -149,11 +149,15 @@ def compile_grammar(source_dir : String, language : String) : Bool
   return false unless Dir.exists?(source_dir)
 
   Dir.cd(source_dir) do
-    # Check for tree-sitter CLI
-    unless system("which tree-sitter > /dev/null 2>&1")
-      puts "    ✗ tree-sitter CLI not found"
-      return false
-    end
+    # Check for tree-sitter CLI (try npm global, then cargo, then npx)
+    ts_cmd = if system("which tree-sitter > /dev/null 2>&1")
+               "tree-sitter"
+             elsif system("which npx > /dev/null 2>&1")
+               "npx tree-sitter"
+             else
+               puts "    ✗ tree-sitter CLI not found (tried tree-sitter and npx)"
+               return false
+             end
 
     # Check for C compiler
     unless system("which cc > /dev/null 2>&1") || system("which gcc > /dev/null 2>&1") || system("which clang > /dev/null 2>&1")
@@ -163,7 +167,8 @@ def compile_grammar(source_dir : String, language : String) : Bool
 
     # Generate parser
     puts "    Generating parser..."
-    generate_status = Process.run("tree-sitter", ["generate"],
+    ts_parts = ts_cmd.split
+    generate_status = Process.run(ts_parts[0], ts_parts[1..].concat(["generate"]),
       output: Process::Redirect::Inherit,
       error: Process::Redirect::Inherit
     ).success?
@@ -175,7 +180,7 @@ def compile_grammar(source_dir : String, language : String) : Bool
 
     # Build grammar
     puts "    Building grammar..."
-    build_status = Process.run("tree-sitter", ["build"],
+    build_status = Process.run(ts_parts[0], ts_parts[1..].concat(["build"]),
       output: Process::Redirect::Close,
       error: Process::Redirect::Close
     ).success?
