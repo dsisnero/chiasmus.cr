@@ -190,12 +190,16 @@ def compile_grammar(source_dir : String, language : String) : Bool
       return false
     end
 
-    # Rename library if needed
+    # Rename library if needed (tree-sitter outputs parser.{ext} by default,
+    # but also sometimes {language}.{ext})
     ext = {% if flag?(:darwin) %} "dylib" {% elsif flag?(:win32) %} "dll" {% else %} "so" {% end %}
-    source_lib = "#{language}.#{ext}"
     lib_name = "libtree-sitter-#{language}.#{ext}"
 
-    if File.exists?(source_lib) && !File.exists?(lib_name)
+    # Check all possible output names from tree-sitter build
+    candidates = ["#{language}.#{ext}", "parser.#{ext}"]
+    source_lib = candidates.find { |c| File.exists?(c) }
+
+    if source_lib && !File.exists?(lib_name)
       File.rename(source_lib, lib_name)
     end
 
