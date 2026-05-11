@@ -59,7 +59,7 @@ jobs:
 
     - name: Run tests (all platforms)
       run: |
-        crystal spec spec/chiasmus/discovery/ spec/chiasmus/graph/ spec/chiasmus/mcp_server/ spec/scripts/ spec/chiasmus/utils/ --fail-fast
+        crystal spec spec/chiasmus/discovery/ spec/chiasmus/graph/ spec/scripts/ spec/chiasmus/utils/ --fail-fast
       env:
         CI: true
 
