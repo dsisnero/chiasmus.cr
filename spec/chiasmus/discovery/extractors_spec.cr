@@ -8,7 +8,7 @@ if Dir.exists?(vendor_dir)
 end
 
 private def load_grammar(language : String, grammar_dir : String) : TreeSitter::Language
-  Chiasmus::Discovery.load_language(grammar_dir) || (pending "grammar not available" ; next)
+  Chiasmus::Discovery.load_language(grammar_dir) || (pending "grammar not available"; next)
 end
 
 describe Chiasmus::Discovery::PythonExtractor do
