@@ -26,13 +26,26 @@ jobs:
       with:
         crystal: ${{ matrix.crystal }}
 
+    - name: Cache shards
+      uses: actions/cache@v4
+      with:
+        path: lib
+        key: shards-${{ runner.os }}-${{ hashFiles('shard.lock') }}
+        restore-keys: shards-${{ runner.os }}-
+
+    - name: Cache compiled grammars
+      uses: actions/cache@v4
+      with:
+        path: vendor/grammars
+        key: grammars-${{ runner.os }}-${{ hashFiles('scripts/setup_grammars.cr') }}
+        restore-keys: grammars-${{ runner.os }}-
+
     # Platform-specific system dependencies
     - name: Install Linux dependencies
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y libgmp-dev libssl-dev pkg-config swi-prolog
-        # Build tree-sitter C library from source (needed by crystal-tree-sitter shard)
         git clone --depth 1 https://github.com/tree-sitter/tree-sitter.git /tmp/tree-sitter-lib
         cd /tmp/tree-sitter-lib && make && sudo make install && sudo ldconfig
 
@@ -40,7 +53,6 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew install gmp openssl pkg-config swi-prolog
-        # Build tree-sitter C library from source
         git clone --depth 1 https://github.com/tree-sitter/tree-sitter.git /tmp/tree-sitter-lib
         cd /tmp/tree-sitter-lib && make && sudo make install
 
@@ -73,6 +85,6 @@ jobs:
     - name: Run solver + LLM tests (unix only)
       if: runner.os != 'Windows'
       run: |
-        crystal spec spec/chiasmus/solvers/ spec/chiasmus/formalize/ spec/chiasmus/skills/ spec/chiasmus/dogfood_spec.cr spec/chiasmus/cli_spec.cr spec/chiasmus/agent_cli_spec.cr --fail-fast
+        crystal spec spec/chiasmus/solvers/ spec/chiasmus/formalize/ spec/chiasmus/skills/ spec/chiasmus/dogfood_spec.cr spec/chiasmus/cli_spec.cr spec/chiasmus/agent_cli_spec.cr
       env:
         CI: true
