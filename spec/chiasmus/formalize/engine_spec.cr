@@ -1,6 +1,18 @@
 require "../../support/formalize_scripted_agent"
 require "file_utils"
 
+private def z3_available? : Bool
+  Process.run("which", ["z3"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+rescue
+  false
+end
+
+private def swipl_available? : Bool
+  Process.run("which", ["swipl"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+rescue
+  false
+end
+
 def with_formalize_engine(&)
   dir = File.join(Dir.tempdir, "chiasmus-formalize-engine-spec-#{Random::Secure.hex(8)}")
   Dir.mkdir_p(dir)
@@ -87,6 +99,12 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
   end
 
   describe "#solve" do
+    before_all do
+      unless z3_available? && swipl_available?
+        pending "z3 or swipl not installed"
+      end
+    end
+
     it "solves a z3 policy contradiction problem end-to-end" do
       responses = [<<-TEXT.strip]
       (declare-const x Int)

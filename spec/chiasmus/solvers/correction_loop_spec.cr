@@ -2,9 +2,21 @@ require "../../spec_helper"
 
 alias S = Chiasmus::Solvers
 
+private def z3_available? : Bool
+  Process.run("which", ["z3"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+rescue
+  false
+end
+
 describe Chiasmus::Solvers do
   describe ".correction_loop" do
     describe "Z3" do
+      before_all do
+        unless z3_available?
+          pending "z3 not installed"
+        end
+      end
+
       it "passes through a correct spec without correction" do
         fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
           raise "Fixer should not be called for correct input"
