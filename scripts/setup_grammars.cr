@@ -99,16 +99,33 @@ def download_and_compile(language : String, package : String, temp_dir : String)
   compile_success = false
   if language == "typescript"
     # tree-sitter-typescript needs npm install for common/define-grammar.js
+    # which requires tree-sitter-javascript as a Node.js module
     if File.exists?(File.join(target_dir, "package.json"))
-      puts "    Installing npm dependencies..."
-      Process.run("npm", ["install"], shell: true,
-        output: Process::Redirect::Close, error: Process::Redirect::Close,
-        chdir: target_dir
-      )
+      puts "    Installing npm dependencies in #{target_dir}..."
+      Dir.cd(target_dir) do
+        npm_status = Process.run("npm", ["install", "--no-audit", "--no-fund"],
+          output: Process::Redirect::Inherit, error: Process::Redirect::Inherit
+        )
+        unless npm_status.success?
+          puts "    ⚠ npm install failed, trying --legacy-peer-deps..."
+          Process.run("npm", ["install", "--legacy-peer-deps", "--no-audit", "--no-fund"],
+            output: Process::Redirect::Inherit, error: Process::Redirect::Inherit
+          )
+        end
+      end
     end
     compile_subdir = File.join(target_dir, "typescript")
     compile_success = compile_grammar(compile_subdir, language)
   elsif language == "tsx"
+    # tsx also needs npm install (same repo as typescript, uses common/define-grammar.js)
+    if File.exists?(File.join(target_dir, "package.json")) && !Dir.exists?(File.join(target_dir, "node_modules"))
+      puts "    Installing npm dependencies for tsx..."
+      Dir.cd(target_dir) do
+        Process.run("npm", ["install", "--no-audit", "--no-fund"],
+          output: Process::Redirect::Close, error: Process::Redirect::Close
+        )
+      end
+    end
     compile_subdir = File.join(target_dir, "tsx")
     compile_success = compile_grammar(compile_subdir, language)
   else
