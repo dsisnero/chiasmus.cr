@@ -164,17 +164,12 @@ def compile_grammar(source_dir : String, language : String) : Bool
     # Generate parser
     puts "    Generating parser..."
     generate_status = Process.run("tree-sitter", ["generate"],
-      output: Process::Redirect::Close,
-      error: Process::Redirect::Close
+      output: Process::Redirect::Inherit,
+      error: Process::Redirect::Inherit
     ).success?
 
     unless generate_status
       puts "    ✗ Failed to generate parser"
-      # Try with --log flag to see error
-      Process.run("tree-sitter", ["generate", "--log"],
-        output: Process::Redirect::Inherit,
-        error: Process::Redirect::Inherit
-      )
       return false
     end
 
