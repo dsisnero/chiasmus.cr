@@ -7,14 +7,14 @@ The TypeScript upstream inventory is now fully accounted for at the row level.
 | Manifest | Tracked | Ported | Intentional divergence | Missing | Partial |
 |---|---:|---:|---:|---:|---:|
 | `typescript_source_parity.tsv` | 173 | 139 | 34 | 0 | 0 |
-| `typescript_test_parity.tsv` | 332 | 318 | 14 | 0 | 0 |
-| `typescript_port_inventory.tsv` | 505 | 457 | 48 | 0 | 0 |
+| `typescript_test_parity.tsv` | 332 | 329 | 3 | 0 | 0 |
+| `typescript_port_inventory.tsv` | 505 | 468 | 37 | 0 | 0 |
 
 Interpretation:
 
-- There are no currently tracked upstream API/test rows left as `missing` or `partial`.
-- Remaining unimplemented upstream rows are deliberate runtime substitutions or blocked runtime capabilities, not forgotten port work.
-- Future work should be organized by large feature epics, not by individual inventory rows.
+- There are no currently tracked upstream rows left as `missing` or `partial` in any manifest.
+- Remaining divergence rows are deliberate runtime substitutions (Crig, crolog/SWI-Prolog, BM25, manifest discovery, Clojure WASM parser, Z3 config).
+- Future work is in maintenance mode: run drift checks after vendor pulls, review changed upstream items, and update conversion rules as needed.
 
 ## Inventory Safety And Vendor Updates
 
@@ -92,7 +92,7 @@ Acceptance:
 - `[x]` Pulling `vendor/chiasmus` can produce a review list without overwriting user/agent inventory edits.
 - `[x]` New IDs, stale IDs, and changed same-ID bodies are visible.
 - `[x]` The report distinguishes direct item changes from surrounding file context changes.
-- `[ ]` Optional Prolog fact export for changed items is deferred to P4.
+- `[x]` Prolog fact export for changed items delivered in P4.
 
 ### P1: Dynamic Adapter Discovery — Implemented
 
@@ -343,14 +343,17 @@ Acceptance:
 - `[x]` Inventory checks pass.
 - `[x]` Release notes can explain remaining intentional divergences without ambiguity.
 
-## Recommended Execution Order
+## Implementation History (All Completed)
 
-1. **P3 Tree-Sitter Discovery And Inventory Quality** — Implemented.
-2. **P3.1 Multi-Language Core Abstractions** — Design complete, implementation next.
-3. **P3.2 Remaining Languages + CLI Integration** — Follows P3.1.
-4. **P4 Prolog Fact Inventory And Conversion Rules** — Implemented.
-5. **P5 MCP Transport-Level Harness** — strengthens user-facing integration confidence.
-6. **P6 Release Hardening** — final cleanup and signoff.
+1. **P0 Vendor Refresh And Change Impact Tracking** — Implemented.
+2. **P1 Dynamic Adapter Discovery** — Implemented.
+3. **P2 Clojure Tree-Sitter Runtime Support** — Implemented with parser divergence.
+4. **P3 Tree-Sitter Discovery And Inventory Quality** — Implemented.
+5. **P3.1 Multi-Language Core Abstractions** — Implemented.
+6. **P3.2 Remaining Languages + CLI Integration** — Implemented.
+7. **P4 Prolog Fact Inventory And Conversion Rules** — Implemented.
+8. **P5 MCP Transport-Level Harness** — Implemented.
+9. **P6 Release Hardening** — Implemented.
 
 ## Current Completion Criteria
 
@@ -372,3 +375,53 @@ Acceptance:
 ## Parity Plan Complete
 
 All planned feature epics (P0-P6) are implemented and verified.
+
+## Maintenance Mode
+
+The port is in stable maintenance. Operational runbook after upstream vendor pulls:
+
+### After `git submodule update --remote vendor/chiasmus`
+
+```bash
+# 1. Run drift checks
+./scripts/check_port_inventory.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
+./scripts/check_source_parity.sh . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
+./scripts/check_test_parity.sh . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
+
+# 2. Compare upstream fingerprints for behavioral drift
+ruby scripts/generate_upstream_fingerprints.rb \
+  --root . --source vendor/chiasmus --language typescript \
+  --out /tmp/chiasmus-new-fingerprints.tsv
+
+ruby scripts/compare_upstream_fingerprints.rb \
+  --old plans/inventory/typescript_upstream_fingerprints.tsv \
+  --new /tmp/chiasmus-new-fingerprints.tsv \
+  --out plans/inventory/typescript_upstream_drift.tsv
+
+# 3. Regenerate Prolog facts if inventory changed
+ruby scripts/generate_inventory_facts.rb \
+  --inventory plans/inventory/typescript_port_inventory.tsv \
+  --source plans/inventory/typescript_source_parity.tsv \
+  --tests plans/inventory/typescript_test_parity.tsv \
+  --rules plans/inventory/conversion_rules.tsv \
+  > plans/inventory/parity_facts.pl
+
+# 4. Run quality gates
+make format && make lint && make test
+```
+
+### Response to change types
+
+| Drift report | Action |
+|---|---|
+| `added` | Add new row to `typescript_port_inventory.tsv` with status `missing`, file backlog issue |
+| `removed` | Remove stale row from inventory (ID no longer valid) |
+| `changed` | Review Crystal port for behavior update; update `crystal_refs` and status if needed |
+| `context_changed` | Low risk; review if surrounding code suggests new edge case |
+| Intentional divergence area changed | Review Crystal replacement subsystem for parity gap |
+
+### Static inventory invariants (verify after any edit)
+
+- No tracked row has status `missing` or `partial`
+- Every `ported`/`partial` row has non-empty `crystal_refs`
+- `typescript_port_inventory.tsv` is the curated ledger — never auto-regenerated over existing work

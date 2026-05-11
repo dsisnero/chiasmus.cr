@@ -36,10 +36,11 @@ REPO_URL_MAP = {
   "tree-sitter-crystal" => "https://github.com/crystal-lang-tools/tree-sitter-crystal.git",
 }
 
-# Main vendor directory (where the project expects them)
-MAIN_VENDOR_DIR = File.expand_path("vendor/grammars", __DIR__)
-# Temp directory for downloads
-TEMP_DIR = File.expand_path("tmp/grammars", __DIR__)
+# Main vendor directory (where the project expects them - at project root)
+PROJECT_ROOT    = File.expand_path("..", __DIR__)
+MAIN_VENDOR_DIR = File.join(PROJECT_ROOT, "vendor/grammars")
+# Temp directory for downloads (under project root, ignored by .gitignore)
+TEMP_DIR = File.join(PROJECT_ROOT, "tmp/grammars")
 
 Dir.mkdir_p(MAIN_VENDOR_DIR)
 Dir.mkdir_p(TEMP_DIR)
@@ -269,7 +270,7 @@ def main
 
   # Process languages in dependency order
   processed = Set(String).new
-  max_attempts = REQUIRED_LANGUAGES.size * 2  # Allow multiple passes for dependencies
+  max_attempts = REQUIRED_LANGUAGES.size * 2 # Allow multiple passes for dependencies
 
   max_attempts.times do |attempt|
     break if processed.size == REQUIRED_LANGUAGES.size
@@ -299,7 +300,7 @@ def main
         processed.add(language)
         success_count += 1
       else
-        processed.add(language)  # Mark as processed even if failed to avoid infinite loop
+        processed.add(language) # Mark as processed even if failed to avoid infinite loop
         fail_count += 1
       end
 

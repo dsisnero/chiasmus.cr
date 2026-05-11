@@ -13,8 +13,9 @@
 /lib/
 /temp
 
-# Temporary directories for shard patching
+# Temporary directories for shard patching and grammar builds
 temp/
+tmp/
 
 # Temporary files from development
 cleanup_docs.sh
