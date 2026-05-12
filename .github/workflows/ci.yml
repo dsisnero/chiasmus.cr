@@ -33,18 +33,15 @@ jobs:
         key: shards-${{ runner.os }}-${{ hashFiles('shard.lock') }}
         restore-keys: shards-${{ runner.os }}-
 
-    - name: Cache compiled grammars
-      uses: actions/cache@v4
-      with:
-        path: vendor/grammars
-        key: grammars-${{ runner.os }}-${{ hashFiles('scripts/setup_grammars.cr', '.git/modules/vendor/grammars/*/HEAD') }}
-        restore-keys: grammars-${{ runner.os }}-
-
     - name: Cache linter binary
       uses: actions/cache@v4
       with:
         path: bin/ameba
         key: ameba-${{ runner.os }}-${{ hashFiles('shard.lock') }}
+
+    # Note: grammar libraries are NOT cached — compiled .dylib/.so
+    # files are platform-specific and incompatible across CI image updates.
+    # Rebuilding takes ~2-3min per run.
 
     # Platform-specific system dependencies
     - name: Install Linux dependencies
