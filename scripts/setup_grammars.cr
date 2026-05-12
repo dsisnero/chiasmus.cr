@@ -57,37 +57,35 @@ end
 
 def download_and_compile(language : String, package : String, temp_dir : String) : Bool
   puts "Processing #{language} (#{package})..."
-
   target_dir = File.join(temp_dir, package)
-  main_target_dir = File.join(MAIN_VENDOR_DIR, package)
+  submodule_dir = File.join(MAIN_VENDOR_DIR, package)
 
-  # Check if already exists in main vendor
-  if Dir.exists?(main_target_dir)
-    puts "  ✓ Already exists in main vendor"
+  # Check if compiled library already exists
+  ext = {% if flag?(:darwin) %} "dylib" {% elsif flag?(:win32) %} "dll" {% else %} "so" {% end %}
+  lib_name = "libtree-sitter-#{language}.#{ext}"
 
-    # Check if compiled library exists
-    ext = {% if flag?(:darwin) %} "dylib" {% elsif flag?(:win32) %} "dll" {% else %} "so" {% end %}
-    lib_name = "libtree-sitter-#{language}.#{ext}"
-    lib_path = File.join(main_target_dir, lib_name)
-
+  # Check submodule directory first (pinned version from git)
+  if Dir.exists?(submodule_dir)
+    lib_path = File.join(submodule_dir, lib_name)
     if File.exists?(lib_path)
       puts "  ✓ Compiled library exists"
       return true
-    else
-      puts "  ✗ No compiled library, will compile..."
     end
   end
 
-  # Download if needed
-  unless Dir.exists?(target_dir)
+  # Copy submodule source to temp for compilation (preserves pinned version)
+  if Dir.exists?(submodule_dir)
+    puts "  Using submodule source (pinned version)..."
+    FileUtils.rm_rf(target_dir) if Dir.exists?(target_dir)
+    FileUtils.cp_r(submodule_dir, target_dir)
+  else
+    # Fallback: download from GitHub (only if submodule missing)
     puts "  Downloading from GitHub..."
-
     repo_url = REPO_URL_MAP[package]? || "https://github.com/tree-sitter/#{package}.git"
     success = Process.run("git", ["clone", "--depth", "1", repo_url, target_dir],
       output: Process::Redirect::Close,
       error: Process::Redirect::Close
     ).success?
-
     unless success
       puts "  ✗ Failed to clone #{package}"
       return false
@@ -96,11 +94,8 @@ def download_and_compile(language : String, package : String, temp_dir : String)
 
   # Compile the grammar
   puts "  Compiling #{language} grammar..."
-
   compile_success = false
   if language == "typescript"
-    # tree-sitter-typescript needs npm install for common/define-grammar.js
-    # which requires tree-sitter-javascript as a Node.js module
     if File.exists?(File.join(target_dir, "package.json"))
       puts "    Installing npm dependencies in #{target_dir}..."
       Dir.cd(target_dir) do
@@ -118,7 +113,6 @@ def download_and_compile(language : String, package : String, temp_dir : String)
     compile_subdir = File.join(target_dir, "typescript")
     compile_success = compile_grammar(compile_subdir, language)
   elsif language == "tsx"
-    # tsx also needs npm install (same repo as typescript, uses common/define-grammar.js)
     if File.exists?(File.join(target_dir, "package.json")) && !Dir.exists?(File.join(target_dir, "node_modules"))
       puts "    Installing npm dependencies for tsx..."
       Dir.cd(target_dir) do
@@ -134,16 +128,40 @@ def download_and_compile(language : String, package : String, temp_dir : String)
   end
 
   if compile_success
-    # Copy to main vendor directory
-    puts "  Copying to main vendor directory..."
-    FileUtils.rm_rf(main_target_dir) if Dir.exists?(main_target_dir)
-    FileUtils.cp_r(target_dir, main_target_dir)
-    puts "  ✓ Successfully compiled and installed #{language}"
-    return true
+    # Only copy the compiled library into the submodule directory
+    puts "  Copying compiled library back..."
+    Dir.mkdir_p(submodule_dir)
+    target_lib = find_compiled_library(target_dir, language, ext)
+    if target_lib
+      dest = File.join(submodule_dir, lib_name)
+      FileUtils.cp(target_lib, dest)
+      puts "  ✓ Successfully compiled and installed #{language}"
+      return true
+    else
+      puts "  ✗ Could not find compiled library"
+      return false
+    end
   else
     puts "  ✗ Failed to compile #{language}"
     return false
   end
+end
+
+def find_compiled_library(dir : String, language : String, ext : String) : String?
+  lib_name = "libtree-sitter-#{language}.#{ext}"
+
+  # Search in dir and subdirectories
+  full_path = File.join(dir, lib_name)
+  return full_path if File.exists?(full_path)
+
+  Dir.children(dir).each do |child|
+    child_path = File.join(dir, child)
+    next unless Dir.exists?(child_path)
+    sub_path = File.join(child_path, lib_name)
+    return sub_path if File.exists?(sub_path)
+  end
+
+  nil
 end
 
 def compile_grammar(source_dir : String, language : String) : Bool
