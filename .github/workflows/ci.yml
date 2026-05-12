@@ -55,9 +55,7 @@ jobs:
     - name: Install macOS dependencies
       if: runner.os == 'macOS'
       run: |
-        brew install gmp openssl pkg-config swi-prolog z3
-        git clone --depth 1 --branch v0.26.8 https://github.com/tree-sitter/tree-sitter.git /tmp/tree-sitter-lib
-        cd /tmp/tree-sitter-lib && make && sudo make install
+        brew install gmp openssl pkg-config swi-prolog z3 tree-sitter
 
     - name: Install tree-sitter CLI
       run: npm install -g tree-sitter-cli
