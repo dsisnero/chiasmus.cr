@@ -3,19 +3,30 @@ require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/extractor"
 require "../../../src/chiasmus/discovery/grammar_loader"
 
-describe "Crystal walker" do
-  before_all do
-    # Verify grammar actually works, not just that it loads
-    unless Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("crystal")
-      pending "crystal tree-sitter grammar not available"
-    end
-    test_graph = Chiasmus::Graph::Extractor.extract_graph([
-      Chiasmus::Graph::SourceFile.new("test.cr", "module Foo; end"),
-    ])
-    pending "crystal tree-sitter grammar incompatible (zero parse results)" if test_graph.defines.empty?
-  end
+module CrystalWalkerSpecHelper
+  extend self
 
+  def grammar_works? : Bool
+    @@grammar_works ||= begin
+      if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("crystal")
+        test_graph = Chiasmus::Graph::Extractor.extract_graph([
+          Chiasmus::Graph::SourceFile.new("test.cr", "module Foo; end"),
+        ])
+        !test_graph.defines.empty?
+      else
+        false
+      end
+    end
+  end
+end
+
+private def crystal_grammar_ok?
+  CrystalWalkerSpecHelper.grammar_works?
+end
+
+describe "Crystal walker" do
   it "extracts class and module definitions" do
+    next pending("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     crystal_code = <<-CRYSTAL
     module MyModule
       def self.module_method
@@ -108,6 +119,7 @@ describe "Crystal walker" do
   end
 
   it "extracts require and require_relative imports" do
+    next pending("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     crystal_code = <<-CRYSTAL
     require "json"
     require_relative "./my_module"
@@ -142,6 +154,7 @@ describe "Crystal walker" do
   end
 
   it "handles nested classes and modules" do
+    next pending("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     crystal_code = <<-CRYSTAL
     module OuterModule
       class InnerClass
@@ -187,6 +200,7 @@ describe "Crystal walker" do
   end
 
   it "handles method calls with arguments" do
+    next pending("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     crystal_code = <<-CRYSTAL
     class Calculator
       def add(a, b)
@@ -220,6 +234,7 @@ describe "Crystal walker" do
   end
 
   it "extracts call relationships across functions" do
+    next pending("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     graph = Chiasmus::Graph::Extractor.extract_graph([
       Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
         def greet(name)
@@ -244,6 +259,7 @@ describe "Crystal walker" do
   end
 
   it "extracts cross-file call graph" do
+    next pending("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     graph = Chiasmus::Graph::Extractor.extract_graph([
       Chiasmus::Graph::SourceFile.new("main.cr", <<-CRYSTAL
         def main
@@ -273,6 +289,7 @@ describe "Crystal walker" do
   end
 
   it "deduplicates call edges" do
+    next pending("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     graph = Chiasmus::Graph::Extractor.extract_graph([
       Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
         def a
@@ -292,6 +309,7 @@ describe "Crystal walker" do
   end
 
   it "extracts abstract def and alias" do
+    next pending("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     graph = Chiasmus::Graph::Extractor.extract_graph([
       Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
         abstract class Animal
