@@ -1,8 +1,15 @@
 require "spec"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/extractor"
+require "../../../src/chiasmus/discovery/grammar_loader"
 
 describe "Crystal walker" do
+  before_all do
+    unless Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("crystal")
+      pending "crystal tree-sitter grammar not available"
+    end
+  end
+
   it "extracts class and module definitions" do
     crystal_code = <<-CRYSTAL
     module MyModule

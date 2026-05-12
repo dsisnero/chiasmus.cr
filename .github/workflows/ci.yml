@@ -37,7 +37,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: vendor/grammars
-        key: grammars-${{ runner.os }}-${{ hashFiles('scripts/setup_grammars.cr') }}
+        key: grammars-${{ runner.os }}-${{ hashFiles('scripts/setup_grammars.cr', '.git/modules/vendor/grammars/*/HEAD') }}
         restore-keys: grammars-${{ runner.os }}-
 
     - name: Cache linter binary

@@ -1,8 +1,15 @@
 require "spec"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/extractor"
+require "../../../src/chiasmus/discovery/grammar_loader"
 
 describe "Java extractor" do
+  before_all do
+    unless Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("java")
+      pending "java tree-sitter grammar not available"
+    end
+  end
+
   it "extracts class declarations" do
     graph = Chiasmus::Graph::Extractor.extract_graph([
       Chiasmus::Graph::SourceFile.new("test.java", <<-JAVA
