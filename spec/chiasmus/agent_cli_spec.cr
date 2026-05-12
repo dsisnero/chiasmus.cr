@@ -100,7 +100,19 @@ describe Chiasmus::AgentCLI do
   end
 
   describe ".build_agent" do
-    pending "builds an agent from options (requires DEEPSEEK_API_KEY)"
+    if ENV["DEEPSEEK_API_KEY"]?
+      it "builds an agent from options" do
+        opts = Chiasmus::AgentCLI::Options.new(
+          provider: "deepseek",
+          api_key: ENV["DEEPSEEK_API_KEY"],
+          model: "deepseek-chat",
+        )
+        agent = Chiasmus::AgentCLI.build_agent(opts)
+        agent.should_not be_nil
+      end
+    else
+      pending "builds an agent from options (requires DEEPSEEK_API_KEY)"
+    end
   end
 
   describe ".run_graph_analysis" do
