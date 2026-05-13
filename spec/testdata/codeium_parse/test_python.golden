@@ -1,0 +1,11 @@
+class: DecoratedClass
+class: Pattern0
+class: Pattern0NoDoc
+definition.constructor: __init__
+function: decorated_function
+function: pattern1
+method: DecoratedClass.decorated_method
+method: Pattern0.__init__
+method: Pattern0NoDoc.pattern1
+reference.call: Pattern2a
+reference.call: pattern2b

@@ -1,0 +1,13 @@
+class: Foo
+definition.constructor: Foo
+definition.method: declarationOnly
+definition.method: foo1
+definition.method: implementation
+interface: Bar
+method: Foo.foo1
+method: declarationOnly
+method: implementation
+params: ()
+params: ()
+params: (int x)
+params: (float y)

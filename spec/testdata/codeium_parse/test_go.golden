@@ -1,0 +1,19 @@
+class: Pattern0
+class: UnsupportedStruct
+definition.function: Pattern2
+definition.method: Method
+definition.method: Method2
+definition.type: Alias
+field: a
+function: Pattern2
+interface: Pattern1
+interface: UnsupportedInterface
+method: Pattern0.Method
+method: Pattern0.Method2
+package: test_files
+params: (string)
+params: (a string)
+params: ()
+reference.call: Pattern2
+reference.class: Pattern0
+return_type: string

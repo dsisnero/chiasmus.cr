@@ -213,3 +213,84 @@ describe Chiasmus::Discovery::ScalaExtractor do
     functions.map(&.name).should contain("greet")
   end
 end
+
+# P7.6 Class fields extraction specs
+describe Chiasmus::Discovery::GoExtractor do
+  it "extracts struct fields" do
+    extractor = Chiasmus::Discovery::GoExtractor.new
+    lang = load_lang("go")
+    pending "go grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "package main\ntype Server struct {\n  Name string\n  Port int\n}\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.go")
+    fields = items.select { |i| i.kind == "field" }
+    fields.map(&.name).should contain("Name")
+    fields.map(&.name).should contain("Port")
+  end
+end
+
+describe Chiasmus::Discovery::JavaExtractor do
+  it "extracts class fields" do
+    extractor = Chiasmus::Discovery::JavaExtractor.new
+    lang = load_lang("java")
+    pending "java grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "class X { private String name; int count; }\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.java")
+    fields = items.select { |i| i.kind == "field" }
+    fields.map(&.name).should contain("name")
+    fields.map(&.name).should contain("count")
+  end
+end
+
+describe Chiasmus::Discovery::JavaScriptExtractor do
+  it "extracts class field_definition" do
+    extractor = Chiasmus::Discovery::JavaScriptExtractor.new
+    lang = load_lang("javascript")
+    pending "javascript grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "class Counter { count = 0; name = 'test'; }\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.js")
+    fields = items.select { |i| i.kind == "field" }
+    fields.map(&.name).should contain("count")
+    fields.map(&.name).should contain("name")
+  end
+end
+
+describe Chiasmus::Discovery::PythonExtractor do
+  it "extracts class body assignments as fields" do
+    extractor = Chiasmus::Discovery::PythonExtractor.new
+    lang = load_lang("python")
+    pending "python grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "class Foo:\n  name = 'test'\n  count = 42\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.py")
+    fields = items.select { |i| i.kind == "field" }
+    fields.map(&.name).should contain("name")
+    fields.map(&.name).should contain("count")
+  end
+end
+
+describe Chiasmus::Discovery::TypeScriptExtractor do
+  it "extracts class public_field_definition" do
+    extractor = Chiasmus::Discovery::TypeScriptExtractor.new
+    lang = load_lang("typescript")
+    pending "typescript grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "class Foo { name: string; count: number; }\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.ts")
+    fields = items.select { |i| i.kind == "field" }
+    fields.map(&.name).should contain("name")
+    fields.map(&.name).should contain("count")
+  end
+end
