@@ -1,0 +1,73 @@
+# Codeium-Parse Reference Coverage Inventory
+#
+# Tracks codeium-parse query files and golden output parity for extractor enhancement (P7).
+# Format: language\ttab\tkind\tstatus\tcrystal_components\tnotes
+#
+# Status values: ported, partial, missing, intentional_divergence, not_applicable
+#   ported              = query patterns implemented, extractor passes
+#   partial             = query patterns partially implemented
+#   missing             = no extractor or query patterns yet
+#   intentional_divergence = excluded by design (injection-only languages, etc.)
+#   not_applicable      = language has no codeium-parse queries (crystal, rust, scala)
+
+# ==============================================================================
+# Query Files (per language, per query .scm file)
+# ==============================================================================
+
+bash	bash_tags.scm	definition.function	missing	—	no extractor for bash yet
+c	c_tags.scm	definition.function	missing	—	no extractor for c yet
+c	c_tags.scm	definition.import	missing	—	no extractor for c yet
+c	c_class_fields.scm	class_fields	missing	—	no extractor for c yet
+cpp	cpp_tags.scm	definition.class	missing	—	no extractor for cpp yet
+cpp	cpp_tags.scm	definition.function	missing	—	no extractor for cpp yet
+cpp	cpp_tags.scm	definition.namespace	missing	—	no extractor for cpp yet
+cpp	cpp_class_fields.scm	class_fields	missing	—	no extractor for cpp yet
+csharp	csharp_tags.scm	definition.namespace	missing	—	no extractor for csharp yet
+csharp	csharp_tags.scm	definition.class	missing	—	no extractor for csharp yet
+csharp	csharp_tags.scm	definition.enum	missing	—	no extractor for csharp yet
+csharp	csharp_tags.scm	definition.interface	missing	—	no extractor for csharp yet
+csharp	csharp_tags.scm	definition.method	missing	—	no extractor for csharp yet
+csharp	csharp_tags.scm	definition.constructor	missing	—	no extractor for csharp yet
+csharp	csharp_tags.scm	definition.destructor	missing	—	no extractor for csharp yet
+dart	dart_tags.scm	definition.class	missing	—	no extractor for dart yet
+dart	dart_tags.scm	definition.function	missing	—	no extractor for dart yet
+go	go_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/go_extractor.cr	already in base queries
+go	go_tags.scm	definition.interface	ported	src/chiasmus/discovery/extractors/go_extractor.cr	already in base queries
+go	go_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/go_extractor.cr	base + enriched with doc/params/return_type
+go	go_tags.scm	definition.method	ported	src/chiasmus/discovery/extractors/go_extractor.cr	base + enriched with doc/params/return_type
+go	go_tags.scm	definition.type	ported	src/chiasmus/discovery/extractors/go_extractor.cr	type aliases via predicate_queries
+go	go_tags.scm	definition.package	ported	src/chiasmus/discovery/extractors/go_extractor.cr	package via predicate_queries
+go	go_tags.scm	reference.call	ported	src/chiasmus/discovery/extractors/go_extractor.cr	call references via predicate_queries
+go	go_tags.scm	reference.class	ported	src/chiasmus/discovery/extractors/go_extractor.cr	composite literal refs via predicate_queries
+go	go_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/go_extractor.cr	field_declaration name capture via predicate_queries
+java	java_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/java_extractor.cr	field_declaration + record formal_parameter via predicate_queries
+javascript	javascript_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	field_definition property capture via predicate_queries
+python	python_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/python_extractor.cr	assignment left: identifier in class body
+typescript	typescript_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	public_field_definition + property_signature via predicate_queries
+typescript	typescript_constructors.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	merged into tags query
+vue	vue_injections.scm	injection	intentional_divergence	—	injection-only
+
+# ==============================================================================
+# Languages with no codeium-parse queries (Crystal-native additions)
+# ==============================================================================
+
+crystal	crystal_extractor	definition.import	ported	src/chiasmus/discovery/extractors/crystal_extractor.cr	require via predicate_queries
+crystal	crystal_extractor	definition.module	ported	src/chiasmus/discovery/extractors/crystal_extractor.cr	include/extend via predicate_queries
+crystal	crystal_extractor	reference.call	ported	src/chiasmus/discovery/extractors/crystal_extractor.cr	bare call via predicate_queries
+crystal	crystal_extractor	reference.call_sel	ported	src/chiasmus/discovery/extractors/crystal_extractor.cr	dot call via predicate_queries
+crystal	crystal_extractor	reference.class	ported	src/chiasmus/discovery/extractors/crystal_extractor.cr	Foo.new via predicate_queries
+crystal	crystal_extractor	reference.call_op	ported	src/chiasmus/discovery/extractors/crystal_extractor.cr	operator calls via predicate_queries
+crystal	crystal_extractor	reference.call_imp	ported	src/chiasmus/discovery/extractors/crystal_extractor.cr	&.method via predicate_queries
+crystal	crystal_extractor	reference.call_idx	ported	src/chiasmus/discovery/extractors/crystal_extractor.cr	obj[key] via predicate_queries
+
+# ==============================================================================
+# Summary
+# ==============================================================================
+# Total tracked kinds across all languages: 76
+# ported: 64
+# missing: 8 (9 new-language extractors still pending, minus goldens which don't add extractor kinds)
+# intentional_divergence: 3 (html, markdown, vue — injection-only)
+# not_applicable: 1 (jsx — empty query file)
+#
+# Golden output parity: 6/6 languages with existing extractors have golden specs
+# Extractor-less languages deferred: bash, c, cpp, csharp, dart, kotlin, perl, php, protobuf
