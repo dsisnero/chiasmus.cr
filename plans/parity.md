@@ -484,7 +484,7 @@ Deliverables:
 - `[x]` csharp grammar loader fix (symbol + directory naming).
 - `[x]` All quality gates: format clean, lint 107 files/0 failures, spec 526 passing.
 - `[x]` `docs/development.md` with language-adding guide and 18-language inventory.
-- `[ ]` Crystal shard PR merged to main branch (currently on `feat/query-predicate-processing`).
+- `[x]` Crystal shard PR merged to main branch (dsisnero/crystal-tree-sitter#1).
 
 ### P6: Release Hardening — Completed
 
