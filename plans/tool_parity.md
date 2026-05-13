@@ -7,7 +7,7 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 | Tool | Upstream | Crystal | Specs | Status |
 |------|:--------:|:-------:|:-----:|:------:|
 | `chiasmus_verify` | ✓ | ✓ | ✓ (12) | Complete |
-| `chiasmus_skills` | ✓ | ✓ | ✓ (5) | Complete |
+| `chiasmus_skills` | ✓ | ✓ | ✓ (7) | Complete |
 | `chiasmus_formalize` | ✓ | ✓ | ✓ (5) | Complete |
 | `chiasmus_solve` | ✓ | ✓ | ✓ (3) | Complete |
 | `chiasmus_learn` | ✓ | ✓ | ✓ (7) | Complete |

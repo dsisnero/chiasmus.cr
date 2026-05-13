@@ -68,4 +68,38 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
     result["status"].as_s.should eq("error")
     result["error"].as_s.should contain("not found")
   end
+
+  it "filters templates by domain" do
+    server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
+    Chiasmus::MCPServer.current_server = server
+    tool = Chiasmus::MCPServer::Tools::SkillsTool.new
+
+    result = tool.invoke({
+      "domain" => JSON::Any.new("authorization"),
+    })
+
+    result["status"].as_s.should eq("success")
+    templates = result["templates"].as_a
+    templates.should_not be_empty
+    templates.each do |t|
+      t.as_h["domain"].as_s.should eq("authorization")
+    end
+  end
+
+  it "returns results sorted with highest relevance first" do
+    server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
+    Chiasmus::MCPServer.current_server = server
+    tool = Chiasmus::MCPServer::Tools::SkillsTool.new
+
+    result = tool.invoke({
+      "query" => JSON::Any.new("policy conflict"),
+    })
+
+    result["status"].as_s.should eq("success")
+    templates = result["templates"].as_a
+    if templates.size >= 2
+      scores = templates.map { |t| t.as_h["relevance"]?.try(&.as_f) }.compact
+      scores.each_cons(2) { |pair| (pair[0] >= pair[1]).should be_true } unless scores.size < 2
+    end
+  end
 end
