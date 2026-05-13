@@ -199,6 +199,31 @@ describe "Crystal walker" do
     contains[1].child.should eq("outer_method")
   end
 
+  it "extracts struct definitions and contained methods" do
+    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
+        struct Point
+          def x
+            coordinate
+          end
+        end
+      CRYSTAL
+      ),
+    ])
+
+    point = graph.defines.find { |define| define.name == "Point" }
+    point.should_not be_nil
+    point.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
+
+    method = graph.defines.find { |define| define.name == "x" }
+    method.should_not be_nil
+    method.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
+
+    graph.contains.map { |fact| "#{fact.parent}->#{fact.child}" }.should contain("Point->x")
+    graph.calls.map { |fact| "#{fact.caller}->#{fact.callee}" }.should contain("x->coordinate")
+  end
+
   it "handles method calls with arguments" do
     pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
     crystal_code = <<-CRYSTAL
@@ -324,5 +349,10 @@ describe "Crystal walker" do
     names = graph.defines.map(&.name)
     names.should contain("Animal")
     names.should contain("speak")
+    names.should contain("StringList")
+
+    alias_fact = graph.defines.find { |define| define.name == "StringList" }
+    alias_fact.should_not be_nil
+    alias_fact.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Type)
   end
 end

@@ -7,6 +7,7 @@ module Chiasmus
       Method
       Class
       Interface
+      Type
       Variable
 
       def to_prolog_atom : String

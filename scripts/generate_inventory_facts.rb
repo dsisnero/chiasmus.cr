@@ -24,11 +24,12 @@ end
 def rows(path, min_cols)
   return [] unless path && File.file?(path)
 
-  File.readlines(path, chomp: true).filter_map do |line|
+  File.readlines(path, chomp: true).each_with_object([]) do |line, parsed|
     next if line.strip.empty? || line.start_with?("#")
+
     cols = line.split("\t", -1)
     raise "Malformed row in #{path}: #{line}" if cols.size < min_cols
-    cols
+    parsed << cols
   end
 end
 

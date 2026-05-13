@@ -51,11 +51,28 @@ module Chiasmus
           true
         when "class_def"
           crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Class, defines, calls, imports, exports, contains, call_set)
+        when "struct_def"
+          crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Class, defines, calls, imports, exports, contains, call_set)
         when "module_def"
           crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Interface, defines, calls, imports, exports, contains, call_set)
+        when "alias"
+          crystal_alias_scope(node, source, file_path, defines)
         else
           false
         end
+      end
+
+      private def crystal_alias_scope(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        defines : Array(DefinesFact),
+      ) : Bool
+        name = node.children.find(&.type.==("constant")).try(&.text(source))
+        return false unless name
+
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+        true
       end
 
       private def crystal_container_scope(
