@@ -559,6 +559,8 @@ Acceptance:
 
 P0-P7 are complete. The port is in stable maintenance.
 
+See `plans/tool_parity.md` for MCP tool parity tracking (spec gaps, transport integration).
+
 ## Maintenance Mode
 
 The port is in stable maintenance. Operational runbook after upstream vendor pulls:
