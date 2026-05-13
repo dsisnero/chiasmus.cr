@@ -1,4 +1,5 @@
 require "tree_sitter"
+require "./predicate_evaluator"
 
 module Chiasmus
   module Discovery
@@ -25,8 +26,19 @@ module Chiasmus
     #
     # Subclasses override `queries` to return kind→query_pattern mappings
     # and `post_filter` for kind-specific name filtering/transformation.
+    #
+    # To use codeium-parse-style predicate queries with enriched captures
+    # (doc, params, return_type, lineage), override `predicate_queries`
+    # which returns kind→query_source mappings processed with predicate evaluation.
     abstract struct QueryExtractor < LanguageExtractor
       abstract def queries : Hash(String, String)
+
+      # Override to add codeium-parse-style queries with custom predicates.
+      # These queries support @doc, @codeium.parameters, @codeium.return_type,
+      # @parent, and custom predicate evaluation.
+      def predicate_queries : Hash(String, String)
+        {} of String => String
+      end
 
       # Post-filter: transform or reject a matched name.
       # Return nil to reject, or a string to set the name.
@@ -40,6 +52,10 @@ module Chiasmus
 
         queries.each do |kind, query_src|
           process_query(kind, query_src, root_node, source, file, items)
+        end
+
+        predicate_queries.each do |kind, query_src|
+          process_predicate_query(kind, query_src, root_node, source, file, items)
         end
 
         deduplicate(items)
@@ -65,6 +81,92 @@ module Chiasmus
         end
       rescue ex
         # Query errors are non-fatal
+      end
+
+      private def process_predicate_query(
+        kind : String,
+        query_src : String,
+        root_node : TreeSitter::Node,
+        source : String,
+        file : String,
+        items : Array(Item),
+      ) : Nil
+        lang = load_grammar_language
+        return unless lang
+
+        query = TreeSitter::Query.new(lang, query_src)
+        cursor = TreeSitter::QueryCursor.new(query)
+        cursor.exec(root_node)
+
+        while match = cursor.next_match
+          metadata = {} of String => String
+          adjacent = {} of String => Array(TreeSitter::Node)
+
+          # Evaluate custom predicates
+          next unless PredicateEvaluator.evaluate_match_predicates(query, match, source, metadata, adjacent)
+
+          name = extract_name_from_match(match, source, kind)
+          next unless name
+
+          filtered = post_filter(kind, name, nil, source)
+          next unless filtered
+
+          scope = kind.starts_with?("reference.") ? "source" : (kind == "test" ? "test" : "source")
+          items << Item.new(
+            id: "#{file}::#{kind}::#{filtered}",
+            kind: kind,
+            scope: scope,
+            name: filtered,
+            file: file
+          )
+
+          # Extract doc comments as documentation items
+          # NB: doc capture is available via match.captures for consumers
+          # that need doc text via PredicateEvaluator.doc_text
+
+          # Extract params as additional items
+          params_cap = match.captures.find(&.rule.==("codeium.parameters"))
+          if params_cap
+            params_text = params_cap.node.text(source)
+            items << Item.new(
+              id: "#{file}::params::#{filtered}",
+              kind: "params",
+              scope: scope,
+              name: params_text,
+              file: file
+            )
+          end
+
+          # Extract return type
+          return_cap = match.captures.find(&.rule.==("codeium.return_type"))
+          if return_cap
+            return_text = return_cap.node.text(source)
+            items << Item.new(
+              id: "#{file}::return_type::#{filtered}",
+              kind: "return_type",
+              scope: scope,
+              name: return_text,
+              file: file
+            )
+          end
+        end
+      rescue ex
+        # Query errors are non-fatal
+      end
+
+      private def extract_name_from_match(match : TreeSitter::Match, source : String, kind : String) : String?
+        # Standard name capture
+        name_cap = match.captures.find(&.rule.==("name"))
+        return name_cap.node.text(source) if name_cap
+
+        # Fallback: use the first capture whose rule starts with the kind prefix
+        match.captures.each do |cap|
+          if cap.rule.starts_with?("definition.") || cap.rule.starts_with?("reference.")
+            return cap.node.text(source)
+          end
+        end
+
+        nil
       end
 
       private def process_single_capture(

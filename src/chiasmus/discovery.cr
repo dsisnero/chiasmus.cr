@@ -1,5 +1,6 @@
 require "tree_sitter"
 require "./discovery/grammar_loader"
+require "./discovery/predicate_evaluator"
 require "./discovery/extractor"
 require "./discovery/registry"
 require "./discovery/pipeline"
