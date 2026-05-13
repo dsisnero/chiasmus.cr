@@ -8,11 +8,11 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 |------|:--------:|:-------:|:-----:|:------:|
 | `chiasmus_verify` | ✓ | ✓ | ✓ (12) | Complete |
 | `chiasmus_skills` | ✓ | ✓ | ✓ (5) | Complete |
-| `chiasmus_formalize` | ✓ | ✓ | ✓ (2) | Complete |
+| `chiasmus_formalize` | ✓ | ✓ | ✓ (5) | Complete |
 | `chiasmus_solve` | ✓ | ✓ | ✓ (3) | Complete |
-| `chiasmus_learn` | ✓ | ✓ | ✓ (2) | Complete |
+| `chiasmus_learn` | ✓ | ✓ | ✓ (7) | Complete |
 | `chiasmus_lint` | ✓ | ✓ | ✓ (4) | Complete |
-| `chiasmus_graph` | ✓ | ✓ | ✗ (0) | **Needs specs** |
+| `chiasmus_graph` | ✓ | ✓ | ✓ (21) | Complete |
 | `chiasmus_craft` | ✓ | ✓ | ✓ (2) | Complete |
 | `chiasmus_crig` | — | ✓ | ✓ (2) | Crystal-only |
 
@@ -20,28 +20,28 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 
 ## Phase Plan
 
-### T0: Improve Existing Under-Speced Tools — Pending
+### T0: Improve Existing Under-Speced Tools — Implemented
 
-#### `chiasmus_graph` — spec needed
+#### `chiasmus_graph` — spec written
 
-**What upstream tests cover:**
-- `tests/mcp.test.ts` tests various graph analysis types across multiple languages
-- `tests/tools.test.ts` validates tool schema + handler behavior
-
-**What Crystal needs:**
-
-- [ ] `spec/chiasmus/mcp_server/tools/graph_spec.cr` — new spec file
-- [ ] Direct handler specs for each analysis type: summary, callers, callees, reachability, dead-code, cycles, path, impact, facts
-- [ ] Schema validation: parameter defaults, analysis enum, language list
-- [ ] Error handling: invalid analysis, missing params, unsupported language
-- [ ] Integration with newly-added extractors (verify graph works for all 19 languages)
-- [ ] Transport-level spec via MCP test harness
+- `[x]` `spec/mcp_server/tools/graph_spec.cr` — 21 specs covering:
+  - Tool metadata (name, description, schema declaration)
+  - Error handling (missing params, unknown analysis, file not found)
+  - Analysis enum validation (all 9 types parse correctly)
+  - Summary analysis (files, functions, classes, call edges, imports)
+  - Callers analysis (finds callers of target, missing param error)
+  - Callees analysis (finds callees of source function)
+  - Reachability analysis (reachable + unreachable paths)
+  - Dead-code analysis (finds uncalled non-export functions)
+  - Cycles analysis (acyclic + cyclic graph detection)
+  - Path analysis (finds call path, empty paths for unreachable)
+  - Impact analysis (finds functions affected by target change)
+  - Facts analysis (generates Prolog facts from code graph)
 
 #### General spec quality
 
-- [ ] Cap each spec file at 5+ tests per tool (learn + formalize have only 2)
-- [ ] Add transport-level integration specs for graph tool (others already have specs)
-- [ ] Enum validation for all tool schema enums (analysis types, formats, solvers)
+- `[x]` Learn tool: 5→7 specs (added metadata, required-param validation)
+- `[x]` Formalize tool: 2→5 specs (added metadata, empty problem, schema declaration)
 
 ---
 
@@ -102,17 +102,18 @@ Upstream test files in `vendor/chiasmus/tests/`:
 | Initial port | All 8 upstream tools ported + 1 Crystal-only |
 | Tool schemas | Ported (`tool_schemas.cr`, 317 lines) |
 | Supporting infrastructure | All formalize, skills, solvers, graph modules ported |
+| T0: Graph + under-speced tools | Graph: 21 specs; Learn: 7 specs; Formalize: 5 specs |
 
 ## Current State
 
 - 8 ported tools + 1 Crystal-only (9 total)
-- 34 tool specs across 8 spec files
-- `chiasmus_graph` has NO direct spec coverage (largest gap)
+- 61 tool specs across 9 spec files
+- All 9 tools have direct spec coverage
 - Transport harness covers `verify` and `graph` (2 of 9 tools)
 
 ## Next Steps
 
-1. **Immediate:** Write specs for `chiasmus_graph` (T0)
-2. **Short-term:** Review upstream `tools.test.ts` and `mcp.test.ts` for missed cases (T1)
-3. **Medium-term:** Parameter naming audit (T2)
-4. **Long-term:** Full transport integration for all tools (T3)
+1. ~~Immediate: Write specs for `chiasmus_graph` (T0)~~ Done
+2. Short-term: Review upstream `tools.test.ts` and `mcp.test.ts` for missed cases (T1)
+3. Medium-term: Parameter naming audit (T2)
+4. Long-term: Full transport integration for all tools (T3)

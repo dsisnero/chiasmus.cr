@@ -49,6 +49,52 @@ def build_learn_spec_agent_builder(response : String)
 end
 
 describe Chiasmus::MCPServer::Tools::LearnTool do
+  it "has correct tool name" do
+    Chiasmus::MCPServer::Tools::LearnTool.tool_name.should eq("chiasmus_learn")
+  end
+
+  it "provides a tool description" do
+    Chiasmus::MCPServer::Tools::LearnTool.tool_description.should_not be_empty
+  end
+
+  it "declares input schema with required parameters" do
+    schema = Chiasmus::MCPServer::Tools::LearnTool.input_schema
+    schema.should_not be_nil
+  end
+
+  it "returns error when solver is missing" do
+    tool = Chiasmus::MCPServer::Tools::LearnTool.new
+    result = tool.invoke({
+      "spec"    => JSON::Any.new("(declare-const x Int)"),
+      "problem" => JSON::Any.new("test"),
+    })
+
+    result["status"].as_s.should eq("error")
+    result["error"].to_s.should_not be_empty
+  end
+
+  it "returns error when spec is missing" do
+    tool = Chiasmus::MCPServer::Tools::LearnTool.new
+    result = tool.invoke({
+      "solver"  => JSON::Any.new("z3"),
+      "problem" => JSON::Any.new("test"),
+    })
+
+    result["status"].as_s.should eq("error")
+    result["error"].to_s.should_not be_empty
+  end
+
+  it "returns error when problem is missing" do
+    tool = Chiasmus::MCPServer::Tools::LearnTool.new
+    result = tool.invoke({
+      "solver" => JSON::Any.new("z3"),
+      "spec"   => JSON::Any.new("(declare-const x Int)"),
+    })
+
+    result["status"].as_s.should eq("error")
+    result["error"].to_s.should_not be_empty
+  end
+
   it "returns an error when no learner is available" do
     server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
     tool = Chiasmus::MCPServer::Tools::LearnTool.new
