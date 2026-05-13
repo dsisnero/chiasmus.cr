@@ -5,7 +5,16 @@
 
 # macOS metadata sidecars commonly created on exFAT/removable volumes
 ._*
+**/._*
+.AppleDouble/
+**/.AppleDouble/
 .DS_Store
+**/.DS_Store
+.LSOverride
+**/.LSOverride
+Icon?
+**/Icon?
+._.DS_Store
 
 # Don't ignore docs/ - baseline docs must be committed
 
@@ -50,3 +59,5 @@ simple_deepseek_test.cr
 test.cr
 fetch_docs.sh
 spec/tmp_cr_*.cr
+/temp/
+chiasmus

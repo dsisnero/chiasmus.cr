@@ -14,7 +14,7 @@ crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:
     github: dsisnero/crystal-tree-sitter
-    branch: feat/null-safety-convenience-methods
+    branch: feat/query-predicate-processing
   mcp:
     github: spider-gazelle/mcp.cr
   z3:
@@ -34,4 +34,6 @@ development_dependencies:
   ameba:
     github: crystal-ameba/ameba
     version: "~> 1.0"
+  golden:
+    github: dsisnero/golden
 license: MIT
