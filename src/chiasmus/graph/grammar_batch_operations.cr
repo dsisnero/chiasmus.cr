@@ -18,6 +18,15 @@ module Chiasmus
         "scala"      => [] of String,
         "ruby"       => [] of String,
         "crystal"    => [] of String,
+        "bash"       => [] of String,
+        "c"          => [] of String,
+        "cpp"        => ["c"],
+        "csharp"     => [] of String,
+        "dart"       => [] of String,
+        "kotlin"     => [] of String,
+        "perl"       => [] of String,
+        "php"        => [] of String,
+        "proto"      => [] of String,
       }
 
       # Package names for each language
@@ -32,6 +41,15 @@ module Chiasmus
         "typescript" => "tree-sitter-typescript",
         "tsx"        => "tree-sitter-typescript",
         "crystal"    => "tree-sitter-crystal",
+        "bash"       => "tree-sitter-bash",
+        "c"          => "tree-sitter-c",
+        "cpp"        => "tree-sitter-cpp",
+        "csharp"     => "tree-sitter-c-sharp",
+        "dart"       => "tree-sitter-dart",
+        "kotlin"     => "tree-sitter-kotlin",
+        "perl"       => "tree-sitter-perl",
+        "php"        => "tree-sitter-php",
+        "proto"      => "tree-sitter-proto",
       }
 
       # Install multiple grammars with dependency resolution (async)

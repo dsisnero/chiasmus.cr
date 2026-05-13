@@ -39,6 +39,8 @@ module Chiasmus
             File.join(dir, "tree-sitter-#{language}"),
             dir,
           ]
+          # Handle csharp → c-sharp directory naming
+          candidate_dirs << File.join(dir, "tree-sitter-c-sharp") if language == "csharp"
 
           candidate_dirs.each do |candidate_dir|
             next unless Dir.exists?(candidate_dir)
@@ -83,6 +85,8 @@ module Chiasmus
           "tree_sitter_#{language.downcase}",
           "tree_sitter_#{language.gsub('-', '_')}",
         ]
+        # Handle special cases: csharp → c_sharp
+        symbol_names << "tree_sitter_#{language.sub("csharp", "c_sharp")}" if language == "csharp"
 
         ptr = nil
         symbol_names.each do |sym|

@@ -1,0 +1,10 @@
+class: Class
+class: F
+definition.class: F
+definition.class: Teacher
+definition.constructor: Foo
+definition.destructor: Class
+definition.enum: B
+definition.namespace: Namespace
+interface: IFoo
+method: Bar

@@ -15,6 +15,15 @@ REQUIRED_LANGUAGES = {
   "scala"      => [] of String,
   "ruby"       => [] of String,
   "crystal"    => [] of String,
+  "bash"       => [] of String,
+  "c"          => [] of String,
+  "cpp"        => ["c"],
+  "csharp"     => [] of String,
+  "dart"       => [] of String,
+  "kotlin"     => [] of String,
+  "perl"       => [] of String,
+  "php"        => [] of String,
+  "proto"      => [] of String,
 }
 
 # Package names and repo URLs for each language (uses tree-sitter org by default)
@@ -29,11 +38,24 @@ PACKAGE_MAP = {
   "typescript" => "tree-sitter-typescript",
   "tsx"        => "tree-sitter-typescript",
   "crystal"    => "tree-sitter-crystal",
+  "bash"       => "tree-sitter-bash",
+  "c"          => "tree-sitter-c",
+  "cpp"        => "tree-sitter-cpp",
+  "csharp"     => "tree-sitter-c-sharp",
+  "dart"       => "tree-sitter-dart",
+  "kotlin"     => "tree-sitter-kotlin",
+  "perl"       => "tree-sitter-perl",
+  "php"        => "tree-sitter-php",
+  "proto"      => "tree-sitter-proto",
 }
 
 # Non-standard repo URLs (default: https://github.com/tree-sitter/{package}.git)
 REPO_URL_MAP = {
   "tree-sitter-crystal" => "https://github.com/crystal-lang-tools/tree-sitter-crystal.git",
+  "tree-sitter-dart"    => "https://github.com/UserNobody14/tree-sitter-dart.git",
+  "tree-sitter-kotlin"  => "https://github.com/fwcd/tree-sitter-kotlin.git",
+  "tree-sitter-perl"    => "https://github.com/tree-sitter-perl/tree-sitter-perl.git",
+  "tree-sitter-proto"   => "https://github.com/mitchellh/tree-sitter-proto.git",
 }
 
 # Main vendor directory (where the project expects them - at project root)
@@ -123,6 +145,24 @@ def download_and_compile(language : String, package : String, temp_dir : String)
     end
     compile_subdir = File.join(target_dir, "tsx")
     compile_success = compile_grammar(compile_subdir, language)
+  elsif language == "cpp"
+    # C++ grammar depends on tree-sitter-c/grammar.js
+    puts "    Setting up C grammar dependency..."
+    c_grammar_dir = File.join(MAIN_VENDOR_DIR, "tree-sitter-c")
+    if Dir.exists?(c_grammar_dir)
+      npm_dir = File.join(target_dir, "node_modules", "tree-sitter-c")
+      Dir.mkdir_p(npm_dir)
+      FileUtils.cp(File.join(c_grammar_dir, "grammar.js"), File.join(npm_dir, "grammar.js"))
+      FileUtils.cp(File.join(c_grammar_dir, "src", "grammar.json"), File.join(npm_dir, "grammar.json"))
+    end
+    compile_success = compile_grammar(target_dir, language)
+  elsif language == "php"
+    # PHP grammar.js is in php/ subdirectory
+    compile_subdir = File.join(target_dir, "php")
+    compile_success = compile_grammar(compile_subdir, language)
+  elsif language == "csharp"
+    # tree-sitter-c-sharp outputs c-sharp.dylib, needs rename
+    compile_success = compile_grammar(target_dir, language)
   else
     compile_success = compile_grammar(target_dir, language)
   end
@@ -216,6 +256,8 @@ def compile_grammar(source_dir : String, language : String) : Bool
 
     # Check all possible output names from tree-sitter build
     candidates = ["#{language}.#{ext}", "parser.#{ext}"]
+    # C# grammar outputs "c-sharp.dylib" (with hyphen) but we want "csharp"
+    candidates << "c-sharp.#{ext}" if language == "csharp"
     source_lib = candidates.find { |c| File.exists?(c) }
 
     if source_lib && !File.exists?(lib_name)

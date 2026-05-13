@@ -37,13 +37,13 @@ dist: release
 	@rm -rf dist
 	@mkdir -p dist/chiasmus
 	@mkdir -p dist/chiasmus/grammars
-	
+
 	# Copy binary
 	@cp bin/chiasmus-static dist/chiasmus/chiasmus
-	
+
 	# Copy grammar libraries from cache
 	@echo "Copying grammar libraries from cache..."
-	@for lang in ruby python java go rust scala javascript typescript tsx crystal; do \
+	@for lang in ruby python java go rust scala javascript typescript tsx crystal bash c cpp c-sharp dart kotlin perl php proto; do \
 		ext=dylib; \
 		lib_name=libtree-sitter-$$lang.$$ext; \
 		\
@@ -63,7 +63,7 @@ dist: release
 			cp vendor/grammars/tree-sitter-$$lang/$$lib_name dist/chiasmus/grammars/ 2>/dev/null || echo "  Warning: $$lang not found"; \
 		fi; \
 	done
-	
+
 	# Create README
 	@echo "# Chiasmus Distribution" > dist/chiasmus/README.md
 	@echo "" >> dist/chiasmus/README.md
@@ -83,7 +83,7 @@ dist: release
 	@echo "" >> dist/chiasmus/README.md
 	@echo "## Usage" >> dist/chiasmus/README.md
 	@echo "./chiasmus --help" >> dist/chiasmus/README.md
-	
+
 	# Create tarball
 	@cd dist && tar czf chiasmus-$(shell date +%Y%m%d).tar.gz chiasmus/
 	@echo "Distribution package created: dist/chiasmus-$(shell date +%Y%m%d).tar.gz"
