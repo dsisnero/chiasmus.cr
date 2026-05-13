@@ -51,4 +51,75 @@ describe Chiasmus::MCPServer::Tools::LintTool do
     result["errors"].as_a.should_not be_empty
     result["errors"].as_a.first.as_s.should match(/period/i)
   end
+
+  it "catches unbalanced parentheses in Z3 specs" do
+    tool = Chiasmus::MCPServer::Tools::LintTool.new
+
+    result = tool.invoke({
+      "solver" => JSON::Any.new("z3"),
+      "input"  => JSON::Any.new("(assert (> x 0)"),
+    })
+
+    result["status"].as_s.should eq("success")
+    result["errors"].as_a.should_not be_empty
+  end
+
+  it "removes get-model from Z3 specs" do
+    tool = Chiasmus::MCPServer::Tools::LintTool.new
+
+    result = tool.invoke({
+      "solver" => JSON::Any.new("z3"),
+      "input"  => JSON::Any.new("(assert true)\n(get-model)"),
+    })
+
+    result["status"].as_s.should eq("success")
+    result["spec"].as_s.should_not contain("get-model")
+  end
+
+  it "removes set-logic from Z3 specs" do
+    tool = Chiasmus::MCPServer::Tools::LintTool.new
+
+    result = tool.invoke({
+      "solver" => JSON::Any.new("z3"),
+      "input"  => JSON::Any.new("(set-logic QF_LIA)\n(assert (> x 0))"),
+    })
+
+    result["status"].as_s.should eq("success")
+    result["spec"].as_s.should_not contain("set-logic")
+  end
+
+  it "passes clean Z3 spec with no errors or fixes" do
+    tool = Chiasmus::MCPServer::Tools::LintTool.new
+
+    result = tool.invoke({
+      "solver" => JSON::Any.new("z3"),
+      "input"  => JSON::Any.new("(declare-const x Int)\n(assert (> x 0))"),
+    })
+
+    result["status"].as_s.should eq("success")
+    result["fixes"].as_a.should be_empty
+    result["errors"].as_a.should be_empty
+  end
+
+  it "catches unfilled template slots in Z3 specs" do
+    tool = Chiasmus::MCPServer::Tools::LintTool.new
+
+    result = tool.invoke({
+      "solver" => JSON::Any.new("z3"),
+      "input"  => JSON::Any.new("{{SLOT:condition}}"),
+    })
+
+    result["errors"].as_a.should_not be_empty
+  end
+
+  it "catches empty spec" do
+    tool = Chiasmus::MCPServer::Tools::LintTool.new
+
+    result = tool.invoke({
+      "solver" => JSON::Any.new("z3"),
+      "input"  => JSON::Any.new(""),
+    })
+
+    result["errors"].as_a.should_not be_empty
+  end
 end

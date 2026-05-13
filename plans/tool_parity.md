@@ -11,7 +11,7 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 | `chiasmus_formalize` | ✓ | ✓ | ✓ (5) | Complete |
 | `chiasmus_solve` | ✓ | ✓ | ✓ (3) | Complete |
 | `chiasmus_learn` | ✓ | ✓ | ✓ (7) | Complete |
-| `chiasmus_lint` | ✓ | ✓ | ✓ (4) | Complete |
+| `chiasmus_lint` | ✓ | ✓ | ✓ (10) | Complete |
 | `chiasmus_graph` | ✓ | ✓ | ✓ (21) | Complete |
 | `chiasmus_craft` | ✓ | ✓ | ✓ (2) | Complete |
 | `chiasmus_crig` | — | ✓ | ✓ (2) | Crystal-only |
@@ -45,21 +45,46 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 
 ---
 
-### T1: Upstream Test Parity — Pending
+### T1: Upstream Test Parity — In Progress
 
-**Goal:** match upstream test coverage for each tool.
+**Goal:** match upstream test coverage. Full audit completed — 254 upstream tests across 22 test files.
 
-Upstream test files in `vendor/chiasmus/tests/`:
-- `tests/tools.test.ts` — tool schema + handler registration tests
-- `tests/mcp.test.ts` — end-to-end transport tests (verify, skills, formalize, solve, etc.)
-- `tests/graph/` — per-language graph tests (TypeScript, Python, Go, JavaScript, Clojure)
+| Status | Count | % |
+|--------|:-----:|:--:|
+| Covered | 53 | 21% |
+| Partial | 18 | 7% |
+| Missing | 183 | 72% |
+| **Total** | **254** | 100% |
 
-**Porting plan:**
+#### Quick Wins (existing spec files, small additions)
 
-- [ ] Review `vendor/chiasmus/tests/tools.test.ts` for any uncovered edge cases
-- [ ] Review `vendor/chiasmus/tests/mcp.test.ts` for transport-level parity gaps
-- [ ] Port any remaining upstream test cases not already covered by existing Crystal specs
-- [ ] Add multi-language graph walker tests for all 19 supported languages
+- [ ] `lint_spec.cr`: +3 tests (unbalanced parentheses, get-model/set-logic removal, valid spec passes clean)
+- [ ] `verify_spec.cr`: edge cases (trace on ground query, trace with multiple rules, empty input error)
+- [ ] `skills_spec.cr`: +2 tests (filter by domain, relevance sorting)
+
+#### Medium Effort (existing spec files, significant additions)
+
+- [ ] `formalize_spec.cr`: +3 tests (different problem types: rule-inference, data-flow, dependency)
+- [ ] `solve_spec.cr`: +3 tests (Prolog end-to-end, correction loop, template reuse tracking)
+- [ ] `craft_spec.cr`: +5 tests (test=true parameter, Prolog crafting, unit validation per field)
+- [ ] `learn_spec.cr`: +3 tests (Prolog extraction, invalid JSON handling, promotion)
+- [ ] `graph_spec.cr`: MCP integration tests (+5 tests with real files)
+
+#### New Spec Files Needed (new Crystal test infrastructure)
+
+- [ ] `spec/solvers/z3_solver_spec.cr` — 11 tests (direct solver unit tests)
+- [ ] `spec/solvers/prolog_solver_spec.cr` — 12 tests
+- [ ] `spec/solvers/session_spec.cr` — 4 tests (isolated solver sessions)
+- [ ] `spec/solvers/correction_loop_spec.cr` — 10 tests
+- [ ] `spec/formalize/feedback_spec.cr` — 7 tests (result classification)
+- [ ] `spec/graph/facts_spec.cr` — 9 tests (escapeAtom, Prolog generation)
+- [ ] `spec/graph/mermaid_spec.cr` — 16 tests (Mermaid → Prolog parsing)
+- [ ] `spec/graph/parser_spec.cr` — 5 tests (language mapping, extensions)
+- [ ] `spec/graph/extractor_spec.cr` — 28 tests (TS/Python/Go extraction)
+- [ ] `spec/graph/clojure_spec.cr` — 11 tests (Clojure WASM parity)
+- [ ] `spec/graph/adapter_registry_spec.cr` — 14 tests
+- [ ] `spec/config_spec.cr` — 4 tests (config loading, defaults)
+- [ ] `spec/integration/dogfood_spec.cr` — 6 tests (realistic end-to-end)
 
 ---
 
