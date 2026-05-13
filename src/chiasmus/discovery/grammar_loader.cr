@@ -99,7 +99,11 @@ module Chiasmus
       end
 
       private def shared_library_extension : String
-        Platform.shared_library_extension
+        {% if flag?(:darwin) %}
+          "dylib"
+        {% else %}
+          "so"
+        {% end %}
       end
     end
   end
