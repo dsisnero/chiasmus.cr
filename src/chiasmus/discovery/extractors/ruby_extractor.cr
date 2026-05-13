@@ -26,10 +26,24 @@ module Chiasmus
         }
       end
 
+      def predicate_queries : Hash(String, String)
+        {
+          "definition.module" => "(module name: (constant) @name)",
+          "definition.import" => <<-QUERY,
+            (call method: (identifier) @name (#match? @name "^(require|require_relative)$"))
+          QUERY
+          "reference.call"     => "(call method: (identifier) @name)",
+          "reference.call_sel" => "(call method: (identifier) @name receiver: (constant) @parent)",
+        }
+      end
+
       def post_filter(kind : String, name : String, node : TreeSitter::Node?, source : String) : String?
         case kind
         when "method"
           node ? qualify_method_ruby(node, source, name) : name
+        when "definition.import"
+          # Only keep require/require_relative calls
+          name =~ /^(require|require_relative)$/ ? name : nil
         else name
         end
       end

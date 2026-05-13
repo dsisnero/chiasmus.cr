@@ -26,10 +26,22 @@ module Chiasmus
         }
       end
 
+      def predicate_queries : Hash(String, String)
+        {
+          "package"                => "(package_declaration name: (identifier) @name)",
+          "definition.constructor" => "(constructor_declaration name: (identifier) @name parameters: (formal_parameters) @codeium.parameters)",
+          "definition.method"      => "((block_comment)* @doc . (method_declaration name: (identifier) @name parameters: (formal_parameters) @codeium.parameters))",
+          "field"                  => "(class_declaration (class_body (field_declaration declarator: (variable_declarator name: (identifier) @name))))",
+          "field_record"           => "(record_declaration (formal_parameters (formal_parameter name: (identifier) @name)))",
+        }
+      end
+
       def post_filter(kind : String, name : String, node : TreeSitter::Node?, source : String) : String?
         case kind
-        when "method"
+        when "method", "definition.method"
           node ? qualify_method(node, source, name) : name
+        when "field", "field_record"
+          name
         else
           name
         end

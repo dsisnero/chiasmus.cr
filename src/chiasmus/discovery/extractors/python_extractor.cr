@@ -24,6 +24,20 @@ module Chiasmus
         }
       end
 
+      def predicate_queries : Hash(String, String)
+        {
+          "definition.constructor" => "(class_definition body: (block (function_definition name: (identifier) @name (#eq? @name \"__init__\"))))",
+          "definition.import"      => <<-QUERY,
+            (import_statement name: (dotted_name (identifier) @name))
+            (import_from_statement name: (dotted_name (identifier) @name))
+            (aliased_import name: (identifier) @name alias: (identifier) @parent)
+          QUERY
+          "reference.call"      => "(call function: (identifier) @name)",
+          "reference.call_attr" => "(call function: (attribute attribute: (identifier) @name object: (identifier) @parent))",
+          "field"               => "(class_definition body: (block (assignment left: (identifier) @name)))",
+        }
+      end
+
       def post_filter(kind : String, name : String, node : TreeSitter::Node?, source : String) : String?
         case kind
         when "const"
@@ -31,12 +45,16 @@ module Chiasmus
         when "function"
           if node && inside_class?(node)
             class_name = find_enclosing_class(node, source)
-            class_name ? nil : name # Method → handled as method in function path
+            class_name ? nil : name
           else
             name
           end
         when "test"
           name.starts_with?("test_") ? name : nil
+        when "definition.constructor"
+          name == "__init__" ? name : nil
+        when "field"
+          name
         else
           name
         end
@@ -91,14 +109,58 @@ module Chiasmus
           end
         end
 
+        # Process predicate queries for imports, constructors, references
+        predicate_queries.each do |kind, query_src|
+          process_predicate_query_inline(kind, query_src, root_node, source, file_path, items, lang)
+        end
+
         deduplicate(items)
+      end
+
+      private def process_predicate_query_inline(
+        kind : String, query_src : String,
+        root_node : TreeSitter::Node, source : String,
+        file : String, items : Array(Item), lang : TreeSitter::Language,
+      ) : Nil
+        query = TreeSitter::Query.new(lang, query_src)
+        cursor = TreeSitter::QueryCursor.new(query)
+        cursor.exec(root_node)
+
+        while match = cursor.next_match
+          metadata = {} of String => String
+          adjacent = {} of String => Array(TreeSitter::Node)
+
+          next unless PredicateEvaluator.evaluate_match_predicates(query, match, source, metadata, adjacent)
+
+          name = nil
+          match.captures.each do |cap|
+            if cap.rule == "name"
+              name = cap.node.text(source)
+              break
+            end
+          end
+          next unless name
+
+          filtered = post_filter(kind, name, nil, source)
+          next unless filtered
+
+          items << Item.new(
+            id: "#{file}::#{kind}::#{filtered}",
+            kind: kind,
+            scope: "source",
+            name: filtered,
+            file: file
+          )
+        end
+      rescue ex
+        # Query errors are non-fatal
       end
 
       private def inside_class?(node : TreeSitter::Node) : Bool
         current = node.parent
         while current
           return true if current.type == "class_definition"
-          return false if current.type == "module" # reached top level
+          return false if current.type == "module"
           current = current.parent
         end
         false

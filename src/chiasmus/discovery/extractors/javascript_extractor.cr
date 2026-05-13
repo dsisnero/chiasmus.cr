@@ -33,12 +33,30 @@ module Chiasmus
         }
       end
 
+      def predicate_queries : Hash(String, String)
+        {
+          "definition.constructor" => "(method_definition name: (property_identifier) @name (#eq? @name \"constructor\"))",
+          "definition.import"      => <<-QUERY,
+            (import_statement source: (string (string_fragment) @name))
+            (import_statement (import_clause (named_imports (import_specifier name: (identifier) @name))))
+          QUERY
+          "reference.call"     => "(call_expression function: (identifier) @name)",
+          "reference.call_sel" => "(call_expression function: (member_expression property: (property_identifier) @name object: (identifier) @parent))",
+          "reference.class"    => "(new_expression constructor: (identifier) @name)",
+          "field"              => "(class_body (field_definition property: (property_identifier) @name))",
+        }
+      end
+
       def post_filter(kind : String, name : String, node : TreeSitter::Node?, source : String) : String?
         case kind
         when "const"
           name =~ /^[A-Z][A-Z0-9_]*$/ ? name : nil
         when "method"
           node ? qualify_method(node, source, name) : name
+        when "definition.constructor"
+          name == "constructor" ? name : nil
+        when "field"
+          name
         else name
         end
       end
@@ -63,16 +81,12 @@ module Chiasmus
         "tsx"
       end
 
-      def post_filter(kind : String, name : String, node : TreeSitter::Node?, source : String) : String?
-        @delegate.post_filter(kind, name, node, source)
-      end
-
-      private def multi_capture_query?(kind : String) : Bool
-        kind == "test"
-      end
-
       def queries : Hash(String, String)
         @delegate.queries
+      end
+
+      def predicate_queries : Hash(String, String)
+        @delegate.predicate_queries
       end
 
       def post_filter(kind : String, name : String, node : TreeSitter::Node?, source : String) : String?
