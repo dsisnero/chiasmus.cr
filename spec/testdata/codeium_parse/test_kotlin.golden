@@ -1,0 +1,5 @@
+class: Foo
+definition.import: kotlinx.coroutines
+definition.import: kotlinx.coroutines.sync
+function: fib
+function: methodWithDocstring

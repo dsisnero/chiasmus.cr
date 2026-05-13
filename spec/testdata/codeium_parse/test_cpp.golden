@@ -1,0 +1,9 @@
+class: Foo
+class: Foo2
+class: Foo3
+class: TemplatedFoo
+class: TemplatedFoo2
+definition.namespace: bar
+function: Foo
+interface: Foo
+interface: TemplatedFoo

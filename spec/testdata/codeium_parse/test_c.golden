@@ -1,0 +1,2 @@
+definition.import: "runtime/parser.h"
+function: parser__push

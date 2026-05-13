@@ -1,0 +1,6 @@
+class: FooClass
+definition.namespace: test
+function: foo
+interface: FooInterface
+method: __construct
+method: encode

@@ -1,0 +1,8 @@
+class: FooClass
+definition.import: feature
+definition.import: strict
+function: Average
+function: bar
+function: foo2
+function: getFirstName
+function: new

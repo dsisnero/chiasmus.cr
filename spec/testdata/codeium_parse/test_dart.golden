@@ -1,0 +1,7 @@
+class: FooBar
+class: FooClass
+function: bar
+function: barMixin
+function: foo
+function: fooClassBar
+function: main

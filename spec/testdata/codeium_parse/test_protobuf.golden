@@ -1,0 +1,5 @@
+class: EchoRequest
+class: EchoResponse
+class: TestService
+definition.package: a.b
+function: Echo
