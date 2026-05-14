@@ -494,7 +494,7 @@ Results:
 
 - `crystal tool format --check src spec` — clean, no formatting violations.
 - `bin/ameba src spec` — 107 files inspected, 0 failures.
-- `crystal spec` — 557 examples, 0 failures, 0 errors, 1 pending (requires DEEPSEEK_API_KEY).
+- `crystal spec` — 573 examples, 0 failures, 0 errors, 1 pending (requires DEEPSEEK_API_KEY).
 - `._*` AppleDouble sidecars cleaned from working tree.
 - `spec/tmp_cr_*.cr` scratch specs confirmed untracked (gitignored), kept local only.
 - Inventory manifests: `typescript_port_inventory.tsv` (505 items), `typescript_source_parity.tsv`, `typescript_test_parity.tsv` — all clean.

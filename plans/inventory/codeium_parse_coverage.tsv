@@ -4,33 +4,28 @@
 # Format: language\ttab\tkind\tstatus\tcrystal_components\tnotes
 #
 # Status values: ported, partial, missing, intentional_divergence, not_applicable
-#   ported              = query patterns implemented, extractor passes
-#   partial             = query patterns partially implemented
-#   missing             = no extractor or query patterns yet
-#   intentional_divergence = excluded by design (injection-only languages, etc.)
-#   not_applicable      = language has no codeium-parse queries (crystal, rust, scala)
 
 # ==============================================================================
 # Query Files (per language, per query .scm file)
 # ==============================================================================
 
-bash	bash_tags.scm	definition.function	missing	—	no extractor for bash yet
-c	c_tags.scm	definition.function	missing	—	no extractor for c yet
-c	c_tags.scm	definition.import	missing	—	no extractor for c yet
-c	c_class_fields.scm	class_fields	missing	—	no extractor for c yet
-cpp	cpp_tags.scm	definition.class	missing	—	no extractor for cpp yet
-cpp	cpp_tags.scm	definition.function	missing	—	no extractor for cpp yet
-cpp	cpp_tags.scm	definition.namespace	missing	—	no extractor for cpp yet
-cpp	cpp_class_fields.scm	class_fields	missing	—	no extractor for cpp yet
-csharp	csharp_tags.scm	definition.namespace	missing	—	no extractor for csharp yet
-csharp	csharp_tags.scm	definition.class	missing	—	no extractor for csharp yet
-csharp	csharp_tags.scm	definition.enum	missing	—	no extractor for csharp yet
-csharp	csharp_tags.scm	definition.interface	missing	—	no extractor for csharp yet
-csharp	csharp_tags.scm	definition.method	missing	—	no extractor for csharp yet
-csharp	csharp_tags.scm	definition.constructor	missing	—	no extractor for csharp yet
-csharp	csharp_tags.scm	definition.destructor	missing	—	no extractor for csharp yet
-dart	dart_tags.scm	definition.class	missing	—	no extractor for dart yet
-dart	dart_tags.scm	definition.function	missing	—	no extractor for dart yet
+bash	bash_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/bash_extractor.cr	function definitions
+c	c_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/c_extractor.cr	function definitions
+c	c_tags.scm	definition.import	ported	src/chiasmus/discovery/extractors/c_extractor.cr	preproc_include via predicate_queries
+c	c_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/c_extractor.cr	struct_specifier fields (shared with cpp query)
+cpp	cpp_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/cpp_extractor.cr	class_specifier + struct_specifier
+cpp	cpp_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/cpp_extractor.cr	function_definition
+cpp	cpp_tags.scm	definition.namespace	ported	src/chiasmus/discovery/extractors/cpp_extractor.cr	namespace_definition via predicate_queries
+cpp	cpp_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/cpp_extractor.cr	field_declaration_list captures
+csharp	csharp_tags.scm	definition.namespace	ported	src/chiasmus/discovery/extractors/csharp_extractor.cr	file_scoped + namespace_declaration
+csharp	csharp_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/csharp_extractor.cr	struct/record via predicate_queries
+csharp	csharp_tags.scm	definition.enum	ported	src/chiasmus/discovery/extractors/csharp_extractor.cr	enum_declaration via predicate_queries
+csharp	csharp_tags.scm	definition.interface	ported	src/chiasmus/discovery/extractors/csharp_extractor.cr	interface in base queries
+csharp	csharp_tags.scm	definition.method	ported	src/chiasmus/discovery/extractors/csharp_extractor.cr	method in base queries
+csharp	csharp_tags.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/csharp_extractor.cr	constructor via predicate_queries
+csharp	csharp_tags.scm	definition.destructor	ported	src/chiasmus/discovery/extractors/csharp_extractor.cr	destructor via predicate_queries
+dart	dart_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/dart_extractor.cr	class_definition + mixin
+dart	dart_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/dart_extractor.cr	function_signature
 go	go_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/go_extractor.cr	already in base queries
 go	go_tags.scm	definition.interface	ported	src/chiasmus/discovery/extractors/go_extractor.cr	already in base queries
 go	go_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/go_extractor.cr	base + enriched with doc/params/return_type
@@ -39,11 +34,65 @@ go	go_tags.scm	definition.type	ported	src/chiasmus/discovery/extractors/go_extra
 go	go_tags.scm	definition.package	ported	src/chiasmus/discovery/extractors/go_extractor.cr	package via predicate_queries
 go	go_tags.scm	reference.call	ported	src/chiasmus/discovery/extractors/go_extractor.cr	call references via predicate_queries
 go	go_tags.scm	reference.class	ported	src/chiasmus/discovery/extractors/go_extractor.cr	composite literal refs via predicate_queries
-go	go_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/go_extractor.cr	field_declaration name capture via predicate_queries
-java	java_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/java_extractor.cr	field_declaration + record formal_parameter via predicate_queries
-javascript	javascript_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	field_definition property capture via predicate_queries
+go	go_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/go_extractor.cr	field_declaration name capture
+html	html_injections.scm	injection	intentional_divergence	—	injection-only
+java	java_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/java_extractor.cr	already in base queries
+java	java_tags.scm	definition.interface	ported	src/chiasmus/discovery/extractors/java_extractor.cr	already in base queries
+java	java_tags.scm	definition.method	ported	src/chiasmus/discovery/extractors/java_extractor.cr	base + enriched with doc/params
+java	java_tags.scm	definition.package	ported	src/chiasmus/discovery/extractors/java_extractor.cr	package via predicate_queries
+java	java_tags.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/java_extractor.cr	constructor via predicate_queries
+java	java_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/java_extractor.cr	field_declaration + record formal_parameter
+javascript	javascript_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	already in base queries
+javascript	javascript_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	already in base queries
+javascript	javascript_tags.scm	definition.method	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	already in base queries
+javascript	javascript_tags.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	via predicate_queries with #eq? filter
+javascript	javascript_tags.scm	reference.call	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	via predicate_queries
+javascript	javascript_tags.scm	reference.class	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	new_expression via predicate_queries
+javascript	javascript_imports.scm	definition.import	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	import_statement via predicate_queries
+javascript	javascript_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	field_definition property capture
+javascript	javascript_constructors.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	merged into tags query
+javascript	javascript_functions.scm	definition.function	ported	src/chiasmus/discovery/extractors/javascript_extractor.cr	merged into tags query
+jsx	jsx_tags.scm	—	not_applicable	—	empty query file
+kotlin	kotlin_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/kotlin_extractor.cr	function_declaration
+kotlin	kotlin_tags.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/kotlin_extractor.cr	secondary_constructor via predicate_queries
+kotlin	kotlin_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/kotlin_extractor.cr	class_declaration
+markdown	markdown_injections.scm	injection	intentional_divergence	—	injection-only
+perl	perl_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/perl_extractor.cr	class_statement
+perl	perl_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/perl_extractor.cr	subroutine + method_declaration
+perl	perl_tags.scm	definition.import	ported	src/chiasmus/discovery/extractors/perl_extractor.cr	use_statement via predicate_queries
+php	php_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/php_extractor.cr	function_definition
+php	php_tags.scm	definition.method	ported	src/chiasmus/discovery/extractors/php_extractor.cr	method_declaration
+php	php_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/php_extractor.cr	class_declaration
+php	php_tags.scm	definition.interface	ported	src/chiasmus/discovery/extractors/php_extractor.cr	interface_declaration
+php	php_tags.scm	definition.namespace	ported	src/chiasmus/discovery/extractors/php_extractor.cr	namespace_definition via predicate_queries
+protobuf	protobuf_tags.scm	definition.package	ported	src/chiasmus/discovery/extractors/protobuf_extractor.cr	package via predicate_queries
+protobuf	protobuf_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/protobuf_extractor.cr	message/enum/service
+protobuf	protobuf_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/protobuf_extractor.cr	rpc
+protobuf	protobuf_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/protobuf_extractor.cr	message_body/enum_body field captures
+python	python_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/python_extractor.cr	already in base queries
+python	python_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/python_extractor.cr	split into function/method
+python	python_tags.scm	definition.method	ported	src/chiasmus/discovery/extractors/python_extractor.cr	derived via inside_class?
+python	python_tags.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/python_extractor.cr	__init__ via predicate_queries
+python	python_tags.scm	reference.call	ported	src/chiasmus/discovery/extractors/python_extractor.cr	via predicate_queries
+python	python_imports.scm	definition.import	ported	src/chiasmus/discovery/extractors/python_extractor.cr	import statements via predicate_queries
 python	python_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/python_extractor.cr	assignment left: identifier in class body
-typescript	typescript_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	public_field_definition + property_signature via predicate_queries
+python	python_constructors.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/python_extractor.cr	merged into tags query
+ruby	ruby_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/ruby_extractor.cr	already in base queries
+ruby	ruby_tags.scm	definition.module	ported	src/chiasmus/discovery/extractors/ruby_extractor.cr	module via predicate_queries
+ruby	ruby_tags.scm	definition.method	ported	src/chiasmus/discovery/extractors/ruby_extractor.cr	already in base queries
+ruby	ruby_tags.scm	definition.import	ported	src/chiasmus/discovery/extractors/ruby_extractor.cr	require/require_relative via predicate_queries
+ruby	ruby_tags.scm	reference.call	ported	src/chiasmus/discovery/extractors/ruby_extractor.cr	via predicate_queries
+ruby	ruby_tags.scm	reference.call_sel	ported	src/chiasmus/discovery/extractors/ruby_extractor.cr	receiver.method via predicate_queries
+typescript	typescript_tags.scm	definition.class	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	already in base queries
+typescript	typescript_tags.scm	definition.interface	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	already in base queries
+typescript	typescript_tags.scm	definition.type	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	type_alias_declaration in base
+typescript	typescript_tags.scm	definition.function	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	already in base queries
+typescript	typescript_tags.scm	definition.method	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	already in base queries
+typescript	typescript_tags.scm	definition.module	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	internal_module via predicate_queries
+typescript	typescript_tags.scm	definition.namespace	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	module declaration via predicate_queries
+typescript	typescript_tags.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	via predicate_queries
+typescript	typescript_imports.scm	definition.import	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	import_statement via predicate_queries
+typescript	typescript_class_fields.scm	class_fields	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	public_field_definition + property_signature
 typescript	typescript_constructors.scm	definition.constructor	ported	src/chiasmus/discovery/extractors/typescript_extractor.cr	merged into tags query
 vue	vue_injections.scm	injection	intentional_divergence	—	injection-only
 
@@ -64,10 +113,11 @@ crystal	crystal_extractor	reference.call_idx	ported	src/chiasmus/discovery/extra
 # Summary
 # ==============================================================================
 # Total tracked kinds across all languages: 76
-# ported: 64
-# missing: 8 (9 new-language extractors still pending, minus goldens which don't add extractor kinds)
+# ported: 72
 # intentional_divergence: 3 (html, markdown, vue — injection-only)
 # not_applicable: 1 (jsx — empty query file)
+# missing: 0
 #
-# Golden output parity: 6/6 languages with existing extractors have golden specs
-# Extractor-less languages deferred: bash, c, cpp, csharp, dart, kotlin, perl, php, protobuf
+# Golden output parity: 15/15 languages with extractors have golden specs
+# Grammar submodules: 19 vendored and compiled
+# Extractors: 16 total (10 original + 9 new - 3 without codeium-parse queries)

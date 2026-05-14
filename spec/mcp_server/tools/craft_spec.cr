@@ -63,4 +63,41 @@ describe Chiasmus::MCPServer::Tools::CraftTool do
       result["errors"].as_a.should_not be_empty
     end
   end
+
+  it "rejects duplicate template name" do
+    with_craft_server do |_server, _dir|
+      tool = Chiasmus::MCPServer::Tools::CraftTool.new
+
+      # Create first template
+      tool.invoke({
+        "name"      => JSON::Any.new("unique-name"),
+        "domain"    => JSON::Any.new("validation"),
+        "solver"    => JSON::Any.new("z3"),
+        "signature" => JSON::Any.new("First template"),
+        "skeleton"  => JSON::Any.new("(assert {{SLOT:test}})"),
+        "slots"     => JSON.parse(%([{"name":"test","description":"slot","format":"true"}])),
+        "normalizations" => JSON.parse(%([{"source":"x","transform":"y"}])),
+      })
+
+      # Try creating same name again
+      result = tool.invoke({
+        "name"      => JSON::Any.new("unique-name"),
+        "domain"    => JSON::Any.new("validation"),
+        "solver"    => JSON::Any.new("z3"),
+        "signature" => JSON::Any.new("Duplicate"),
+        "skeleton"  => JSON::Any.new("(assert {{SLOT:test}})"),
+        "slots"     => JSON.parse(%([{"name":"test","description":"slot","format":"true"}])),
+        "normalizations" => JSON.parse(%([{"source":"x","transform":"y"}])),
+      })
+
+      result["created"].as_bool.should be_false
+      result["errors"].as_a.should_not be_empty
+    end
+  end
+
+  it "provides tool metadata" do
+    Chiasmus::MCPServer::Tools::CraftTool.tool_name.should eq("chiasmus_craft")
+    Chiasmus::MCPServer::Tools::CraftTool.tool_description.should_not be_empty
+    Chiasmus::MCPServer::Tools::CraftTool.input_schema.should_not be_nil
+  end
 end
