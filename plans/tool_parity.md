@@ -6,11 +6,11 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 
 | Tool | Upstream | Crystal | Specs | Status |
 |------|:--------:|:-------:|:-----:|:------:|
-| `chiasmus_verify` | ✓ | ✓ | ✓ (12) | Complete |
+| `chiasmus_verify` | ✓ | ✓ | ✓ (13) | Complete |
 | `chiasmus_skills` | ✓ | ✓ | ✓ (7) | Complete |
-| `chiasmus_formalize` | ✓ | ✓ | ✓ (5) | Complete |
-| `chiasmus_solve` | ✓ | ✓ | ✓ (3) | Complete |
-| `chiasmus_learn` | ✓ | ✓ | ✓ (7) | Complete |
+| `chiasmus_formalize` | ✓ | ✓ | ✓ (6) | Complete |
+| `chiasmus_solve` | ✓ | ✓ | ✓ (4) | Complete |
+| `chiasmus_learn` | ✓ | ✓ | ✓ (8) | Complete |
 | `chiasmus_lint` | ✓ | ✓ | ✓ (10) | Complete |
 | `chiasmus_graph` | ✓ | ✓ | ✓ (26) | Complete |
 | `chiasmus_craft` | ✓ | ✓ | ✓ (2) | Complete |
@@ -127,18 +127,19 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 | Initial port | All 8 upstream tools ported + 1 Crystal-only |
 | Tool schemas | Ported (`tool_schemas.cr`, 317 lines) |
 | Supporting infrastructure | All formalize, skills, solvers, graph modules ported |
-| T0: Graph + under-speced tools | Graph: 21 specs; Learn: 7 specs; Formalize: 5 specs |
+| T0: Graph + under-speced tools | Graph: 26 specs; Learn: 8 specs; Formalize: 6 specs; Lint: 10 specs; Skills: 7 specs; Solve: 4 specs |
 
 ## Current State
 
 - 8 ported tools + 1 Crystal-only (9 total)
-- 61 tool specs across 9 spec files
+- 78 tool-level specs across 9 spec files
 - All 9 tools have direct spec coverage
 - Transport harness covers `verify` and `graph` (2 of 9 tools)
+- 571 total specs project-wide, 0 failures
 
 ## Next Steps
 
-1. ~~Immediate: Write specs for `chiasmus_graph` (T0)~~ Done
+1. ~~Write specs for `chiasmus_graph` (T0)~~ Done
 2. Short-term: Review upstream `tools.test.ts` and `mcp.test.ts` for missed cases (T1)
 3. Medium-term: Parameter naming audit (T2)
 4. Long-term: Full transport integration for all tools (T3)
