@@ -42,4 +42,17 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     result["converged"].as_bool.should be_true
     result["result"].as_h["status"].as_s.should eq("sat")
   end
+
+  it "returns template used in response" do
+    server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
+    Chiasmus::MCPServer.current_server = server
+    tool = Chiasmus::MCPServer::Tools::SolveTool.new
+
+    result = tool.invoke({
+      "problem" => JSON::Any.new("Check if two departments have overlapping access"),
+    })
+
+    result["status"].as_s.should eq("success")
+    result["template"].as_s.should_not be_empty
+  end
 end
