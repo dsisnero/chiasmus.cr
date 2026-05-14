@@ -12,7 +12,7 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 | `chiasmus_solve` | ✓ | ✓ | ✓ (3) | Complete |
 | `chiasmus_learn` | ✓ | ✓ | ✓ (7) | Complete |
 | `chiasmus_lint` | ✓ | ✓ | ✓ (10) | Complete |
-| `chiasmus_graph` | ✓ | ✓ | ✓ (21) | Complete |
+| `chiasmus_graph` | ✓ | ✓ | ✓ (26) | Complete |
 | `chiasmus_craft` | ✓ | ✓ | ✓ (2) | Complete |
 | `chiasmus_crig` | — | ✓ | ✓ (2) | Crystal-only |
 

@@ -297,3 +297,90 @@ describe Chiasmus::Graph::Analyses do
     end
   end
 end
+
+describe Chiasmus::MCPServer::Tools::GraphTool do
+  describe "MCP integration with real files" do
+    it "returns summary for a Go source file via MCP tool invocation" do
+      tmpdir = Dir.tempdir
+      file_path = File.join(tmpdir, "summary_test.go")
+      source = "package main\nfunc main() { helper() }\nfunc helper() {}\n"
+      File.write(file_path, source)
+
+      begin
+        result = invoke_graph({
+          "files"    => JSON.parse([file_path].to_json),
+          "analysis" => JSON::Any.new("summary"),
+        })
+
+        result["status"].as_s.should eq("success")
+        result["analysis"].as_s.should eq("summary")
+      ensure
+        File.delete(file_path) if File.exists?(file_path)
+      end
+    end
+
+    it "finds callers of a target function via MCP" do
+      tmpdir = Dir.tempdir
+      file_path = File.join(tmpdir, "callers_test.go")
+      source = "package main\nfunc main() { helper() }\nfunc helper() {}\n"
+      File.write(file_path, source)
+
+      begin
+        result = invoke_graph({
+          "files"    => JSON.parse([file_path].to_json),
+          "analysis" => JSON::Any.new("callers"),
+          "target"   => JSON::Any.new("helper"),
+        })
+
+        result["status"].as_s.should eq("success")
+      ensure
+        File.delete(file_path) if File.exists?(file_path)
+      end
+    end
+
+    it "returns error for missing required files parameter" do
+      result = invoke_graph({
+        "analysis" => JSON::Any.new("summary"),
+      })
+
+      result["status"].as_s.should eq("error")
+    end
+
+    it "returns error for unknown analysis type via MCP" do
+      tmpdir = Dir.tempdir
+      file_path = File.join(tmpdir, "error_test.go")
+      File.write(file_path, "package main\nfunc main() {}\n")
+
+      begin
+        result = invoke_graph({
+          "files"    => JSON.parse([file_path].to_json),
+          "analysis" => JSON::Any.new("unknown_type"),
+        })
+
+        result["status"].as_s.should eq("error")
+        result["error"].to_s.should contain("Unknown analysis")
+      ensure
+        File.delete(file_path) if File.exists?(file_path)
+      end
+    end
+
+    it "returns facts as raw Prolog via MCP" do
+      tmpdir = Dir.tempdir
+      file_path = File.join(tmpdir, "facts_test.go")
+      source = "package main\nfunc main() { helper() }\nfunc helper() {}\n"
+      File.write(file_path, source)
+
+      begin
+        result = invoke_graph({
+          "files"    => JSON.parse([file_path].to_json),
+          "analysis" => JSON::Any.new("facts"),
+        })
+
+        result["status"].as_s.should eq("success")
+        result["result"].to_s.should contain("defines")
+      ensure
+        File.delete(file_path) if File.exists?(file_path)
+      end
+    end
+  end
+end
