@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   build:
@@ -63,19 +64,19 @@ jobs:
       if: runner.os != 'Windows'
       run: |
         cd dist
-        tar czf ../chiasmus-${{ matrix.arch }}-${{ github.ref_name }}.tar.gz chiasmus/
+        tar czf ../chiasmus-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref_name }}.tar.gz chiasmus/
 
     - name: Package (windows)
       if: runner.os == 'Windows'
       run: |
         cd dist
-        7z a ../chiasmus-${{ matrix.arch }}-${{ github.ref_name }}.zip chiasmus/
+        7z a ../chiasmus-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref_name }}.zip chiasmus/
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: chiasmus-${{ matrix.arch }}
-        path: chiasmus-${{ matrix.arch }}-${{ github.ref_name }}.*
+        name: chiasmus-${{ runner.os }}-${{ matrix.arch }}
+        path: chiasmus-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref_name }}.*
 
   publish:
     needs: build
