@@ -10,11 +10,11 @@ shards:
 
   bm25:
     git: https://github.com/dsisnero/bm25.git
-    version: 0.1.0+git.commit.ddfb5a3b8b970aa54c5efe412b927ec8402129fc
+    version: 0.1.0+git.commit.758c82971b4a7aee22f8bc48795cb47bff637bb4
 
   cml:
     git: https://github.com/dsisnero/cml.git
-    version: 0.5.0+git.commit.b7bfd828d2533fc3f5e2bade212f8a5eba240daf
+    version: 0.5.0+git.commit.32a0eedd96e1f2118f68f2074e5d8bf6e01b9a24
 
   crig:
     git: https://github.com/dsisnero/crig.git
@@ -58,7 +58,7 @@ shards:
 
   pdfbox:
     git: https://github.com/dsisnero/pdfbox.git
-    version: 0.1.0+git.commit.ae434c50b22ad54ce4f630136e8c18d52d0053be
+    version: 0.1.0+git.commit.81bec3a7066813a0d22ab07555bc52a246c0a00c
 
   pg:
     git: https://github.com/will/crystal-pg.git
