@@ -14,6 +14,7 @@ crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:
     github: dsisnero/crystal-tree-sitter
+    branch: fix/windows-uint16-portability
   mcp:
     github: spider-gazelle/mcp.cr
   z3:
