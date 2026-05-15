@@ -229,7 +229,7 @@ Implementation:
 
 Acceptance:
 
-- `[x]` All 19 languages have working tree-sitter extractors with TDD/golden specs (526 total).
+- `[x]` All 19 languages have working tree-sitter extractors with TDD/golden specs (573 total).
 - `[x]` Pipeline processes files concurrently with bounded parallelism.
 - `[x]` SOLID: new language = new `QueryExtractor` subclass, no Pipeline/Registry changes.
 - `[x]` Format + ameba lint clean.
@@ -313,7 +313,7 @@ Acceptance:
 - `[x]` Tool behavior is verified through the same boundary a real MCP client uses.
 - `[x]` Direct tool specs remain fast unit coverage; transport specs cover integration.
 
-### P7: Codeium-Parse Predicate Support — In Progress
+### P7: Codeium-Parse Predicate Support — Completed
 
 **Goal:** port codeium-parse custom query predicate handling and enhance extractors with enriched captures (doc, params, return_type, lineage, references).
 
@@ -323,7 +323,7 @@ Inventory drivers:
 - Vendored `vendor/codeium-parse/goldens/*.golden` (expected output format for 17 languages).
 - Existing extractors lack doc comments, parameters, return types, lineage metadata, and call/class references.
 
-Design document: `plans/design/codeium_parse_predicates.md` (to be created)
+Design document: `plans/design/codeium_parse_predicates.md`
 
 #### P7.1: Tree-Sitter Shard Predicate Parsing — Implemented
 
@@ -430,7 +430,7 @@ Implementation:
 
 - Updated `grammar_batch_operations.cr`, `setup_grammars.cr`, and `Makefile` dist target for all 19 languages.
 - Fixed `grammar_loader.cr` for csharp symbol (`tree_sitter_c_sharp`) and directory (`tree-sitter-c-sharp`) naming.
-- Active golden specs: 14/15 languages pass (csharp working after loader fix).
+- Active golden specs: 15/15 languages pass (csharp working after loader fix).
 
 Deliverables:
 
@@ -482,7 +482,7 @@ Deliverables:
 - `[x]` 9 grammar submodules vendored and compiled (19 total grammars).
 - `[x]` CLI batch ops, setup script, Makefile updated for 19 languages.
 - `[x]` csharp grammar loader fix (symbol + directory naming).
-- `[x]` All quality gates: format clean, lint 107 files/0 failures, spec 526 passing.
+- `[x]` All quality gates: format clean, lint 107 files/0 failures, spec 573 passing, 1 API-key pending.
 - `[x]` `docs/development.md` with language-adding guide and 18-language inventory.
 - `[x]` Crystal shard PR merged to main branch (dsisnero/crystal-tree-sitter#1).
 
@@ -544,7 +544,7 @@ Acceptance:
 - `[x]` Multi-language discovery for 19 languages with SOLID abstractions (P3.1/P3.2/P7.5).
 - `[x]` Non-blocking pipeline with fiber-per-file concurrency (P3.1).
 - `[x]` MCP transport-level harness with in-memory transport specs (P5).
-- `[x]` 526 specs, 0 failures. Format + lint clean. (P6 updated).
+- `[x]` 573 specs, 0 failures. Format + lint clean. (P6/P7 updated).
 - `[x]` Conversion rules and Prolog facts make intentional divergences queryable by subsystem (P4).
 - `[x]` Tree-sitter shard patched with `Query#predicates_for_pattern` and `Predicate` types (P7.1).
 - `[x]` `PredicateEvaluator` module handling all 11 codeium-parse predicate types (P7.2).
@@ -553,7 +553,7 @@ Acceptance:
 - `[x]` Golden output parity: 15 specs, golden files for all extractor languages (P7.7).
 - `[x]` 9 grammar submodules vendored, compiled, and integrated into CLI/Makefile.
 - `[x]` `docs/development.md` with language-adding guide and grammar inventory.
-- `[ ]` Crystal shard PR merged to main branch.
+- `[x]` Crystal shard PR merged to main branch.
 
 ## Parity Plan Complete
 
