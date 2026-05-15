@@ -4,22 +4,22 @@ require "file_utils"
 require "process"
 
 PROJECT_ROOT = File.expand_path("..", __DIR__)
-VENDOR_DIR = File.join(PROJECT_ROOT, "vendor/grammars")
-TEMP_DIR = File.join(PROJECT_ROOT, "tmp/grammars_new")
+VENDOR_DIR   = File.join(PROJECT_ROOT, "vendor/grammars")
+TEMP_DIR     = File.join(PROJECT_ROOT, "tmp/grammars_new")
 
 EXT = {% if flag?(:darwin) %} "dylib" {% elsif flag?(:win32) %} "dll" {% else %} "so" {% end %}
 
 # Language → package name (directory in vendor/grammars/)
 NEW_LANGUAGES = {
-  "bash"    => "tree-sitter-bash",
-  "c"       => "tree-sitter-c",
-  "cpp"     => "tree-sitter-cpp",
-  "csharp"  => "tree-sitter-c-sharp",
-  "dart"    => "tree-sitter-dart",
-  "kotlin"  => "tree-sitter-kotlin",
-  "perl"    => "tree-sitter-perl",
-  "php"     => "tree-sitter-php",
-  "proto"   => "tree-sitter-proto",
+  "bash"   => "tree-sitter-bash",
+  "c"      => "tree-sitter-c",
+  "cpp"    => "tree-sitter-cpp",
+  "csharp" => "tree-sitter-c-sharp",
+  "dart"   => "tree-sitter-dart",
+  "kotlin" => "tree-sitter-kotlin",
+  "perl"   => "tree-sitter-perl",
+  "php"    => "tree-sitter-php",
+  "proto"  => "tree-sitter-proto",
 }
 
 Dir.mkdir_p(TEMP_DIR)
@@ -40,14 +40,14 @@ def compile_grammar(source_dir : String, language : String) : Bool
     ts_parts = ts_cmd.split
     puts "    Generating parser..."
     unless Process.run(ts_parts[0], ts_parts[1..] + ["generate"],
-           output: Process::Redirect::Inherit, error: Process::Redirect::Inherit).success?
+             output: Process::Redirect::Inherit, error: Process::Redirect::Inherit).success?
       puts "    ✗ Failed to generate"
       return false
     end
 
     puts "    Building..."
     unless Process.run(ts_parts[0], ts_parts[1..] + ["build"],
-           output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+             output: Process::Redirect::Close, error: Process::Redirect::Close).success?
       puts "    ✗ Failed to build"
       return false
     end

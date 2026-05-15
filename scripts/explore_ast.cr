@@ -27,13 +27,13 @@ module ASTExplorer
     i = 0
     while i < args.size
       case args[i]
-      when "--grammar"; grammar_path = args[i + 1]?; i += 1
-      when "--language"; language = args[i + 1]?; i += 1
-      when "--file"; file_path = args[i + 1]?; i += 1
-      when "--source"; inline_source = args[i + 1]?; i += 1
-      when "--depth"; max_depth = args[i + 1]?.try(&.to_i) || 5; i += 1
+      when "--grammar"   ; grammar_path = args[i + 1]?; i += 1
+      when "--language"  ; language = args[i + 1]?; i += 1
+      when "--file"      ; file_path = args[i + 1]?; i += 1
+      when "--source"    ; inline_source = args[i + 1]?; i += 1
+      when "--depth"     ; max_depth = args[i + 1]?.try(&.to_i) || 5; i += 1
       when "--node-types"; mode = "types"
-      when "--fields"; mode = "fields"
+      when "--fields"    ; mode = "fields"
       when "--help", "-h"; print_help; return
       end
       i += 1

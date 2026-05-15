@@ -26,7 +26,7 @@ LANGUAGES.each do |name, extractor|
              when "python"     then "py"
              when "ruby"       then "rb"
              when "java"       then "java"
-             else name
+             else                   name
              end
   test_path = "vendor/codeium-parse/test_files/test.#{test_ext}"
 

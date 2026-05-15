@@ -14,7 +14,7 @@ REQUIRED_LANGUAGES = [
   "javascript",
   "typescript",
   "tsx",
-  "crystal"
+  "crystal",
 ]
 
 # Package names for each language

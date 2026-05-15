@@ -70,23 +70,23 @@ describe Chiasmus::MCPServer::Tools::CraftTool do
 
       # Create first template
       tool.invoke({
-        "name"      => JSON::Any.new("unique-name"),
-        "domain"    => JSON::Any.new("validation"),
-        "solver"    => JSON::Any.new("z3"),
-        "signature" => JSON::Any.new("First template"),
-        "skeleton"  => JSON::Any.new("(assert {{SLOT:test}})"),
-        "slots"     => JSON.parse(%([{"name":"test","description":"slot","format":"true"}])),
+        "name"           => JSON::Any.new("unique-name"),
+        "domain"         => JSON::Any.new("validation"),
+        "solver"         => JSON::Any.new("z3"),
+        "signature"      => JSON::Any.new("First template"),
+        "skeleton"       => JSON::Any.new("(assert {{SLOT:test}})"),
+        "slots"          => JSON.parse(%([{"name":"test","description":"slot","format":"true"}])),
         "normalizations" => JSON.parse(%([{"source":"x","transform":"y"}])),
       })
 
       # Try creating same name again
       result = tool.invoke({
-        "name"      => JSON::Any.new("unique-name"),
-        "domain"    => JSON::Any.new("validation"),
-        "solver"    => JSON::Any.new("z3"),
-        "signature" => JSON::Any.new("Duplicate"),
-        "skeleton"  => JSON::Any.new("(assert {{SLOT:test}})"),
-        "slots"     => JSON.parse(%([{"name":"test","description":"slot","format":"true"}])),
+        "name"           => JSON::Any.new("unique-name"),
+        "domain"         => JSON::Any.new("validation"),
+        "solver"         => JSON::Any.new("z3"),
+        "signature"      => JSON::Any.new("Duplicate"),
+        "skeleton"       => JSON::Any.new("(assert {{SLOT:test}})"),
+        "slots"          => JSON.parse(%([{"name":"test","description":"slot","format":"true"}])),
         "normalizations" => JSON.parse(%([{"source":"x","transform":"y"}])),
       })
 

@@ -12,7 +12,7 @@ def build_static_binary
   puts "Checking grammar libraries..."
 
   required_grammars = [
-    "ruby", "python", "java", "go", "rust", "scala", "javascript", "typescript", "tsx", "crystal"
+    "ruby", "python", "java", "go", "rust", "scala", "javascript", "typescript", "tsx", "crystal",
   ]
 
   missing_grammars = [] of String
@@ -52,9 +52,9 @@ def build_static_binary
   build_args = [
     "build",
     "--release",
-    "--static",  # Static linking
+    "--static", # Static linking
     "-o", "bin/chiasmus-static",
-    "src/chiasmus.cr"
+    "src/chiasmus.cr",
   ]
 
   puts "Running: crystal #{build_args.join(" ")}"

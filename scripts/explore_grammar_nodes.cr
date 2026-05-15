@@ -27,11 +27,11 @@ module GrammarExplorer
     i = 0
     while i < args.size
       case args[i]
-      when "--grammar"; grammar_path = args[i + 1]?; i += 1
-      when "--language"; language = args[i + 1]?; i += 1
-      when "--json"; mode = "json"
-      when "--queries"; mode = "queries"
-      when "--all"; mode = "all"
+      when "--grammar"   ; grammar_path = args[i + 1]?; i += 1
+      when "--language"  ; language = args[i + 1]?; i += 1
+      when "--json"      ; mode = "json"
+      when "--queries"   ; mode = "queries"
+      when "--all"       ; mode = "all"
       when "--help", "-h"; print_help; return
       end
       i += 1

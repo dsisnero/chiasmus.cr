@@ -12,16 +12,16 @@ module SmokeTest
   extend self
 
   LANGUAGES = [
-    {"python",     "class Foo: pass\n"},
-    {"go",         "package main\nfunc main() {}\n"},
-    {"java",       "class Foo {}\n"},
-    {"rust",       "fn main() {}\n"},
+    {"python", "class Foo: pass\n"},
+    {"go", "package main\nfunc main() {}\n"},
+    {"java", "class Foo {}\n"},
+    {"rust", "fn main() {}\n"},
     {"javascript", "function main() {}\n"},
     {"typescript", "function main(): void {}\n"},
-    {"ruby",       "class Foo\nend\n"},
-    {"crystal",    "class Foo\nend\n"},
-    {"scala",      "class Foo {}\n"},
-    {"tsx",        "const App = () => <div/>\n"},
+    {"ruby", "class Foo\nend\n"},
+    {"crystal", "class Foo\nend\n"},
+    {"scala", "class Foo {}\n"},
+    {"tsx", "const App = () => <div/>\n"},
   ]
 
   def run(args : Array(String))
