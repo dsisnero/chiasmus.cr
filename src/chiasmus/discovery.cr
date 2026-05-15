@@ -33,6 +33,26 @@ module Chiasmus
 
     extend self
 
+    # Lazy-initialized Pipeline backed by ExtractorRegistry.
+    # All `discover_file`/`discover_files` calls use this shared pipeline
+    # to delegate to language-specific extractors.
+    @@pipeline : Pipeline?
+
+    private def pipeline : Pipeline
+      @@pipeline ||= begin
+        extractors = [
+          BashExtractor.new, CExtractor.new, CppExtractor.new,
+          CSharpExtractor.new, CrystalExtractor.new, DartExtractor.new,
+          GoExtractor.new, JavaExtractor.new, JavaScriptExtractor.new,
+          KotlinExtractor.new, PerlExtractor.new, PhpExtractor.new,
+          ProtobufExtractor.new, PythonExtractor.new, RubyExtractor.new,
+          RustExtractor.new, ScalaExtractor.new, TypeScriptExtractor.new,
+          TSXExtractor.new,
+        ] of LanguageExtractor
+        Pipeline.new(extractors)
+      end
+    end
+
     # Delegated to GrammarLoader
     def register_grammar_directory(path : String) : Nil
       GrammarLoader.register_grammar_directory(path)
@@ -64,9 +84,8 @@ module Chiasmus
     ) : Result
       parser_mode = effective_parser_mode(language, force_parser)
 
-      items = case parser_mode
-              when "tree-sitter"
-                discover_with_tree_sitter(language, source, file_path)
+      items = if parser_mode == "tree-sitter"
+                pipeline.discover_files([{file_path, source}]).items
               else
                 discover_with_regex(language, source, file_path)
               end
@@ -80,13 +99,13 @@ module Chiasmus
       files : Array(Tuple(String, String)), # [(path, content), ...]
       force_parser : String? = nil,
     ) : Result
-      all_items = [] of Item
       parser_mode = effective_parser_mode(language, force_parser)
 
-      files.each do |path, content|
-        file_result = discover_file(language, content, path, force_parser: force_parser)
-        all_items.concat(file_result.items)
-      end
+      all_items = if parser_mode == "tree-sitter"
+                    pipeline.discover_files(files).items
+                  else
+                    files.flat_map { |path, content| discover_with_regex(language, content, path) }
+                  end
 
       Result.new(items: deduplicate(all_items), parser_mode: parser_mode)
     end
@@ -115,178 +134,6 @@ module Chiasmus
     end
 
     # -- Tree-sitter discovery --
-
-    private def discover_with_tree_sitter(language : String, source : String, file_path : String) : Array(Item)
-      lang = load_language(language)
-      return discover_with_regex(language, source, file_path) unless lang
-
-      parser = TreeSitter::Parser.new(language: lang)
-      tree = parser.parse(nil, source)
-      extract_declarations(lang, tree.root_node, source, file_path)
-    rescue ex
-      # Fall back to regex on parse errors
-      discover_with_regex(language, source, file_path)
-    end
-
-    private def extract_declarations(lang : TreeSitter::Language, root : TreeSitter::Node, source : String, file : String) : Array(Item)
-      items = [] of Item
-
-      extract_classes(lang, root, source, file, items)
-      extract_interfaces(lang, root, source, file, items)
-      extract_type_aliases(lang, root, source, file, items)
-      extract_functions(lang, root, source, file, items)
-      extract_arrow_functions(lang, root, source, file, items)
-      extract_methods(lang, root, source, file, items)
-      extract_constants(lang, root, source, file, items)
-      extract_tests(lang, root, source, file, items)
-
-      deduplicate(items)
-    end
-
-    private def extract_classes(lang, root, source, file, items)
-      query_src = <<-QUERY
-        (class_declaration name: (type_identifier) @cls) @def
-        (abstract_class_declaration name: (type_identifier) @cls) @def
-      QUERY
-      query = TreeSitter::Query.new(lang, query_src)
-      cursor = TreeSitter::QueryCursor.new(query)
-      cursor.exec(root) do |capture|
-        next unless capture.rule == "cls"
-        name = capture.node.text(source)
-        items << Item.new(id: "#{file}::class::#{name}", kind: "class", scope: "source", name: name, file: file)
-      end
-    rescue ex
-    end
-
-    private def extract_interfaces(lang, root, source, file, items)
-      query_src = <<-QUERY
-        (interface_declaration name: (type_identifier) @iface) @def
-      QUERY
-      query = TreeSitter::Query.new(lang, query_src)
-      cursor = TreeSitter::QueryCursor.new(query)
-      cursor.exec(root) do |capture|
-        next unless capture.rule == "iface"
-        name = capture.node.text(source)
-        items << Item.new(id: "#{file}::interface::#{name}", kind: "interface", scope: "source", name: name, file: file)
-      end
-    rescue ex
-    end
-
-    private def extract_type_aliases(lang, root, source, file, items)
-      query_src = <<-QUERY
-        (type_alias_declaration name: (type_identifier) @t) @def
-      QUERY
-      query = TreeSitter::Query.new(lang, query_src)
-      cursor = TreeSitter::QueryCursor.new(query)
-      cursor.exec(root) do |capture|
-        next unless capture.rule == "t"
-        name = capture.node.text(source)
-        items << Item.new(id: "#{file}::type::#{name}", kind: "type", scope: "source", name: name, file: file)
-      end
-    rescue ex
-    end
-
-    private def extract_functions(lang, root, source, file, items)
-      query_src = <<-QUERY
-        (function_declaration name: (identifier) @fn) @def
-      QUERY
-      query = TreeSitter::Query.new(lang, query_src)
-      cursor = TreeSitter::QueryCursor.new(query)
-      cursor.exec(root) do |capture|
-        next unless capture.rule == "fn"
-        name = capture.node.text(source)
-        items << Item.new(id: "#{file}::function::#{name}", kind: "function", scope: "source", name: name, file: file)
-      end
-    rescue ex
-    end
-
-    private def extract_arrow_functions(lang, root, source, file, items)
-      query_src = <<-QUERY
-        (variable_declarator name: (identifier) @fn value: (arrow_function) @def)
-      QUERY
-      query = TreeSitter::Query.new(lang, query_src)
-      cursor = TreeSitter::QueryCursor.new(query)
-      cursor.exec(root) do |capture|
-        next unless capture.rule == "fn"
-        name = capture.node.text(source)
-        items << Item.new(id: "#{file}::function::#{name}", kind: "function", scope: "source", name: name, file: file)
-      end
-    rescue ex
-    end
-
-    private def extract_methods(lang, root, source, file, items)
-      query_src = <<-QUERY
-        (method_definition name: (property_identifier) @m) @def
-      QUERY
-      query = TreeSitter::Query.new(lang, query_src)
-      cursor = TreeSitter::QueryCursor.new(query)
-      cursor.exec(root) do |capture|
-        next unless capture.rule == "m"
-        name = capture.node.text(source)
-        class_name = find_enclosing_class(capture.node, source)
-        full_name = class_name ? "#{class_name}.#{name}" : name
-        items << Item.new(id: "#{file}::method::#{full_name}", kind: "method", scope: "source", name: full_name, file: file)
-      end
-    rescue ex
-    end
-
-    private def extract_constants(lang, root, source, file, items)
-      query_src = <<-QUERY
-        (lexical_declaration (variable_declarator name: (identifier) @c) @def)
-      QUERY
-      query = TreeSitter::Query.new(lang, query_src)
-      cursor = TreeSitter::QueryCursor.new(query)
-      cursor.exec(root) do |capture|
-        next unless capture.rule == "c"
-        name = capture.node.text(source)
-        if name =~ /^[A-Z][A-Z0-9_]*$/
-          items << Item.new(id: "#{file}::const::#{name}", kind: "const", scope: "source", name: name, file: file)
-        end
-      end
-    rescue ex
-    end
-
-    private def extract_tests(lang, root, source, file, items)
-      query_src = <<-QUERY
-        (expression_statement
-          (call_expression
-            function: (identifier) @test_func
-            arguments: (arguments (string (string_fragment) @test_name))) @def)
-      QUERY
-      query = TreeSitter::Query.new(lang, query_src)
-      cursor = TreeSitter::QueryCursor.new(query)
-      cursor.exec(root)
-      while match = cursor.next_match
-        func_name = nil
-        test_name = nil
-        match.captures.each do |cap|
-          func_name = cap.node.text(source) if cap.rule == "test_func"
-          test_name = cap.node.text(source) if cap.rule == "test_name"
-        end
-        if func_name && test_name && ["describe", "it", "test"].includes?(func_name)
-          items << Item.new(id: "#{file}::test::#{test_name}", kind: "test", scope: "test", name: test_name, file: file)
-        end
-      end
-    rescue ex
-    end
-
-    private def find_enclosing_class(node : TreeSitter::Node, source : String) : String?
-      current = node.parent
-      while current
-        case current.type
-        when "class_declaration", "abstract_class_declaration"
-          name_node = current.child_by_field_name("name")
-          return name_node.try(&.text(source))
-        when "class_body"
-          current = current.parent
-          next
-        end
-        current = current.parent
-      end
-      nil
-    end
-
-    # -- Regex fallback discovery --
 
     private def discover_with_regex(language : String, source : String, file_path : String) : Array(Item)
       case language

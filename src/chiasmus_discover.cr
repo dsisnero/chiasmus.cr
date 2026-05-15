@@ -13,6 +13,28 @@ require "./chiasmus/discovery"
 module CLI
   extend self
 
+  LANGUAGE_EXTENSIONS = {
+    "python"     => [".py"],
+    "ruby"       => [".rb"],
+    "java"       => [".java"],
+    "go"         => [".go"],
+    "rust"       => [".rs"],
+    "scala"      => [".scala"],
+    "crystal"    => [".cr"],
+    "javascript" => [".js"],
+    "typescript" => [".ts"],
+    "tsx"        => [".tsx"],
+    "c"          => [".c", ".h"],
+    "cpp"        => [".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"],
+    "csharp"     => [".cs"],
+    "bash"       => [".sh"],
+    "dart"       => [".dart"],
+    "kotlin"     => [".kt", ".kts"],
+    "perl"       => [".pl", ".pm"],
+    "php"        => [".php"],
+    "proto"      => [".proto"],
+  }
+
   def run(args : Array(String))
     language, dir, force_parser = parse_args(args)
     return print_help if language.nil?
@@ -54,12 +76,7 @@ module CLI
   end
 
   private def scan_files(language : String, dir : String) : Array(Tuple(String, String))
-    extensions = case language
-                 when "typescript" then [".ts"]
-                 when "javascript" then [".js"]
-                 when "tsx"        then [".tsx"]
-                 else                   [".#{language}"]
-                 end
+    extensions = LANGUAGE_EXTENSIONS[language]? || [".#{language}"]
 
     files = [] of Tuple(String, String)
     Dir.glob(File.join(dir, "**", "*")).each do |path|
