@@ -107,6 +107,163 @@ make test      # crystal spec
 - Use `tree-sitter build` to rebuild grammars
 - Test with `crystal spec spec/chiasmus/graph/crystal_walker_spec.cr`
 
+### Adding a New Language
+
+This project supports tree-sitter-based code discovery for 19 programming languages.
+Adding support for a new language requires several steps across different layers.
+
+#### 1. Add the grammar submodule
+
+```bash
+git submodule add https://github.com/tree-sitter/tree-sitter-{LANG}.git \
+  vendor/grammars/tree-sitter-{LANG}
+```
+
+For community grammars not in the `tree-sitter` GitHub org, use the full repo path:
+```bash
+git submodule add https://github.com/{owner}/tree-sitter-{lang}.git \
+  vendor/grammars/tree-sitter-{lang}
+```
+
+#### 2. Compile the grammar
+
+The project uses `tree-sitter-cli` to compile grammars into platform-specific shared libraries.
+Compiled libraries are **not committed** to git (`.dylib`/`.so`/`.dll` are platform-specific).
+
+**Quick compile (development):**
+```bash
+crystal run scripts/compile_new_grammars.cr
+# Or for all grammars (CI/release):
+crystal run scripts/setup_grammars.cr
+```
+
+**Manual compilation (for debugging):**
+```bash
+cd vendor/grammars/tree-sitter-{lang}
+tree-sitter generate
+tree-sitter build
+# Output: libtree-sitter-{lang}.dylib (macOS) or .so (Linux)
+```
+
+Special cases handled by `compile_new_grammars.cr`:
+- **tree-sitter-cpp**: depends on `tree-sitter-c/grammar.js` as an npm module.
+  The script copies it from the vendored c grammar.
+- **tree-sitter-php**: `grammar.js` is in a `php/` subdirectory.
+  Compile from `php/` not the repo root.
+- **tree-sitter-proto**: Uses ABI 14 (pre-ABI 15, no `tree-sitter.json`).
+  The `tree-sitter` CLI generates with a warning but succeeds.
+
+#### 3. Create a language extractor
+
+Create `src/chiasmus/discovery/extractors/{lang}_extractor.cr`:
+
+```crystal
+require "../extractor"
+
+module Chiasmus
+  module Discovery
+    struct MyLangExtractor < QueryExtractor
+      def language : String
+        "mylang"
+      end
+
+      def extensions : Array(String)
+        [".ext"]
+      end
+
+      def grammar_language : String
+        "mylang"  # must match the grammar's tree-sitter language name
+      end
+
+      def queries : Hash(String, String)
+        {
+          "class"    => "(class_declaration name: (identifier) @name) @def",
+          "function" => "(function_declaration name: (identifier) @name) @def",
+        }
+      end
+
+      # Optional: add codeium-parse-style enriched queries with custom predicates
+      def predicate_queries : Hash(String, String)
+        {
+          "definition.import" => "(import_statement source: (string) @name)",
+        }
+      end
+
+      # Optional: filter/transform matched names
+      def post_filter(kind : String, name : String, node : TreeSitter::Node?, source : String) : String?
+        name
+      end
+    end
+  end
+end
+```
+
+Key points:
+- `grammar_language` must match the name used by `tree-sitter` CLI (check `tree-sitter.json` or `grammar.js`).
+- Use `queries` for simple single-capture patterns with `@name` and `@def`.
+- Use `predicate_queries` for patterns with multiple captures (`@doc`, `@codeium.parameters`, `@parent`, etc.) or custom predicates.
+- The extractor is auto-discovered via `require "./discovery/extractors/*"` in `discovery.cr`.
+
+#### 4. Update the LanguageRegistry (optional)
+
+If you need the language registered in the grammar CLI or graph subsystem, add an entry to
+`src/chiasmus/graph/language_registry.cr`:
+
+```crystal
+registry["mylang"] = LanguageInfo.new(
+  name: "mylang",
+  package: "tree-sitter-mylang",
+  extensions: [".ext"]
+)
+```
+
+#### 5. Add golden reference data
+
+Create a golden output spec entry in `spec/chiasmus/discovery/codeium_parse_golden_spec.cr`
+(or generate via the golden shard):
+
+```crystal
+describe "Codeium-parse golden: mylang" do
+  it "matches golden output" do
+    result = extract_for("mylang", "ext")
+    pending "mylang grammar not available" unless result
+    tree = result.not_nil![0]
+    source = result.not_nil![1]
+    ext = result.not_nil![2]
+    output = items_output(Chiasmus::Discovery::MyLangExtractor.new, tree, source, ext)
+    Golden.require_equal("test_mylang", output, test_data_dir: GOLDEN_DIR)
+  end
+end
+```
+
+Generate the initial golden file:
+```bash
+GOLDEN_UPDATE=1 crystal spec spec/chiasmus/discovery/codeium_parse_golden_spec.cr
+```
+
+#### Current grammar inventory
+
+| Language | Grammar submodule | Status |
+|----------|------------------|--------|
+| crystal | `vendor/grammars/tree-sitter-crystal` | ✓ compiled |
+| go | `vendor/grammars/tree-sitter-go` | ✓ compiled |
+| java | `vendor/grammars/tree-sitter-java` | ✓ compiled |
+| javascript | `vendor/grammars/tree-sitter-javascript` | ✓ compiled |
+| python | `vendor/grammars/tree-sitter-python` | ✓ compiled |
+| ruby | `vendor/grammars/tree-sitter-ruby` | ✓ compiled |
+| rust | `vendor/grammars/tree-sitter-rust` | ✓ compiled |
+| scala | `vendor/grammars/tree-sitter-scala` | ✓ compiled |
+| typescript/tsx | `vendor/grammars/tree-sitter-typescript` | ✓ compiled |
+| bash | `vendor/grammars/tree-sitter-bash` | ✓ compiled |
+| c | `vendor/grammars/tree-sitter-c` | ✓ compiled |
+| cpp | `vendor/grammars/tree-sitter-cpp` | ✓ compiled |
+| csharp | `vendor/grammars/tree-sitter-c-sharp` | ⚠ dylib pending |
+| dart | `vendor/grammars/tree-sitter-dart` | ✓ compiled |
+| kotlin | `vendor/grammars/tree-sitter-kotlin` | ✓ compiled |
+| perl | `vendor/grammars/tree-sitter-perl` | ✓ compiled |
+| php | `vendor/grammars/tree-sitter-php` | ✓ compiled |
+| protobuf | `vendor/grammars/tree-sitter-proto` | ✓ compiled |
+
 ## Contributing
 
 See the [Contributing section](../README.md#-contributing) in README.md for guidelines.

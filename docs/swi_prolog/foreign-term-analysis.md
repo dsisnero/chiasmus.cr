@@ -108,6 +108,6 @@ That page also contains code to perform UTF-8 string handling.
 :::::::::::::::::
 
 ::: {#tail-end}
- 
+
 :::
 ::::::::::::::::::::::::::::::
