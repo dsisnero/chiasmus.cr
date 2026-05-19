@@ -76,7 +76,7 @@ module Chiasmus
         lib_path = find_grammar_library(language)
         return nil unless lib_path
 
-        handle = LibC.dlopen(lib_path, LibC::RTLD_LAZY | LibC::RTLD_LOCAL)
+        handle = open_shared_library(lib_path)
         return nil if handle.null?
 
         # Try multiple symbol naming conventions
@@ -90,7 +90,7 @@ module Chiasmus
 
         ptr = nil
         symbol_names.each do |sym|
-          ptr = LibC.dlsym(handle, sym)
+          ptr = lookup_shared_symbol(handle, sym)
           break if ptr
         end
 
@@ -102,9 +102,27 @@ module Chiasmus
         nil
       end
 
+      private def open_shared_library(path : String) : Void*
+        {% if flag?(:win32) %}
+          LibC.LoadLibraryA(path)
+        {% else %}
+          LibC.dlopen(path, LibC::RTLD_LAZY | LibC::RTLD_LOCAL)
+        {% end %}
+      end
+
+      private def lookup_shared_symbol(handle : Void*, name : String) : Void*
+        {% if flag?(:win32) %}
+          LibC.GetProcAddress(handle, name)
+        {% else %}
+          LibC.dlsym(handle, name)
+        {% end %}
+      end
+
       private def shared_library_extension : String
         {% if flag?(:darwin) %}
           "dylib"
+        {% elsif flag?(:win32) %}
+          "dll"
         {% else %}
           "so"
         {% end %}
