@@ -12,7 +12,6 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-latest,   arch: x86_64,  ext: "" }
-          # - { os: macos-13,        arch: x86_64,  ext: "" }  # temporarily disabled: runner availability
           - { os: macos-latest,    arch: aarch64, ext: "" }
           - { os: windows-latest,  arch: x86_64,  ext: ".exe" }
 
@@ -41,6 +40,20 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew install gmp openssl pkg-config tree-sitter xz
+
+    - name: Install Windows dependencies
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        # Build tree-sitter C library from source using cmake (MSVC)
+        git clone --depth 1 --branch v0.26.8 https://github.com/tree-sitter/tree-sitter.git /tmp/tree-sitter-lib
+        cd /tmp/tree-sitter-lib
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+        cmake --install build --prefix /c/tree-sitter
+        # Add to LIB/INCLUDE for Crystal compiler linking
+        echo "LIB=/c/tree-sitter/lib" >> $GITHUB_ENV
+        echo "INCLUDE=/c/tree-sitter/include" >> $GITHUB_ENV
 
     - name: Install tree-sitter CLI
       uses: baptiste0928/cargo-install@v3
