@@ -104,7 +104,7 @@ module Chiasmus
 
       private def open_shared_library(path : String) : Void*
         {% if flag?(:win32) %}
-          LibC.LoadLibraryA(path)
+          LibC.LoadLibraryExW(path.to_utf16, Pointer(Void).null, 0)
         {% else %}
           LibC.dlopen(path, LibC::RTLD_LAZY | LibC::RTLD_LOCAL)
         {% end %}
@@ -112,7 +112,7 @@ module Chiasmus
 
       private def lookup_shared_symbol(handle : Void*, name : String) : Void*
         {% if flag?(:win32) %}
-          LibC.GetProcAddress(handle, name)
+          LibC.GetProcAddress(handle, name).as(Void*)
         {% else %}
           LibC.dlsym(handle, name)
         {% end %}
