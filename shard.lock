@@ -74,7 +74,7 @@ shards:
 
   tree_sitter:
     git: https://github.com/dsisnero/crystal-tree-sitter.git
-    version: 0.1.0+git.commit.54726389e52f28080a31a7e82b4d772b1c90453f
+    version: 0.1.0+git.commit.53a7a8507f3244d7ab9ee5de014d5756162a8fbe
 
   z3:
     git: https://github.com/taw/crystal-z3.git
