@@ -1,0 +1,30 @@
+name: Windows Test Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Crystal
+      uses: crystal-lang/install-crystal@v1
+      with:
+        crystal: latest
+
+    - name: Install tree-sitter CLI
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: tree-sitter-cli
+
+    - name: Install dependencies
+      run: shards install
+
+    - name: Build binary (just build, no grammars)
+      shell: bash
+      run: |
+        crystal build --release -o dist/chiasmus.exe src/chiasmus.cr
