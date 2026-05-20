@@ -2,6 +2,8 @@ require "./parser"
 require "./walkers"
 require "./adapter_registry"
 require "./clojure_source_extractor"
+require "./type_env"
+require "./resolve_calls"
 
 module Chiasmus
   module Graph
@@ -16,6 +18,7 @@ module Chiasmus
         imports = [] of ImportsFact
         exports = [] of ExportsFact
         contains = [] of ContainsFact
+        type_info = [] of FileTypeInfo
 
         call_set = Set(String).new
 
@@ -38,6 +41,11 @@ module Chiasmus
 
           tree = parser.parse_source(file.content, file.path)
           next unless tree
+
+          # Collect per-file type info for TS/JS QN resolution
+          if lang.in?("typescript", "javascript", "tsx")
+            type_info << TypeEnv.collect_type_info(tree.root_node, file.content, file.path)
+          end
 
           adapter = AdapterRegistry.get_adapter(lang)
           if adapter
@@ -70,7 +78,8 @@ module Chiasmus
           calls: calls,
           imports: imports,
           exports: exports,
-          contains: contains
+          contains: contains,
+          type_info: type_info.empty? ? nil : type_info
         )
       end
 

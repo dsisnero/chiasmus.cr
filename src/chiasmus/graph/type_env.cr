@@ -55,8 +55,8 @@ module Chiasmus
           return extract_simple_type_name(inner, source) if inner
         end
 
-        (0...declarator_node.child_count).each do |i|
-          child = declarator_node.child(i)
+        (0...declarator_node.named_child_count).each do |i|
+          child = declarator_node.named_child(i)
           next unless child
           if child.type == "type_annotation"
             inner = child.named_child(0)
@@ -98,8 +98,8 @@ module Chiasmus
         body_node = class_node.child_by_field_name("body")
         return fields unless body_node
 
-        (0...body_node.child_count).each do |i|
-          child = body_node.child(i)
+        (0...body_node.named_child_count).each do |i|
+          child = body_node.named_child(i)
           next unless child
 
           case child.type
@@ -132,7 +132,7 @@ module Chiasmus
         # Fallback: scan children for type_annotation
         unless field_type
           (0...child.child_count).each do |j|
-            c = child.child(j)
+            c = child.named_child(j)
             if c && c.type == "type_annotation"
               inner = c.named_child(0)
               if inner
@@ -163,12 +163,12 @@ module Chiasmus
         if method_name == "constructor"
           params = child.child_by_field_name("parameters")
           if params
-            (0...params.child_count).each do |k|
-              param = params.child(k)
+            (0...params.named_child_count).each do |k|
+              param = params.named_child(k)
               if param && param.type == "required_parameter"
                 has_modifier = false
-                (0...param.child_count).each do |m|
-                  mc = param.child(m)
+                (0...param.named_child_count).each do |m|
+                  mc = param.named_child(m)
                   if mc && (mc.type == "accessibility_modifier" || mc.text(source) == "readonly")
                     has_modifier = true
                     break
@@ -190,7 +190,7 @@ module Chiasmus
         # Getter return type → field
         is_getter = false
         (0...child.child_count).each do |g|
-          gc = child.child(g)
+          gc = child.named_child(g)
           if gc && gc.type == "get"
             is_getter = true
             break
@@ -214,7 +214,7 @@ module Chiasmus
         return if field_name.empty?
 
         (0...child.child_count).each do |j|
-          c = child.child(j)
+          c = child.named_child(j)
           if c && c.type == "type_annotation"
             inner = c.named_child(0)
             if inner
@@ -233,8 +233,8 @@ module Chiasmus
         body_node = class_node.child_by_field_name("body")
         return methods unless body_node
 
-        (0...body_node.child_count).each do |i|
-          child = body_node.child(i)
+        (0...body_node.named_child_count).each do |i|
+          child = body_node.named_child(i)
           next unless child
 
           case child.type
@@ -267,17 +267,36 @@ module Chiasmus
         class_name = class_name_node.text(source)
         return entries if class_name.empty?
 
-        # class Child extends Parent
-        if parent_node = class_node.child_by_field_name("parent") || class_node.child_by_field_name("extends")
-          parent_name = extract_simple_type_name(parent_node, source) || parent_node.text(source)
+        # class Child extends Parent — tree-sitter typescript uses class_heritage > extends_clause
+        # Try both field-name access and child-type scanning
+        if parent_node = class_node.child_by_field_name("parent")
+          parent_name = parent_node.text(source).strip
           entries << ClassExtendsEntry.new(class_name: class_name, parent: parent_name) unless parent_name.empty?
         end
 
-        # extends_type_clause for interfaces
-        (0...class_node.child_count).each do |i|
-          child = class_node.child(i)
+        # extends_type_clause for interfaces, and class_heritage scanning
+        (0...class_node.named_child_count).each do |i|
+          child = class_node.named_child(i)
           next unless child
-          if child.type == "extends_type_clause"
+          case child.type
+          when "class_heritage"
+            # class_heritage contains extends_clause children
+            (0...child.named_child_count).each do |j|
+              ec = child.named_child(j)
+              next unless ec
+              if ec.type == "extends_clause"
+                # Scan extends_clause children for type identifiers
+                (0...ec.named_child_count).each do |k|
+                  tc = ec.named_child(k)
+                  next unless tc
+                  if tc.type == "identifier" || tc.type == "type_identifier" || tc.type == "nested_type_identifier"
+                    parent_name = tc.text(source).strip
+                    entries << ClassExtendsEntry.new(class_name: class_name, parent: parent_name) unless parent_name.empty?
+                  end
+                end
+              end
+            end
+          when "extends_type_clause"
             parent_name = child.text(source).strip
             entries << ClassExtendsEntry.new(class_name: class_name, parent: parent_name) unless parent_name.empty?
           end
@@ -293,63 +312,7 @@ module Chiasmus
         class_methods_entries = [] of ClassMethodEntry
         class_extends_entries = [] of ClassExtendsEntry
 
-        cursor = TreeSitter::TreeCursor.new(root_node)
-        stack = [cursor]
-        visited = Set(UInt64).new
-
-        while !stack.empty?
-          c = stack.pop
-          next if c.node.null?
-          node_id = c.node.object_id
-          next if visited.includes?(node_id)
-          visited << node_id
-
-          if CLASS_NODE_TYPES.includes?(c.node.type)
-            name_node = c.node.child_by_field_name("name")
-            if name_node
-              class_name = name_node.text(source)
-              unless class_name.empty?
-                fields = extract_class_fields(c.node, source)
-                methods = extract_class_method_names(c.node, source)
-                extends = extract_class_extends(c.node, source)
-
-                class_fields_entries << ClassFieldEntry.new(class_name: class_name, fields: fields) unless fields.empty?
-                class_methods_entries << ClassMethodEntry.new(class_name: class_name, methods: methods) unless methods.empty?
-                class_extends_entries.concat(extends)
-              end
-            end
-          end
-
-          c.goto_first_child
-          stack << TreeSitter::TreeCursor.new(c.node) rescue nil
-
-          if !c.node.null? && c.node != root_node
-            tmp = TreeSitter::TreeCursor.new(c.node)
-            tmp.goto_next_sibling
-            stack << tmp rescue nil
-          end
-
-          # Breadth-walk via children
-          (0...c.node.child_count).each do |i|
-            child = c.node.child(i)
-            next if child.null?
-            if CLASS_NODE_TYPES.includes?(child.type)
-              name_node = child.child_by_field_name("name")
-              if name_node
-                class_name = name_node.text(source)
-                unless class_name.empty?
-                  fields = extract_class_fields(child, source)
-                  methods = extract_class_method_names(child, source)
-                  extends = extract_class_extends(child, source)
-
-                  class_fields_entries << ClassFieldEntry.new(class_name: class_name, fields: fields) unless fields.empty?
-                  class_methods_entries << ClassMethodEntry.new(class_name: class_name, methods: methods) unless methods.empty?
-                  class_extends_entries.concat(extends)
-                end
-              end
-            end
-          end
-        end
+        collect_node_info(root_node, source, class_fields_entries, class_methods_entries, class_extends_entries)
 
         FileTypeInfo.new(
           file: file,
@@ -357,6 +320,37 @@ module Chiasmus
           class_methods: class_methods_entries.empty? ? nil : class_methods_entries,
           class_extends: class_extends_entries.empty? ? nil : class_extends_entries,
         )
+      end
+
+      private def collect_node_info(
+        node : TreeSitter::Node,
+        source : String,
+        class_fields_entries : Array(ClassFieldEntry),
+        class_methods_entries : Array(ClassMethodEntry),
+        class_extends_entries : Array(ClassExtendsEntry),
+      ) : Nil
+        if CLASS_NODE_TYPES.includes?(node.type)
+          name_node = node.child_by_field_name("name")
+          if name_node
+            class_name = name_node.text(source)
+            unless class_name.empty?
+              fields = extract_class_fields(node, source)
+              methods = extract_class_method_names(node, source)
+              extends = extract_class_extends(node, source)
+
+              class_fields_entries << ClassFieldEntry.new(class_name: class_name, fields: fields) unless fields.empty?
+              class_methods_entries << ClassMethodEntry.new(class_name: class_name, methods: methods) unless methods.empty?
+              class_extends_entries.concat(extends)
+            end
+          end
+        end
+
+        return if node.named_child_count == 0
+        (0...node.named_child_count).each do |i|
+          child = node.named_child(i)
+          next unless child
+          collect_node_info(child, source, class_fields_entries, class_methods_entries, class_extends_entries)
+        end
       end
 
       # --- Scope helpers ---
