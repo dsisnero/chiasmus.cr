@@ -78,7 +78,7 @@ describe "MCP Transport-Level Harness" do
     end
 
     it "has valid analysis enum in schema" do
-      expected = ["summary", "callers", "callees", "reachability", "dead-code", "cycles", "path", "impact", "facts"]
+      expected = ["summary", "callers", "callees", "reachability", "dead-code", "cycles", "path", "impact", "facts", "layer-violation", "hubs", "bridges", "surprises", "community", "diff", "entry-points"]
       input = Chiasmus::MCPServer::Tools::GraphTool.input_schema
       enum_values = input.properties["analysis"]["enum"].as_a.map(&.as_s)
       enum_values.should eq(expected)
