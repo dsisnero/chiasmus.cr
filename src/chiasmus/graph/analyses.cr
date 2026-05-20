@@ -1,6 +1,11 @@
 require "./extractor"
 require "./facts"
 require "./types"
+require "./layer_violation"
+require "./insights"
+require "./community"
+require "./diff"
+require "./entry_points"
 
 module Chiasmus
   module Graph
@@ -80,6 +85,13 @@ module Chiasmus
       Path
       Impact
       Facts
+      LayerViolation
+      Hubs
+      Bridges
+      Surprises
+      Community
+      Diff
+      EntryPoints
     end
 
     record AnalysisRequest,
@@ -162,6 +174,25 @@ module Chiasmus
           handle_path(graph, request.from, request.to)
         when AnalysisType::Impact
           handle_target_analysis(graph, request.target, :impact)
+        when AnalysisType::LayerViolation
+          violations = LayerViolation.find(graph)
+          violations.map { |v| {"caller" => v.caller, "callee" => v.callee, "callerLayer" => v.caller_layer, "calleeLayer" => v.callee_layer} }.to_json
+        when AnalysisType::Hubs
+          hubs = Insights.detect_hubs(graph)
+          hubs.map { |h| {"name" => h.name, "degree" => h.degree.to_s} }.to_json
+        when AnalysisType::Bridges
+          bridges = Insights.detect_bridges(graph)
+          bridges.map { |b| {"name" => b.name, "score" => b.score.to_s} }.to_json
+        when AnalysisType::Surprises
+          surprises = Insights.detect_surprises(graph)
+          surprises.map { |s| {"source" => s.source, "target" => s.target, "score" => s.score.to_s, "reasons" => s.reasons} }.to_json
+        when AnalysisType::Community
+          comms = CommunityDetection.detect(graph)
+          comms.map { |c| {"id" => c.id.to_s, "members" => c.members, "cohesion" => c.cohesion.to_s} }.to_json
+        when AnalysisType::Diff
+          {"error" => "diff requires a snapshot name (not yet wired)"}.to_json
+        when AnalysisType::EntryPoints
+          EntryPoints.detect(graph)
         else
           missing_parameter_result
         end
