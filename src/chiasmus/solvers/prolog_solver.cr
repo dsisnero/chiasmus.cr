@@ -359,5 +359,62 @@ module Chiasmus
         clauses << clause unless clause.empty?
       end
     end
+
+    # --- Shared Prolog utilities (ported from upstream prolog-solver.ts) ---
+
+    class CapReachedError < Exception
+    end
+
+    class LimitExceededError < Exception
+    end
+
+    module PrologUtils
+      extend self
+
+      def normalize_query(q : String) : String
+        s = q.strip
+        s = s[2..].strip if s.starts_with?("?-")
+        s = s.rchop(".").strip if s.ends_with?(".")
+        s
+      end
+
+      def format_bindings(bindings : Hash(String, String)) : String
+        return "true" if bindings.empty?
+        bindings.map { |k, v| "#{k} = #{v}" }.join(", ")
+      end
+
+      # Render a JSON-like value to Prolog term syntax.
+      def term_to_prolog_string(value : JSON::Any) : String
+        case value.raw
+        when Nil   then "_"
+        when Bool  then value.raw.to_s
+        when Int64 then value.as_i.to_s
+        when Float64
+          v = value.as_f
+          v == v.to_i ? v.to_i.to_s : v.to_s
+        when String
+          s = value.as_s
+          if s =~ /^[a-z][a-zA-Z0-9_]*$/
+            s
+          else
+            "'#{s.gsub("\\", "\\\\").gsub("'", "\\'")}'"
+          end
+        when Array
+          arr = value.as_a
+          "[" + arr.map { |e| term_to_prolog_string(e) }.join(", ") + "]"
+        when Hash
+          h = value.as_h
+          if h.has_key?("functor")
+            fn = h["functor"].as_s
+            args = h["args"]?.try(&.as_a) || [] of JSON::Any
+            "#{fn}(#{args.map { |a| term_to_prolog_string(a) }.join(", ")})"
+          else
+            value.to_json
+          end
+        else
+          value.to_json
+        end
+      end
+    end
   end
 end
