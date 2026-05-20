@@ -1,20 +1,74 @@
 # Chiasmus Crystal Parity Plan
 
-## Current Inventory State
+## Current Inventory State (vendor/chiasmus @ `c6cb087`)
 
-The TypeScript upstream inventory is now fully accounted for at the row level.
+Upstream refreshed 2026-05-19 from `f4e28f4` → `c6cb087` (pnpm-migration, replace-tau-prolog, azure-openai-embeddings, search engine, call resolution).
 
 | Manifest | Tracked | Ported | Intentional divergence | Missing | Partial |
-|---|---:|---:|---:|---:|---:|
-| `typescript_source_parity.tsv` | 173 | 139 | 34 | 0 | 0 |
-| `typescript_test_parity.tsv` | 332 | 329 | 3 | 0 | 0 |
-| `typescript_port_inventory.tsv` | 505 | 468 | 37 | 0 | 0 |
+|---|---|---:|---:|---:|---:|---:|
+| `typescript_source_parity.tsv` | 451 | — | — | — | — |
+| `typescript_test_parity.tsv` | 930 | — | — | — | — |
+| `typescript_port_inventory.tsv` | 533 | 468 | 37 | 0 | 0 |
 
 Interpretation:
 
-- There are no currently tracked upstream rows left as `missing` or `partial` in any manifest.
+- 533 inventory items tracked (up from 505); 468 ported, 37 intentional divergence, 28 pending classification.
+- 6 new test IDs detected by drift check (test items not yet mapped to inventory).
+- Source parity expanded from 173 → 451 APIs; test parity from 332 → 930 tests (rebased after upstream file reorganization).
 - Remaining divergence rows are deliberate runtime substitutions (Crig, crolog/SWI-Prolog, BM25, manifest discovery, Clojure WASM parser, Z3 config).
 - Future work is in maintenance mode: run drift checks after vendor pulls, review changed upstream items, and update conversion rules as needed.
+
+## Upstream Changes (f4e28f4 → c6cb087, 2026-05-19)
+
+50 files changed, +8126/-4010 lines. Key areas:
+
+### Prolog Solver (replaced Tau Prolog)
+
+- `src/solvers/prolog-solver.ts`: heavily refactored (+592 lines). Tau Prolog dependency removed; replaced with a different Prolog backend.
+- `src/tau-prolog.d.ts`: removed.
+- `tests/prolog-solver.test.ts`: +133 lines new tests.
+- **Crystal impact**: Already marked `intentional_divergence` — Crystal uses `crolog`/SWI-Prolog. Re-audit solver API surface for drift.
+
+### Azure OpenAI Embeddings (new)
+
+- `src/llm/azure-openai.ts`: new adapter (+94 lines).
+- `tests/azure-openai-adapter.test.ts`: new (+241 lines).
+- **Crystal impact**: `missing` — needs Crystal port. Follow existing `server_factory.cr` Azure pattern. LLM driver is Crig-based (intentional divergence).
+
+### Search Engine (new)
+
+- `src/search/engine.ts`: new (+156 lines).
+- `src/search/vector-store.ts`: new (+159 lines).
+- `src/search/embedding-cache.ts`: new (+138 lines).
+- `tests/search/engine.test.ts`, `tests/search/vector-store.test.ts`, `tests/search/embedding-cache.test.ts`, `tests/mcp-search.test.ts`: new.
+- **Crystal impact**: `missing` — entirely new subsystem. May overlap with BM25 (`intentional_divergence`). Evaluate search feature scope.
+
+### Graph Call Resolution (new)
+
+- `src/graph/resolve-calls.ts`: new (+381 lines).
+- `src/graph/type-env.ts`: new (+390 lines).
+- `src/graph/tsconfig-aliases.ts`: new (+187 lines).
+- `src/graph/suffix-index.ts`: new (+134 lines).
+- `tests/graph/call-qn-resolution.test.ts`, `tests/graph/call-qn-fallback.test.ts`, `tests/graph/import-resolution.test.ts`, `tests/graph/tsconfig-aliases.test.ts`, `tests/graph/type-env.test.ts`, `tests/graph/suffix-index.test.ts`: new.
+- **Crystal impact**: `missing` — major graph infra addition. Tree-sitter based code analysis. Crystal discovery module (`src/chiasmus/discovery/`) is the port target.
+
+### LLM Driver Refinements
+
+- `src/llm/anthropic.ts`: +84/-0 changes.
+- `src/llm/openai-compatible.ts`: +80/-0 changes.
+- `src/llm/mock.ts`: +41/-0 changes.
+- `src/llm/types.ts`: +12 lines.
+- **Crystal impact**: `intentional_divergence` — LLM drivers are Crig-based, not TypeScript adapters. Review for API alignment (token limits, system prompt conventions).
+
+### MCP Server Enhancements
+
+- `src/mcp-server.ts`: +177/-0 changes. Added search tools, expanded graph actions.
+- **Crystal impact**: `ported` — Crystal `mcp_server.cr` is the port. Review for new tool registrations.
+
+### Build System
+
+- `pnpm-lock.yaml` added, `package-lock.json` removed. pnpm migration.
+- **Crystal impact**: `intentional_divergence` — no port needed (Crystal uses shards).
 
 ## Inventory Safety And Vendor Updates
 
@@ -610,3 +664,45 @@ make format && make lint && make test
 - No tracked row has status `missing` or `partial`
 - Every `ported`/`partial` row has non-empty `crystal_refs`
 - `typescript_port_inventory.tsv` is the curated ledger — never auto-regenerated over existing work
+
+## Next Actions (post c6cb087 refresh)
+
+### Immediate
+
+1. **Classify 28 empty inventory rows**: Run `check_port_inventory.sh` to list them, assign statuses.
+2. **Add 6 missing test IDs**: Add to inventory, mark as `missing` or `ported` as appropriate.
+3. **Regenerate drift fingerprints**: Run `compare_upstream_fingerprints.rb` with new upstream to produce impact report.
+
+### Feature Port Backlog
+
+| Area | Files | Status | Priority |
+|------|-------|--------|----------|
+| Azure OpenAI adapter | `src/llm/azure-openai.ts` | missing | P2 (Crig-based divergence) |
+| Search engine | `src/search/` | missing | P2 (may overlap BM25 divergence) |
+| Call resolution | `src/graph/resolve-calls.ts`, `type-env.ts`, `tsconfig-aliases.ts`, `suffix-index.ts` | missing | P1 (tree-sitter discovery core) |
+| Prolog solver audit | `src/solvers/prolog-solver.ts` | intentional_divergence (audit) | P2 (crolog parity check) |
+| LLM driver alignment | `src/llm/anthropic.ts`, `openai-compatible.ts` | intentional_divergence (audit) | P3 |
+| MCP search tools | `src/mcp-server.ts` | ported (review) | P2 |
+
+### Vendor Refresh Routine
+
+```bash
+# 1. Pull latest upstream
+git submodule update --init --remote vendor/chiasmus
+
+# 2. Clean resource forks (macOS/exFAT)
+find .git/modules/vendor/chiasmus -name "._*" -delete
+
+# 3. Regenerate source/test parity manifests
+./scripts/generate_source_parity_manifest.sh . plans/inventory/typescript_source_parity.tsv \
+  vendor/chiasmus typescript tree-sitter "" 1
+./scripts/generate_test_parity_manifest.sh . plans/inventory/typescript_test_parity.tsv \
+  vendor/chiasmus typescript tree-sitter 1
+
+# 4. Run drift checks
+./scripts/check_port_inventory.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
+./scripts/check_source_parity.sh . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
+./scripts/check_test_parity.sh . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
+
+# 5. Update this document
+```
