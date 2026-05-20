@@ -120,6 +120,85 @@ module Chiasmus
       i
     end
 
+    # State-machine based Prolog comment/string stripper.
+    # Handles % comments, /* */ comments, and proper quoting within single/double quotes.
+    # Ported from vendor/chiasmus/src/formalize/validate.ts stripPrologNoise.
+    private def self.strip_prolog_noise(src : String) : String
+      out = String.build do |builder|
+        i = 0
+        n = src.size
+        while i < n
+          ch = src[i]
+
+          # Line comment — only outside quotes
+          if ch == '%'
+            while i < n && src[i] != '\n'
+              i += 1
+            end
+            next
+          end
+
+          # Block comment — only outside quotes
+          if ch == '/' && src[i + 1]? == '*'
+            i += 2
+            while i < n && !(src[i]? == '*' && src[i + 1]? == '/')
+              i += 1
+            end
+            i += 2
+            next
+          end
+
+          # Single-quoted atom
+          if ch == '\''
+            i += 1
+            while i < n
+              if src[i]? == '\\' && i + 1 < n
+                i += 2
+                next
+              end
+              if src[i]? == '\'' && src[i + 1]? == '\''
+                i += 2
+                next
+              end
+              if src[i]? == '\''
+                i += 1
+                break
+              end
+              i += 1
+            end
+            builder << "''"
+            next
+          end
+
+          # Double-quoted string
+          if ch == '"'
+            i += 1
+            while i < n
+              if src[i]? == '\\' && i + 1 < n
+                i += 2
+                next
+              end
+              if src[i]? == '"' && src[i + 1]? == '"'
+                i += 2
+                next
+              end
+              if src[i]? == '"'
+                i += 1
+                break
+              end
+              i += 1
+            end
+            builder << "\"\""
+            next
+          end
+
+          builder << ch
+          i += 1
+        end
+      end
+      out
+    end
+
     private def self.lint_prolog(spec : String, fixes : Array(String), errors : Array(String)) : String
       cleaned = spec
 
@@ -127,12 +206,7 @@ module Chiasmus
       # Don't report this as a fix since buildSolverInput handles it
 
       # Strip comments and strings for structural analysis
-      stripped = cleaned
-        .gsub(/%.*$/, "")
-        .gsub(/\/\*.*?\*\//m, "")
-        .gsub(/"[^"]*"/, "\"\"")
-        .gsub(/'[^']*'/, "''")
-        .strip
+      stripped = strip_prolog_noise(cleaned).strip
 
       return cleaned if stripped.empty?
 
