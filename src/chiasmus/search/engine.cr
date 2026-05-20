@@ -1,11 +1,10 @@
 # Ported from vendor/chiasmus/src/search/engine.ts
 #
 # Search engine: build an embedding corpus from a CodeGraph + source,
-# run a semantic query via a pluggable embedding adapter, return top-K
-# hits. Linear-scan vector store; fine for repos under ~10k callable defines.
+# run a semantic query via a pluggable embedding adapter (Crig::EmbeddingModelDyn),
+# return top-K hits.
 
 require "../graph/types"
-require "./vector_store"
 require "./embedding_cache"
 
 module Chiasmus
@@ -31,14 +30,6 @@ module Chiasmus
       leading_doc : String?,
       score : Float64
 
-    # Minimal embedding adapter interface — callers supply a proc.
-    # dimension(): returns vector dimension
-    # embed(texts): returns Array(Array(Float64)) — one vector per text
-    module EmbeddingAdapter
-      abstract def dimension : Int32
-      abstract def embed(texts : Array(String)) : Array(Array(Float64))
-    end
-
     module SearchEngine
       extend self
 
@@ -56,9 +47,6 @@ module Chiasmus
 
           snippet = snippet_around(content, d.line)
           parts = [d.name] of String
-          if signature = d.responds_to?(:signature)
-            parts << d.signature
-          end
           if doc = file_doc[d.file]?
             parts << doc
           end
@@ -79,64 +67,69 @@ module Chiasmus
         out
       end
 
+      # Run semantic search using Crig's embedding model for vector generation.
+      # Uses linear-scan cosine similarity internally (fine for repos under ~10k
+      # callable defines). Prefer Crig::InMemoryVectorStore for larger corpora.
       def run_search(
         query : String,
         corpus : Array(SearchCorpusEntry),
-        adapter : EmbeddingAdapter,
+        model : Crig::EmbeddingModelDyn,
         top_k : Int32,
         cache : EmbeddingCache? = nil,
       ) : Array(SearchHit)
         return [] of SearchHit if corpus.empty?
 
-        dim = adapter.dimension
-        store = VectorStore.new(dim)
+        dim = model.ndims
 
+        # Collect texts to embed, using cache for hits
         to_embed = [] of String
         to_embed_idx = [] of Int32
-        cached_vecs = Hash(Int32, Array(Float64)).new
+        vectors = Array(Array(Float64)?).new(corpus.size, nil)
 
         corpus.each_with_index do |entry, i|
           hit = cache.try(&.get(entry.text))
           if hit && hit.size == dim
-            cached_vecs[i] = hit
+            vectors[i] = hit
           else
             to_embed << entry.text
             to_embed_idx << i
           end
         end
 
+        # Embed missing texts via Crig model
         unless to_embed.empty?
-          fresh = adapter.embed(to_embed)
-          fresh.each_with_index do |vec, j|
+          crig_embeddings = model.embed_texts(to_embed)
+          crig_embeddings.each_with_index do |emb, j|
             idx = to_embed_idx[j]
-            cached_vecs[idx] = vec
+            vec = emb.vec.dup
+            vectors[idx] = vec
             cache.try(&.put(to_embed[j], vec))
           end
         end
 
-        corpus.each_with_index do |entry, i|
-          vec = cached_vecs[i]?
+        # Embed query
+        query_vec = model.embed_text(query).vec
+
+        # Cosine similarity search
+        scored = [] of {Float64, Int32}
+        vectors.each_with_index do |vec, i|
           next unless vec
-          store.add(VectorRecord.new(id: entry.id, vector: vec, metadata: nil))
+          score = cosine_similarity(query_vec, vec)
+          scored << {score, i}
         end
 
-        query_vec = adapter.embed([query])[0]
-        hits = store.search(query_vec, top_k)
-
-        by_id = Hash(String, SearchCorpusEntry).new
-        corpus.each { |e| by_id[e.id] = e }
-
-        hits.compact_map do |h|
-          e = by_id[h.id]?
+        scored.sort_by! { |s, _| -s }
+        scored.first(top_k).compact_map do |score, i|
+          e = corpus[i]?
           next unless e
           SearchHit.new(
-            id: h.id,
+            id: e.id,
             name: e.name,
             file: e.file,
             line: e.line,
             signature: e.signature,
             leading_doc: e.leading_doc,
-            score: h.score,
+            score: score,
           )
         end
       end
@@ -153,9 +146,21 @@ module Chiasmus
       end
 
       private def extract_file_docs(graph : Graph::CodeGraph) : Hash(String, String)
-        # CodeGraph files carry fileDoc — extract into a lookup map
-        # If graph.files isn't populated, return empty
         Hash(String, String).new
+      end
+
+      private def cosine_similarity(a : Array(Float64), b : Array(Float64)) : Float64
+        return 0.0 if a.size != b.size
+        dot = 0.0
+        norm_a = 0.0
+        norm_b = 0.0
+        a.size.times do |i|
+          dot += a[i] * b[i]
+          norm_a += a[i] * a[i]
+          norm_b += b[i] * b[i]
+        end
+        return 0.0 if norm_a == 0.0 || norm_b == 0.0
+        dot / (Math.sqrt(norm_a) * Math.sqrt(norm_b))
       end
     end
   end

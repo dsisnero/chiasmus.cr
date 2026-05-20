@@ -6,7 +6,7 @@ shards:
 
   bidi:
     git: https://github.com/dsisnero/bidi.git
-    version: 0.1.0+git.commit.a849cf60bac065668fe70e5ce09854b2bd5f5cbc
+    version: 0.5.0
 
   bm25:
     git: https://github.com/dsisnero/bm25.git
@@ -14,11 +14,11 @@ shards:
 
   cml:
     git: https://github.com/dsisnero/cml.git
-    version: 0.5.0+git.commit.32a0eedd96e1f2118f68f2074e5d8bf6e01b9a24
+    version: 0.5.0+git.commit.dc848d779ff3fc2f534e0f22f495d20171f3bb63
 
   crig:
     git: https://github.com/dsisnero/crig.git
-    version: 0.1.0+git.commit.70002f9a30535b68a52321da0d3ca39a732e6426
+    version: 0.3.4
 
   crig-postgres:
     git: https://github.com/dsisnero/crig-postgres.git
