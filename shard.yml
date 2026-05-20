@@ -28,6 +28,8 @@ dependencies:
     github: spider-gazelle/json-schema
   crig-sqlite:
     github: dsisnero/crig-sqlite
+  cgl:
+    github: RomainFranceschini/cgl
   bm25:
     github: dsisnero/bm25
 development_dependencies:

@@ -12,6 +12,10 @@ shards:
     git: https://github.com/dsisnero/bm25.git
     version: 0.1.0+git.commit.758c82971b4a7aee22f8bc48795cb47bff637bb4
 
+  cgl:
+    git: https://github.com/romainfranceschini/cgl.git
+    version: 0.2.0
+
   cml:
     git: https://github.com/dsisnero/cml.git
     version: 0.5.0+git.commit.dc848d779ff3fc2f534e0f22f495d20171f3bb63
