@@ -42,7 +42,8 @@ module Chiasmus
       private def cohesion_score(member_count : Int32, intra_edges : Int32) : Float64
         return 0.0 if member_count < 2
         max = member_count * (member_count - 1) // 2
-        ((intra_edges.to_f64 / max) * 100).round(2)
+        ratio = intra_edges.to_f64 / max
+        ((ratio * 100).round) / 100.0
       end
 
       # Build weighted adjacency from CodeGraph calls
