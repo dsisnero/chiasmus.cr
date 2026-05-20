@@ -4,7 +4,7 @@ require "json-schema"
 
 module Chiasmus
   module MCPServer
-    VALID_ANALYSES = ["summary", "callers", "callees", "reachability", "dead-code", "cycles", "path", "impact", "facts"]
+    VALID_ANALYSES = ["summary", "callers", "callees", "reachability", "dead-code", "cycles", "path", "impact", "facts", "layer-violation", "hubs", "bridges", "surprises", "community", "diff", "entry-points"]
 
     module ToolSchemas
       struct SchemaProperty

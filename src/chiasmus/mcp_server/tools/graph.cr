@@ -70,21 +70,28 @@ module Chiasmus
 
         def self.tool_description : String
           <<-DESC
-          Analyze source code call graphs via tree-sitter + Prolog.
+          Analyze source code call graphs via tree-sitter + native O(V+E) algorithms.
 
           Parse source files → extract call graph → run formal analysis.
           Supports: TypeScript, JavaScript, Python, Go, Clojure. Files must be absolute paths.
 
           ANALYSES:
-            summary      — overview: files, functions, call edges
-            callers      — who calls target? (needs target)
-            callees      — what does target call? (needs target)
-            reachability — can from reach to? (needs from, to)
-            dead-code    — functions unreachable from entry points
-            cycles       — circular call dependencies
-            path         — call chain from→to (needs from, to)
-            impact       — what breaks if target changes? (needs target)
-            facts        — raw Prolog facts for custom queries via chiasmus_verify
+            summary         — overview: files, functions, call edges
+            callers         — who calls target? (needs target)
+            callees         — what does target call? (needs target)
+            reachability    — can from reach to? (needs from, to)
+            dead-code       — functions unreachable from entry points
+            cycles          — circular call dependencies
+            path            — call chain from→to (needs from, to)
+            impact          — what breaks if target changes? (needs target)
+            layer-violation — calls skipping architectural layers
+            hubs            — top-degree nodes
+            bridges         — betweenness centrality top-3
+            surprises       — cross-community + peripheral-to-hub edges
+            community       — Louvain community detection (seed=42)
+            diff            — compare current graph vs saved snapshot (needs snapshot)
+            entry-points    — heuristic entry point detection
+            facts           — raw Prolog facts for custom queries via chiasmus_verify
           DESC
         end
 

@@ -87,7 +87,7 @@ TS
   end
 
   it "exposes the upstream analysis allowlist in the schema and errors" do
-    expected = ["summary", "callers", "callees", "reachability", "dead-code", "cycles", "path", "impact", "facts"]
+    expected = ["summary", "callers", "callees", "reachability", "dead-code", "cycles", "path", "impact", "facts", "layer-violation", "hubs", "bridges", "surprises", "community", "diff", "entry-points"]
     Chiasmus::MCPServer::VALID_ANALYSES.should eq(expected)
 
     input = Chiasmus::MCPServer::Tools::GraphTool.input_schema
