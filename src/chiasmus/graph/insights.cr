@@ -1,10 +1,12 @@
 # Ported from vendor/chiasmus/src/graph/insights.ts
 #
-# Graph insight detection: hubs (top-degree), bridges (betweenness centrality).
+# Graph insight detection: hubs (top-degree), bridges (betweenness centrality),
+# surprising connections (cross-community + peripheral-to-hub edges).
 # Brandes' O(VE) algorithm for betweenness — matches graphology-metrics behavior.
 
 require "./types"
 require "./graph_util"
+require "./community"
 
 module Chiasmus
   module Graph
@@ -15,6 +17,12 @@ module Chiasmus
     record Bridge,
       name : String,
       score : Float64
+
+    record SurprisingConnection,
+      source : String,
+      target : String,
+      score : Int32,
+      reasons : Array(String)
 
     module Insights
       extend self
@@ -108,6 +116,61 @@ module Chiasmus
         }
 
         bridges.first(3)
+      end
+
+      # --- Surprising connections ---
+
+      def detect_surprises(
+        graph : CodeGraph,
+        communities : Array(Community)? = nil,
+        top_n : Int32 = 10,
+      ) : Array(SurprisingConnection)
+        comms = communities || CommunityDetection.detect(graph)
+        degree = GraphUtil.undirected_degree(graph)
+
+        node_to_community = Hash(String, Int32).new
+        comms.each { |c| c.members.each { |m| node_to_community[m] = c.id } }
+
+        candidates = [] of SurprisingConnection
+
+        GraphUtil.for_each_undirected_edge(graph) do |a, b|
+          score = 0
+          reasons = [] of String
+
+          ca = node_to_community[a]?
+          cb = node_to_community[b]?
+          if ca && cb && ca != cb
+            score += 1
+            reasons << "cross-community"
+          end
+
+          da = degree[a]? || 0
+          db = degree[b]? || 0
+          if Math.min(da, db) <= 2 && Math.max(da, db) >= 5
+            score += 1
+            reasons << "peripheral-to-hub"
+          end
+
+          if score > 0
+            candidates << SurprisingConnection.new(
+              source: a,
+              target: b,
+              score: score,
+              reasons: reasons,
+            )
+          end
+        end
+
+        candidates.sort! { |x, y|
+          cmp = y.score <=> x.score
+          if cmp == 0
+            cmp = x.source <=> y.source
+            cmp = x.target <=> y.target if cmp == 0
+          end
+          cmp
+        }
+
+        candidates.first(top_n)
       end
     end
   end

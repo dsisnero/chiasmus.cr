@@ -87,4 +87,65 @@ describe Insights do
       bridges.each { |b| b.score.should be > 0.0 }
     end
   end
+
+  describe ".detect_surprises" do
+    it "returns empty list for empty graph" do
+      r = Insights.detect_surprises(CodeGraph.new)
+      r.should eq [] of SurprisingConnection
+    end
+
+    it "flags cross-community edges" do
+      edges = [
+        {"a", "b"}, {"b", "c"}, {"a", "c"},
+        {"d", "e"}, {"e", "f"}, {"d", "f"},
+        {"a", "d"},
+      ]
+      graph = build_graph(edges)
+      communities = CommunityDetection.detect(graph)
+      surprises = Insights.detect_surprises(graph, communities: communities)
+
+      endpoints = surprises.map { |s| [s.source, s.target].sort.join("|") }
+      endpoints.should contain(["a", "d"].sort.join("|"))
+
+      xcom = surprises.find { |s| [s.source, s.target].sort.join("|") == ["a", "d"].sort.join("|") }
+      xcom.should_not be_nil
+      xcom.not_nil!.reasons.should contain "cross-community"
+    end
+
+    it "peripheral-to-hub edges earn a +1 bonus" do
+      edges = [
+        {"hub", "a"}, {"hub", "b"}, {"hub", "c"}, {"hub", "d"}, {"hub", "e"},
+        {"leaf", "hub"},
+      ]
+      surprises = Insights.detect_surprises(build_graph(edges))
+      leaf_hub = surprises.find { |s| [s.source, s.target].sort.join("|") == ["hub", "leaf"].sort.join("|") }
+      leaf_hub.should_not be_nil
+      leaf_hub.not_nil!.reasons.should contain "peripheral-to-hub"
+    end
+
+    it "respects topN option" do
+      edges = [] of Tuple(String, String)
+      10.times do |i|
+        edges << {"a#{i}", "a#{i + 1}"}
+        edges << {"b#{i}", "b#{i + 1}"}
+      end
+      10.times { |i| edges << {"a#{i}", "b#{i}"} }
+      r = Insights.detect_surprises(build_graph(edges), top_n: 3)
+      r.size.should be <= 3
+    end
+
+    it "scores descending with deterministic tiebreak" do
+      edges = [
+        {"a", "b"}, {"b", "c"}, {"a", "c"},
+        {"d", "e"}, {"e", "f"}, {"d", "f"},
+        {"a", "d"}, {"c", "f"},
+      ]
+      r1 = Insights.detect_surprises(build_graph(edges))
+      r2 = Insights.detect_surprises(build_graph(edges))
+      r1.should eq r2
+      (1...r1.size).each do |i|
+        r1[i - 1].score.should be >= r1[i].score
+      end
+    end
+  end
 end
