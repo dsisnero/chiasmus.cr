@@ -19,7 +19,8 @@ module Chiasmus
       file : String,
       name : String,
       kind : SymbolKind,
-      line : Int32
+      line : Int32,
+      signature : String? = nil
 
     record CallsFact,
       caller : String,
@@ -72,12 +73,20 @@ module Chiasmus
       own : Hash(String, Set(String)),
       parents : Hash(String, String)
 
+    record FileNode,
+      path : String,
+      language : String,
+      line_count : Int32? = nil,
+      token_estimate : Int32? = nil,
+      file_doc : String? = nil
+
     record CodeGraph,
       defines : Array(DefinesFact) = [] of DefinesFact,
       calls : Array(CallsFact) = [] of CallsFact,
       imports : Array(ImportsFact) = [] of ImportsFact,
       exports : Array(ExportsFact) = [] of ExportsFact,
       contains : Array(ContainsFact) = [] of ContainsFact,
+      files : Array(FileNode)? = nil,
       type_info : Array(FileTypeInfo)? = nil
 
     abstract class LanguageAdapter
