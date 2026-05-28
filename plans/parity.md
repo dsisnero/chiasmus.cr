@@ -57,6 +57,7 @@ All prior porting work is complete. See implementation history below for details
 | P6 | Release Hardening | Implemented |
 | P7 | Codeium-Parse Predicate Support | Implemented (P7.1-P7.7) |
 | **P8** | **VectorStore** | **Implemented** |
+| **P9** | **Multi-Language Code Index** | **In Progress (P9.1-P9.3 done)** |
 
 ### P8: VectorStore — In-Process Linear-Scan Cosine Search (Completed)
 
