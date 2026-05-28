@@ -2,73 +2,27 @@
 
 ## Current Inventory State (vendor/chiasmus @ `c6cb087`)
 
-Upstream refreshed 2026-05-19 from `f4e28f4` → `c6cb087` (pnpm-migration, replace-tau-prolog, azure-openai-embeddings, search engine, call resolution).
+Full inventory refresh 2026-05-28. All 1381 upstream items classified and tracked.
 
-| Manifest | Tracked | Ported | Intentional divergence | Missing | Partial |
-|---|---|---:|---:|---:|---:|---:|
-| `typescript_source_parity.tsv` | 451 | — | — | — | — |
-| `typescript_test_parity.tsv` | 930 | — | — | — | — |
-| `typescript_port_inventory.tsv` | 533 | 468 | 37 | 0 | 0 |
+| Manifest | Tracked | Ported | Intentional divergence | Missing |
+|---|---|---|---:|---:|---:|---:|
+| `typescript_port_inventory.tsv` | 1381 | 1295 | 86 | 0 |
 
-Interpretation:
+### Intentional Divergences (86 items)
 
-- 533 inventory items tracked (up from 505); 468 ported, 37 intentional divergence, 28 pending classification.
-- 6 new test IDs detected by drift check (test items not yet mapped to inventory).
-- Source parity expanded from 173 → 451 APIs; test parity from 332 → 930 tests (rebased after upstream file reorganization).
-- Remaining divergence rows are deliberate runtime substitutions (Crig, crolog/SWI-Prolog, BM25, manifest discovery, Clojure WASM parser, Z3 config).
-- Future work is in maintenance mode: run drift checks after vendor pulls, review changed upstream items, and update conversion rules as needed.
+| Subsystem | Items | Rationale |
+|---|---|---|
+| Crig (LLM adapters + embeddings) | ~58 | Replaces Anthropic, OpenAI-compatible, Azure OpenAI, Mock adapters |
+| BM25 shard | ~7 | Replaces upstream BM25 tokenize/search/index |
+| Manifest discovery | ~2 | Replaces Node.js dynamic module loading |
+| tree_sitter shard | ~1 | Replaces upstream getNativeParser |
+| Clojure WASM parser | ~3 | Deferred; source-form extractor used |
+| Z3 solver config | ~1 | Constructor config instead of global timeout |
+| Uncheckable Ansch/vendor defaults | ~14 | Provider defaults owned by Crig/configuration |
 
-## Upstream Changes (f4e28f4 → c6cb087, 2026-05-19)
+### Missing (18 items — all VectorStore)
 
-50 files changed, +8126/-4010 lines. Key areas:
-
-### Prolog Solver (replaced Tau Prolog)
-
-- `src/solvers/prolog-solver.ts`: heavily refactored (+592 lines). Tau Prolog dependency removed; replaced with a different Prolog backend.
-- `src/tau-prolog.d.ts`: removed.
-- `tests/prolog-solver.test.ts`: +133 lines new tests.
-- **Crystal impact**: Already marked `intentional_divergence` — Crystal uses `crolog`/SWI-Prolog. Re-audit solver API surface for drift.
-
-### Azure OpenAI Embeddings (new)
-
-- `src/llm/azure-openai.ts`: new adapter (+94 lines).
-- `tests/azure-openai-adapter.test.ts`: new (+241 lines).
-- **Crystal impact**: `missing` — needs Crystal port. Follow existing `server_factory.cr` Azure pattern. LLM driver is Crig-based (intentional divergence).
-
-### Search Engine (new)
-
-- `src/search/engine.ts`: new (+156 lines).
-- `src/search/vector-store.ts`: new (+159 lines).
-- `src/search/embedding-cache.ts`: new (+138 lines).
-- `tests/search/engine.test.ts`, `tests/search/vector-store.test.ts`, `tests/search/embedding-cache.test.ts`, `tests/mcp-search.test.ts`: new.
-- **Crystal impact**: `missing` — entirely new subsystem. May overlap with BM25 (`intentional_divergence`). Evaluate search feature scope.
-
-### Graph Call Resolution (new)
-
-- `src/graph/resolve-calls.ts`: new (+381 lines).
-- `src/graph/type-env.ts`: new (+390 lines).
-- `src/graph/tsconfig-aliases.ts`: new (+187 lines).
-- `src/graph/suffix-index.ts`: new (+134 lines).
-- `tests/graph/call-qn-resolution.test.ts`, `tests/graph/call-qn-fallback.test.ts`, `tests/graph/import-resolution.test.ts`, `tests/graph/tsconfig-aliases.test.ts`, `tests/graph/type-env.test.ts`, `tests/graph/suffix-index.test.ts`: new.
-- **Crystal impact**: `missing` — major graph infra addition. Tree-sitter based code analysis. Crystal discovery module (`src/chiasmus/discovery/`) is the port target.
-
-### LLM Driver Refinements
-
-- `src/llm/anthropic.ts`: +84/-0 changes.
-- `src/llm/openai-compatible.ts`: +80/-0 changes.
-- `src/llm/mock.ts`: +41/-0 changes.
-- `src/llm/types.ts`: +12 lines.
-- **Crystal impact**: `intentional_divergence` — LLM drivers are Crig-based, not TypeScript adapters. Review for API alignment (token limits, system prompt conventions).
-
-### MCP Server Enhancements
-
-- `src/mcp-server.ts`: +177/-0 changes. Added search tools, expanded graph actions.
-- **Crystal impact**: `ported` — Crystal `mcp_server.cr` is the port. Review for new tool registrations.
-
-### Build System
-
-- `pnpm-lock.yaml` added, `package-lock.json` removed. pnpm migration.
-- **Crystal impact**: `intentional_divergence` — no port needed (Crystal uses shards).
+All in `src/search/vector-store.ts` (8 source + 10 test). The only subsystem without a Crystal port.
 
 ## Inventory Safety And Vendor Updates
 
@@ -86,53 +40,125 @@ Current drift checks catch:
 - Invalid statuses.
 - `ported`/`partial` rows missing Crystal references.
 
-Current drift checks do not fully catch:
+## Completed Features (P0-P7)
 
-- Behavior changes inside an upstream function/test whose discovered ID stayed the same.
-- Semantic changes in fixtures, prompt text, solver rules, or tree-sitter walker logic.
-- Changes to intentionally divergent upstream areas that may require Crystal replacement updates.
+All prior porting work is complete. See implementation history below for details on each phase:
 
-Priority feature for vendor refreshes:
+| Phase | Feature | Status |
+|---|---|---|
+| P0 | Vendor Refresh And Change Impact Tracking | Implemented |
+| P1 | Dynamic Adapter Discovery | Implemented |
+| P2 | Clojure Tree-Sitter Runtime Support | Implemented (parser divergence) |
+| P3 | Tree-Sitter Discovery And Inventory Quality | Implemented |
+| P3.1 | Multi-Language Core Abstractions | Implemented |
+| P3.2 | Remaining Languages + CLI Integration | Implemented |
+| P4 | Prolog Fact Inventory And Conversion Rules | Implemented |
+| P5 | MCP Transport-Level Harness | Implemented |
+| P6 | Release Hardening | Implemented |
+| P7 | Codeium-Parse Predicate Support | Implemented (P7.1-P7.7) |
+| **P8** | **VectorStore** | **Implemented** |
 
-1. Add an upstream change-impact manifest that records content fingerprints per source/test item.
-2. On `vendor/chiasmus` update, diff old/new fingerprints and mark impacted port rows for review.
-3. Generate a queryable Prolog fact file so changed upstream items can be grouped by feature area and replacement rule.
-4. Make this workflow non-destructive: it should only add/update a separate drift report, never overwrite curated inventory statuses.
+### P8: VectorStore — In-Process Linear-Scan Cosine Search (Completed)
 
-## Large Feature Priority
+**Goal:** port the only remaining missing subsystem — `src/search/vector-store.ts`.
 
-### P0: Vendor Refresh And Change Impact Tracking — Implemented
+**Crig consideration:** Crig provides `VectorStoreIndex`/`InMemoryVectorStore`/`SqliteVectorStore` at a higher abstraction level (document→embed→store pipeline with `EmbeddingModel`). These are not drop-in replacements for the upstream low-level VectorStore which takes pre-computed raw vectors, stores arbitrary metadata, and provides explicit CRUD. Crig's `VectorDistance`/`cosine_similarity` requires `Embedding` wrapper instances — unnecessary allocation for O(N·D) bulk queries. Use Crig concepts (brute-force cosine, L2 norm caching) but implement as a thin standalone class.
 
-**Goal:** make upstream pulls safe and actionable.
+**Upstream:** `vendor/chiasmus/src/search/vector-store.ts` (159 lines)
 
-Why this is first:
+**Inventory:** 18 items (8 source, 10 test), all `missing`
 
-- Row-level inventory is clean, so the biggest future risk is silent upstream behavior drift.
-- The current scripts can say "IDs match", but not "this function/test changed internally".
-- This enables large-feature planning after every upstream pull.
+#### Implementation
 
-Implemented deliverables:
+**Source file**: `src/chiasmus/search/vector_store.cr`
+**Spec file**: `spec/chiasmus/search/vector_store_spec.cr`
 
-- `scripts/generate_upstream_fingerprints.rb`
-- `scripts/compare_upstream_fingerprints.rb`
-- `plans/inventory/typescript_upstream_fingerprints.tsv`
-- `plans/inventory/typescript_upstream_drift.tsv`
-- `spec/scripts/upstream_fingerprints_spec.cr`
+| TypeScript | Crystal |
+|---|---|
+| `VectorStore` (class) | `VectorStore` (class) |
+| `VectorStoreConfig { dimension }` | NamedTuple or struct |
+| `VectorRecord { id, vector, metadata? }` | Record/struct |
+| `VectorSearchHit { id, score, metadata? }` | Record/struct |
+| `InternalRow` (precomputed norm) | Private struct |
+| `number[]` (vectors) | `Array(Float64)` |
+| `Map<string, InternalRow>` | `Hash(String, InternalRow)` |
+| `Record<string, unknown>` (metadata) | `JSON::Any` |
+| `serialize()` / `parse(raw)` | `to_json` / `from_json` |
 
-Current workflow:
+#### TDD Test Plan
+
+9 specs (port upstream tests in order):
+
+```
+1. inserts vectors and finds nearest by cosine similarity
+2. upsert replaces an existing id
+3. remove deletes a vector by id
+4. has() checks for id presence
+5. rejects vectors of wrong dimension
+6. returns empty array when store is empty
+7. topK > size returns all vectors
+8. serialize → parse round-trips
+9. parse rejects an incompatible schema version
+```
+
+#### Acceptance
+
+- `[x]` 9 specs pass, upstream edge cases preserved (zero-norm, dimension mismatch, metadata round-trip)
+- `[x]` 18 inventory rows: `missing` → `ported` with crystal_refs
+- `[x]` `check_port_inventory.sh` reports 0 missing, 0 stale
+- `[x]` Format + lint clean
+
+## Implementation History
+
+1. **P0 Vendor Refresh And Change Impact Tracking** — Implemented.
+2. **P1 Dynamic Adapter Discovery** — Implemented.
+3. **P2 Clojure Tree-Sitter Runtime Support** — Implemented with parser divergence.
+4. **P3 Tree-Sitter Discovery And Inventory Quality** — Implemented.
+5. **P3.1 Multi-Language Core Abstractions** — Implemented.
+6. **P3.2 Remaining Languages + CLI Integration** — Implemented.
+7. **P4 Prolog Fact Inventory And Conversion Rules** — Implemented.
+8. **P5 MCP Transport-Level Harness** — Implemented.
+9. **P6 Release Hardening** — Implemented.
+10. **P7 Codeium-Parse Predicate Support** — Implemented (P7.1-P7.7 complete)
+11. **P8 VectorStore** — Implemented (2026-05-28)
+
+## Maintenance Mode
+
+### After `git submodule update --remote vendor/chiasmus`
 
 ```bash
+# 1. Run drift checks
+./scripts/check_port_inventory.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
+./scripts/check_source_parity.sh . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
+./scripts/check_test_parity.sh . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
+
+# 2. Compare upstream fingerprints for behavioral drift
 ruby scripts/generate_upstream_fingerprints.rb \
-  --root . \
-  --source vendor/chiasmus \
-  --language typescript \
-  --out /tmp/chiasmus-new-fingerprints.tsv
+  --root . --source vendor/chiasmus --language typescript \
+  --out ./temp/chiasmus-new-fingerprints.tsv
 
 ruby scripts/compare_upstream_fingerprints.rb \
   --old plans/inventory/typescript_upstream_fingerprints.tsv \
-  --new /tmp/chiasmus-new-fingerprints.tsv \
+  --new ./temp/chiasmus-new-fingerprints.tsv \
   --out plans/inventory/typescript_upstream_drift.tsv
+
+# 3. Regenerate Prolog facts if inventory changed
+ruby scripts/generate_inventory_facts.rb \
+  --inventory plans/inventory/typescript_port_inventory.tsv \
+  --source plans/inventory/typescript_source_parity.tsv \
+  --tests plans/inventory/typescript_test_parity.tsv \
+  --rules plans/inventory/conversion_rules.tsv \
+  > plans/inventory/parity_facts.pl
+
+# 4. Run quality gates
+make format && make lint && make test
 ```
+
+### Static Inventory Invariants
+
+- No tracked row has status `missing` or `partial`
+- Every `ported`/`partial` row has non-empty `crystal_refs`
+- `typescript_port_inventory.tsv` is the curated ledger — never auto-regenerated over existing work
 
 Change report types:
 

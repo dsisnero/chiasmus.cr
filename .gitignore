@@ -62,4 +62,4 @@ test.cr
 fetch_docs.sh
 spec/tmp_cr_*.cr
 /temp/
-chiasmus
+/chiasmus

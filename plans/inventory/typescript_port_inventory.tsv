@@ -60,14 +60,10 @@ src/graph/adapter-registry.ts::function::getAdapterForExt	function	ported	src/ch
 src/graph/adapter-registry.ts::function::isLanguageAdapter	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:123	Node.js duck-typed runtime guard is replaced by JSON descriptor validation plus AdapterFactory typing
 src/graph/adapter-registry.ts::function::registerAdapter	function	ported	src/chiasmus/graph/adapter_registry.cr:13	Ported as AdapterRegistry.register_adapter
 src/graph/adapter-registry.ts::function::registerFromModule	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:74	Node.js dynamic module loading is replaced by idempotent manifest discovery and registered AdapterFactory entrypoints
-src/graph/analyses.ts::function::buildQuery	function	ported	src/chiasmus/graph/analyses.cr:1	Ported graph analyses with direct Crystal traversal instead of Prolog query construction
 src/graph/analyses.ts::function::buildSummary	function	ported	src/chiasmus/graph/analyses.cr:1	Ported in-memory graph summary generation
-src/graph/analyses.ts::function::extractUniqueValues	function	ported	src/chiasmus/graph/analyses.cr:1	Ported through uniq-preserving collection of analysis outputs
-src/graph/analyses.ts::function::formatResult	function	ported	src/chiasmus/graph/analyses.cr:1	Ported via typed Crystal payloads per analysis mode
 src/graph/analyses.ts::interface::AnalysisRequest	interface	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal record
 src/graph/analyses.ts::interface::AnalysisResult	interface	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal record
 src/graph/analyses.ts::type::AnalysisType	type	ported	src/chiasmus/graph/analyses.cr:1	Ported as Crystal enum
-src/graph/extractor.ts::function::cljDefnName	function	ported	src/chiasmus/graph/walkers.cr:748	Ported as clj_defn_name
 src/graph/extractor.ts::function::cljExtractCalls	function	ported	src/chiasmus/graph/walkers.cr:888	Ported as clj_extract_calls
 src/graph/extractor.ts::function::cljExtractNs	function	ported	src/chiasmus/graph/walkers.cr:776	Ported as clj_extract_ns
 src/graph/extractor.ts::function::cljSymName	function	ported	src/chiasmus/graph/walkers.cr:735	Ported as clj_sym_name
@@ -136,7 +132,6 @@ src/llm/openai-compatible.ts::method::OpenAICompatibleAdapter.constructor	method
 src/llm/types.ts::interface::LLMAdapter	interface	intentional_divergence	src/chiasmus/formalize/engine.cr:30	Upstream adapter interface replaced by Crig agent dependency
 src/llm/types.ts::interface::LLMMessage	interface	intentional_divergence	src/chiasmus/formalize/engine.cr:30	Upstream message type replaced by Crig API message handling
 src/mcp-server.ts::const::TOOLS	const	ported	src/chiasmus/mcp_server/tools/verify.cr:7	chiasmus_verify tool ported to Crystal
-src/mcp-server.ts::const::VALID_ANALYSES	const	ported	src/chiasmus/mcp_server/tool_schemas.cr:6	Ported as shared MCPServer::VALID_ANALYSES and used by graph schema/errors
 src/mcp-server.ts::function::getChiasmusHome	function	ported	src/chiasmus/utils/config.cr:21	Port with XDG support
 src/mcp-server.ts::function::handleLint	function	ported	src/chiasmus/mcp_server/tools/lint.cr:10	ported as LintTool.invoke
 src/mcp-server.ts::function::handleSkills	function	ported	src/chiasmus/mcp_server/tools/skills.cr:7	Ported as Chiasmus::MCPServer::Tools::SkillsTool#invoke.
@@ -172,30 +167,17 @@ src/solvers/correction-loop.ts::type::CorrectionAttempt	type	ported	src/chiasmus
 src/solvers/correction-loop.ts::type::CorrectionResult	type	ported	src/chiasmus/solvers/correction_loop.cr:7	Ported as CorrectionResult struct
 src/solvers/correction-loop.ts::type::SpecFixer	type	ported	src/chiasmus/solvers/correction_loop.cr:10	Ported as SpecFixer alias
 src/solvers/prolog-solver.ts::const::MAX_ANSWERS	const	ported	src/chiasmus/solvers/prolog_solver.cr:8	Ported as PrologSolver::MAX_ANSWERS and enforced when building answers
-src/solvers/prolog-solver.ts::const::MAX_INFERENCES	const	ported	src/chiasmus/solvers/prolog_solver.cr:9	Ported as PrologSolver::MAX_INFERENCES constant for parity with upstream limit
 src/solvers/prolog-solver.ts::const::MAX_TRACE_ENTRIES	const	ported	src/chiasmus/solvers/prolog_solver.cr:10	Ported as PrologSolver::MAX_TRACE_ENTRIES and enforced during trace collection
-src/solvers/prolog-solver.ts::function::consult	function	ported	src/chiasmus/solvers/prolog_solver.cr:16	ported through crolog wrapper
 src/solvers/prolog-solver.ts::function::createPrologSolver	function	ported	src/chiasmus/solvers/prolog_solver.cr:8	ported through crolog wrapper
-src/solvers/prolog-solver.ts::function::entry	function	ported	src/chiasmus/solvers/prolog_solver.cr:37	ported through crolog wrapper
-src/solvers/prolog-solver.ts::function::formatError	function	ported	src/chiasmus/solvers/prolog_solver.cr:62	ported
 src/solvers/prolog-solver.ts::function::instrumentForTracing	function	ported	src/chiasmus/solvers/prolog_solver.cr:81	ported through crolog wrapper
-src/solvers/prolog-solver.ts::function::links	function	ported	src/chiasmus/solvers/prolog_solver.cr:110	ported through crolog wrapper
-src/solvers/prolog-solver.ts::function::nextAnswer	function	ported	src/chiasmus/solvers/prolog_solver.cr:28	ported through crolog wrapper
-src/solvers/prolog-solver.ts::function::query	function	ported	src/chiasmus/solvers/prolog_solver.cr:22	ported through crolog wrapper
 src/solvers/session.ts::class::SolverSession	class	ported	src/chiasmus/solvers/session.cr:1	ported as Solvers::Session
 src/solvers/types.ts::interface::PrologAnswer	interface	ported	src/chiasmus/solvers/types.cr:40	ported as PrologAnswer struct
 src/solvers/types.ts::interface::Solver	interface	ported	src/chiasmus/solvers/types.cr:72	ported as abstract Solver class
 src/solvers/types.ts::type::SolverInput	type	ported	src/chiasmus/solvers/types.cr:69	ported as SolverInput alias
 src/solvers/types.ts::type::SolverResult	type	ported	src/chiasmus/solvers/types.cr:67	ported as SolverResult alias
 src/solvers/types.ts::type::SolverType	type	ported	src/chiasmus/solvers/types.cr:4	ported as SolverType enum
-src/solvers/z3-solver.ts::const::SOLVER_TIMEOUT_MS	const	intentional_divergence	-	Timeout configured via solver constructor, not a global constant
 src/solvers/z3-solver.ts::function::getZ3	function	intentional_divergence	-	Z3 binary discovery handled by system PATH or env in Crystal port
 src/solvers/z3-solver.ts::function::sanitizeSmtlib	function	ported	src/chiasmus/solvers/z3_solver.cr:62	ported as private method
-src/tau-prolog.d.ts::function::create	function	intentional_divergence	-	Use crolog instead of tau-prolog
-src/tau-prolog.d.ts::function::format_answer	function	intentional_divergence	-	Use crolog instead of tau-prolog
-src/tau-prolog.d.ts::interface::PrologSession	interface	intentional_divergence	-	Use crolog instead of tau-prolog
-src/tau-prolog.d.ts::interface::PrologSubstitution	interface	intentional_divergence	-	Use crolog instead of tau-prolog
-src/tau-prolog.d.ts::interface::PrologTerm	interface	intentional_divergence	-	Use crolog instead of tau-prolog
 tests/config.test.ts::test::falls back to defaults for invalid JSON	test	ported	spec/chiasmus/utils/config_spec.cr:28	Ported invalid JSON fallback coverage
 tests/config.test.ts::test::ignores unknown keys and wrong types	test	ported	spec/chiasmus/utils/config_spec.cr:37	Ported wrong-type and unknown-key handling coverage
 tests/config.test.ts::test::loadConfig	test	ported	spec/chiasmus/utils/config_spec.cr:11	Covered by the Crystal config load spec group
@@ -254,7 +236,6 @@ tests/formalize.test.ts::test::records template use in skill library	test	ported
 tests/formalize.test.ts::test::returns failure with diagnostics when correction loop exhausts	test	ported	spec/chiasmus/formalize/engine_spec.cr:143	Ported exhausted correction-loop diagnostics coverage
 tests/formalize.test.ts::test::selects a Prolog template for rule inference problems	test	ported	spec/chiasmus/formalize/engine_spec.cr:32	Ported Prolog-template selection coverage.
 tests/formalize.test.ts::test::selects constraint-satisfaction for dependency problems	test	ported	spec/chiasmus/formalize/engine_spec.cr:51	Ported dependency-template selection coverage.
-tests/formalize.test.ts::test::selects graph-reachability for data flow problems	test	ported	spec/chiasmus/formalize/engine_spec.cr:43	Ported graph-reachability selection coverage.
 tests/formalize.test.ts::test::selects the right template for a policy conflict problem	test	ported	spec/chiasmus/formalize/engine_spec.cr:21	Ported policy-conflict template selection coverage.
 tests/formalize.test.ts::test::solve (end-to-end with LLM)	test	ported	spec/chiasmus/formalize/engine_spec.cr:90	Covered by the Crystal solve spec group
 tests/formalize.test.ts::test::solves a Prolog reachability problem end-to-end	test	ported	spec/chiasmus/formalize/engine_spec.cr:106	Ported Prolog end-to-end solve coverage
@@ -301,7 +282,6 @@ tests/graph/clojure.test.ts::test::extractor	test	ported	spec/chiasmus/graph/clo
 tests/graph/clojure.test.ts::test::extracts call relationships	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:39	Ported Clojure call relationship coverage
 tests/graph/clojure.test.ts::test::extracts defn function definitions	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:13	Ported Clojure defn definition coverage
 tests/graph/clojure.test.ts::test::extracts defn- as private (not exported)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:28	Ported Clojure private defn export coverage
-tests/graph/clojure.test.ts::test::extracts namespace-qualified calls (db/query → query)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:54	Ported namespace-qualified callee normalization coverage
 tests/graph/clojure.test.ts::test::extracts require imports from ns form	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:66	Ported Clojure ns require import coverage
 tests/graph/clojure.test.ts::test::maps .clj extension to clojure	test	ported	spec/chiasmus/graph/parser_spec.cr:170	Ported: Parser.get_language_for_file("foo.clj") → "clojure"
 tests/graph/clojure.test.ts::test::multi-file cross-namespace extraction	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr:80	Ported Clojure multi-file cross-namespace extraction coverage
@@ -408,31 +388,18 @@ tests/mcp-server.test.ts::test::verifies Prolog queries	test	ported	spec/mcp_ser
 tests/mcp-server.test.ts::test::verifies satisfiable Z3 SMT-LIB input	test	ported	spec/mcp_server/tools/verify_spec.cr:30	Ported Z3 sat verification (no model-property assertions in Crystal)
 tests/mcp-server.test.ts::test::verifies unsatisfiable Z3 input	test	ported	spec/mcp_server/tools/verify_spec.cr:39	Ported unsatisfiable Z3 verification
 tests/prolog-solver.test.ts::test::PrologSolver	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:9	Covered by the Crystal PrologSolver spec group.
-
 tests/prolog-solver.test.ts::test::derivation traces	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:85	Ported derivation trace coverage
-
 tests/prolog-solver.test.ts::test::handles arithmetic	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:72	Ported arithmetic coverage
-
 tests/prolog-solver.test.ts::test::handles ground queries (no variables)	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:102	Ported ground-query coverage
-
 tests/prolog-solver.test.ts::test::handles list operations	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:146	Ported list operations coverage
-
 tests/prolog-solver.test.ts::test::resolves recursive rules	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:25	Ported recursive rule coverage
-
 tests/prolog-solver.test.ts::test::resolves simple fact queries	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:10	Ported simple fact query coverage
-
 tests/prolog-solver.test.ts::test::returns a structured error for malformed programs	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:52	Ported malformed program error coverage
-
 tests/prolog-solver.test.ts::test::returns a structured error for malformed queries	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:62	Ported malformed query error coverage
-
 tests/prolog-solver.test.ts::test::returns empty answers for unsatisfiable queries	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:42	Ported empty answers (unsatisfiable) coverage
-
 tests/prolog-solver.test.ts::test::returns no trace when explain is false (default)	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:115	Ported no-trace-when-explain-false coverage
-
 tests/prolog-solver.test.ts::test::returns trace for ground query with explain=true	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:128	Ported trace-for-ground-query coverage
-
 tests/prolog-solver.test.ts::test::returns trace for rule chain when explain=true	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:85	Ported trace-for-rule-chain coverage (same spec as derivation traces)
-
 tests/prolog-solver.test.ts::test::returns trace with multiple rule applications	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:146	Ported multi-rule trace coverage
 tests/relationships.test.ts::test::all reason strings are non-empty and descriptive	test	ported	spec/chiasmus/skills/relationships_spec.cr:25	Ported relationship-reason coverage.
 tests/relationships.test.ts::test::all starter templates have at least one related template	test	ported	spec/chiasmus/skills/relationships_spec.cr:19	Ported starter-coverage relationship check.
@@ -441,13 +408,9 @@ tests/relationships.test.ts::test::returns empty array for unknown template	test
 tests/relationships.test.ts::test::returns related templates for policy-contradiction	test	ported	spec/chiasmus/skills/relationships_spec.cr:5	Ported policy-contradiction related-template coverage.
 tests/relationships.test.ts::test::returns related templates for schema-consistency	test	ported	spec/chiasmus/skills/relationships_spec.cr:11	Ported schema-consistency related-template coverage.
 tests/session.test.ts::test::SolverSession	test	ported	spec/chiasmus/solvers/session_spec.cr:12	Covered by the Crystal SolverSession spec group.
-
 tests/session.test.ts::test::assigns unique session IDs	test	ported	spec/chiasmus/solvers/session_spec.cr:107	Ported unique-session-ID coverage
-
 tests/session.test.ts::test::creates isolated Prolog sessions	test	ported	spec/chiasmus/solvers/session_spec.cr:38	Ported isolated Prolog session coverage
-
 tests/session.test.ts::test::creates isolated Z3 sessions	test	ported	spec/chiasmus/solvers/session_spec.cr:14	Ported isolated Z3 session coverage
-
 tests/session.test.ts::test::runs Z3 and Prolog concurrently without interference	test	ported	spec/chiasmus/solvers/session_spec.cr:66	Ported concurrent Z3+Prolog coverage
 tests/skill-library.test.ts::test::SkillLibrary	test	ported	spec/chiasmus/skills/library_spec.cr:15	Covered by the Crystal SkillLibrary spec group.
 tests/skill-library.test.ts::test::all templates have at least one normalization	test	ported	spec/chiasmus/skills/library_spec.cr:123	Ported normalization coverage for starter templates.
@@ -491,27 +454,16 @@ tests/validate.test.ts::test::valid Prolog passes with no errors or fixes	test	p
 tests/validate.test.ts::test::valid Z3 passes with no errors or fixes	test	ported	spec/chiasmus/formalize/validate_spec.cr:83	Ported valid-Z3 lint coverage
 tests/validate.test.ts::test::valid specs pass clean	test	ported	spec/chiasmus/formalize/validate_spec.cr:82	Covered by the Crystal valid-spec lint spec group
 tests/z3-solver.test.ts::test::Z3Solver	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:9	Covered by the Crystal Z3Solver spec group.
-
 tests/z3-solver.test.ts::test::does not include unsatCore field for SAT results	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:161	Ported no-unsat-core-for-SAT coverage (Crystal SatResult lacks unsat_core field by design)
-
 tests/z3-solver.test.ts::test::handles boolean satisfiability	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:104	Ported boolean SAT coverage
-
 tests/z3-solver.test.ts::test::handles custom datatypes	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:118	Ported custom datatype coverage
-
 tests/z3-solver.test.ts::test::returns a structured error for malformed SMT-LIB	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:50	Ported malformed SMT-LIB error coverage
-
 tests/z3-solver.test.ts::test::returns error for completely empty input	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:92	Ported empty input coverage (Crystal treats as vacuously sat)
-
 tests/z3-solver.test.ts::test::returns sat with a model for satisfiable constraints	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:10	Ported sat-with-model coverage
-
 tests/z3-solver.test.ts::test::returns unsat core expressions for contradictory unnamed assertions	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:143	Ported unnamed-unsat-core coverage
-
 tests/z3-solver.test.ts::test::returns unsat core for trivially unsat assertion	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:173	Ported trivial-unsat (assert false) coverage
-
 tests/z3-solver.test.ts::test::returns unsat core with named assertions for contradictory constraints	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:76	Ported named-unsat-core coverage
-
 tests/z3-solver.test.ts::test::returns unsat for contradictory constraints	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:37	Ported unsat (contradictory) coverage
-
 tests/z3-solver.test.ts::test::strips check-sat and get-model from input without breaking	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr:60	Ported check-sat stripping coverage
 tests/graph/clojure.test.ts::test::parses Clojure source via WASM	test	intentional_divergence	src/chiasmus/graph/clojure_source_extractor.cr:96	WASM-dependent parser behavior is replaced for now by Crystal source-form extraction; actual tree-sitter WASM parse remains deferred
 tests/graph/parser.test.ts::test::returns null for unsupported extension	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:129	Ported as nil-return for unknown extension
@@ -532,3 +484,899 @@ tests/mcp-server.test.ts::test::gets a template by exact name	test	ported	spec/m
 tests/mcp-server.test.ts::test::includes related templates in by-name lookup	test	ported	spec/mcp_server/tools/skills_spec.cr:17	Ported related-templates in by-name lookup coverage.
 tests/mcp-server.test.ts::test::includes suggestions for related templates	test	ported	spec/mcp_server/tools/formalize_spec.cr:4	Ported related-template suggestions in formalize response.
 tests/mcp-server.test.ts::test::lists all templates when no query or name given	test	ported	spec/mcp_server/tools/skills_spec.cr:33	Ported all-templates listing coverage.
+src/formalize/prolog-input.ts::function::extractPrologQuery	function	ported	src/chiasmus/formalize/prolog_input.cr:1	Ported as extract_prolog_query
+src/formalize/validate.ts::function::stripPrologNoise	function	ported	src/chiasmus/formalize/validate.cr	Ported within lint_prolog noise stripping
+src/graph/adapter-registry.ts::function::discoverAdapters	function	ported	src/chiasmus/graph/adapter_registry.cr:74	Ported as manifest-based discovery with factory entrypoints
+src/graph/analyses.ts::const::DEFAULT_FACTS_MAX_BYTES	const	ported	src/chiasmus/graph/analyses.cr:1	Ported as DEFAULT_FACTS_MAX_BYTES
+src/graph/analyses.ts::const::MAX_FILE_SIZE	const	ported	src/chiasmus/graph/analyses.cr:1	Ported as MAX_FILE_SIZE
+src/graph/analyses.ts::function::buildFactsResult	function	ported	src/chiasmus/graph/analyses.cr:1	Ported via handle_analysis_request facts path
+src/graph/analyses.ts::function::extractLayer	function	ported	src/chiasmus/graph/analyses.cr:1	Ported via layer_violation module integration
+src/graph/analyses.ts::function::findLayerViolations	function	ported	src/chiasmus/graph/layer_violation.cr:1	Ported as find_layer_violations in dedicated module
+src/graph/analyses.ts::function::missingParams	function	ported	src/chiasmus/graph/analyses.cr:243	Ported as missing_parameter_result
+src/graph/analyses.ts::interface::FactsOversizeError	interface	ported	src/chiasmus/graph/analyses.cr:1	Ported as FactsOversizeError struct
+src/graph/analyses.ts::interface::LayerViolation	interface	ported	src/chiasmus/graph/layer_violation.cr:1	Ported as LayerViolation record
+src/graph/cache.ts::const::BOOTSTRAP_CAP	const	ported	src/chiasmus/graph/cache.cr:1	Ported as BOOTSTRAP_CAP
+src/graph/cache.ts::const::CACHE_SCHEMA_VERSION	const	ported	src/chiasmus/graph/cache.cr:1	Ported as CACHE_SCHEMA_VERSION
+src/graph/cache.ts::const::DEFAULT_MAX_BYTES_PER_REPO	const	ported	src/chiasmus/graph/cache.cr:1	Ported as DEFAULT_MAX_BYTES_PER_REPO
+src/graph/cache.ts::function::defaultCacheDir	function	ported	src/chiasmus/graph/cache.cr:1	Ported as default_cache_dir
+src/graph/cache.ts::function::defaultMaxBytesPerRepo	function	ported	src/chiasmus/graph/cache.cr:1	Ported as default_max_bytes_per_repo
+src/graph/cache.ts::function::defaultRepoKey	function	ported	src/chiasmus/graph/cache.cr:1	Ported as default_repo_key
+src/graph/cache.ts::function::fileHash	function	ported	src/chiasmus/graph/cache.cr:1	Ported as file_hash
+src/graph/cache.ts::function::p	function	ported	src/chiasmus/graph/cache.cr:1	Ported as path join helper
+src/graph/cache.ts::function::resolveCachePaths	function	ported	src/chiasmus/graph/cache.cr:1	Ported as resolve_cache_paths
+src/graph/cache.ts::function::snapshotPath	function	ported	src/chiasmus/graph/cache.cr:1	Ported as snapshot_path
+src/graph/cache.ts::function::snapshotsDir	function	ported	src/chiasmus/graph/cache.cr:1	Ported as snapshots_dir
+src/graph/cache.ts::interface::CacheOptions	interface	ported	src/chiasmus/graph/cache.cr:1	Ported as CacheOptions struct
+src/graph/cache.ts::interface::CachePaths	interface	ported	src/chiasmus/graph/cache.cr:1	Ported as CachePaths struct
+src/graph/cache.ts::interface::Manifest	interface	ported	src/chiasmus/graph/cache.cr:1	Ported as Manifest struct
+src/graph/cache.ts::interface::ManifestEntry	interface	ported	src/chiasmus/graph/cache.cr:1	Ported as ManifestEntry struct
+src/graph/community.ts::const::DEFAULT_SEED	const	ported	src/chiasmus/graph/community.cr:1	Ported as DEFAULT_SEED
+src/graph/community.ts::function::cohesionScore	function	ported	src/chiasmus/graph/community.cr:1	Ported as cohesion_score
+src/graph/community.ts::function::detectCommunities	function	ported	src/chiasmus/graph/community.cr:1	Ported as detect_communities
+src/graph/community.ts::function::groupBy	function	ported	src/chiasmus/graph/community.cr:1	Ported as group_by
+src/graph/community.ts::function::makeRng	function	ported	src/chiasmus/graph/community.cr:1	Ported as make_rng
+src/graph/community.ts::function::max	function	ported	src/chiasmus/graph/community.cr:1	Inlined with Crystal stdlib max
+src/graph/community.ts::interface::Community	interface	ported	src/chiasmus/graph/community.cr:1	Ported as Community struct
+src/graph/community.ts::interface::DetectOptions	interface	ported	src/chiasmus/graph/community.cr:1	Ported as DetectOptions struct
+src/graph/diff.ts::function::collectEdgeKeys	function	ported	src/chiasmus/graph/diff.cr:1	Ported as collect_edge_keys
+src/graph/diff.ts::function::collectNodes	function	ported	src/chiasmus/graph/diff.cr:1	Ported as collect_nodes
+src/graph/diff.ts::function::diffByKey	function	ported	src/chiasmus/graph/diff.cr:1	Ported as diff_by_key
+src/graph/diff.ts::function::edgeKey	function	ported	src/chiasmus/graph/diff.cr:1	Ported as edge_key
+src/graph/diff.ts::function::exportKey	function	ported	src/chiasmus/graph/diff.cr:1	Ported as export_key
+src/graph/diff.ts::function::graphDiff	function	ported	src/chiasmus/graph/diff.cr:1	Ported as graph_diff
+src/graph/diff.ts::function::hyperedgeKey	function	ported	src/chiasmus/graph/diff.cr:1	Ported as hyperedge_key
+src/graph/diff.ts::function::importKey	function	ported	src/chiasmus/graph/diff.cr:1	Ported as import_key
+src/graph/diff.ts::function::pluralize	function	ported	src/chiasmus/graph/diff.cr:1	Ported as pluralize
+src/graph/diff.ts::interface::GraphDiffEdge	interface	ported	src/chiasmus/graph/diff.cr:1	Ported as GraphDiffEdge struct
+src/graph/diff.ts::interface::GraphDiffResult	interface	ported	src/chiasmus/graph/diff.cr:1	Ported as GraphDiffResult struct
+src/graph/entry-points.ts::function::detectEntryPoints	function	ported	src/chiasmus/graph/entry_points.cr:1	Ported as detect_entry_points
+src/graph/extractor.ts::const::CLASS_NODE_TYPES_SET	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as CLASS_NODE_TYPES_SET
+src/graph/extractor.ts::const::CLJ_FORM_TYPES	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as CLJ_FORM_TYPES
+src/graph/extractor.ts::const::CLJ_HOFS_ALL_ARGS	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as CLJ_HOFS_ALL_ARGS
+src/graph/extractor.ts::const::CLJ_HOFS_ARG1	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as CLJ_HOFS_ARG1
+src/graph/extractor.ts::const::CLJ_RECOGNIZED_TOPLEVEL	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as CLJ_RECOGNIZED_TOPLEVEL
+src/graph/extractor.ts::const::CLJ_RECURSE_TYPES	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as CLJ_RECURSE_TYPES
+src/graph/extractor.ts::const::CLJ_SPECIAL_FORMS	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as CLJ_SPECIAL_FORMS
+src/graph/extractor.ts::const::CLJ_THREADING_MACROS	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as CLJ_THREADING_MACROS
+src/graph/extractor.ts::const::DOC_MAX_LEN	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as DOC_MAX_LEN
+src/graph/extractor.ts::const::EXTS	const	ported	src/chiasmus/graph/extractor.cr:1	Ported as EXTS
+src/graph/extractor.ts::const::FN_NODE_TYPES	const	ported	src/chiasmus/graph/walkers.cr:1	Ported as FN_NODE_TYPES
+src/graph/extractor.ts::function::cljListHead	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as clj_list_head
+src/graph/extractor.ts::function::cljMethodImplName	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as clj_method_impl_name
+src/graph/extractor.ts::function::cljNextSymNameAfter	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as clj_next_sym_name_after
+src/graph/extractor.ts::function::cljProcessCallSite	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as clj_process_call_site
+src/graph/extractor.ts::function::cljWalkDispatchMethods	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as clj_walk_dispatch_methods
+src/graph/extractor.ts::function::collapseSignature	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as collapse_signature
+src/graph/extractor.ts::function::collectTypeInfo	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as collect_type_info
+src/graph/extractor.ts::function::commonAncestor	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as common_ancestor
+src/graph/extractor.ts::function::countLines	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as count_lines
+src/graph/extractor.ts::function::emit	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as emit
+src/graph/extractor.ts::function::exactLookup	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as exact_lookup
+src/graph/extractor.ts::function::extractAnnotationTypeLocal	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_annotation_type_local
+src/graph/extractor.ts::function::extractClassMethods	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_class_methods
+src/graph/extractor.ts::function::extractCljDefnArglist	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_clj_defn_arglist
+src/graph/extractor.ts::function::extractCljProtocolMethodSignature	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_clj_protocol_method_signature
+src/graph/extractor.ts::function::extractFileDoc	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_file_doc
+src/graph/extractor.ts::function::extractFromTree	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_from_tree
+src/graph/extractor.ts::function::extractGoSignature	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_go_signature
+src/graph/extractor.ts::function::extractJsLikeSignature	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_js_like_signature
+src/graph/extractor.ts::function::extractNewTypeLocal	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_new_type_local
+src/graph/extractor.ts::function::extractParentClassName	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_parent_class_name
+src/graph/extractor.ts::function::extractPythonModuleDocstring	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_python_module_docstring
+src/graph/extractor.ts::function::extractPythonSignature	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_python_signature
+src/graph/extractor.ts::function::extractReceiverChain	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as extract_receiver_chain
+src/graph/extractor.ts::function::findEnclosingClassNameForTypeInfo	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as find_enclosing_class_name_for_type_info
+src/graph/extractor.ts::function::findEnclosingFnName	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as find_enclosing_fn_name
+src/graph/extractor.ts::function::firstIdentifierIn	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as first_identifier_in
+src/graph/extractor.ts::function::isCommentNode	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as is_comment_node?
+src/graph/extractor.ts::function::isDocShape	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as is_doc_shape?
+src/graph/extractor.ts::function::normalizeCommentText	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as normalize_comment_text
+src/graph/extractor.ts::function::qualifyCaller	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as qualify_caller
+src/graph/extractor.ts::function::qualifyCljName	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as qualify_clj_name
+src/graph/extractor.ts::function::resolveImportsInPlace	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as resolve_imports_in_place
+src/graph/extractor.ts::function::scopeKeyOf	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as scope_key_of
+src/graph/extractor.ts::function::stripPythonStringQuotes	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as strip_python_string_quotes
+src/graph/extractor.ts::function::walkCallsAndClasses	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as walk_calls_and_classes
+src/graph/extractor.ts::function::walkDecls	function	ported	src/chiasmus/graph/walkers.cr:1	Ported as walk_decls
+src/graph/extractor.ts::interface::CljCtx	interface	ported	src/chiasmus/graph/walkers.cr:1	Ported as CljCtx struct
+src/graph/extractor.ts::interface::ExtractOptions	interface	ported	src/chiasmus/graph/extractor.cr:1	Ported as ExtractOptions struct
+src/graph/facts.ts::const::MEMBER_RULES	const	ported	src/chiasmus/graph/facts.cr:1	Ported as MEMBER_RULES
+src/graph/facts.ts::interface::PrologOptions	interface	ported	src/chiasmus/graph/facts.cr:1	Ported as PrologOptions struct
+src/graph/graph-util.ts::function::buildUndirectedGraph	function	ported	src/chiasmus/graph/graph_util.cr:1	Ported as build_undirected_graph
+src/graph/graph-util.ts::function::collectNodes	function	ported	src/chiasmus/graph/graph_util.cr:1	Ported as collect_nodes
+src/graph/graph-util.ts::function::forEachUndirectedEdge	function	ported	src/chiasmus/graph/graph_util.cr:1	Ported as for_each_undirected_edge
+src/graph/graph-util.ts::function::undirectedDegree	function	ported	src/chiasmus/graph/graph_util.cr:1	Ported as undirected_degree
+src/graph/insights.ts::const::DEFAULT_HUB_TOP_N	const	ported	src/chiasmus/graph/insights.cr:1	Ported as DEFAULT_HUB_TOP_N
+src/graph/insights.ts::function::detectBridges	function	ported	src/chiasmus/graph/insights.cr:1	Ported as detect_bridges
+src/graph/insights.ts::function::detectHubs	function	ported	src/chiasmus/graph/insights.cr:1	Ported as detect_hubs
+src/graph/insights.ts::function::detectSurprisingConnections	function	ported	src/chiasmus/graph/insights.cr:1	Ported as detect_surprising_connections
+src/graph/insights.ts::interface::Bridge	interface	ported	src/chiasmus/graph/insights.cr:1	Ported as Bridge struct
+src/graph/insights.ts::interface::Hub	interface	ported	src/chiasmus/graph/insights.cr:1	Ported as Hub struct
+src/graph/insights.ts::interface::HubOptions	interface	ported	src/chiasmus/graph/insights.cr:1	Ported as HubOptions struct
+src/graph/insights.ts::interface::SurpriseOptions	interface	ported	src/chiasmus/graph/insights.cr:1	Ported as SurpriseOptions struct
+src/graph/insights.ts::interface::SurprisingConnection	interface	ported	src/chiasmus/graph/insights.cr:1	Ported as SurprisingConnection struct
+src/graph/insights.ts::type::SurpriseReason	type	ported	src/chiasmus/graph/insights.cr:1	Ported as SurpriseReason enum
+src/graph/map.ts::const::DEFAULT_DOC_LEN	const	ported	src/chiasmus/graph/map.cr:1	Ported as DEFAULT_DOC_LEN
+src/graph/map.ts::const::DEFAULT_MAX_EXPORTS_PER_FILE	const	ported	src/chiasmus/graph/map.cr:1	Ported as DEFAULT_MAX_EXPORTS_PER_FILE
+src/graph/map.ts::function::buildDirTree	function	ported	src/chiasmus/graph/map.cr:1	Ported as build_dir_tree
+src/graph/map.ts::function::buildFileDetail	function	ported	src/chiasmus/graph/map.cr:1	Ported as build_file_detail
+src/graph/map.ts::function::buildOverview	function	ported	src/chiasmus/graph/map.cr:1	Ported as build_overview
+src/graph/map.ts::function::buildSymbolDetail	function	ported	src/chiasmus/graph/map.cr:1	Ported as build_symbol_detail
+src/graph/map.ts::function::dedupeImports	function	ported	src/chiasmus/graph/map.cr:1	Ported as dedupe_imports
+src/graph/map.ts::function::fileNode	function	ported	src/chiasmus/graph/map.cr:1	Ported as file_node
+src/graph/map.ts::function::fileNodes	function	ported	src/chiasmus/graph/map.cr:1	Ported as file_nodes
+src/graph/map.ts::function::formatTokens	function	ported	src/chiasmus/graph/map.cr:1	Ported as format_tokens
+src/graph/map.ts::function::globMatch	function	ported	src/chiasmus/graph/map.cr:1	Ported as glob_match
+src/graph/map.ts::function::groupBy	function	ported	src/chiasmus/graph/map.cr:1	Ported as group_by
+src/graph/map.ts::function::kindPriority	function	ported	src/chiasmus/graph/map.cr:1	Ported as kind_priority
+src/graph/map.ts::function::normalizeInclude	function	ported	src/chiasmus/graph/map.cr:1	Ported as normalize_include
+src/graph/map.ts::function::renderFileHeadline	function	ported	src/chiasmus/graph/map.cr:1	Ported as render_file_headline
+src/graph/map.ts::function::renderFileMd	function	ported	src/chiasmus/graph/map.cr:1	Ported as render_file_md
+src/graph/map.ts::function::renderMap	function	ported	src/chiasmus/graph/map.cr:1	Ported as render_map
+src/graph/map.ts::function::renderOverviewMd	function	ported	src/chiasmus/graph/map.cr:1	Ported as render_overview_md
+src/graph/map.ts::function::renderSymbolLine	function	ported	src/chiasmus/graph/map.cr:1	Ported as render_symbol_line
+src/graph/map.ts::function::renderSymbolMd	function	ported	src/chiasmus/graph/map.cr:1	Ported as render_symbol_md
+src/graph/map.ts::function::toSymbolEntry	function	ported	src/chiasmus/graph/map.cr:1	Ported as to_symbol_entry
+src/graph/map.ts::function::truncateDoc	function	ported	src/chiasmus/graph/map.cr:1	Ported as truncate_doc
+src/graph/map.ts::interface::BuildOverviewOptions	interface	ported	src/chiasmus/graph/map.cr:1	Ported as BuildOverviewOptions struct
+src/graph/map.ts::interface::DirNode	interface	ported	src/chiasmus/graph/map.cr:1	Ported as DirNode struct
+src/graph/map.ts::interface::FileDetail	interface	ported	src/chiasmus/graph/map.cr:1	Ported as FileDetail struct
+src/graph/map.ts::interface::OverviewFile	interface	ported	src/chiasmus/graph/map.cr:1	Ported as OverviewFile struct
+src/graph/map.ts::interface::OverviewMap	interface	ported	src/chiasmus/graph/map.cr:1	Ported as OverviewMap struct
+src/graph/map.ts::interface::OverviewSummary	interface	ported	src/chiasmus/graph/map.cr:1	Ported as OverviewSummary struct
+src/graph/map.ts::interface::SymbolDetail	interface	ported	src/chiasmus/graph/map.cr:1	Ported as SymbolDetail struct
+src/graph/map.ts::interface::SymbolEntry	interface	ported	src/chiasmus/graph/map.cr:1	Ported as SymbolEntry struct
+src/graph/map.ts::type::AnyMap	type	ported	src/chiasmus/graph/map.cr:1	Ported as AnyMap alias
+src/graph/map.ts::type::MapFormat	type	ported	src/chiasmus/graph/map.cr:1	Ported as MapFormat enum
+src/graph/native-analyses.ts::function::bfsForward	function	ported	src/chiasmus/graph/analyses.cr:346	Ported via in-memory BFS adjacency traversal (reachable?, reaches_target?)
+src/graph/native-analyses.ts::function::buildIndex	function	ported	src/chiasmus/graph/analyses.cr:374	Ported via adjacency_map / reverse_adjacency_map
+src/graph/native-analyses.ts::function::callees	function	ported	src/chiasmus/graph/analyses.cr:251	Ported as callees
+src/graph/native-analyses.ts::function::callers	function	ported	src/chiasmus/graph/analyses.cr:247	Ported as callers
+src/graph/native-analyses.ts::function::cycles	function	ported	src/chiasmus/graph/analyses.cr:275	Ported as cycle_nodes
+src/graph/native-analyses.ts::function::deadCode	function	ported	src/chiasmus/graph/analyses.cr:255	Ported as dead_code
+src/graph/native-analyses.ts::function::formatPrologList	function	ported	src/chiasmus/graph/analyses.cr:1	Ported via TaggedAnalysisPayload Prolog list formatting
+src/graph/native-analyses.ts::function::impact	function	ported	src/chiasmus/graph/analyses.cr:286	Ported as impact
+src/graph/native-analyses.ts::function::path	function	ported	src/chiasmus/graph/analyses.cr:313	Ported as path_between
+src/graph/native-analyses.ts::function::quoteIfNeeded	function	ported	src/chiasmus/graph/analyses.cr:1	Ported via Prolog atom quoting in facts module
+src/graph/native-analyses.ts::function::reachability	function	ported	src/chiasmus/graph/analyses.cr:216	Ported as handle_reachability
+src/graph/native-analyses.ts::function::resolveTargets	function	ported	src/chiasmus/graph/analyses.cr:1	Ported via target resolution in handle_target_analysis
+src/graph/native-analyses.ts::interface::Frame	interface	ported	src/chiasmus/graph/analyses.cr:1	Inlined via BFS queue frame in cycle detection
+src/graph/native-analyses.ts::interface::GraphIndex	interface	ported	src/chiasmus/graph/analyses.cr:374	Ported as Hash(String, Set(String)) adjacency maps
+src/graph/parser.ts::function::getNativeParserInstance	function	ported	src/chiasmus/graph/parser.cr:1	Ported via UniversalParser/TreeSitterSetup
+src/graph/parser.ts::function::getWasmParserInstance	function	ported	src/chiasmus/graph/parser.cr:1	Ported via UniversalParser
+src/graph/resolve-calls.ts::const::JS_BUILTIN_TYPES	const	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as JS_BUILTIN_TYPES
+src/graph/resolve-calls.ts::function::buildClassFieldRegistry	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as build_class_field_registry
+src/graph/resolve-calls.ts::function::buildClassMethodRegistry	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as build_class_method_registry
+src/graph/resolve-calls.ts::function::buildMethodOwnerIndex	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as build_method_owner_index
+src/graph/resolve-calls.ts::function::findDeclaringClass	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as find_declaring_class
+src/graph/resolve-calls.ts::function::findOwnerViaMethods	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as find_owner_via_methods
+src/graph/resolve-calls.ts::function::methodContainsFacts	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as method_contains_facts?
+src/graph/resolve-calls.ts::function::resolve	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as resolve
+src/graph/resolve-calls.ts::function::resolveCallsWithRegistry	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as resolve_calls_with_registry
+src/graph/resolve-calls.ts::function::resolveChain	function	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as resolve_chain
+src/graph/resolve-calls.ts::interface::ClassMethodRegistry	interface	ported	src/chiasmus/graph/resolve_calls.cr:1	Ported as ClassMethodRegistry struct
+src/graph/suffix-index.ts::const::CANDIDATE_EXTS	const	ported	src/chiasmus/graph/suffix_index.cr:1	Ported as CANDIDATE_EXTS
+src/graph/suffix-index.ts::const::STRIP_EXT_RE	const	ported	src/chiasmus/graph/suffix_index.cr:1	Ported as STRIP_EXT_RE
+src/graph/suffix-index.ts::function::addKey	function	ported	src/chiasmus/graph/suffix_index.cr:1	Ported as add_key
+src/graph/suffix-index.ts::function::buildSuffixIndex	function	ported	src/chiasmus/graph/suffix_index.cr:1	Ported as build_suffix_index
+src/graph/suffix-index.ts::function::normalizeRel	function	ported	src/chiasmus/graph/suffix_index.cr:1	Ported as normalize_rel
+src/graph/suffix-index.ts::function::suffixResolveImport	function	ported	src/chiasmus/graph/suffix_index.cr:1	Ported as suffix_resolve_import
+src/graph/suffix-index.ts::interface::SuffixIndex	interface	ported	src/chiasmus/graph/suffix_index.cr:1	Ported as SuffixIndex alias
+src/graph/tsconfig-aliases.ts::function::loadAndMerge	function	ported	src/chiasmus/graph/tsconfig_aliases.cr:1	Ported as load_and_merge
+src/graph/tsconfig-aliases.ts::function::loadTsconfigAliases	function	ported	src/chiasmus/graph/tsconfig_aliases.cr:1	Ported as load_tsconfig_aliases
+src/graph/tsconfig-aliases.ts::function::repoRel	function	ported	src/chiasmus/graph/tsconfig_aliases.cr:1	Ported as repo_rel
+src/graph/tsconfig-aliases.ts::function::stripJsonComments	function	ported	src/chiasmus/graph/tsconfig_aliases.cr:1	Ported as strip_json_comments
+src/graph/tsconfig-aliases.ts::function::tryReadJson	function	ported	src/chiasmus/graph/tsconfig_aliases.cr:1	Ported as try_read_json
+src/graph/tsconfig-aliases.ts::interface::CompiledAlias	interface	ported	src/chiasmus/graph/tsconfig_aliases.cr:1	Ported as CompiledAlias struct
+src/graph/tsconfig-aliases.ts::interface::RawTsconfig	interface	ported	src/chiasmus/graph/tsconfig_aliases.cr:1	Ported as RawTsconfig struct
+src/graph/tsconfig-aliases.ts::interface::TsconfigAliasMap	interface	ported	src/chiasmus/graph/tsconfig_aliases.cr:1	Ported as TsconfigAliasMap alias
+src/graph/type-env.ts::const::CLASS_NODE_TYPES	const	ported	src/chiasmus/graph/type_env.cr:1	Ported as CLASS_NODE_TYPES
+src/graph/type-env.ts::const::FILE_SCOPE	const	ported	src/chiasmus/graph/type_env.cr:1	Ported as FILE_SCOPE
+src/graph/type-env.ts::const::FUNCTION_NODE_TYPES	const	ported	src/chiasmus/graph/type_env.cr:1	Ported as FUNCTION_NODE_TYPES
+src/graph/type-env.ts::function::buildTypeEnv	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as build_type_env
+src/graph/type-env.ts::function::extractClassFields	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as extract_class_fields
+src/graph/type-env.ts::function::extractNewExpressionType	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as extract_new_expression_type
+src/graph/type-env.ts::function::extractSimpleTypeName	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as extract_simple_type_name
+src/graph/type-env.ts::function::extractVarAnnotation	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as extract_var_annotation
+src/graph/type-env.ts::function::extractVarName	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as extract_var_name
+src/graph/type-env.ts::function::findEnclosingClassName	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as find_enclosing_class_name
+src/graph/type-env.ts::function::findEnclosingScopeKey	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as find_enclosing_scope_key
+src/graph/type-env.ts::function::getScope	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as get_scope
+src/graph/type-env.ts::function::processDeclarator	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as process_declarator
+src/graph/type-env.ts::function::stripNullable	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as strip_nullable
+src/graph/type-env.ts::function::walk	function	ported	src/chiasmus/graph/type_env.cr:1	Ported as walk
+src/graph/type-env.ts::interface::TypeEnvironment	interface	ported	src/chiasmus/graph/type_env.cr:1	Ported as TypeEnvironment struct
+src/graph/type-env.ts::type::ClassFieldRegistry	type	ported	src/chiasmus/graph/type_env.cr:1	Ported as ClassFieldRegistry alias
+src/graph/type-env.ts::type::ClassFieldTypes	type	ported	src/chiasmus/graph/type_env.cr:1	Ported as ClassFieldTypes alias
+src/graph/type-env.ts::type::TypeEnv	type	ported	src/chiasmus/graph/type_env.cr:1	Ported as TypeEnv alias
+src/graph/types.ts::interface::FileNode	interface	ported	src/chiasmus/graph/types.cr:1	Ported as FileNode record
+src/graph/types.ts::interface::FileTypeInfo	interface	ported	src/chiasmus/graph/types.cr:1	Ported as FileTypeInfo record
+src/graph/types.ts::interface::Hyperedge	interface	ported	src/chiasmus/graph/types.cr:1	Ported as Hyperedge record
+src/graph/types.ts::interface::PendingCall	interface	ported	src/chiasmus/graph/types.cr:1	Ported as PendingCall record
+src/llm/anthropic.ts::const::DEFAULT_TIMEOUT_MS	const	intentional_divergence	-	Crig owns provider defaults; upstream Anthropic timeout is intentionally not duplicated
+src/llm/anthropic.ts::function::createEmbeddingFromEnv	function	intentional_divergence	-	Crig replaces vendor-specific embedding adapter; embedding factory in server_factory.cr
+src/llm/azure-openai.ts::class::AzureOpenAIEmbeddingAdapter	class	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+src/llm/azure-openai.ts::const::DEFAULT_API_VERSION	const	intentional_divergence	-	Crig owns provider defaults; upstream Azure API version is intentionally not duplicated
+src/llm/azure-openai.ts::const::DEFAULT_TIMEOUT_MS	const	intentional_divergence	-	Crig owns provider defaults; upstream Azure timeout is intentionally not duplicated
+src/llm/azure-openai.ts::function::data	function	intentional_divergence	-	Azure HTTP payload construction replaced by Crig API
+src/llm/azure-openai.ts::interface::AzureOpenAIEmbeddingConfig	interface	intentional_divergence	-	Vendor-specific config replaced by Crig configuration
+src/llm/azure-openai.ts::method::AzureOpenAIEmbeddingAdapter.constructor	method	intentional_divergence	-	Vendor-specific constructor replaced by injected Crig agent
+src/llm/mock.ts::class::MockEmbeddingAdapter	class	intentional_divergence	-	Specs use injectable fake agents instead of upstream MockEmbeddingAdapter
+src/llm/mock.ts::interface::MockEmbeddingConfig	interface	intentional_divergence	-	Mock config replaced by injectable test doubles
+src/llm/mock.ts::method::MockEmbeddingAdapter.constructor	method	intentional_divergence	-	Mock construction replaced by injectable test doubles
+src/llm/openai-compatible.ts::class::OpenAICompatibleEmbeddingAdapter	class	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+src/llm/openai-compatible.ts::const::DEFAULT_TIMEOUT_MS	const	intentional_divergence	-	Crig owns provider defaults; upstream OpenAI-compatible timeout is intentionally not duplicated
+src/llm/openai-compatible.ts::interface::OpenAICompatibleEmbeddingConfig	interface	intentional_divergence	-	Vendor-specific config replaced by Crig configuration
+src/llm/openai-compatible.ts::method::OpenAICompatibleEmbeddingAdapter.constructor	method	intentional_divergence	-	Vendor-specific constructor replaced by injected Crig agent
+src/llm/types.ts::interface::EmbeddingAdapter	interface	intentional_divergence	-	Crig replaces vendor-specific embedding adapter interface
+src/mcp-server.ts::const::GRAPH_ANALYSES	const	ported	src/chiasmus/mcp_server/server.cr:1	Ported as GRAPH_ANALYSES in MCP server
+src/mcp-server.ts::function::commonPathAncestor	function	ported	src/chiasmus/mcp_server/server.cr:1	Ported as common_path_ancestor
+src/mcp-server.ts::function::format	function	ported	src/chiasmus/mcp_server/server.cr:1	Ported as format helper
+src/mcp-server.ts::function::handleReview	function	ported	src/chiasmus/mcp_server/server.cr:1	Ported as handle_review
+src/mcp-server.ts::function::mode	function	ported	src/chiasmus/mcp_server/server.cr:1	Ported as mode helper
+src/mcp-server.ts::function::setupShutdownHandlers	function	ported	src/chiasmus/mcp_server/server.cr:1	Ported as setup_shutdown_handlers
+src/mcp-server.ts::function::shutdown	function	ported	src/chiasmus/mcp_server/server.cr:1	Ported as shutdown handler
+src/review.ts::function::buildReporting	function	ported	src/chiasmus/review.cr:1	Ported as build_reporting
+src/review.ts::function::buildReviewPlan	function	ported	src/chiasmus/review.cr:1	Ported as build_review_plan
+src/review.ts::function::buildSummary	function	ported	src/chiasmus/review.cr:1	Ported as build_summary
+src/review.ts::function::makeArchitecturePhase	function	ported	src/chiasmus/review.cr:1	Ported as make_architecture_phase
+src/review.ts::function::makeAuthorizationPhase	function	ported	src/chiasmus/review.cr:1	Ported as make_authorization_phase
+src/review.ts::function::makeCorrectnessPhase	function	ported	src/chiasmus/review.cr:1	Ported as make_correctness_phase
+src/review.ts::function::makeDeltaPhase	function	ported	src/chiasmus/review.cr:1	Ported as make_delta_phase
+src/review.ts::function::makeImpactPhase	function	ported	src/chiasmus/review.cr:1	Ported as make_impact_phase
+src/review.ts::function::makeOverviewPhase	function	ported	src/chiasmus/review.cr:1	Ported as make_overview_phase
+src/review.ts::function::makeResourceSafetyPhase	function	ported	src/chiasmus/review.cr:1	Ported as make_resource_safety_phase
+src/review.ts::function::makeSecurityPhase	function	ported	src/chiasmus/review.cr:1	Ported as make_security_phase
+src/review.ts::function::pickSuggestedTemplates	function	ported	src/chiasmus/review.cr:1	Ported as pick_suggested_templates
+src/review.ts::interface::ReviewAction	interface	ported	src/chiasmus/review.cr:1	Ported as ReviewAction struct
+src/review.ts::interface::ReviewPhase	interface	ported	src/chiasmus/review.cr:1	Ported as ReviewPhase struct
+src/review.ts::interface::ReviewPlan	interface	ported	src/chiasmus/review.cr:1	Ported as ReviewPlan struct
+src/review.ts::interface::ReviewReporting	interface	ported	src/chiasmus/review.cr:1	Ported as ReviewReporting struct
+src/review.ts::interface::ReviewRequest	interface	ported	src/chiasmus/review.cr:1	Ported as ReviewRequest struct
+src/review.ts::interface::SuggestedTemplate	interface	ported	src/chiasmus/review.cr:1	Ported as SuggestedTemplate struct
+src/review.ts::type::ReviewFocus	type	ported	src/chiasmus/review.cr:1	Ported as ReviewFocus enum
+src/search/embedding-cache.ts::class::EmbeddingCache	class	ported	src/chiasmus/search/embedding_cache.cr:1	Ported as EmbeddingCache class
+src/search/embedding-cache.ts::const::SCHEMA_VERSION	const	ported	src/chiasmus/search/embedding_cache.cr:1	Ported as SCHEMA_VERSION
+src/search/embedding-cache.ts::interface::EmbeddingCacheConfig	interface	ported	src/chiasmus/search/embedding_cache.cr:1	Ported as EmbeddingCacheConfig struct
+src/search/embedding-cache.ts::interface::PartitionResult	interface	ported	src/chiasmus/search/embedding_cache.cr:1	Ported as PartitionResult struct
+src/search/embedding-cache.ts::method::EmbeddingCache.constructor	method	ported	src/chiasmus/search/embedding_cache.cr:1	Ported as EmbeddingCache#initialize
+src/search/engine.ts::const::SNIPPET_LINES	const	ported	src/chiasmus/search/engine.cr:1	Ported as SNIPPET_LINES
+src/search/engine.ts::function::buildSearchCorpus	function	ported	src/chiasmus/search/engine.cr:1	Ported as build_search_corpus
+src/search/engine.ts::function::makeEntryId	function	ported	src/chiasmus/search/engine.cr:1	Ported as make_entry_id
+src/search/engine.ts::function::snippetAround	function	ported	src/chiasmus/search/engine.cr:1	Ported as snippet_around
+src/search/engine.ts::interface::RunSearchOptions	interface	ported	src/chiasmus/search/engine.cr:1	Ported as RunSearchOptions struct
+src/search/engine.ts::interface::SearchCorpusEntry	interface	ported	src/chiasmus/search/engine.cr:1	Ported as SearchCorpusEntry struct
+src/search/engine.ts::interface::SearchHit	interface	ported	src/chiasmus/search/engine.cr:1	Ported as SearchHit struct
+src/search/vector-store.ts::class::VectorStore	class	ported	src/chiasmus/search/vector_store.cr:51	Ported as Search::VectorStore
+src/search/vector-store.ts::const::SCHEMA_VERSION	const	ported	src/chiasmus/search/vector_store.cr:11	Ported as Search::SCHEMA_VERSION
+src/search/vector-store.ts::function::l2Norm	function	ported	src/chiasmus/search/vector_store.cr:46	Ported as InternalRow#l2_norm
+src/search/vector-store.ts::interface::InternalRow	interface	ported	src/chiasmus/search/vector_store.cr:36	Ported as Search::InternalRow (private struct)
+src/search/vector-store.ts::interface::VectorRecord	interface	ported	src/chiasmus/search/vector_store.cr:13	Ported as Search::VectorRecord
+src/search/vector-store.ts::interface::VectorSearchHit	interface	ported	src/chiasmus/search/vector_store.cr:18	Ported as Search::VectorSearchHit
+src/search/vector-store.ts::interface::VectorStoreConfig	interface	ported	src/chiasmus/search/vector_store.cr:54	Ported via VectorStore.new(dimension:)
+src/search/vector-store.ts::method::VectorStore.constructor	method	ported	src/chiasmus/search/vector_store.cr:54	Ported as VectorStore#initialize(dimension:)
+src/skills/bm25.ts::function::addToIndex	function	intentional_divergence	lib/bm25/src/bm25/search.cr:55	Replaced by Bm25::SearchEngine#upsert
+src/skills/bm25.ts::function::removeFromIndex	function	intentional_divergence	lib/bm25/src/bm25/search.cr:55	Replaced by Bm25::SearchEngine#delete
+src/solvers/prolog-solver.ts::class::CapReachedError	class	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as CapReachedError
+src/solvers/prolog-solver.ts::class::LimitExceededError	class	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as LimitExceededError
+src/solvers/prolog-solver.ts::const::DEFAULT_MAX_INFERENCES	const	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as DEFAULT_MAX_INFERENCES
+src/solvers/prolog-solver.ts::const::LIMIT_EXCEEDED_ATOM	const	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as LIMIT_EXCEEDED_ATOM
+src/solvers/prolog-solver.ts::const::LIMIT_MARKER_VAR	const	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as LIMIT_MARKER_VAR
+src/solvers/prolog-solver.ts::const::SAFE_PATH_RE	const	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as SAFE_PATH_RE
+src/solvers/prolog-solver.ts::function::bindingsToFormatted	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as bindings_to_formatted
+src/solvers/prolog-solver.ts::function::cleanupSession	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as cleanup_session
+src/solvers/prolog-solver.ts::function::clearMessages	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as clear_messages
+src/solvers/prolog-solver.ts::function::collectErrorMessages	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as collect_error_messages
+src/solvers/prolog-solver.ts::function::finalize	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as finalize
+src/solvers/prolog-solver.ts::function::findNeck	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as find_neck
+src/solvers/prolog-solver.ts::function::isAtomBare	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as is_atom_bare?
+src/solvers/prolog-solver.ts::function::normalizeQuery	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as normalize_query
+src/solvers/prolog-solver.ts::function::runQuery	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as run_query
+src/solvers/prolog-solver.ts::function::termToProlog	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as term_to_prolog
+src/solvers/prolog-solver.ts::function::tryUnlink	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as try_unlink
+src/solvers/prolog-solver.ts::function::uniqueSessionModule	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as unique_session_module
+src/solvers/prolog-solver.ts::function::uniqueTempPath	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as unique_temp_path
+src/solvers/prolog-solver.ts::function::validateQuery	function	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as validate_query
+src/solvers/prolog-solver.ts::interface::QueryOpts	interface	ported	src/chiasmus/solvers/prolog_solver.cr:1	Ported as QueryOpts struct
+src/solvers/z3-solver.ts::const::DEFAULT_Z3_TIMEOUT_MS	const	ported	src/chiasmus/solvers/z3_solver.cr:1	Ported as DEFAULT_Z3_TIMEOUT_MS
+src/solvers/z3-solver.ts::function::prepareSmtlib	function	ported	src/chiasmus/solvers/z3_solver.cr:1	Ported as prepare_smtlib
+tests/anthropic-adapter.test.ts::test::AnthropicAdapter	test	intentional_divergence	-	Crig replaces vendor-specific LLM adapters
+tests/anthropic-adapter.test.ts::test::defaults to claude-sonnet-4-6 when no model is configured	test	intentional_divergence	-	Crig owns provider defaults
+tests/anthropic-adapter.test.ts::test::honors an explicit model override	test	intentional_divergence	-	Crig owns provider/model selection
+tests/azure-openai-adapter.test.ts::test::AzureOpenAIEmbeddingAdapter	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::URL-encodes the deployment name and api-version	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::batches at the Azure 16-input limit by default	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::defaults to API version 2023-05-15 when none is provided	test	intentional_divergence	-	Crig owns provider defaults
+tests/azure-openai-adapter.test.ts::test::dimension() returns the configured value, and learns it from the first embed when not configured	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::dimension() throws before the first embed when not pre-configured	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::forwards a configured dimension via the 	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::omits 	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::preserves input → output position across batch boundaries	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::returns embeddings in input order even when the API responds out of order	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::routes by deployment name and uses the api-key header (not Bearer)	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::strips a trailing slash from the endpoint	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/azure-openai-adapter.test.ts::test::throws with status and body on a non-2xx response	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/bm25.test.ts::test::BM25 index	test	intentional_divergence	lib/bm25/src/bm25/search.cr:55	Replaced by dsisnero/bm25 shard tests
+tests/bm25.test.ts::test::incremental add keeps IDF consistent	test	intentional_divergence	-	Replaced by dsisnero/bm25 shard tests
+tests/bm25.test.ts::test::matches full rebuild across many adds	test	intentional_divergence	-	Replaced by dsisnero/bm25 shard tests
+tests/bm25.test.ts::test::matches full rebuild for a term not in the added doc	test	intentional_divergence	-	Replaced by dsisnero/bm25 shard tests
+tests/bm25.test.ts::test::search scores after incremental add match full rebuild	test	intentional_divergence	-	Replaced by dsisnero/bm25 shard tests
+tests/create-embedding-from-env.test.ts::test::Azure activation	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::OpenAI fallback	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::accepts AZURE_OPENAI_ENDPOINT as a fallback for AZURE_OPENAI_API_ENDPOINT	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::createEmbeddingFromEnv	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::does not activate when only the key is set (no endpoint)	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::forwards CHIASMUS_EMBED_DIM and AZURE_OPENAI_API_VERSION to the adapter URL	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::returns an AzureOpenAIEmbeddingAdapter when key + endpoint + deployment are set	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::returns an OpenAICompatibleEmbeddingAdapter when only OPENAI_API_KEY is set	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::returns null when no provider env vars are set	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::takes precedence over OPENAI_API_KEY when both are configured	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/create-embedding-from-env.test.ts::test::warns and returns null when key + endpoint are set but deployment is missing	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/embedding-adapter.test.ts::test::EmbeddingAdapter interface (R10)	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/embedding-adapter.test.ts::test::mock batch returns in the same order as inputs	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/embedding-adapter.test.ts::test::mock exposes dimension() matching configured size	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/embedding-adapter.test.ts::test::mock produces distinct vectors for distinct inputs	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/embedding-adapter.test.ts::test::mock returns deterministic vectors of the configured dimension	test	intentional_divergence	-	Crig replaces vendor-specific embedding adapters
+tests/engine-empty-library.test.ts::test::FormalizationEngine	test	ported	spec/chiasmus/formalize/engine_spec.cr:19	Covered by Crystal engine spec
+tests/engine-empty-library.test.ts::test::returns null instead of crashing when library is empty	test	ported	spec/chiasmus/formalize/engine_spec.cr	Empty-library behavior covered by engine spec
+tests/formalize.test.ts::test::selects taint-propagation or graph-reachability for data flow problems	test	ported	spec/chiasmus/formalize/engine_spec.cr:43	Ported graph-reachability/template selection coverage
+tests/graph-analyses-escaping.test.ts::test::graph analysis query escaping	test	ported	spec/chiasmus/graph/analyses_spec.cr	Covered by escaping specs; Crystal avoids Prolog injection via in-memory analysis
+tests/graph-analyses-escaping.test.ts::test::handles from/to with special chars for reachability	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported via in-memory graph traversal
+tests/graph-analyses-escaping.test.ts::test::handles target names with parentheses	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported via in-memory graph traversal
+tests/graph-analyses-escaping.test.ts::test::handles target names with single quotes	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported via in-memory graph traversal
+tests/graph-analyses-escaping.test.ts::test::handles target names with spaces	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported via in-memory graph traversal
+tests/graph/adapter-registry.test.ts::test::concurrent callers share the same in-flight discovery promise	test	ported	spec/chiasmus/graph/adapter_registry_spec.cr:103	Ported concurrency idempotence coverage
+tests/graph/analyses-cache.test.ts::test::does not populate cache when cache option omitted	test	ported	spec/chiasmus/graph/cache_spec.cr	Crystal cache spec covers cache=true/false plumbing
+tests/graph/analyses-cache.test.ts::test::populates the cache when cache=true	test	ported	spec/chiasmus/graph/cache_spec.cr	Crystal cache spec
+tests/graph/analyses-cache.test.ts::test::runAnalysis cache plumbing	test	ported	spec/chiasmus/graph/cache_spec.cr	Crystal cache spec
+tests/graph/analyses-cache.test.ts::test::second call with same inputs uses the cache	test	ported	spec/chiasmus/graph/cache_spec.cr	Crystal cache spec
+tests/graph/analyses-diff.test.ts::test::computes diff against a saved snapshot	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported diff analysis spec
+tests/graph/analyses-diff.test.ts::test::returns error when against snapshot is missing	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported diff analysis spec
+tests/graph/analyses-diff.test.ts::test::runAnalysis: diff analysis	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported diff analysis spec
+tests/graph/analyses-diff.test.ts::test::saves a snapshot when saveSnapshot is supplied	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported snapshot + snapshot spec
+tests/graph/analyses-insights.test.ts::test::bridges analysis returns betweenness-ranked nodes	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported insights spec
+tests/graph/analyses-insights.test.ts::test::communities analysis returns community list	test	ported	spec/chiasmus/graph/community_spec.cr	Ported community spec
+tests/graph/analyses-insights.test.ts::test::emits community/2, cohesion/2, hub/2, and bridge/2 facts when present	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported insights + Prolog emission spec
+tests/graph/analyses-insights.test.ts::test::graphToProlog: insight facts	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported Prolog insight emission spec
+tests/graph/analyses-insights.test.ts::test::hubs analysis returns ranked nodes	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported hubs spec
+tests/graph/analyses-insights.test.ts::test::omits insight facts by default (keeps facts dump size predictable)	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported default-omission spec
+tests/graph/analyses-insights.test.ts::test::runAnalysis: new insight analyses	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported insight analyses spec
+tests/graph/analyses-insights.test.ts::test::surprises analysis returns cross-community edges	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported surprises spec
+tests/graph/analyses-scale.test.ts::test::buildFactsResult returns an error object when the program exceeds the cap	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported facts-oversize spec
+tests/graph/analyses-scale.test.ts::test::buildFactsResult returns the raw program under the cap	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported facts-under-cap spec
+tests/graph/analyses-scale.test.ts::test::default cap is 10 MB (matches the agreed budget)	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported cap constant spec
+tests/graph/analyses-scale.test.ts::test::facts output size cap	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported cap spec
+tests/graph/analyses-scale.test.ts::test::graph analyses — scale	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported scale spec group
+tests/graph/analyses-scale.test.ts::test::runAnalysisFromGraph surfaces the cap error on an oversize graph	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported oversize error spec
+tests/graph/analyses-scale.test.ts::test::small graphs return the full program string via runAnalysisFromGraph	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported small-graph spec
+tests/graph/analyses.test.ts::test::an empty filePaths list is not an error — returns empty summary with no warnings	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported empty-files spec
+tests/graph/analyses.test.ts::test::cycles ignores a cycle whose intermediate hop is a method	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported method-cycle filtering spec
+tests/graph/analyses.test.ts::test::cycles ignores phantom self-loops through method name collisions	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported phantom self-loop spec
+tests/graph/analyses.test.ts::test::cycles still detects real cycles that go through functions only	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported real-cycle detection spec
+tests/graph/analyses.test.ts::test::impact preserves target when a self-loop exists (matches reaches/2 semantics)	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported impact self-loop spec
+tests/graph/analyses.test.ts::test::impact strips target when there is no self-loop	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported impact strip spec
+tests/graph/analyses.test.ts::test::path returns [f, f] for a self-loop (not empty)	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported path self-loop spec
+tests/graph/analyses.test.ts::test::path returns empty when from === to and there is no self-loop	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported path empty spec
+tests/graph/analyses.test.ts::test::reads a real file and returns a non-empty summary	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported real-file I/O spec
+tests/graph/analyses.test.ts::test::reports a warning when a requested file is unreadable	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported unreadable-file warning spec
+tests/graph/analyses.test.ts::test::returns an error result when every requested file is unreadable	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported all-unreadable error spec
+tests/graph/analyses.test.ts::test::runAnalysis file I/O surface	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported file I/O spec group
+tests/graph/analyses.test.ts::test::unqualified target resolves to namespace-qualified node (Clojure compat)	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported Clojure namespace resolution spec
+tests/graph/cache.test.ts::test::cache: LRU eviction	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::cache: checkFileCache + saveFileCache	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::cache: concurrent access safety	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::cache: fileHash	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::cache: resolveCachePaths	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::changes when content changes	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::changes when path changes	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::clearRepoCache wipes repo dir but not sibling repos	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::does not evict the manifest file	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::evicts least-recently-used file entry when over budget	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::hits after save on identical content+path	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::is deterministic for the same content and path	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::keeps total repo size under maxBytesPerRepo after evictLRU	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::leaves no .tmp files after save	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::manifest carries current schema version	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::misses after content change	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::misses after schema version bump	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::mixed file set partially hits	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::parallel saves produce a consistent manifest	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::resists boundary collision between content and path	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::returns all misses on cold cache	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/cache.test.ts::test::returns distinct directories per repo key	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported cache spec
+tests/graph/call-qn-fallback.test.ts::test::R4: inheritance + fallback resolution	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::child fields shadow parent fields	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::does not emit QN when final type does not define the method	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::existing chain resolution still wins over fallback	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::extends cycles do not infinite-loop	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::inherits fields across files via extends	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::inherits fields from a base class via extends	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::interface extends propagates methods	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::method-name fallback: ambiguous method name stays unresolved	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-fallback.test.ts::test::method-name fallback: unique method across all classes resolves	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported call resolution spec
+tests/graph/call-qn-resolution.test.ts::test::Array<T> / Promise<T> / Map<K,V> receivers do not misattribute	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::JS also benefits when new-expression receiver is unambiguous	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::JS builtins like Map / Set / Promise do not produce QNs	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::TS/JS qualified call resolution (R3)	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::array receivers do not misattribute to element class	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::bare function call has no calleeQN	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::constructor property params become class fields for chain resolution	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::cross-file chain via class field registry	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::does not set calleeQN when receiver type is unknown	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::existing name-based callee continues to work (back-compat)	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::localVar.method() with explicit annotation resolves receiver type	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::localVar.method() with new-expression inference resolves receiver type	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::primitive type annotations do not produce QNs	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::this.field.method() chain resolves via class field registry	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/call-qn-resolution.test.ts::test::this.method() on a class method resolves to Class.method	test	ported	spec/chiasmus/graph/resolve_calls_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::CallsFact.calleeQN (R2)	test	ported	spec/chiasmus/graph/types_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::ImportsFact.resolved → imports_resolved/3 Prolog facts	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::does not emit calls_qn dynamic declaration when no rows have QN	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::does not emit calls_qn when calleeQN is missing	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::does not emit imports_resolved when no row has resolved	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::emits calls_qn/3 when calleeQN is present	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::emits imports_resolved/3 when resolved is present	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::mixed: only rows with calleeQN produce calls_qn facts	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/calls-qn.test.ts::test::the QN atom is Prolog-escaped correctly	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/clojure.test.ts::test::HOF fn-slot precision	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::as-> emits edges for bare-symbol fn calls, skipping the binding name	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::cond-> emits edges for bare-symbol fn calls	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::cond->> emits edges for bare-symbol fn calls	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::dead-code integration (dispatch patterns)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::definterface	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not emit in-file ref edges for locals that don	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not flag bare-sym-called helpers as dead in thread-last chains	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not flag helpers used only as HOF args as dead	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not flag helpers used only in as-> as dead	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not flag helpers used only inside defrecord methods as dead	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not flag test-only helpers as dead	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not treat Clojure special forms as function calls	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not treat args of map-first / set-first lists as callees	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::does not treat the 2nd sym in a keyword-first list as a callee	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::doto emits edges for bare-symbol fn calls	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::dynamic dispatch forms	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits all sym args for comp/juxt (every arg is a fn)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits edges for bare-symbol calls in -> body	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits edges for bare-symbol calls in ->> body	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits edges for fn refs in def value expressions	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits edges for fn refs in map literal values	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits edges for fn refs in registration-style calls	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits edges for fns passed to user-defined HOFs	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits only the fn arg, not collection args, for arg1-HOFs	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::emits only the fn for partial (rest are bound args)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::extracts calls inside anon_fn_lit #(...)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::extracts calls inside derefing_lit @(...)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::extracts calls inside reader conditional #?(...)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::form-container recursion	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::handles apply/partial/comp with fn args	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::higher-order function references	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::in-file defn references (user-defined HOFs and value positions)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::list head disambiguation	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::preserves namespace-qualified callees (db/query stays qualified)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::qualifies same-named defns across namespaces to avoid collision (from-input-stream pattern)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::registers defmulti as a function definition	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::registers defprotocol method names as function definitions	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::registers interface name and methods	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::test macros	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::threading macros	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::threading variants (as->, cond->, cond->>, doto)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::top-level side-effecting forms	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::treats sym args of clojure.core HOFs as reference edges	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::walks def value expressions for call edges	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::walks defmethod bodies, attributing calls to the multi name	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::walks defrecord method bodies	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::walks deftest bodies and attributes calls to the test name	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::walks deftype method bodies	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::walks extend-protocol method bodies	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::walks extend-type method bodies	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/clojure.test.ts::test::walks top-level forms using the ns name as caller	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/graph/community.test.ts::test::cohesion score is intra_edges / max_possible	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::detectCommunities	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::detected communities carry a cohesion score in [0, 1]	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::is deterministic across runs with the same input	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::members within each community are lexically sorted	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::places isolated nodes into singleton communities	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::returns empty list for empty graph	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::separates two cliques connected by a single bridge	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::sorts communities by size descending with 0-indexed ids	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/community.test.ts::test::splits oversized communities further (graphify cluster.py:55-56)	test	ported	spec/chiasmus/graph/community_spec.cr	Ported
+tests/graph/diff.test.ts::test::detects added edges	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::detects added nodes	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::detects removed edges	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::detects removed nodes	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::graphDiff	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::handles complete replacement	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::produces a human-readable summary	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::returns no changes for identical graphs	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::summary pluralizes correctly	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/diff.test.ts::test::uses (source, target) as edge key for directed graphs	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::detectEntryPoints	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::falls back to all exports when every export has callers	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::falls back to zero-in-degree functions when there are no exports	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::ignores methods (dynamic dispatch)	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::is deterministic (sorted output)	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::new analysis returns the heuristic entry points	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::returns [] for empty graph	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::returns zero-in-degree exports	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::runAnalysis: entry-points	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/entry-points.test.ts::test::shrinks the entry-point set vs using all exports	test	ported	spec/chiasmus/graph/entry_points_spec.cr	Ported
+tests/graph/extractor-cache.test.ts::test::caches new extractions so next call hits	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/extractor-cache.test.ts::test::does not touch cache when cache option is omitted	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/extractor-cache.test.ts::test::extractGraph cache integration	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/extractor-cache.test.ts::test::partial cache hit: mixed extraction for hit + miss	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/extractor-cache.test.ts::test::re-extracts when content changes	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/extractor-cache.test.ts::test::returns identical results with cache=true on repeat call	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/extractor-cache.test.ts::test::uses cached fragment instead of re-parsing	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/extractor-tree-cleanup.test.ts::test::calls tree.delete() on the returned tree to free WASM/native memory	test	ported	spec/chiasmus/graph/extractor_spec.cr	Tree cleanup handled by Crystal tree_sitter shard
+tests/graph/extractor-tree-cleanup.test.ts::test::does not crash when tree lacks a delete method (native trees)	test	ported	spec/chiasmus/graph/extractor_spec.cr	Tree cleanup handled by Crystal tree_sitter shard
+tests/graph/extractor-tree-cleanup.test.ts::test::extractGraph tree cleanup	test	ported	spec/chiasmus/graph/extractor_spec.cr	Tree cleanup handled by Crystal tree_sitter shard
+tests/graph/extractor.test.ts::test::does not emit nonsense callee names for unresolvable expressions	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/extractor.test.ts::test::records function-reference usage so callbacks don	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/extractor.test.ts::test::resolves renamed imports ({ foo as bar } → call bar() edges to foo)	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-class-scope.test.ts::test::attributes calls in class body static fields to the class	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-class-scope.test.ts::test::extractor: class scope stack	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-clj-collections.test.ts::test::extractor: Clojure calls in collection types	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/extractor-clj-collections.test.ts::test::extracts calls inside map_lit	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/extractor-clj-collections.test.ts::test::extracts calls inside set_lit	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/extractor-clj-collections.test.ts::test::extracts calls inside vec_lit (let bindings)	test	ported	spec/chiasmus/graph/clojure_extractor_spec.cr	Ported
+tests/extractor-cross-file-dedup.test.ts::test::extractor: cross-file call dedup	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-cross-file-dedup.test.ts::test::preserves same caller->callee edge across two files	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-multi-arrow.test.ts::test::extractor: multiple arrow functions in one declaration	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-multi-arrow.test.ts::test::handles mix of arrow and non-arrow in same declaration	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-multi-arrow.test.ts::test::registers all arrow functions from const a = () => {}, b = () => {}	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-multi-arrow.test.ts::test::registers calls from all arrow functions	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/extractor-multi-arrow.test.ts::test::walks non-arrow initializer alongside arrow functions	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/facts.test.ts::test::escapes backslashes so trailing backslash cannot terminate the quote	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/facts.test.ts::test::escapes control characters (newline, tab, carriage return)	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/facts.test.ts::test::round-trips an atom containing a literal backslash	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/file-nodes.test.ts::test::does not emit duplicate FileNodes for the same path	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/file-nodes.test.ts::test::extractGraph emits one FileNode per input file with language	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/file-nodes.test.ts::test::file nodes	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/file-nodes.test.ts::test::graphToProlog emits file/2 facts	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/file-nodes.test.ts::test::skips files in unsupported languages	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/hubs.test.ts::test::default topN is 10	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::detectBridges	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::detectHubs	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::excludes nodes with zero betweenness	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::identifies bridge node between two cliques	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::ranks by total degree (in + out)	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::respects topN option	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::returns at most 3 entries (graphify analyze.py:370)	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::returns empty list for empty graph	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hubs.test.ts::test::ties broken lexically for determinism	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::Hyperedge analyses	test	ported	spec/chiasmus/graph/types_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::Hyperedge round-trip via snapshot	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::Hyperedge type + facts emission	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::emits hyperedge/2 and hyperedge_member/2 per entry	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::escapes ids + relations + members as Prolog atoms	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::graphToProlog emits nothing hyperedge-related when none present	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::includes :- dynamic(hyperedge/2) declarations	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::saveSnapshot + loadSnapshot preserves hyperedges	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::summary includes hyperedge count when present	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported
+tests/graph/hyperedges.test.ts::test::summary omits hyperedges key when empty	test	ported	spec/chiasmus/graph/analyses_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::back-compat: extractGraph still works without repoPath option	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::disambiguates same-basename files by importing directory	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::does not silently match a same-basename file when intended target is missing	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::does not touch re-exports when target is external	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::import resolution (R5+R6)	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::leaves `resolved` undefined for unresolved imports (e.g. external packages)	test	ported	spec/chiasmus/graph/extractor_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::resolves .. relative imports correctly	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::resolves directory imports to index.ts	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::resolves imports to canonical file paths via suffix index	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/import-resolution.test.ts::test::resolves tsconfig-aliased imports (e.g. @/foo)	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/layer-violation.test.ts::test::allows calls to adjacent layer	test	ported	spec/chiasmus/graph/layer_violation_spec.cr	Ported
+tests/graph/layer-violation.test.ts::test::allows calls within the same layer	test	ported	spec/chiasmus/graph/layer_violation_spec.cr	Ported
+tests/graph/layer-violation.test.ts::test::detects a call that skips a layer	test	ported	spec/chiasmus/graph/layer_violation_spec.cr	Ported
+tests/graph/layer-violation.test.ts::test::detects multiple violations	test	ported	spec/chiasmus/graph/layer_violation_spec.cr	Ported
+tests/graph/layer-violation.test.ts::test::layer-violation analysis	test	ported	spec/chiasmus/graph/layer_violation_spec.cr	Ported
+tests/graph/layer-violation.test.ts::test::returns empty when no calls exist	test	ported	spec/chiasmus/graph/layer_violation_spec.cr	Ported
+tests/graph/map-mcp.test.ts::test::appears in tool list	test	ported	spec/chiasmus/mcp_server/map_spec.cr	Ported
+tests/graph/map-mcp.test.ts::test::chiasmus_map MCP tool	test	ported	spec/chiasmus/mcp_server/map_spec.cr	Ported
+tests/graph/map-mcp.test.ts::test::clamps negative max_exports to 0 (returns no topExports, full exportCount)	test	ported	spec/chiasmus/mcp_server/map_spec.cr	Ported
+tests/graph/map-mcp.test.ts::test::rejects mode=	test	ported	spec/chiasmus/mcp_server/map_spec.cr	Ported
+tests/graph/map-mcp.test.ts::test::returns file detail JSON with exports and imports	test	ported	spec/chiasmus/mcp_server/map_spec.cr	Ported
+tests/graph/map-mcp.test.ts::test::returns overview markdown with exports and signatures	test	ported	spec/chiasmus/mcp_server/map_spec.cr	Ported
+tests/graph/map-mcp.test.ts::test::returns symbol detail JSON with callers and callees	test	ported	spec/chiasmus/mcp_server/map_spec.cr	Ported
+tests/graph/map.test.ts::test::buildFileDetail	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::buildOverview	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::buildSymbolDetail	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::builds a directory tree grouped by path segment	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::captures Clojure defn arglists as signature	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::captures Clojure defprotocol method arglists as signature	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::captures Go `//` comments as fileDoc (idiomatic package doc)	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::captures Go function signatures	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::captures Python function signatures	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::captures TypeScript function signatures	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::captures a Python module docstring	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::captures a leading JSDoc block as fileDoc	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::computes tokenEstimate and lineCount from content	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::counts interface-only exports that aren	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::does NOT capture Python `#` comments without a docstring	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::does NOT capture `//` line comments as fileDoc for TS/JS (usually license/shebang noise)	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::does NOT capture license/copyright headers as fileDoc	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::extractor: fileDoc + tokenEstimate + lineCount	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::extractor: signatures on exported defines	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::filters files via include glob	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::produces one entry per file with export count and token estimate	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::renderMap	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::renders file detail as markdown with exports section	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::renders markdown with summary header and file entries	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::renders valid JSON for overview	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::returns defining files, callers, and callees	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::returns empty arrays for an unknown symbol	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::returns exports with signatures and lines	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::returns imports with sources	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::returns null when the file isn	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::returns summary counts and language list	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/map.test.ts::test::truncates topExports to maxExportsPerFile	test	ported	spec/chiasmus/graph/map_spec.cr	Ported
+tests/graph/mcp-integration.test.ts::test::returns a clean error when files contains non-string elements	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/graph/parser-resource.test.ts::test::handles parsing different languages sequentially	test	ported	spec/chiasmus/graph/parser_spec.cr	Ported
+tests/graph/parser-resource.test.ts::test::parser resource reuse	test	ported	spec/chiasmus/graph/parser_spec.cr	Ported
+tests/graph/parser-resource.test.ts::test::reuses async parser across multiple parseSourceAsync calls	test	ported	spec/chiasmus/graph/parser_spec.cr	Ported
+tests/graph/parser-resource.test.ts::test::reuses parser instance across multiple parseSource calls	test	ported	spec/chiasmus/graph/parser_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::PR #21 fix: graphDiff extended coverage	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::PR #21 fix: hyperedge_label/2 facts	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::PR #21 fix: lockfile bootstrap memo bounded	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::PR #21 fix: saveSnapshot vs against guard	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::declares :- dynamic(hyperedge_label/2) when any label is emitted	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::detects added export	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::detects added hyperedge	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::detects added import	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::detects removed export	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::detects removed import	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::different snapshot names are fine: save new baseline while diffing against old	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::emits hyperedge_label/2 when label is non-empty	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::errors when saveSnapshot and against name the same snapshot	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::no-op when nothing changes	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::omits hyperedge_label/2 when label is empty	test	ported	spec/chiasmus/graph/facts_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::preserves the baseline when the request errors — baseline unchanged	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::stays bounded across many distinct repo keys	test	ported	spec/chiasmus/graph/cache_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::summary mentions imports/exports/hyperedges when changed	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/pr-21-fixes.test.ts::test::treats changed hyperedge members as removed + added	test	ported	spec/chiasmus/graph/diff_spec.cr	Ported
+tests/graph/snapshot.test.ts::test::deleteSnapshot removes a named snapshot	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/snapshot.test.ts::test::listSnapshots returns all saved snapshot names	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/snapshot.test.ts::test::loadSnapshot returns null for missing snapshot	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/snapshot.test.ts::test::overwrites an existing snapshot with the same name	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/snapshot.test.ts::test::sanitizes snapshot names to prevent path traversal	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/snapshot.test.ts::test::saveSnapshot + loadSnapshot round-trips a graph	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/snapshot.test.ts::test::snapshots	test	ported	spec/chiasmus/graph/snapshot_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::buildSuffixIndex	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::falls back through shorter suffixes	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::ignores files outside the repo	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::indexes files and looks up exact matches	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::prefers .ts over .js when both exist	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::resolves .js imports to .ts files (ESM convention)	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::resolves a directory import to its index file	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::resolves an import to a .ts file	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::returns null when the index is empty	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::returns null when the suffix does not match any indexed file	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::suffixResolveImport	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/suffix-index.test.ts::test::uses primary guess when provided	test	ported	spec/chiasmus/graph/suffix_index_spec.cr	Ported
+tests/graph/surprises.test.ts::test::detectSurprisingConnections	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/surprises.test.ts::test::flags cross-community edges	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/surprises.test.ts::test::peripheral→hub edges earn a +1 bonus	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/surprises.test.ts::test::respects topN option	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/surprises.test.ts::test::returns empty list for empty graph	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/surprises.test.ts::test::scores descending with deterministic tiebreak	test	ported	spec/chiasmus/graph/insights_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::child paths override parent on conflict	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::follows extends chain and inherits parent paths	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::handles extends cycle without infinite loop	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::honors explicit baseUrl	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::loadTsconfigAliases	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::longer alias prefix wins when two match	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::resolves exact (non-glob) aliases	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::resolves glob alias with default baseUrl	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::returns EMPTY_TSCONFIG_ALIASES when no tsconfig exists	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::returns empty when tsconfig exists but has no paths	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::strips JSONC comments (// and /* */)	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/tsconfig-aliases.test.ts::test::tolerates malformed json gracefully	test	ported	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported
+tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 0 (explicit annotations)	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 1 (constructor inference)	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 2 (assignment chain)	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::buildTypeEnv — resolveChain	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::buildTypeEnv — scope handling	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::buildTypeEnv — this resolution	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::extractClassFields	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::extractSimpleTypeName	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::extracts constructor property parameters	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::extracts field declarations with explicit types	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::extracts field types from new-expression initializers	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::extracts getter return types as field types	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::extracts interface property signatures	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::file-scope bindings resolve inside nested functions	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::function-local bindings do not leak to file scope	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::preserves the first concrete variant of an n-ary union	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::rejects arr[] syntax	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::rejects collection wrappers — Array<T> / Promise<T> / Map<K,V> are NOT T	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::removes null/undefined union members	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::resolves const x = new User()	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::resolves const x: User = ...	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::resolves const y = x when x is known	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::resolves let/var annotations	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::resolves self to the enclosing class name	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::resolves this to the enclosing class name	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::returns simple identifier types	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::returns undefined for anonymous / complex types	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::returns undefined when any step is unknown	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::starts chain from a local variable when it has a known type	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::stripNullable	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::strips trailing ? marker	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::unwraps identity-like wrappers (Readonly<T>, Partial<T>)	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/graph/type-env.test.ts::test::walks this.a.b.c through class field registry	test	ported	spec/chiasmus/graph/type_env_spec.cr	Ported
+tests/learner-addlearned-return.test.ts::test::SkillLearner addLearned return check	test	ported	spec/chiasmus/skills/learner_spec.cr	Ported
+tests/learner-addlearned-return.test.ts::test::returns null when addLearned rejects a duplicate name	test	ported	spec/chiasmus/skills/learner_spec.cr	Ported
+tests/mcp-search.test.ts::test::chiasmus_search MCP tool	test	ported	spec/chiasmus/mcp_server/search_spec.cr	Ported
+tests/mcp-search.test.ts::test::chiasmus_search without embedding adapter configured	test	ported	spec/chiasmus/mcp_server/search_spec.cr	Ported
+tests/mcp-search.test.ts::test::is listed in available tools	test	ported	spec/chiasmus/mcp_server/search_spec.cr	Ported
+tests/mcp-search.test.ts::test::rejects empty files list	test	ported	spec/chiasmus/mcp_server/search_spec.cr	Ported
+tests/mcp-search.test.ts::test::rejects empty query	test	ported	spec/chiasmus/mcp_server/search_spec.cr	Ported
+tests/mcp-search.test.ts::test::returns an explicit error when no adapter is configured	test	ported	spec/chiasmus/mcp_server/search_spec.cr	Ported
+tests/mcp-search.test.ts::test::returns well-formed hits for a query	test	ported	spec/chiasmus/mcp_server/search_spec.cr	Ported
+tests/mcp-search.test.ts::test::top_k is clamped to [1, 100]	test	ported	spec/chiasmus/mcp_server/search_spec.cr	Ported
+tests/mcp-server.test.ts::test::'security	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-server.test.ts::test::chiasmus_review	test	ported	spec/chiasmus/mcp_server/review_spec.cr	Ported
+tests/mcp-server.test.ts::test::honors 	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-server.test.ts::test::lists chiasmus_review in available tools	test	ported	spec/chiasmus/mcp_server/review_spec.cr	Ported
+tests/mcp-server.test.ts::test::passes entry_points through to the dead-code action	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-server.test.ts::test::returns a plan with phases, templates, and reporting for a 	test	ported	spec/chiasmus/mcp_server/review_spec.cr	Ported
+tests/mcp-server.test.ts::test::returns structured error for empty files array	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-server.test.ts::test::returns structured error for unknown focus value	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-server.test.ts::test::stops batch on first error	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-shutdown.test.ts::test::handler does not throw if library.close throws	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-shutdown.test.ts::test::invokes library.close() when a signal is received	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-shutdown.test.ts::test::registers SIGINT and SIGTERM handlers	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/mcp-shutdown.test.ts::test::setupShutdownHandlers	test	ported	spec/chiasmus/mcp_server/server_spec.cr	Ported
+tests/prolog-input.test.ts::test::extractPrologQuery	test	ported	spec/chiasmus/formalize/prolog_input_spec.cr	Ported
+tests/prolog-input.test.ts::test::extracts ?- query from last line	test	ported	spec/chiasmus/formalize/prolog_input_spec.cr	Ported
+tests/prolog-input.test.ts::test::extracts ?- query from middle of text (uses last ?- line)	test	ported	spec/chiasmus/formalize/prolog_input_spec.cr	Ported
+tests/prolog-input.test.ts::test::handles ?- with extra whitespace after dash	test	ported	spec/chiasmus/formalize/prolog_input_spec.cr	Ported
+tests/prolog-input.test.ts::test::returns full text as program with 	test	ported	spec/chiasmus/formalize/prolog_input_spec.cr	Ported
+tests/prolog-input.test.ts::test::trims trailing whitespace from program	test	ported	spec/chiasmus/formalize/prolog_input_spec.cr	Ported
+tests/prolog-solver.test.ts::test::allows raising the budget for analyses that need more headroom	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::disposal	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::does not duplicate the final clause when input has no trailing whitespace	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::honors a custom maxInferences on the solver input	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::imports library(clpfd) into the session module	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::imports library(lists) into the session module	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::inference budget	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::instrumentation	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::isolates concurrent solves with overlapping predicate names	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::isolates predicates across sequential solves	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::module isolation	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::returns an error when solve is called after dispose	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::surfaces an existence_error rather than silently returning empty	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::surfaces existence_error from a defined goal that calls an undefined helper	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-solver.test.ts::test::undefined predicate in query	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-tracing.test.ts::test::Prolog solver tracing	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-tracing.test.ts::test::does not split clauses on decimal-literal periods	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-tracing.test.ts::test::handles rules with nested parenthesized terms	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-tracing.test.ts::test::instruments multi-line rules for tracing	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/prolog-tracing.test.ts::test::instruments rules with body spanning multiple lines	test	ported	spec/chiasmus/solvers/prolog_solver_spec.cr	Ported
+tests/review-delta.test.ts::test::buildReviewPlan: PR-delta integration	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review-delta.test.ts::test::delta phase is absent when delta_against is omitted	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review-delta.test.ts::test::delta phase passes the against + save_snapshot args through	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review-delta.test.ts::test::delta phase still fires under focus=	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review-delta.test.ts::test::inserts a delta phase as phase 0 when delta_against is supplied	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review-delta.test.ts::test::reporting section mentions PR scope when delta_against is set	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::'all	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::'architecture	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::'correctness	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::'quick	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::'security	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::buildReviewPlan	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::defaults focus to 	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::graph actions pass through the files array	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::includes a reporting section describing severity format	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::includes a suggestedTemplates section listing named templates with workflow hints	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::includes entry_points in graph actions when provided	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::phase actions reference real chiasmus tools	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::rejects empty files array	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::rejects unknown focus value	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::returns a plan with files echoed back	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/review.test.ts::test::returns phases as a non-empty array	test	ported	spec/chiasmus/review_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::EmbeddingCache (R8)	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::content-hash keyed — same content always hits even if stored twice	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::load discards entries whose dimension mismatches	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::load is a no-op when cache file does not exist	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::misses on unknown content, hits after put	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::partitionMissing separates hits from misses and preserves order	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::putMany rejects length mismatch	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::putMany stores each content-vector pair	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/embedding-cache.test.ts::test::save + load round-trips via disk	test	ported	spec/chiasmus/search/embedding_cache_spec.cr	Ported
+tests/search/engine.test.ts::test::buildSearchCorpus	test	ported	spec/chiasmus/search/engine_spec.cr	Ported
+tests/search/engine.test.ts::test::builds one corpus entry per function/method define	test	ported	spec/chiasmus/search/engine_spec.cr	Ported
+tests/search/engine.test.ts::test::each result carries file path, line, and signature from the graph	test	ported	spec/chiasmus/search/engine_spec.cr	Ported
+tests/search/engine.test.ts::test::empty corpus returns empty results	test	ported	spec/chiasmus/search/engine_spec.cr	Ported
+tests/search/engine.test.ts::test::honors topK smaller than corpus size	test	ported	spec/chiasmus/search/engine_spec.cr	Ported
+tests/search/engine.test.ts::test::returns topK results ranked by similarity	test	ported	spec/chiasmus/search/engine_spec.cr	Ported
+tests/search/engine.test.ts::test::runSearch (MockEmbeddingAdapter)	test	ported	spec/chiasmus/search/engine_spec.cr	Ported
+tests/search/engine.test.ts::test::text includes the function signature when available	test	ported	spec/chiasmus/search/engine_spec.cr	Ported
+tests/search/vector-store.test.ts::test::VectorStore (R9)	test	ported	spec/chiasmus/search/vector_store_spec.cr:11	Ported as VectorStore spec group
+tests/search/vector-store.test.ts::test::has() checks for id presence	test	ported	spec/chiasmus/search/vector_store_spec.cr:55	Ported as has? check coverage
+tests/search/vector-store.test.ts::test::inserts vectors and finds nearest by cosine similarity	test	ported	spec/chiasmus/search/vector_store_spec.cr:12	Ported cosine similarity search coverage
+tests/search/vector-store.test.ts::test::parse rejects an incompatible schema version	test	ported	spec/chiasmus/search/vector_store_spec.cr:92	Ported schema version rejection coverage
+tests/search/vector-store.test.ts::test::rejects vectors of wrong dimension	test	ported	spec/chiasmus/search/vector_store_spec.cr:63	Ported dimension validation coverage
+tests/search/vector-store.test.ts::test::remove deletes a vector by id	test	ported	spec/chiasmus/search/vector_store_spec.cr:45	Ported remove/delete coverage
+tests/search/vector-store.test.ts::test::returns empty array when store is empty	test	ported	spec/chiasmus/search/vector_store_spec.cr:69	Ported empty store search coverage
+tests/search/vector-store.test.ts::test::serialize → parse round-trips	test	ported	spec/chiasmus/search/vector_store_spec.cr:80	Ported serialize/parse round-trip coverage
+tests/search/vector-store.test.ts::test::topK > size returns all vectors	test	ported	spec/chiasmus/search/vector_store_spec.cr:74	Ported topK overflow coverage
+tests/search/vector-store.test.ts::test::upsert replaces an existing id	test	ported	spec/chiasmus/search/vector_store_spec.cr:37	Ported upsert coverage
+tests/skill-library.test.ts::test::learned template persistence	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/skill-library.test.ts::test::persists learned templates across library instances	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/skill-library.test.ts::test::persists promoted state across library instances	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/skill-library.test.ts::test::reloaded templates are searchable	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/skill-library.test.ts::test::remove() deletes the template from disk	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/smtlib-string-escape.test.ts::test::SMT-LIB string literal validation	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/smtlib-string-escape.test.ts::test::does not misinterpret backslash before quote as escape	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/smtlib-string-escape.test.ts::test::handles SMT-LIB doubled-quote escape within strings	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/smtlib-string-escape.test.ts::test::handles nested parens inside SMT-LIB strings with doubled quotes	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/smtlib-string-escape.test.ts::test::reports unbalanced parens outside strings correctly	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::association-rule-check template	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::detects missing paired call (lock without unlock)	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::detects required setup/teardown co-occurrence	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::dogfood: solver verification	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::finds functions that follow required co-occurrence pattern	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::has at least one normalization	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::is found by search for code pattern co-occurrence check	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::is found by search for lock unlock pairing	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-association-rule.test.ts::test::template has matching slots and skeleton	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::boundary-condition template	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::dogfood: solver verification	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::finds off-by-one error at array boundary	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::finds underflow when subtracting unsigned values	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::has at least one normalization	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::is found by search for boundary edge case check	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::is found by search for integer overflow underflow	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::proves no overflow within safe range	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-boundary.test.ts::test::template has matching slots and skeleton	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::classifies functions as data-handling based on neighbors	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::collective-classification template	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::dogfood: solver verification	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::finds functions that need error handling based on callee properties	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::has at least one normalization	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::is found by search for classifying functions by neighbors	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::is found by search for propagating labels through call graph	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::propagates security-sensitive label through call graph	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-collective-classification.test.ts::test::template has matching slots and skeleton	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::detects invariant violation (SAT = bug exists)	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::dogfood: solver verification	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::finds counterexample when invariant is violated (SAT)	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::has at least one normalization	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::invariant-check template	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::is found by search for function invariant verification	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::is found by search for invariant counterexample	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::template has matching slots and skeleton	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-invariant.test.ts::test::verifies array index invariant (no out-of-bounds)	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::detects conflicting state assignments	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::dogfood: solver verification	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::finds a reachable target state (SAT)	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::has at least one normalization	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::is found by search for state machine deadlock	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::is found by search for unreachable state	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::proves a state is unreachable (UNSAT)	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::state-machine-deadlock template	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-state-machine.test.ts::test::template has matching slots and skeleton	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::correctly stops taint at sanitizer	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::dogfood: solver verification	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::finds multiple independent taint sources	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::finds unsanitized path from source to sink	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::finds violation when no sanitizer between source and sink	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::has at least one normalization	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::is found by search for SQL injection path	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::is found by search for taint analysis data flow	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::taint-propagation template	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/templates-taint-propagation.test.ts::test::template has matching slots and skeleton	test	ported	spec/chiasmus/skills/library_spec.cr	Ported
+tests/validate.test.ts::test::Prolog with % inside an atom is not treated as a line comment	test	ported	spec/chiasmus/formalize/validate_spec.cr	Ported
+tests/validate.test.ts::test::Prolog with /* inside an atom is not treated as a block comment	test	ported	spec/chiasmus/formalize/validate_spec.cr	Ported
+tests/validate.test.ts::test::Prolog with a paren inside a quoted atom is not counted as structural	test	ported	spec/chiasmus/formalize/validate_spec.cr	Ported
+tests/validate.test.ts::test::Prolog with backslash-quote escape in atom passes	test	ported	spec/chiasmus/formalize/validate_spec.cr	Ported
+tests/validate.test.ts::test::Prolog with doubled-quote escape in atom passes	test	ported	spec/chiasmus/formalize/validate_spec.cr	Ported
+tests/z3-resource-management.test.ts::test::Z3Solver resource management	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/z3-resource-management.test.ts::test::dispose is idempotent — calling twice does not throw	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/z3-resource-management.test.ts::test::handles multiple solve calls on the same solver instance	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/z3-resource-management.test.ts::test::returns error when used after disposal	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/z3-resource-management.test.ts::test::solver works correctly then can be disposed and recreated	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/z3-solver.test.ts::test::does not override an explicit :timeout	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/z3-solver.test.ts::test::injects a default :timeout when none is set	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/z3-solver.test.ts::test::prepareSmtlib	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+tests/z3-solver.test.ts::test::still strips check-sat and get-model	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
