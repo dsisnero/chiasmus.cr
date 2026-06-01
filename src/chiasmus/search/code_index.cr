@@ -335,23 +335,37 @@ module Chiasmus
           1
         end
 
-        # Prepare embedding text: name + snippet, capped at max_text_len.
+        # Prepare embedding text: full AST node chunk if available (Cursor-style),
+        # otherwise fall back to line-based snippet.
         private def prepare_text(
           item : Discovery::Item,
           source : String?,
           line : Int32,
         ) : String
-          snippet = if source
-                      lines = source.lines
-                      start = {line - @config.snippet_lines // 2 - 1, 0}.max
-                      finish = {line + @config.snippet_lines // 2, lines.size}.min
-                      lines[start...finish].join
-                    else
-                      item.name
-                    end
+          # Prefer AST-based chunking: extract full function/class body
+          if source && (bs = item.byte_start) && (be = item.byte_end) && be > bs
+            text = source.byte_slice(bs, be - bs)
+            if text.includes?('\n')
+              # Full AST node — use as-is, capped
+              text.size <= @config.max_text_len ? text : text[0...@config.max_text_len]
+            else
+              # byte range is too narrow (just the name), fall back to snippet
+              snippet_from_lines(source, item.name, line)
+            end
+          else
+            snippet_from_lines(source, item.name, line)
+          end
+        end
 
-          text = [item.name, snippet].reject(&.empty?).join("\n")
-          text.size <= @config.max_text_len ? text : text[0...@config.max_text_len]
+        private def snippet_from_lines(source : String?, name : String, line : Int32) : String
+          if source
+            lines = source.lines
+            start = {line - @config.snippet_lines // 2 - 1, 0}.max
+            finish = {line + @config.snippet_lines // 2, lines.size}.min
+            lines[start...finish].join
+          else
+            name
+          end
         end
       end
     end

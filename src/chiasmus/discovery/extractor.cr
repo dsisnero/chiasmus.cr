@@ -184,14 +184,52 @@ module Chiasmus
           filtered = post_filter(kind, name, capture.node, source)
           next unless filtered
 
+          # Walk to parent for full declaration byte range (Cursor-style AST chunking)
+          def_node = find_definition_parent(capture.node, kind)
+
           scope = kind == "test" ? "test" : "source"
           items << Item.new(
             id: "#{file}::#{kind}::#{filtered}",
             kind: kind,
             scope: scope,
             name: filtered,
-            file: file
+            file: file,
+            byte_start: def_node.try &.start_byte.to_i32,
+            byte_end: def_node.try &.end_byte.to_i32,
           )
+        end
+      end
+
+      # Walk up from a capture node to find the enclosing definition node.
+      # Looks for parent nodes matching the expected kind (function_declaration,
+      # class_declaration, etc.). Falls back to the name node itself.
+      private def find_definition_parent(node : TreeSitter::Node, kind : String) : TreeSitter::Node
+        expected = case kind
+                   when "function", "test" then "function_declaration"
+                   when "method"           then "method_declaration"
+                   when "class"            then {"class_declaration", "type_spec", "struct_specifier", "class_definition", "class_body"}
+                   when "interface"        then {"interface_declaration", "interface_type", "trait_declaration", "interface_definition"}
+                   when "type"             then "type_alias_declaration"
+                   when "const"            then {"lexical_declaration", "variable_declaration"}
+                   else
+                     nil
+                   end
+
+        current = node
+        while parent = current.parent
+          if expected_matches?(parent, expected)
+            return parent
+          end
+          current = parent
+        end
+        node
+      end
+
+      private def expected_matches?(node : TreeSitter::Node, expected) : Bool
+        case expected
+        when String then node.type == expected
+        when Array  then expected.includes?(node.type)
+        else             false
         end
       end
 
@@ -207,10 +245,12 @@ module Chiasmus
         cursor.exec(root_node)
         while match = cursor.next_match
           name = nil
+          name_node = nil
           meta = {} of String => String
           match.captures.each do |cap|
             if cap.rule == "name"
               name = cap.node.text(source)
+              name_node = cap.node
             elsif cap.rule.starts_with?("meta_")
               meta[cap.rule] = cap.node.text(source)
             end
@@ -220,13 +260,17 @@ module Chiasmus
           filtered = post_filter(kind, name, nil, source)
           next unless filtered
 
+          def_node = name_node ? find_definition_parent(name_node, kind) : nil
+
           scope = kind == "test" ? "test" : "source"
           items << Item.new(
             id: "#{file}::#{kind}::#{filtered}",
             kind: kind,
             scope: scope,
             name: filtered,
-            file: file
+            file: file,
+            byte_start: def_node.try &.start_byte.to_i32,
+            byte_end: def_node.try &.end_byte.to_i32,
           )
         end
       end

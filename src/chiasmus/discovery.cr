@@ -20,11 +20,13 @@ module Chiasmus
 
     # Represents a discovered symbol.
     record Item,
-      id : String,    # e.g. "src/app.ts::class::MyService"
-      kind : String,  # class, interface, type, function, method, const, test
-      scope : String, # source or test
-      name : String,  # Simple name (may be qualified for methods)
-      file : String   # Relative file path
+      id : String,               # e.g. "src/app.ts::class::MyService"
+      kind : String,             # class, interface, type, function, method, const, test
+      scope : String,            # source or test
+      name : String,             # Simple name (may be qualified for methods)
+      file : String,             # Relative file path
+      byte_start : Int32? = nil, # Start offset in source (for AST chunking)
+      byte_end : Int32? = nil    # End offset in source (for AST chunking)
 
     # Result of a discovery operation.
     record Result,
