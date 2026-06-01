@@ -202,11 +202,68 @@ module Chiasmus
       end
 
       # True if this index has the same Merkle root as another index.
+      # O(1) — compares only the root hash, not individual documents.
       def same_state?(other : CodeIndex) : Bool
         r1 = @merkle_root
         r2 = other.merkle_root
         return false if r1.nil? != r2.nil?
         r1 == r2
+      end
+
+      # Group documents by file path for file-level change detection.
+      # Matches Cursor's approach: hash files first, then drill into
+      # individual symbols within changed files.
+      #
+      # Returns a Hash mapping file path to its Merkle hash (SHA-256
+      # of all symbol content_hashes within that file concatenated).
+      def file_hashes : Hash(String, Bytes)
+        by_file = @documents.group_by(&.file)
+        by_file.transform_values do |docs|
+          combined = docs.sort_by(&.id).map(&.content_hash).join
+          Digest::SHA256.digest(combined.to_slice)
+        end
+      end
+
+      # Diff files against a previous index — O(#files) via file_hash comparison.
+      # Returns arrays of file paths that were added, removed, or changed.
+      # Only files in `changed_files` need their symbols re-checked.
+      record FileDiff,
+        added_files : Array(String),
+        removed_files : Array(String),
+        changed_files : Array(String),
+        unchanged_files : Int32
+
+      def file_diff(previous : CodeIndex) : FileDiff
+        old_hashes = previous.file_hashes
+        new_hashes = file_hashes
+
+        old_files = old_hashes.keys.to_set
+        new_files = new_hashes.keys.to_set
+
+        added = (new_files - old_files).to_a
+        removed = (old_files - new_files).to_a
+
+        changed = [] of String
+        unchanged = 0
+        (old_files & new_files).each do |file|
+          if old_hashes[file] == new_hashes[file]
+            unchanged += 1
+          else
+            changed << file
+          end
+        end
+
+        FileDiff.new(
+          added_files: added,
+          removed_files: removed,
+          changed_files: changed,
+          unchanged_files: unchanged,
+        )
+      end
+
+      # Returns only the documents belonging to the given files.
+      def documents_in_files(file_paths : Array(String)) : Array(CodeDocument)
+        @documents.select { |d| file_paths.includes?(d.file) }
       end
 
       # Fluent builder matching Crig's InMemoryVectorStoreBuilder pattern.

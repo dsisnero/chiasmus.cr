@@ -615,4 +615,125 @@ describe Chiasmus::Search::CodeIndex do
       idx1.same_state?(idx2).should be_false
     end
   end
+
+  describe "#file_hashes" do
+    it "groups documents by file" do
+      builder = Chiasmus::Search::CodeIndex.for_language("go")
+      items = [
+        Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go"),
+        Chiasmus::Discovery::Item.new(id: "src/a.go::function::G", kind: "function", scope: "source", name: "G", file: "src/a.go"),
+        Chiasmus::Discovery::Item.new(id: "src/b.go::function::H", kind: "function", scope: "source", name: "H", file: "src/b.go"),
+      ]
+      sources = {
+        "src/a.go" => "func F() {}\nfunc G() {}",
+        "src/b.go" => "func H() {}",
+      }
+      index = builder.from_items(items, sources).build
+
+      hashes = index.file_hashes
+      hashes.keys.sort.should eq(["src/a.go", "src/b.go"])
+      hashes["src/a.go"].size.should eq(32) # SHA-256
+      hashes["src/b.go"].size.should eq(32)
+    end
+
+    it "produces different hashes for different file content" do
+      build = ->(body : String) {
+        items = [Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go")]
+        Chiasmus::Search::CodeIndex.for_language("go")
+          .from_items(items, {"src/a.go" => "func F() { #{body} }"}).build
+      }
+      h1 = build.call("").file_hashes["src/a.go"]
+      h2 = build.call("return 1").file_hashes["src/a.go"]
+      h1.should_not eq(h2)
+    end
+  end
+
+  describe "#file_diff" do
+    it "detects unchanged files" do
+      build = -> {
+        items = [
+          Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go"),
+          Chiasmus::Discovery::Item.new(id: "src/b.go::function::G", kind: "function", scope: "source", name: "G", file: "src/b.go"),
+        ]
+        Chiasmus::Search::CodeIndex.for_language("go")
+          .from_items(items, {"src/a.go" => "func F() {}", "src/b.go" => "func G() {}"}).build
+      }
+      diff = build.call.file_diff(build.call)
+      diff.added_files.should be_empty
+      diff.removed_files.should be_empty
+      diff.changed_files.should be_empty
+      diff.unchanged_files.should eq(2)
+    end
+
+    it "detects added files" do
+      idx1 = Chiasmus::Search::CodeIndex.for_language("go")
+        .from_items(
+          [Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go")],
+          {"src/a.go" => "func F() {}"},
+        ).build
+
+      idx2 = Chiasmus::Search::CodeIndex.for_language("go")
+        .from_items(
+          [
+            Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go"),
+            Chiasmus::Discovery::Item.new(id: "src/b.go::function::G", kind: "function", scope: "source", name: "G", file: "src/b.go"),
+          ],
+          {"src/a.go" => "func F() {}", "src/b.go" => "func G() {}"},
+        ).build
+
+      diff = idx2.file_diff(idx1)
+      diff.added_files.should eq(["src/b.go"])
+      diff.unchanged_files.should eq(1)
+    end
+
+    it "detects changed files" do
+      build = ->(extra : String) {
+        items = [Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go")]
+        Chiasmus::Search::CodeIndex.for_language("go")
+          .from_items(items, {"src/a.go" => "func F() { #{extra} }"}).build
+      }
+      diff = build.call("return 1").file_diff(build.call(""))
+      diff.changed_files.should eq(["src/a.go"])
+    end
+
+    it "detects removed files" do
+      idx1 = Chiasmus::Search::CodeIndex.for_language("go")
+        .from_items(
+          [
+            Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go"),
+            Chiasmus::Discovery::Item.new(id: "src/b.go::function::G", kind: "function", scope: "source", name: "G", file: "src/b.go"),
+          ],
+          {"src/a.go" => "func F() {}", "src/b.go" => "func G() {}"},
+        ).build
+
+      idx2 = Chiasmus::Search::CodeIndex.for_language("go")
+        .from_items(
+          [Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go")],
+          {"src/a.go" => "func F() {}"},
+        ).build
+
+      diff = idx2.file_diff(idx1)
+      diff.removed_files.should eq(["src/b.go"])
+    end
+  end
+
+  describe "#documents_in_files" do
+    it "filters documents by file paths" do
+      builder = Chiasmus::Search::CodeIndex.for_language("go")
+      items = [
+        Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go"),
+        Chiasmus::Discovery::Item.new(id: "src/b.go::function::G", kind: "function", scope: "source", name: "G", file: "src/b.go"),
+        Chiasmus::Discovery::Item.new(id: "src/c.go::function::H", kind: "function", scope: "source", name: "H", file: "src/c.go"),
+      ]
+      sources = {
+        "src/a.go" => "func F() {}",
+        "src/b.go" => "func G() {}",
+        "src/c.go" => "func H() {}",
+      }
+      index = builder.from_items(items, sources).build
+
+      filtered = index.documents_in_files(["src/a.go", "src/c.go"])
+      filtered.map(&.name).sort.should eq(["F", "H"])
+    end
+  end
 end
