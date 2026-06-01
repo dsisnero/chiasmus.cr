@@ -5,6 +5,8 @@
 # Design inspired by Crig's builder pattern and generic InMemoryVectorStore.
 
 require "json"
+require "digest/sha256"
+require "../merkle_tree"
 
 module Chiasmus
   module Search
@@ -22,6 +24,15 @@ module Chiasmus
       getter signature : String?
       getter leading_doc : String?
       getter text : String
+      # SHA-256(content) — used for Merkle tree leaf & embedding cache key.
+      # Not serialized — derived from text which IS serialized.
+      @[JSON::Field(ignore: true)]
+      getter content_hash : Bytes = Bytes.new(0)
+
+      # Recompute content_hash from text after JSON deserialization.
+      def after_initialize
+        @content_hash = Digest::SHA256.digest(@text)
+      end
 
       def initialize(
         @id : String,
@@ -34,6 +45,12 @@ module Chiasmus
         @signature : String? = nil,
         @leading_doc : String? = nil,
       )
+        @content_hash = Digest::SHA256.digest(@text)
+      end
+
+      # Hex-encoded content hash for embedding cache keys.
+      def content_hash_hex : String
+        @content_hash.hexstring
       end
     end
 
@@ -89,13 +106,17 @@ module Chiasmus
     class CodeIndex
       getter language : String
       getter documents : Array(CodeDocument)
+      # Merkle root hash — cryptographic summary of all document hashes.
+      # Enables O(1) index state comparison across rebuilds.
+      getter merkle_root : Bytes?
+      getter merkle_tree : MerkleTree?
 
-      # Result of searching the code index.
-      record SearchResult,
-        score : Float64,
-        document : CodeDocument
-
-      def initialize(@language : String, @documents : Array(CodeDocument) = [] of CodeDocument)
+      def initialize(
+        @language : String,
+        @documents : Array(CodeDocument) = [] of CodeDocument,
+        @merkle_tree : MerkleTree? = nil,
+      )
+        @merkle_root = @merkle_tree.try(&.root_hash)
       end
 
       def count : Int32
@@ -123,9 +144,69 @@ module Chiasmus
         results.first(top_k)
       end
 
+      # Result of searching the code index.
+      record SearchResult,
+        score : Float64,
+        document : CodeDocument
+
+      def initialize(
+        @language : String,
+        @documents : Array(CodeDocument) = [] of CodeDocument,
+        @merkle_tree : MerkleTree? = nil,
+      )
+        @merkle_root = @merkle_tree.try(&.root_hash)
+      end
+
+      def count : Int32
+        @documents.size
+      end
+
       # Create a Builder for a specific language.
       def self.for_language(language : String) : Builder
         Builder.new(language)
+      end
+
+      # Compare against a previous index and return only changed documents.
+      # O(1) if Merkle roots match; O(n) hash comparison otherwise.
+      #
+      # Returns a DiffResult with added, removed, and changed documents.
+      # `changed` documents are those whose content_hash differs from the old index.
+      record DiffResult,
+        added : Array(CodeDocument),
+        removed : Array(String),       # ids no longer present
+        changed : Array(CodeDocument), # same id, different content_hash
+        unchanged : Int32              # count of unchanged documents
+
+      def diff(previous : CodeIndex) : DiffResult
+        old_by_id = previous.documents.to_h { |d| {d.id, d} }
+        new_by_id = @documents.to_h { |d| {d.id, d} }
+
+        added = [] of CodeDocument
+        changed = [] of CodeDocument
+        unchanged = 0
+        removed = (old_by_id.keys - new_by_id.keys)
+
+        new_by_id.each do |id, doc|
+          if old = old_by_id[id]?
+            if doc.content_hash == old.content_hash
+              unchanged += 1
+            else
+              changed << doc
+            end
+          else
+            added << doc
+          end
+        end
+
+        DiffResult.new(added: added, removed: removed, changed: changed, unchanged: unchanged)
+      end
+
+      # True if this index has the same Merkle root as another index.
+      def same_state?(other : CodeIndex) : Bool
+        r1 = @merkle_root
+        r2 = other.merkle_root
+        return false if r1.nil? != r2.nil?
+        r1 == r2
       end
 
       # Fluent builder matching Crig's InMemoryVectorStoreBuilder pattern.
@@ -172,9 +253,18 @@ module Chiasmus
           self
         end
 
-        # Build the CodeIndex. Embedding is deferred to search time.
+        # Build the CodeIndex with a Merkle tree over document hashes.
+        # The Merkle root hash provides O(1) comparison across rebuilds:
+        # if root_hash == old_index.merkle_root, nothing changed.
+        # If different, compare individual content_hashes to find changed docs.
         def build : CodeIndex
-          CodeIndex.new(@language, @documents)
+          tree = if @documents.empty?
+                   nil
+                 else
+                   hashes = @documents.map(&.content_hash)
+                   MerkleTree.new(hashes)
+                 end
+          CodeIndex.new(@language, @documents, merkle_tree: tree)
         end
 
         # Extract line number from Discovery item id by searching source content.

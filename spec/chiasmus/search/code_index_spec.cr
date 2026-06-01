@@ -412,3 +412,207 @@ describe Chiasmus::Search::CodeIndex do
     end
   end
 end
+
+describe Chiasmus::Search::CodeDocument do
+  describe "#content_hash" do
+    it "is deterministic for same content" do
+      doc1 = Chiasmus::Search::CodeDocument.new(
+        id: "a", name: "f", kind: "function", language: "go",
+        file: "a.go", line: 1, text: "func f() {}",
+      )
+      doc2 = Chiasmus::Search::CodeDocument.new(
+        id: "b", name: "f", kind: "function", language: "go",
+        file: "b.go", line: 1, text: "func f() {}",
+      )
+      doc1.content_hash.should eq(doc2.content_hash)
+    end
+
+    it "differs for different content" do
+      doc1 = Chiasmus::Search::CodeDocument.new(
+        id: "a", name: "f", kind: "function", language: "go",
+        file: "a.go", line: 1, text: "func f() {}",
+      )
+      doc2 = Chiasmus::Search::CodeDocument.new(
+        id: "b", name: "f", kind: "function", language: "go",
+        file: "b.go", line: 1, text: "func f() int { return 1 }",
+      )
+      doc1.content_hash.should_not eq(doc2.content_hash)
+    end
+
+    it "hex-encodes as lowercase" do
+      doc = Chiasmus::Search::CodeDocument.new(
+        id: "a", name: "f", kind: "function", language: "go",
+        file: "a.go", line: 1, text: "func f() {}",
+      )
+      doc.content_hash_hex.should match(/^[0-9a-f]{64}$/)
+    end
+  end
+end
+
+describe Chiasmus::Search::CodeIndex do
+  describe "#merkle_root" do
+    it "is nil for empty index" do
+      index = Chiasmus::Search::CodeIndex.for_language("go").build
+      index.merkle_root.should be_nil
+    end
+
+    it "returns a Merkle root hash for non-empty index" do
+      builder = Chiasmus::Search::CodeIndex.for_language("go")
+      items = [
+        Chiasmus::Discovery::Item.new(
+          id: "src/a.go::function::F", kind: "function",
+          scope: "source", name: "F", file: "src/a.go",
+        ),
+        Chiasmus::Discovery::Item.new(
+          id: "src/b.go::function::G", kind: "function",
+          scope: "source", name: "G", file: "src/b.go",
+        ),
+      ]
+      sources = {
+        "src/a.go" => "package main\nfunc F() {}",
+        "src/b.go" => "package main\nfunc G() {}",
+      }
+      index = builder.from_items(items, sources).build
+      index.merkle_root.should_not be_nil
+      index.merkle_root.try(&.size).should eq(32) # SHA-256
+    end
+
+    it "is deterministic for same documents in same order" do
+      build = -> {
+        items = [
+          Chiasmus::Discovery::Item.new(
+            id: "src/a.go::function::F", kind: "function",
+            scope: "source", name: "F", file: "src/a.go",
+          ),
+        ]
+        Chiasmus::Search::CodeIndex.for_language("go")
+          .from_items(items, {"src/a.go" => "func F() {}"}).build
+      }
+
+      root1 = build.call.merkle_root
+      root2 = build.call.merkle_root
+      root1.should eq(root2)
+    end
+  end
+
+  describe "#diff" do
+    it "detects unchanged state" do
+      build = -> {
+        items = [
+          Chiasmus::Discovery::Item.new(
+            id: "src/a.go::function::F", kind: "function",
+            scope: "source", name: "F", file: "src/a.go",
+          ),
+        ]
+        Chiasmus::Search::CodeIndex.for_language("go")
+          .from_items(items, {"src/a.go" => "func F() {}"}).build
+      }
+
+      idx1 = build.call
+      idx2 = build.call
+      diff = idx2.diff(idx1)
+      diff.added.should be_empty
+      diff.removed.should be_empty
+      diff.changed.should be_empty
+      diff.unchanged.should eq(1)
+    end
+
+    it "detects changed content" do
+      build = ->(suffix : String) {
+        items = [
+          Chiasmus::Discovery::Item.new(
+            id: "src/a.go::function::F", kind: "function",
+            scope: "source", name: "F", file: "src/a.go",
+          ),
+        ]
+        Chiasmus::Search::CodeIndex.for_language("go")
+          .from_items(items, {"src/a.go" => "func F() { #{suffix} }"}).build
+      }
+
+      idx1 = build.call("")
+      idx2 = build.call("return 1")
+      diff = idx2.diff(idx1)
+      diff.changed.size.should eq(1)
+      diff.added.should be_empty
+      diff.removed.should be_empty
+      diff.unchanged.should eq(0)
+    end
+
+    it "detects added documents" do
+      build1 = Chiasmus::Search::CodeIndex.for_language("go")
+        .from_items(
+          [Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go")],
+          {"src/a.go" => "func F() {}"},
+        ).build
+
+      build2 = Chiasmus::Search::CodeIndex.for_language("go")
+        .from_items(
+          [
+            Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go"),
+            Chiasmus::Discovery::Item.new(id: "src/b.go::function::G", kind: "function", scope: "source", name: "G", file: "src/b.go"),
+          ],
+          {"src/a.go" => "func F() {}", "src/b.go" => "func G() {}"},
+        ).build
+
+      diff = build2.diff(build1)
+      diff.added.size.should eq(1)
+      diff.added[0].name.should eq("G")
+    end
+
+    it "detects removed documents" do
+      build1 = Chiasmus::Search::CodeIndex.for_language("go")
+        .from_items(
+          [
+            Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go"),
+            Chiasmus::Discovery::Item.new(id: "src/b.go::function::G", kind: "function", scope: "source", name: "G", file: "src/b.go"),
+          ],
+          {"src/a.go" => "func F() {}", "src/b.go" => "func G() {}"},
+        ).build
+
+      build2 = Chiasmus::Search::CodeIndex.for_language("go")
+        .from_items(
+          [Chiasmus::Discovery::Item.new(id: "src/a.go::function::F", kind: "function", scope: "source", name: "F", file: "src/a.go")],
+          {"src/a.go" => "func F() {}"},
+        ).build
+
+      diff = build2.diff(build1)
+      diff.removed.size.should eq(1)
+    end
+  end
+
+  describe "#same_state?" do
+    it "returns true when Merkle roots match" do
+      build = -> {
+        items = [
+          Chiasmus::Discovery::Item.new(
+            id: "src/a.go::function::F", kind: "function",
+            scope: "source", name: "F", file: "src/a.go",
+          ),
+        ]
+        Chiasmus::Search::CodeIndex.for_language("go")
+          .from_items(items, {"src/a.go" => "func F() {}"}).build
+      }
+
+      idx1 = build.call
+      idx2 = build.call
+      idx1.same_state?(idx2).should be_true
+    end
+
+    it "returns false when content changed" do
+      build = ->(body : String) {
+        items = [
+          Chiasmus::Discovery::Item.new(
+            id: "src/a.go::function::F", kind: "function",
+            scope: "source", name: "F", file: "src/a.go",
+          ),
+        ]
+        Chiasmus::Search::CodeIndex.for_language("go")
+          .from_items(items, {"src/a.go" => "func F() { #{body} }"}).build
+      }
+
+      idx1 = build.call("")
+      idx2 = build.call("return 1")
+      idx1.same_state?(idx2).should be_false
+    end
+  end
+end

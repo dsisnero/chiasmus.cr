@@ -68,3 +68,6 @@
 [submodule "vendor/grammars/tree-sitter-proto"]
 	path = vendor/grammars/tree-sitter-proto
 	url = https://github.com/mitchellh/tree-sitter-proto.git
+[submodule "vendor/merkletree"]
+	path = vendor/merkletree
+	url = https://github.com/pratikpandey21/merkletree.git
