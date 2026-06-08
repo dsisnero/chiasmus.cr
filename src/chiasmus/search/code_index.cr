@@ -149,18 +149,6 @@ module Chiasmus
         score : Float64,
         document : CodeDocument
 
-      def initialize(
-        @language : String,
-        @documents : Array(CodeDocument) = [] of CodeDocument,
-        @merkle_tree : MerkleTree? = nil,
-      )
-        @merkle_root = @merkle_tree.try(&.root_hash)
-      end
-
-      def count : Int32
-        @documents.size
-      end
-
       # Create a Builder for a specific language.
       def self.for_language(language : String) : Builder
         Builder.new(language)

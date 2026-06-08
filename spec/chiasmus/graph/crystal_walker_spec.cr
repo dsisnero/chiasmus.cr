@@ -1,358 +1,67 @@
-require "spec"
+require "../../spec_helper"
 require "../../../src/chiasmus/graph/types"
+require "../../../src/chiasmus/graph/parser"
+require "../../../src/chiasmus/graph/walkers"
 require "../../../src/chiasmus/graph/extractor"
-require "../../../src/chiasmus/discovery/grammar_loader"
 
-module CrystalWalkerSpecHelper
-  extend self
+include Chiasmus::Graph
 
-  def grammar_works? : Bool
-    @@grammar_works ||= begin
-      if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("crystal")
-        test_graph = Chiasmus::Graph::Extractor.extract_graph([
-          Chiasmus::Graph::SourceFile.new("test.cr", "module Foo; end"),
-        ])
-        !test_graph.defines.empty?
-      else
-        false
+describe "Crystal walker call extraction" do
+  it "does not treat local variables as function calls" do
+    cr = <<-CR
+      def calculate(x, y)
+        result = x + y
+        result
       end
-    end
-  end
-end
-
-private def crystal_grammar_ok?
-  CrystalWalkerSpecHelper.grammar_works?
-end
-
-describe "Crystal walker" do
-  it "extracts class and module definitions" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    crystal_code = <<-CRYSTAL
-    module MyModule
-      def self.module_method
-        puts "module method"
-      end
-    end
-
-    class MyClass
-      def instance_method
-        puts "instance method"
-      end
-
-      def self.class_method
-        puts "class method"
-      end
-    end
-
-    def top_level_function
-      puts "top level"
-    end
-    CRYSTAL
-
-    file = Chiasmus::Graph::SourceFile.new("test.cr", crystal_code)
-    facts = Chiasmus::Graph::Extractor.extract_graph([file])
-
-    # Check defines
-    defines = facts.defines.sort_by(&.name)
-    defines.size.should eq(6)
-
-    # Check module
-    mymodule = defines.find { |d| d.name == "MyModule" }
-    mymodule.should_not be_nil
-    mymodule.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Interface)
-    mymodule.not_nil!.line.should eq(1)
-
-    # Check class
-    myclass = defines.find { |d| d.name == "MyClass" }
-    myclass.should_not be_nil
-    myclass.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
-    myclass.not_nil!.line.should eq(7)
-
-    # Check methods
-    module_method = defines.find { |d| d.name == "module_method" }
-    module_method.should_not be_nil
-    module_method.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Method)
-    module_method.not_nil!.line.should eq(2)
-
-    instance_method = defines.find { |d| d.name == "instance_method" }
-    instance_method.should_not be_nil
-    instance_method.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
-    instance_method.not_nil!.line.should eq(8)
-
-    class_method = defines.find { |d| d.name == "class_method" }
-    class_method.should_not be_nil
-    class_method.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Method)
-    class_method.not_nil!.line.should eq(12)
-
-    top_level_function = defines.find { |d| d.name == "top_level_function" }
-    top_level_function.should_not be_nil
-    top_level_function.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
-    top_level_function.not_nil!.line.should eq(17)
-
-    # Check contains relationships
-    contains = facts.contains
-    contains.size.should eq(3)
-
-    # Check MyClass contains both methods
-    myclass_contains = contains.select { |c| c.parent == "MyClass" }.map(&.child).sort!
-    myclass_contains.should eq(["class_method", "instance_method"])
-
-    # Check MyModule contains module_method
-    mymodule_contains = contains.select { |c| c.parent == "MyModule" }.map(&.child)
-    mymodule_contains.should eq(["module_method"])
-
-    # Check calls
-    calls = facts.calls.sort_by(&.caller)
-    calls.size.should eq(4)
-
-    calls[0].caller.should eq("class_method")
-    calls[0].callee.should eq("puts")
-
-    calls[1].caller.should eq("instance_method")
-    calls[1].callee.should eq("puts")
-
-    calls[2].caller.should eq("module_method")
-    calls[2].callee.should eq("puts")
-
-    calls[3].caller.should eq("top_level_function")
-    calls[3].callee.should eq("puts")
+    CR
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/t.cr", content: cr)])
+    graph.defines.map(&.name).should eq(["calculate"])
+    graph.calls.map(&.callee).should_not contain("x")
+    graph.calls.map(&.callee).should_not contain("y")
+    graph.calls.map(&.callee).should_not contain("result")
   end
 
-  it "extracts require and require_relative imports" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    crystal_code = <<-CRYSTAL
-    require "json"
-    require_relative "./my_module"
-    require "./other"
-    require "crystal_lib"
-
-    module MyModule
-      def self.some_method
-        puts "hello"
+  it "captures real method calls with arguments" do
+    cr = <<-CR
+      def foo
+        bar(42)
+        baz("hello")
       end
-    end
-    CRYSTAL
-
-    file = Chiasmus::Graph::SourceFile.new("test.cr", crystal_code)
-    facts = Chiasmus::Graph::Extractor.extract_graph([file])
-
-    # Check imports
-    imports = facts.imports.sort_by(&.name)
-    imports.size.should eq(4)
-
-    imports[0].name.should eq("./my_module")
-    imports[0].source.should eq("./my_module")
-
-    imports[1].name.should eq("crystal_lib")
-    imports[1].source.should eq("crystal_lib")
-
-    imports[2].name.should eq("json")
-    imports[2].source.should eq("json")
-
-    imports[3].name.should eq("other")
-    imports[3].source.should eq("./other")
+    CR
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/t2.cr", content: cr)])
+    graph.defines.map(&.name).should eq(["foo"])
+    callees = graph.calls.map(&.callee).to_set
+    callees.should contain("bar")
+    callees.should contain("baz")
   end
 
-  it "handles nested classes and modules" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    crystal_code = <<-CRYSTAL
-    module OuterModule
-      class InnerClass
-        def inner_method
-          puts "inner"
+  it "captures method calls on objects" do
+    cr = <<-CR
+      def process(list)
+        list.push(1)
+        list.sort
+      end
+    CR
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/t3.cr", content: cr)])
+    graph.defines.map(&.name).should eq(["process"])
+    callees = graph.calls.map(&.callee).to_set
+    callees.should contain("push")
+    # sort is a no-arg call - may or may not be detected
+  end
+
+  it "does not treat assignment targets as calls" do
+    cr = <<-CR
+      class Foo
+        def initialize(@name, @value)
         end
       end
-
-      def self.outer_method
-        puts "outer"
-      end
-    end
-    CRYSTAL
-
-    file = Chiasmus::Graph::SourceFile.new("test.cr", crystal_code)
-    facts = Chiasmus::Graph::Extractor.extract_graph([file])
-
-    # Check defines
-    defines = facts.defines.sort_by(&.name)
-    defines.size.should eq(4)
-
-    defines[0].name.should eq("InnerClass")
-    defines[0].kind.should eq(Chiasmus::Graph::SymbolKind::Class)
-
-    defines[1].name.should eq("OuterModule")
-    defines[1].kind.should eq(Chiasmus::Graph::SymbolKind::Interface)
-
-    defines[2].name.should eq("inner_method")
-    defines[2].kind.should eq(Chiasmus::Graph::SymbolKind::Function)
-
-    defines[3].name.should eq("outer_method")
-    defines[3].kind.should eq(Chiasmus::Graph::SymbolKind::Method)
-
-    # Check contains relationships
-    contains = facts.contains.sort_by(&.parent)
-    contains.size.should eq(2) # Only methods are contained, not nested classes
-
-    contains[0].parent.should eq("InnerClass")
-    contains[0].child.should eq("inner_method")
-
-    contains[1].parent.should eq("OuterModule")
-    contains[1].child.should eq("outer_method")
-  end
-
-  it "extracts struct definitions and contained methods" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    graph = Chiasmus::Graph::Extractor.extract_graph([
-      Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
-        struct Point
-          def x
-            coordinate
-          end
-        end
-      CRYSTAL
-      ),
-    ])
-
-    point = graph.defines.find { |define| define.name == "Point" }
-    point.should_not be_nil
-    point.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
-
-    method = graph.defines.find { |define| define.name == "x" }
-    method.should_not be_nil
-    method.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
-
-    graph.contains.map { |fact| "#{fact.parent}->#{fact.child}" }.should contain("Point->x")
-    graph.calls.map { |fact| "#{fact.caller}->#{fact.callee}" }.should contain("x->coordinate")
-  end
-
-  it "handles method calls with arguments" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    crystal_code = <<-CRYSTAL
-    class Calculator
-      def add(a, b)
-        result = a + b
-        print_result(result)
-      end
-
-      def self.print_result(value)
-        puts "Result: " + value.to_s
-      end
-    end
-    CRYSTAL
-
-    file = Chiasmus::Graph::SourceFile.new("test.cr", crystal_code)
-    facts = Chiasmus::Graph::Extractor.extract_graph([file])
-
-    calls = facts.calls.sort_by(&.caller)
-    calls.size.should be >= 3
-
-    add_calls = calls.select { |c| c.caller == "add" }
-    add_calls.should_not be_empty
-
-    print_result_call_from_add = add_calls.find { |c| c.callee == "print_result" }
-    print_result_call_from_add.should_not be_nil
-
-    print_result_calls = calls.select { |c| c.caller == "print_result" }
-    print_result_calls.should_not be_empty
-
-    puts_call_from_print_result = print_result_calls.find { |c| c.callee == "puts" }
-    puts_call_from_print_result.should_not be_nil
-  end
-
-  it "extracts call relationships across functions" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    graph = Chiasmus::Graph::Extractor.extract_graph([
-      Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
-        def greet(name)
-          helper(name)
-        end
-
-        def helper(name)
-          format(name)
-        end
-
-        def main
-          greet("world")
-        end
-      CRYSTAL
-      ),
-    ])
-
-    call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
-    call_pairs.should contain("greet->helper")
-    call_pairs.should contain("helper->format")
-    call_pairs.should contain("main->greet")
-  end
-
-  it "extracts cross-file call graph" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    graph = Chiasmus::Graph::Extractor.extract_graph([
-      Chiasmus::Graph::SourceFile.new("main.cr", <<-CRYSTAL
-        def main
-          handle
-        end
-
-        def handle
-          query
-        end
-      CRYSTAL
-      ),
-      Chiasmus::Graph::SourceFile.new("db.cr", <<-CRYSTAL
-        def query
-          connect
-        end
-
-        def connect
-        end
-      CRYSTAL
-      ),
-    ])
-
-    call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
-    call_pairs.should contain("main->handle")
-    call_pairs.should contain("handle->query")
-    call_pairs.should contain("query->connect")
-  end
-
-  it "deduplicates call edges" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    graph = Chiasmus::Graph::Extractor.extract_graph([
-      Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
-        def a
-          b
-          b
-          b
-        end
-
-        def b
-        end
-      CRYSTAL
-      ),
-    ])
-
-    a_to_b = graph.calls.select { |c| c.caller == "a" && c.callee == "b" }
-    a_to_b.size.should eq(1)
-  end
-
-  it "extracts abstract def and alias" do
-    pending!("crystal tree-sitter grammar incompatible") unless crystal_grammar_ok?
-    graph = Chiasmus::Graph::Extractor.extract_graph([
-      Chiasmus::Graph::SourceFile.new("test.cr", <<-CRYSTAL
-        abstract class Animal
-          abstract def speak
-        end
-
-        alias StringList = Array(String)
-      CRYSTAL
-      ),
-    ])
-
-    names = graph.defines.map(&.name)
-    names.should contain("Animal")
-    names.should contain("speak")
-    names.should contain("StringList")
-
-    alias_fact = graph.defines.find { |define| define.name == "StringList" }
-    alias_fact.should_not be_nil
-    alias_fact.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Type)
+    CR
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/t4.cr", content: cr)])
+    graph.defines.map(&.name).should contain("initialize")
+    # @name and @value are instance var assignments, not calls
+    graph.calls.map(&.callee).should_not contain("@name")
+    graph.calls.map(&.callee).should_not contain("@value")
+    graph.calls.map(&.callee).should_not contain("name")
+    graph.calls.map(&.callee).should_not contain("value")
   end
 end

@@ -8,26 +8,60 @@ module Chiasmus
   module MCPServer
     module Tools
       class ReviewTool
-        private def error_response(message : String) : Hash(String, JSON::Any)
-          JSON.parse(Types::ErrorResponse.new(message).to_json).as_h
-        end
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          args = Types::ReviewInput.from_json(arguments.to_json)
 
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          files = arguments["files"]?.try(&.as_a?.try(&.map(&.as_s)))
-          focus = arguments["focus"]?.try(&.as_s?)
-          entry_points = arguments["entry_points"]?.try(&.as_a?.try(&.map(&.as_s)))
-          delta_against = arguments["delta_against"]?.try(&.as_s?)
-
-          return error_response("'files' (non-empty string[]) is required") unless files && !files.empty?
+          return Types::ErrorResponse.new("'files' (non-empty string[]) is required") if args.files.empty?
 
           begin
-            plan = Review.build_plan(files, focus, entry_points, delta_against)
-            JSON.parse(plan.to_json).as_h
+            plan = Review.build_plan(args.files, args.focus, args.entry_points, args.delta_against)
+            review_plan_to_response(plan)
           rescue ex : ArgumentError
-            error_response(ex.message || "Invalid arguments")
+            Types::ErrorResponse.new(ex.message || "Invalid arguments")
           rescue ex
-            error_response(ex.message || ex.class.name)
+            Types::ErrorResponse.new(ex.message || ex.class.name)
           end
+        end
+
+        private def review_plan_to_response(plan : Review::ReviewPlan) : Types::ReviewResponse
+          Types::ReviewResponse.new(
+            files: plan.files,
+            focus: plan.focus,
+            summary: plan.summary,
+            phases: plan.phases.map { |p| review_phase_to_json(p) },
+            suggested_templates: plan.suggested_templates.map { |t| suggested_template_to_json(t) },
+            reporting: review_reporting_to_json(plan.reporting)
+          )
+        end
+
+        private def review_phase_to_json(phase : Review::ReviewPhase) : Types::ReviewPhaseJSON
+          Types::ReviewPhaseJSON.new(
+            phase: phase.phase,
+            goal: phase.goal,
+            actions: phase.actions.map { |action|
+              Types::ReviewActionJSON.new(
+                tool: action.tool,
+                args: action.args,
+                interpret: action.interpret
+              )
+            }
+          )
+        end
+
+        private def suggested_template_to_json(t : Review::SuggestedTemplate) : Types::SuggestedTemplateJSON
+          Types::SuggestedTemplateJSON.new(
+            template: t.template,
+            when: t.when,
+            workflow: t.workflow
+          )
+        end
+
+        private def review_reporting_to_json(r : Review::ReviewReporting) : Types::ReviewReportingJSON
+          Types::ReviewReportingJSON.new(
+            format: r.format,
+            severity_levels: r.severity_levels,
+            instructions: r.instructions
+          )
         end
 
         def self.tool_name : String
@@ -57,17 +91,11 @@ module Chiasmus
         def self.input_schema : MCP::Protocol::Tool::Input
           ToolSchemas::ToolInputSchema.new(
             properties: {
-              "files" => ToolSchemas::Common.files_property,
-              "focus" => {
-                "type"        => JSON::Any.new("string"),
-                "description" => JSON::Any.new("Review focus: all, quick, architecture, security, correctness"),
-              },
-              "entry_points"  => ToolSchemas::Common.entry_points_property,
-              "delta_against" => {
-                "type"        => JSON::Any.new("string"),
-                "description" => JSON::Any.new("Snapshot name to diff against for PR-scoped review"),
-              },
-            },
+              "files"         => ToolSchemas::Common.files_property.to_json_schema,
+              "focus"         => ToolSchemas::SchemaProperty.new("string", "Review focus: all, quick, architecture, security, correctness").to_json_schema,
+              "entry_points"  => ToolSchemas::Common.entry_points_property.to_json_schema,
+              "delta_against" => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against for PR-scoped review").to_json_schema,
+            }.transform_values { |v| JSON::Any.new(v) },
             required: ["files"]
           ).to_mcp_input
         end

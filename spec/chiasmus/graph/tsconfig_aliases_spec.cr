@@ -135,10 +135,48 @@ describe TsconfigAliases do
         write_file(dir, "a.json", %({"extends":"./b.json","compilerOptions":{"paths":{"@a/*":["a/*"]}}}))
         write_file(dir, "b.json", %({"extends":"./a.json","compilerOptions":{"paths":{"@b/*":["b/*"]}}}))
         aliases = TsconfigAliases.load_tsconfig_aliases(dir)
-        # Should not loop infinitely; will load from whichever is first candidate.
-        # tsconfig.json is tried first and doesn't exist, then tsconfig.app.json.
-        # The cycle exists in a/b.json which aren't tried directly.
         aliases.has_aliases.should be_false
+      end
+    end
+
+    it "strips JSONC comments (line and block)" do
+      with_temp_dir do |dir|
+        write_file(dir, "tsconfig.json", %({
+          // leading comment
+          "compilerOptions": {
+            /* block comment */
+            "paths": {
+              "@/*": ["src/*"]
+            }
+          }
+        }))
+        aliases = TsconfigAliases.load_tsconfig_aliases(dir)
+        aliases.rewrite("@/foo").should eq "src/foo"
+      end
+    end
+
+    it "longer alias prefix wins when two match" do
+      with_temp_dir do |dir|
+        write_file(dir, "tsconfig.json", %({
+          "compilerOptions": {
+            "paths": {
+              "@/lib/*": ["libs/*"],
+              "@/*": ["src/*"]
+            }
+          }
+        }))
+        aliases = TsconfigAliases.load_tsconfig_aliases(dir)
+        aliases.rewrite("@/lib/foo").should eq "libs/foo"
+        aliases.rewrite("@/components/x").should eq "src/components/x"
+      end
+    end
+
+    it "tolerates malformed json gracefully" do
+      with_temp_dir do |dir|
+        write_file(dir, "tsconfig.json", "{ not valid json")
+        aliases = TsconfigAliases.load_tsconfig_aliases(dir)
+        aliases.has_aliases.should be_false
+        aliases.size.should eq 0
       end
     end
   end

@@ -1,5 +1,6 @@
 require "json"
 require "bm25"
+require "./template_store"
 
 module Chiasmus
   module Skills
@@ -33,62 +34,80 @@ module Chiasmus
       @metadata : Hash(String, SkillMetadata)
       @template_order : Array(String)
       @metadata_path : String
+      @store : TemplateStore(SkillTemplate)
       @search_engine : Bm25::SearchEngine(String, UInt32, Bm25::DefaultTokenizer)
 
+      # Crig-style fluent builder
+      struct Builder
+        @base_path : String?
+        @store : TemplateStore(SkillTemplate)?
+
+        def with_base_path(path : String) : self
+          @base_path = path
+          self
+        end
+
+        def with_store(store : TemplateStore(SkillTemplate)) : self
+          @store = store
+          self
+        end
+
+        def build : Library
+          base_path = @base_path || Dir.tempdir
+          Dir.mkdir_p(base_path)
+
+          store = @store || JsonFileTemplateStore(SkillTemplate).new(File.join(base_path, "skill_templates.json"))
+          metadata_path = File.join(base_path, "skill_metadata.json")
+
+          # Load persisted templates from the store, then overlay starters
+          persisted = store.load_all
+          templates = Hash(String, SkillTemplate).new
+          persisted.each { |t| templates[t.name] = t }
+          STARTER_TEMPLATES.each { |t| templates[t.name] = t }
+
+          metadata = Library.load_persisted_metadata(metadata_path)
+          templates.each_key do |name|
+            metadata[name] ||= SkillMetadata.new(
+              name: name,
+              reuse_count: 0,
+              success_count: 0,
+              last_used: nil,
+              promoted: true
+            )
+          end
+
+          Library.new(templates, metadata, metadata_path, store)
+        end
+      end
+
+      # Backward-compatible convenience constructor
       def self.create(base_path : String) : Library
-        Dir.mkdir_p(base_path)
+        Builder.new.with_base_path(base_path).build
+      end
 
-        templates = Hash(String, SkillTemplate).new
-        STARTER_TEMPLATES.each do |template|
-          templates[template.name] = template
-        end
-
-        metadata_path = File.join(base_path, "skill_metadata.json")
-        metadata = load_persisted_metadata(metadata_path)
-        templates.each_key do |name|
-          metadata[name] ||= SkillMetadata.new(
-            name: name,
-            reuse_count: 0,
-            success_count: 0,
-            last_used: nil,
-            promoted: true
-          )
-        end
-
-        library = new(templates, metadata, metadata_path)
-        library.save_metadata
-        library
+      # Build a library with a custom store (e.g. InMemory for testing)
+      def self.with_store(base_path : String, store : TemplateStore(SkillTemplate)) : Library
+        Builder.new.with_base_path(base_path).with_store(store).build
       end
 
       def self.load_persisted_metadata(path : String) : Hash(String, SkillMetadata)
         return Hash(String, SkillMetadata).new unless File.exists?(path)
 
-        payload = JSON.parse(File.read(path)).as_a
-        payload.each_with_object(Hash(String, SkillMetadata).new) do |item, acc|
-          hash = item.as_h
-          name = hash["name"].as_s
-          acc[name] = SkillMetadata.new(
-            name: name,
-            reuse_count: hash["reuse_count"].as_i,
-            success_count: hash["success_count"].as_i,
-            last_used: parse_time(hash["last_used"]?),
-            promoted: hash["promoted"].as_bool
-          )
-        end
+        raw = File.read(path)
+        return Hash(String, SkillMetadata).new if raw.strip.empty?
+
+        Array(SkillMetadata).from_json(raw)
+          .each_with_object(Hash(String, SkillMetadata).new) { |m, acc| acc[m.name] = m }
       rescue JSON::ParseException
         Hash(String, SkillMetadata).new
       end
 
-      def self.parse_time(value : JSON::Any?) : Time?
-        string_value = value.try(&.as_s?)
-        return nil unless string_value
-
-        Time.parse_rfc3339(string_value)
-      rescue Time::Format::Error
-        nil
-      end
-
-      def initialize(@templates : Hash(String, SkillTemplate), @metadata : Hash(String, SkillMetadata), @metadata_path : String)
+      def initialize(
+        @templates : Hash(String, SkillTemplate),
+        @metadata : Hash(String, SkillMetadata),
+        @metadata_path : String,
+        @store : TemplateStore(SkillTemplate),
+      )
         @template_order = @templates.keys.to_a
 
         tokenizer = Bm25::DefaultTokenizer.new(stemming: true, stopwords: true, normalization: true)
@@ -195,6 +214,7 @@ module Chiasmus
           promoted: false
         )
         save_metadata
+        save_templates
         true
       end
 
@@ -220,6 +240,7 @@ module Chiasmus
         @search_engine.remove(idx.to_s) if idx
         @metadata.delete(name)
         save_metadata
+        save_templates
       end
 
       def candidates : Array(SkillWithMetadata)
@@ -228,21 +249,21 @@ module Chiasmus
 
       def close : Nil
         save_metadata
+        save_templates
       end
 
       def save_metadata : Nil
-        payload = @metadata.values.map do |metadata|
-          {
-            "name"          => metadata.name,
-            "reuse_count"   => metadata.reuse_count,
-            "success_count" => metadata.success_count,
-            "last_used"     => metadata.last_used.try(&.to_rfc3339),
-            "promoted"      => metadata.promoted,
-          }
-        end
-        File.write(@metadata_path, payload.to_json)
+        File.write(@metadata_path, @metadata.values.to_json)
       rescue File::Error
-        # Sandboxed environments may not allow writes under the configured home dir.
+      end
+
+      def save_templates : Nil
+        @store.save(@templates.values.reject { |t| starter_template_names.includes?(t.name) })
+      rescue File::Error
+      end
+
+      private def starter_template_names : Set(String)
+        STARTER_TEMPLATES.map(&.name).to_set
       end
 
       private def build_search_text(template : SkillTemplate) : String

@@ -158,6 +158,247 @@ describe Chiasmus::Discovery::CrystalExtractor do
     methods = items.select { |i| i.kind == "method" }
     methods.map(&.name).should contain("Foo.bar")
   end
+
+  it "extracts enum_def" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "enum Color\n  Red\n  Green\n  Blue\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    enums = items.select { |i| i.kind == "class" || i.kind == "enum" }
+    enums.map(&.name).should contain("Color")
+  end
+
+  it "extracts alias (type alias)" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "alias PInt32 = Pointer(Int32)\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    types = items.select { |i| i.kind == "type" }
+    types.map(&.name).should contain("PInt32")
+  end
+
+  it "extracts macro_def" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "macro define_method(name, content)\n  def {{name}}\n    {{content}}\n  end\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    macros = items.select { |i| i.kind == "macro" }
+    macros.map(&.name).should contain("define_method")
+  end
+
+  it "extracts constant assignment" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "VERSION = \"1.0.0\"\nMAX_SIZE = 1024\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    consts = items.select { |i| i.kind == "const" }
+    consts.map(&.name).should contain("VERSION")
+    consts.map(&.name).should contain("MAX_SIZE")
+  end
+
+  it "extracts annotation_def" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "annotation MyAnnotation\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    annotations = items.select { |i| i.kind == "annotation" }
+    annotations.map(&.name).should contain("MyAnnotation")
+  end
+
+  it "extracts instance variables as fields" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "class Foo\n  @name : String\n  @count : Int32 = 0\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    fields = items.select { |i| i.kind == "field" }
+    fields.map(&.name).should contain("@name")
+    fields.map(&.name).should contain("@count")
+  end
+
+  it "extracts class variables as fields" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "class Foo\n  @@instances = 0\n  @@config = {} of String => String\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    fields = items.select { |i| i.kind == "field" }
+    fields.map(&.name).should contain("@@instances")
+    fields.map(&.name).should contain("@@config")
+  end
+
+  it "extracts lib_def" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "lib LibC\n  fun malloc(size : UInt64) : Void*\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    libs = items.select { |i| i.kind == "lib" }
+    libs.map(&.name).should contain("LibC")
+  end
+
+  it "extracts fun_def inside lib" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "lib LibC\n  fun malloc(size : UInt64) : Void*\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    funs = items.select { |i| i.kind == "function" }
+    funs.map(&.name).should contain("malloc")
+  end
+
+  it "extracts type_def inside lib" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "lib LibC\n  type MyType = Void*\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    types = items.select { |i| i.kind == "type" }
+    types.map(&.name).should contain("MyType")
+  end
+
+  it "extracts union_def inside lib" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "lib LibC\n  union MyUnion\n    x : Int32\n    y : Float64\n  end\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    unions = items.select { |i| i.kind == "class" }
+    unions.map(&.name).should contain("MyUnion")
+  end
+
+  it "extracts c_struct_def inside lib" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "lib LibC\n  struct MyStruct\n    x : Int32\n    y : Float64\n  end\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    structs = items.select { |i| i.kind == "class" }
+    structs.map(&.name).should contain("MyStruct")
+  end
+
+  it "extracts abstract method def" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "abstract class Foo\n  abstract def bar(x : Int32) : String\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    methods = items.select { |i| i.kind == "method" }
+    methods.map(&.name).should contain("Foo.bar")
+  end
+
+  it "includes include with generic type" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "class Foo\n  include Enumerable(Int32)\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    includes = items.select { |i| i.kind == "definition.module" }
+    includes.map(&.name).should contain("Enumerable")
+  end
+
+  it "captures call with constant receiver (class method call)" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "Foo.bar(1)\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    refs = items.select { |i| i.kind == "reference.call_sel" }
+    names = refs.map(&.name)
+    names.should contain("bar")
+  end
+
+  it "captures call with self receiver" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "class Foo\n  def run\n    self.helper\n  end\nend\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    refs = items.select { |i| i.kind == "reference.call_sel" }
+    names = refs.map(&.name)
+    names.should contain("helper")
+  end
+
+  it "captures call with instance_var receiver" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "@logger.info(\"started\")\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    refs = items.select { |i| i.kind == "reference.call_sel" }
+    names = refs.map(&.name)
+    names.should contain("info")
+  end
+
+  it "filters const kind to UPPER_CASE only" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "MAX = 100\nname = \"test\"\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.cr")
+    consts = items.select { |i| i.kind == "const" }
+    consts.size.should eq(1)
+    consts[0].name.should eq("MAX")
+  end
 end
 
 describe Chiasmus::Discovery::ScalaExtractor do

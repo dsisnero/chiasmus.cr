@@ -7,34 +7,31 @@ module Chiasmus
   module MCPServer
     module Tools
       class LearnTool
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          solver = arguments["solver"]?.try(&.as_s?)
-          spec = arguments["spec"]?.try(&.as_s?)
-          problem = arguments["problem"]?.try(&.as_s?)
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          args = Types::LearnInput.from_json(arguments.to_json)
 
-          return json_hash(Types::ErrorResponse.new("Missing required parameters: solver, spec, and problem")) unless solver && spec && problem
+          return Types::ErrorResponse.new("Missing required parameters: solver, spec, and problem") unless args.solver && args.spec && args.problem
 
-          solver_type = case solver
+          solver_type = case args.solver
                         when "z3"     then Solvers::SolverType::Z3
                         when "prolog" then Solvers::SolverType::Prolog
                         else
-                          return json_hash(Types::ErrorResponse.new("Unknown solver: #{solver}"))
+                          return Types::ErrorResponse.new("Unknown solver: #{args.solver}")
                         end
 
           learner = MCPServer.current_skill_learner
-          return json_hash(Types::ErrorResponse.new("LLM not available. chiasmus_learn requires an LLM for template extraction.")) unless learner
+          return Types::ErrorResponse.new("LLM not available. chiasmus_learn requires an LLM for template extraction.") unless learner
 
-          template = learner.extract_template(solver_type, spec, problem)
-          return json_hash(Types::ErrorResponse.new("Template rejected or could not be extracted")) unless template
+          template = learner.extract_template(solver_type, args.spec, args.problem)
+          return Types::ErrorResponse.new("Template rejected or could not be extracted") unless template
           learner.check_promotions
 
-          {
-            "status"   => JSON::Any.new("success"),
-            "template" => JSON::Any.new(template.name),
-            "message"  => JSON::Any.new("Template extracted and added to skill library as candidate"),
-          }
+          Types::LearnResponse.new(
+            template: template.name,
+            message: "Template extracted and added to skill library as candidate"
+          )
         rescue ex
-          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
+          Types::ErrorResponse.new(ex.message || ex.class.name)
         end
 
         def self.tool_name : String
@@ -59,10 +56,6 @@ module Chiasmus
             },
             required: ["solver", "spec", "problem"]
           ).to_mcp_input
-        end
-
-        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
-          JSON.parse(response.to_json).as_h
         end
       end
     end

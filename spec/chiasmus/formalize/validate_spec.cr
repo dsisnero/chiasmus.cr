@@ -105,6 +105,81 @@ describe Chiasmus::Formalize do
 
         result.errors.should be_empty
       end
+
+      it "accepts prolog with doubled-quote escape in atom" do
+        result = Chiasmus::Formalize.lint_spec(
+          "says(user, 'it''s fine').",
+          Chiasmus::Solvers::SolverType::Prolog,
+        )
+        result.errors.should be_empty
+      end
+
+      it "accepts prolog with backslash-quote escape in atom" do
+        result = Chiasmus::Formalize.lint_spec(
+          "says(user, 'it\\'s fine').",
+          Chiasmus::Solvers::SolverType::Prolog,
+        )
+        result.errors.should be_empty
+      end
+
+      it "accepts prolog with percent inside a quoted atom (not a comment)" do
+        result = Chiasmus::Formalize.lint_spec(
+          "p('50% done').",
+          Chiasmus::Solvers::SolverType::Prolog,
+        )
+        result.errors.should be_empty
+      end
+
+      it "accepts prolog with paren inside a quoted atom" do
+        result = Chiasmus::Formalize.lint_spec(
+          "p('opener: (').",
+          Chiasmus::Solvers::SolverType::Prolog,
+        )
+        result.errors.should be_empty
+      end
+
+      it "accepts prolog with /* inside a quoted atom (not a block comment)" do
+        result = Chiasmus::Formalize.lint_spec(
+          "p('/* not a comment */').",
+          Chiasmus::Solvers::SolverType::Prolog,
+        )
+        result.errors.should be_empty
+      end
+    end
+    describe "SMT-LIB string literal validation" do
+      it "handles SMT-LIB doubled-quote escape within strings" do
+        result = Chiasmus::Formalize.lint_spec(
+          %[(assert (= x "He said ""hello"""))],
+          Chiasmus::Solvers::SolverType::Z3,
+        )
+        result.errors.none? { |e| e.includes?("Unbalanced") }.should be_true
+        result.errors.none? { |e| e.includes?("Unmatched") }.should be_true
+      end
+
+      it "handles nested parens inside SMT-LIB strings with doubled quotes" do
+        result = Chiasmus::Formalize.lint_spec(
+          %[(assert (= x "a(""b"))],
+          Chiasmus::Solvers::SolverType::Z3,
+        )
+        result.errors.none? { |e| e.includes?("Unbalanced") }.should be_true
+        result.errors.none? { |e| e.includes?("Unmatched") }.should be_true
+      end
+
+      it "reports unbalanced parens outside strings correctly" do
+        result = Chiasmus::Formalize.lint_spec(
+          %[(assert (= x "hello")],
+          Chiasmus::Solvers::SolverType::Z3,
+        )
+        result.errors.any? { |e| e.includes?("Unbalanced") }.should be_true
+      end
+
+      it "does not misinterpret backslash before quote as escape" do
+        result = Chiasmus::Formalize.lint_spec(
+          %[(assert (= msg "hello\\"extra"))],
+          Chiasmus::Solvers::SolverType::Z3,
+        )
+        result.errors.any? { |e| e.includes?("Unbalanced") }.should be_true
+      end
     end
   end
 end

@@ -77,6 +77,7 @@ module Chiasmus
       # Formalize the problem
       engine = @engine || raise "Formalization engine not available"
       formalize_result = engine.formalize(problem)
+      return error_response("No matching template found — skill library is empty") unless formalize_result
       template = formalize_result.template
 
       # Determine solver

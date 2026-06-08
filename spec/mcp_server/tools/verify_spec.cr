@@ -1,19 +1,29 @@
 require "../../spec_helper"
 
+private macro as_verify(result)
+  result.as(Chiasmus::MCPServer::Types::VerifyResponse)
+end
+
+private macro as_error(result)
+  result.as(Chiasmus::MCPServer::Types::ErrorResponse)
+end
+
+private def solver_result(result)
+  as_verify(result).result.not_nil!
+end
+
 describe Chiasmus::MCPServer::Tools::VerifyTool do
   describe "#invoke" do
     it "requires solver and input parameters" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
 
-      # Missing solver
       result = tool.invoke({"input" => JSON::Any.new("test")})
-      result["status"].as_s.should eq "error"
-      result["error"].to_s.should_not be_empty
+      result.status.should eq("error")
+      as_error(result).error.should_not be_empty
 
-      # Missing input
       result = tool.invoke({"solver" => JSON::Any.new("z3")})
-      result["status"].as_s.should eq "error"
-      result["error"].to_s.should_not be_empty
+      result.status.should eq("error")
+      as_error(result).error.should_not be_empty
     end
 
     it "handles unknown solver" do
@@ -23,8 +33,8 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "input"  => JSON::Any.new("test"),
       })
 
-      result["status"].as_s.should eq "error"
-      result["error"].to_s.should contain "Unknown solver"
+      result.status.should eq("error")
+      as_error(result).error.should contain("Unknown solver")
     end
 
     it "returns actual result for z3 solver" do
@@ -35,10 +45,11 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "input"  => JSON::Any.new(input),
       })
 
-      result["status"].as_s.should eq "success"
-      result_hash = result["result"].as_h
-      result_hash["status"].as_s.should eq "sat"
-      result_hash["model"].as_h.keys.should contain("x")
+      result.status.should eq("success")
+      sr = solver_result(result)
+      sr.status.should eq("sat")
+      model = sr.model.not_nil!
+      model.has_key?("x").should be_true
     end
 
     it "verifies unsatisfiable Z3 input" do
@@ -49,9 +60,8 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "input"  => JSON::Any.new(input),
       })
 
-      result["status"].as_s.should eq "success"
-      result_hash = result["result"].as_h
-      result_hash["status"].as_s.should eq "unsat"
+      result.status.should eq("success")
+      solver_result(result).status.should eq("unsat")
     end
 
     it "returns structured error for malformed Z3 input" do
@@ -62,10 +72,11 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "input"  => JSON::Any.new(input),
       })
 
-      result["status"].as_s.should eq "success"
-      result_hash = result["result"].as_h
-      result_hash["status"].as_s.should eq "error"
-      result_hash["error"].to_s.should_not be_empty
+      result.status.should eq("success")
+      sr = solver_result(result)
+      sr.status.should eq("error")
+      err = sr.error.not_nil!
+      err.should_not be_empty
     end
 
     it "returns actual result for prolog solver" do
@@ -77,12 +88,12 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "query"  => JSON::Any.new("parent(tom, X)."),
       })
 
-      result["status"].as_s.should eq "success"
-      result_hash = result["result"].as_h
-      result_hash["status"].as_s.should eq "success"
-      result_hash["answers"].as_a.size.should be >= 1
-      bindings = result_hash["answers"].as_a.first["bindings"].as_h
-      bindings["X"].to_s.should eq "bob"
+      result.status.should eq("success")
+      sr = solver_result(result)
+      sr.status.should eq("success")
+      answers = sr.answers.not_nil!
+      answers.size.should be >= 1
+      answers.first.bindings["X"].should eq("bob")
     end
 
     it "returns structured error for malformed Prolog input" do
@@ -94,9 +105,8 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "query"  => JSON::Any.new("parent(tom, X)."),
       })
 
-      result["status"].as_s.should eq "success"
-      result_hash = result["result"].as_h
-      result_hash["status"].as_s.should eq "error"
+      result.status.should eq("success")
+      solver_result(result).status.should eq("error")
     end
 
     it "includes unsatCore in unsat Z3 response" do
@@ -111,11 +121,10 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "input"  => JSON::Any.new(input),
       })
 
-      result["status"].as_s.should eq "success"
-      result_hash = result["result"].as_h
-      result_hash["status"].as_s.should eq "unsat"
-      result_hash["unsat_core"].should_not be_nil
-      core = result_hash["unsat_core"].as_a
+      result.status.should eq("success")
+      sr = solver_result(result)
+      sr.status.should eq("unsat")
+      core = sr.unsat_core.not_nil!
       core.size.should be > 0
     end
 
@@ -127,8 +136,8 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "input"  => JSON::Any.new(input),
       })
 
-      result["status"].as_s.should eq "error"
-      result["error"].to_s.should match(/query/i)
+      result.status.should eq("error")
+      as_error(result).error.should match(/query/i)
     end
 
     it "handles prolog mermaid format" do
@@ -141,8 +150,8 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "query"  => JSON::Any.new("edge(a, b)."),
       })
 
-      result["status"].as_s.should eq "success"
-      result["result"].as_h["status"].as_s.should eq "success"
+      result.status.should eq("success")
+      solver_result(result).status.should eq("success")
     end
 
     it "runs multiple prolog queries against the same program" do
@@ -155,13 +164,14 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "queries" => queries,
       })
 
-      result["status"].as_s.should eq "success"
-      results = result["result"].as_a
-      results.size.should eq(3)
-      results[0]["status"].as_s.should eq("success")
-      results[0]["answers"].as_a.first["bindings"].as_h["X"].as_s.should eq("b")
-      results[1]["answers"].as_a.first["bindings"].as_h["X"].as_s.should eq("c")
-      results[2]["answers"].as_a.first["bindings"].as_h["X"].as_s.should eq("d")
+      result.status.should eq("success")
+      verify = as_verify(result)
+      batch = verify.results.not_nil!
+      batch.size.should eq(3)
+      batch[0].status.should eq("success")
+      batch[0].answers.not_nil!.first.bindings["X"].should eq("b")
+      batch[1].answers.not_nil!.first.bindings["X"].should eq("c")
+      batch[2].answers.not_nil!.first.bindings["X"].should eq("d")
     end
 
     it "rejects prolog queries arrays containing non-strings" do
@@ -172,8 +182,8 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "queries" => JSON.parse(%(["edge(a, X).", 1])),
       })
 
-      result["status"].as_s.should eq "error"
-      result["error"].as_s.should contain("queries array must contain only strings")
+      result.status.should eq("error")
+      as_error(result).error.should contain("queries array must contain only strings")
     end
 
     it "handles prolog with explain flag" do
@@ -186,10 +196,29 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
         "explain" => JSON::Any.new(true),
       })
 
-      result["status"].as_s.should eq "success"
-      result_hash = result["result"].as_h
-      result_hash["status"].as_s.should eq "success"
-      result_hash["trace"].as_a.size.should be > 0
+      result.status.should eq("success")
+      sr = solver_result(result)
+      sr.status.should eq("success")
+      trace = sr.trace.not_nil!
+      trace.size.should be > 0
+    end
+
+    it "stops batch on first error" do
+      tool = Chiasmus::MCPServer::Tools::VerifyTool.new
+      input = "edge(a, b). edge(b, c)."
+      queries = JSON.parse(%[["edge(a, X).", "invalid(((", "edge(b, X)."]])
+      result = tool.invoke({
+        "solver"  => JSON::Any.new("prolog"),
+        "input"   => JSON::Any.new(input),
+        "queries" => queries,
+      })
+
+      result.status.should eq("success")
+      verify = as_verify(result)
+      batch = verify.results.not_nil!
+      batch.size.should eq(2)
+      batch[0].status.should eq("success")
+      batch[1].status.should eq("error")
     end
   end
 end

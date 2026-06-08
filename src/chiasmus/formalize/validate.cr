@@ -105,11 +105,18 @@ module Chiasmus
 
     private def self.skip_string_literal(spec : String, start_index : Int32) : Int32
       i = start_index + 1
-      while i < spec.size && spec[i] != '"'
-        i += 1 if spec[i] == '\\'
+      while i < spec.size
+        # SMT-LIB uses doubled-quote "" for escaping, not backslash.
+        # "" inside a string literal represents a single " character.
+        if spec[i] == '"'
+          i += 1
+          break unless spec[i]? == '"' # doubled-quote escape
+          i += 1
+          next
+        end
         i += 1
       end
-      i + 1
+      i
     end
 
     private def self.skip_line_comment(spec : String, start_index : Int32) : Int32

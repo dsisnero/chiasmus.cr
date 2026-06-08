@@ -6,6 +6,8 @@ authors:
 targets:
   chiasmus:
     main: src/chiasmus.cr
+  chiasmus-agent:
+    main: src/chiasmus-agent.cr
   chiasmus-grammar:
     main: src/chiasmus_grammar.cr
   chiasmus-discover:
@@ -32,6 +34,8 @@ dependencies:
     github: RomainFranceschini/cgl
   bm25:
     github: dsisnero/bm25
+  clip:
+    github: erdnaxeli/clip
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba

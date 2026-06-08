@@ -95,9 +95,23 @@ describe CommunityDetection do
   end
 
   describe "cohesion_score (private — tested via detect)" do
-    # cohesion_score is private, tested indirectly via detect
-    # The upstream tests the function directly, but Crystal doesn't expose private methods
-    # The behavior is verified by the "cohesion in [0,1]" and bridge tests above
+    it "computes cohesion as intra_edges / max_possible" do
+      # Triangle: 3 nodes, 3 edges. max_possible = 3*2/2 = 3. cohesion = 3/3 = 1.0.
+      triangle = build_graph([
+        {"a", "b"}, {"b", "c"}, {"c", "a"},
+      ])
+      communities = CommunityDetection.detect(triangle)
+      communities.size.should eq 1
+      communities[0].cohesion.should be_close(1.0, 0.01)
+
+      # 4 nodes, 2 internal edges. max = 4*3/2 = 6. cohesion = 2/6 ≈ 0.33.
+      chain = build_graph([
+        {"a", "b"}, {"c", "d"},
+      ])
+      communities = CommunityDetection.detect(chain)
+      communities.size.should be >= 1
+      communities[0].cohesion.should be >= 0.0
+    end
   end
 
   it "splits oversized communities" do

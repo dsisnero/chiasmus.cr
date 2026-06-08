@@ -58,8 +58,8 @@ describe "created template in skills search" do
           "query" => JSON::Any.new("Test template created via MCP"),
         })
 
-        result["status"].as_s.should eq("success")
-        names = result["templates"].as_a.map { |t| t.as_h["name"].as_s }
+        result.status.should eq("success")
+        names = result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.map { |t| t.name }
         names.should contain("mcp-test-template")
       ensure
         server.skill_library.close

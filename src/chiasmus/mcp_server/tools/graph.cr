@@ -8,60 +8,43 @@ module Chiasmus
   module MCPServer
     module Tools
       class GraphTool
-        private def error_response(message : String) : Hash(String, JSON::Any)
-          JSON.parse(Types::ErrorResponse.new(message).to_json).as_h
-        end
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          args = Types::GraphInput.from_json(arguments.to_json)
 
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          files = arguments["files"]?.try(&.as_a?.try(&.map(&.as_s?)))
-          analysis = arguments["analysis"]?.try(&.as_s?)
-          target = arguments["target"]?.try(&.as_s?)
-          from = arguments["from"]?.try(&.as_s?)
-          to = arguments["to"]?.try(&.as_s?)
-          entry_points = arguments["entry_points"]?.try(&.as_a?.try(&.map(&.as_s)).try(&.compact))
+          return Types::ErrorResponse.new("Missing required parameters: files and analysis") unless args.files && args.analysis
 
-          return error_response("Missing required parameters: files and analysis") unless files && analysis
+          absolute_files = args.files.map { |file_path| File.expand_path(file_path) }
 
-          # Convert to absolute paths
-          absolute_files = files.compact.map { |file_path| File.expand_path(file_path) }
-
-          # Validate analysis type
-          unless Graph::AnalysisType.parse?(analysis)
-            return error_response("Unknown analysis: #{analysis}. Use one of: #{VALID_ANALYSES.join(", ")}")
+          unless Graph::AnalysisType.parse?(args.analysis)
+            return Types::ErrorResponse.new("Unknown analysis: #{args.analysis}. Use one of: #{VALID_ANALYSES.join(", ")}")
           end
 
-          analysis_type = Graph::AnalysisType.parse(analysis)
+          analysis_type = Graph::AnalysisType.parse(args.analysis)
 
-          # Run analysis
           request = Graph::AnalysisRequest.new(
             analysis: analysis_type,
-            target: target,
-            from: from,
-            to: to,
-            entry_points: entry_points
+            target: args.target,
+            from: args.from,
+            to: args.to,
+            entry_points: args.entry_points
           )
 
           result = Graph::Analyses.run_analysis(absolute_files, request)
 
-          # For facts analysis, we know it returns a string (Prolog facts)
-          # For other analyses, we need to handle the tagged JSON structure
-          result_value = if analysis == "facts"
-                           # Facts analysis returns a string directly
+          result_value = if args.analysis == "facts"
                            result.result.as(String)
                          else
-                           # Other analyses return tagged JSON
                            result.to_json
                          end
 
-          {
-            "status"   => JSON::Any.new("success"),
-            "analysis" => JSON::Any.new(analysis),
-            "result"   => JSON::Any.new(result_value),
-          }
+          Types::GraphResponse.new(
+            analysis: args.analysis,
+            result: JSON::Any.new(result_value)
+          )
         rescue ex : File::NotFoundError
-          error_response("File not found: #{ex.message}")
+          Types::ErrorResponse.new("File not found: #{ex.message}")
         rescue ex
-          error_response(ex.message || ex.class.name)
+          Types::ErrorResponse.new(ex.message || ex.class.name)
         end
 
         def self.tool_name : String

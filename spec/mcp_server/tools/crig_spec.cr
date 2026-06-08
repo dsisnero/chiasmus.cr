@@ -18,8 +18,8 @@ describe Chiasmus::MCPServer::Tools::CrigTool do
       tool = Chiasmus::MCPServer::Tools::CrigTool.new
       result = tool.invoke({} of String => JSON::Any)
 
-      result["status"].as_s.should eq("error")
-      result["error"].as_s.should contain("prompt")
+      result.status.should eq("error")
+      result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("prompt")
     end
 
     it "returns a configuration error when no API key is available" do
@@ -28,8 +28,8 @@ describe Chiasmus::MCPServer::Tools::CrigTool do
       with_env_unset("OPENAI_API_KEY") do
         result = tool.invoke({"prompt" => JSON::Any.new("hello")})
 
-        result["status"].as_s.should eq("error")
-        result["error"].as_s.should contain("API key not configured")
+        result.status.should eq("error")
+        result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("API key not configured")
       end
     end
   end

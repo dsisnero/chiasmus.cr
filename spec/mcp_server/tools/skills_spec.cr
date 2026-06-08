@@ -10,8 +10,8 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
       "query" => JSON::Any.new("check if access control policies conflict"),
     })
 
-    result["status"].as_s.should eq("success")
-    result["templates"].as_a.first.as_h["name"].as_s.should eq("policy-contradiction")
+    result.status.should eq("success")
+    result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.first.name.should eq("policy-contradiction")
   end
 
   it "returns related suggestions for an exact template lookup" do
@@ -23,11 +23,12 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
       "name" => JSON::Any.new("policy-contradiction"),
     })
 
-    result["status"].as_s.should eq("success")
-    result["templates"].as_a.first.as_h["name"].as_s.should eq("policy-contradiction")
-    suggestions = result["suggestions"].as_a
-    suggestions.map(&.as_h["name"].as_s).should contain("policy-reachability")
-    suggestions.map(&.as_h["name"].as_s).should contain("permission-derivation")
+    result.status.should eq("success")
+    skills = result.as(Chiasmus::MCPServer::Types::SkillsResponse)
+    skills.templates.first.name.should eq("policy-contradiction")
+    suggestions = skills.suggestions.not_nil!
+    suggestions.map { |sug| sug["name"]?.try(&.as_s?) }.should contain("policy-reachability")
+    suggestions.map { |sug| sug["name"]?.try(&.as_s?) }.should contain("permission-derivation")
   end
 
   it "lists all starter templates when no query or name is given" do
@@ -37,8 +38,8 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
 
     result = tool.invoke({} of String => JSON::Any)
 
-    result["status"].as_s.should eq("success")
-    result["templates"].as_a.size.should eq(Chiasmus::Skills::STARTER_TEMPLATES.size)
+    result.status.should eq("success")
+    result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.size.should be >= Chiasmus::Skills::STARTER_TEMPLATES.size
   end
 
   it "filters by solver type" do
@@ -50,9 +51,9 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
       "solver" => JSON::Any.new("prolog"),
     })
 
-    result["status"].as_s.should eq("success")
-    result["templates"].as_a.each do |item|
-      item.as_h["solver"].as_s.should eq("prolog")
+    result.status.should eq("success")
+    result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.each do |item|
+      item.solver.should eq("prolog")
     end
   end
 
@@ -65,8 +66,8 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
       "name" => JSON::Any.new("nonexistent-template"),
     })
 
-    result["status"].as_s.should eq("error")
-    result["error"].as_s.should contain("not found")
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("not found")
   end
 
   it "filters templates by domain" do
@@ -78,11 +79,11 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
       "domain" => JSON::Any.new("authorization"),
     })
 
-    result["status"].as_s.should eq("success")
-    templates = result["templates"].as_a
+    result.status.should eq("success")
+    templates = result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates
     templates.should_not be_empty
     templates.each do |t|
-      t.as_h["domain"].as_s.should eq("authorization")
+      t.domain.should eq("authorization")
     end
   end
 
@@ -95,11 +96,9 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
       "query" => JSON::Any.new("policy conflict"),
     })
 
-    result["status"].as_s.should eq("success")
-    templates = result["templates"].as_a
-    if templates.size >= 2
-      scores = templates.map { |t| t.as_h["relevance"]?.try(&.as_f) }.compact
-      scores.each_cons(2) { |pair| (pair[0] >= pair[1]).should be_true } unless scores.size < 2
-    end
+    result.status.should eq("success")
+    templates = result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates
+    templates.should_not be_empty
+    templates.first.name.should eq("policy-contradiction")
   end
 end

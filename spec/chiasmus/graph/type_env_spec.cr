@@ -1,80 +1,96 @@
 require "../../spec_helper"
 require "../../../src/chiasmus/graph/types"
+require "../../../src/chiasmus/graph/parser"
+require "../../../src/chiasmus/graph/walkers"
+require "../../../src/chiasmus/graph/extractor"
 require "../../../src/chiasmus/graph/type_env"
 
 include Chiasmus::Graph
 
 describe TypeEnv do
-  describe ".strip_nullable" do
-    it "strips null from union types" do
-      TypeEnv.strip_nullable("string | null").should eq "string"
-    end
-
-    it "strips undefined from union types" do
-      TypeEnv.strip_nullable("string | undefined").should eq "string"
-    end
-
-    it "strips void from union types" do
-      TypeEnv.strip_nullable("string | null | void").should eq "string"
-    end
-
-    it "strips nullable marker" do
-      TypeEnv.strip_nullable("string?").should eq "string"
-    end
-
-    it "returns simple types unchanged" do
-      TypeEnv.strip_nullable("string").should eq "string"
-    end
-
-    it "returns first non-null part of union" do
-      TypeEnv.strip_nullable("number | string").should eq "number"
-    end
-
-    it "strips leading bar" do
-      TypeEnv.strip_nullable("| number").should eq "number"
-    end
-
-    it "strips trailing bar" do
-      TypeEnv.strip_nullable("number |").should eq "number"
+  describe "process_method_definition" do
+    it "does not crash on method with access modifier (child_count > named_child_count)" do
+      ts = <<-TS
+        class Foo {
+          private x: number = 42;
+          get y(): string { return "hello"; }
+          bar(z: number): void {}
+        }
+      TS
+      sources = [SourceFile.new(path: "/tmp/test.ts", content: ts)]
+      graph = Extractor.extract_graph(sources)
+      graph.defines.size.should be >= 1
     end
   end
 
-  describe ".extract_simple_type_name" do
-    # These tests work on a mock node — testing text-based logic only.
-    # Full tree-sitter tests would require parsing actual TS sources.
-    it "extracts simple type names from text" do
-      # The function takes a TreeSitter::Node with .text(source) returning the type text.
-      # For pure text testing, we verify the strip logic indirectly via strip_nullable.
-      TypeEnv.strip_nullable("User").should eq "User"
+  describe "process_field_definition" do
+    it "does not crash when scanning field children for type_annotation" do
+      ts = <<-TS
+        class Bar {
+          public count: number = 0;
+          protected name: string = "test";
+        }
+      TS
+      sources = [SourceFile.new(path: "/tmp/test2.ts", content: ts)]
+      graph = Extractor.extract_graph(sources)
+      graph.defines.size.should be >= 1
     end
   end
 
-  describe ".extract_var_name" do
-    # Requires tree-sitter node — placeholder for integration test
-    it "is defined" do
-      TypeEnv.responds_to?(:extract_var_name).should be_true
+  describe "process_property_signature" do
+    it "produces DefinesFact for interfaces (upstream parity)" do
+      ts = <<-TS
+        interface Foo {
+          bar(): string;
+        }
+        class Baz implements Foo {
+          bar(): string { return "hi"; }
+        }
+      TS
+      sources = [SourceFile.new(path: "/tmp/iface.ts", content: ts)]
+      graph = Extractor.extract_graph(sources)
+      graph.defines.size.should be >= 3
+      kinds = graph.defines.map(&.kind)
+      kinds.should contain(SymbolKind::Interface)
+      names = graph.defines.map(&.name)
+      names.should contain("Foo")
     end
   end
 
-  describe ".find_enclosing_class_name" do
-    # Requires tree-sitter node with parent chain — placeholder for integration test
-    it "is defined" do
-      TypeEnv.responds_to?(:find_enclosing_class_name).should be_true
+  describe "vendor failing files" do
+    it "parses formalize/engine.ts without Index out of bounds" do
+      f = File.expand_path("vendor/chiasmus/src/formalize/engine.ts")
+      sources = [SourceFile.new(path: f, content: File.read(f))]
+      graph = Extractor.extract_graph(sources)
+      graph.defines.size.should be >= 1
     end
-  end
 
-  describe ".collect_type_info" do
-    # Requires tree-sitter AST — placeholder for integration test
-    it "is defined" do
-      TypeEnv.responds_to?(:collect_type_info).should be_true
+    it "parses llm/anthropic.ts without Index out of bounds" do
+      f = File.expand_path("vendor/chiasmus/src/llm/anthropic.ts")
+      sources = [SourceFile.new(path: f, content: File.read(f))]
+      graph = Extractor.extract_graph(sources)
+      graph.defines.size.should be >= 1
     end
-  end
 
-  describe "CLASS_NODE_TYPES" do
-    it "includes class and interface declarations" do
-      types = Chiasmus::Graph::TypeEnv::CLASS_NODE_TYPES
-      types.includes?("class_declaration").should be_true
-      types.includes?("interface_declaration").should be_true
+    it "parses skills/learner.ts without Index out of bounds" do
+      f = File.expand_path("vendor/chiasmus/src/skills/learner.ts")
+      sources = [SourceFile.new(path: f, content: File.read(f))]
+      graph = Extractor.extract_graph(sources)
+      graph.defines.size.should be >= 1
+    end
+
+    it "parses search/embedding-cache.ts without Index out of bounds" do
+      f = File.expand_path("vendor/chiasmus/src/search/embedding-cache.ts")
+      sources = [SourceFile.new(path: f, content: File.read(f))]
+      graph = Extractor.extract_graph(sources)
+      graph.defines.size.should be >= 1
+    end
+
+    it "parses solvers/session.ts without Index out of bounds" do
+      f = File.expand_path("vendor/chiasmus/src/solvers/session.ts")
+      sources = [SourceFile.new(path: f, content: File.read(f))]
+      graph = Extractor.extract_graph(sources)
+      graph.defines.size.should be >= 1
     end
   end
 end

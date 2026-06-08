@@ -79,16 +79,22 @@ tests/craft.test.ts::test::valid template passes validation with no errors	missi
 tests/craft.test.ts::test::validateTemplate	missing	-	baseline
 tests/craft.test.ts::test::validation errors prevent creation	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::Azure activation	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::DeepSeek (no embeddings API)	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::OpenAI fallback	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::OpenRouter fallback	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::accepts AZURE_OPENAI_ENDPOINT as a fallback for AZURE_OPENAI_API_ENDPOINT	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::createEmbeddingFromEnv	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::does not activate when only the key is set (no endpoint)	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::does not take precedence over a working OPENROUTER_API_KEY	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::forwards CHIASMUS_EMBED_DIM and AZURE_OPENAI_API_VERSION to the adapter URL	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::is honored when CHIASMUS_EMBED_URL points at an embeddings-capable endpoint	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::returns an AzureOpenAIEmbeddingAdapter when key + endpoint + deployment are set	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::returns an OpenAICompatibleEmbeddingAdapter when only OPENAI_API_KEY is set	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::returns an OpenAICompatibleEmbeddingAdapter when only OPENROUTER_API_KEY is set	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::returns null when no provider env vars are set	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::takes precedence over OPENAI_API_KEY when both are configured	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::warns and returns null when key + endpoint are set but deployment is missing	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::warns and returns null when only DEEPSEEK_API_KEY is set	missing	-	baseline
 tests/dogfood.test.ts::test::Dogfood: realistic problem domains	missing	-	baseline
 tests/dogfood.test.ts::test::Prolog: Rule-based reasoning	missing	-	baseline
 tests/dogfood.test.ts::test::Z3: Policy contradiction detection	missing	-	baseline
@@ -553,6 +559,20 @@ tests/graph/pr-21-fixes.test.ts::test::preserves the baseline when the request e
 tests/graph/pr-21-fixes.test.ts::test::stays bounded across many distinct repo keys	missing	-	baseline
 tests/graph/pr-21-fixes.test.ts::test::summary mentions imports/exports/hyperedges when changed	missing	-	baseline
 tests/graph/pr-21-fixes.test.ts::test::treats changed hyperedge members as removed + added	missing	-	baseline
+tests/graph/rust.test.ts::test::Rust support	missing	-	baseline
+tests/graph/rust.test.ts::test::attaches impl methods to their type via contains	missing	-	baseline
+tests/graph/rust.test.ts::test::binds renamed imports to their alias	missing	-	baseline
+tests/graph/rust.test.ts::test::captures /// doc comments as the file doc	missing	-	baseline
+tests/graph/rust.test.ts::test::extractor	missing	-	baseline
+tests/graph/rust.test.ts::test::extracts call edges (plain, method, and associated calls)	missing	-	baseline
+tests/graph/rust.test.ts::test::extracts free functions with signatures	missing	-	baseline
+tests/graph/rust.test.ts::test::extracts structs, enums as classes and traits as interfaces	missing	-	baseline
+tests/graph/rust.test.ts::test::extracts use declarations as imports	missing	-	baseline
+tests/graph/rust.test.ts::test::maps .rs extension to rust	missing	-	baseline
+tests/graph/rust.test.ts::test::marks pub items as exported, private items as not	missing	-	baseline
+tests/graph/rust.test.ts::test::parser	missing	-	baseline
+tests/graph/rust.test.ts::test::parses Rust source natively (sync)	missing	-	baseline
+tests/graph/rust.test.ts::test::recurses into modules	missing	-	baseline
 tests/graph/snapshot.test.ts::test::deleteSnapshot removes a named snapshot	missing	-	baseline
 tests/graph/snapshot.test.ts::test::listSnapshots returns all saved snapshot names	missing	-	baseline
 tests/graph/snapshot.test.ts::test::loadSnapshot returns null for missing snapshot	missing	-	baseline
@@ -697,6 +717,12 @@ tests/mcp-shutdown.test.ts::test::handler does not throw if library.close throws
 tests/mcp-shutdown.test.ts::test::invokes library.close() when a signal is received	missing	-	baseline
 tests/mcp-shutdown.test.ts::test::registers SIGINT and SIGTERM handlers	missing	-	baseline
 tests/mcp-shutdown.test.ts::test::setupShutdownHandlers	missing	-	baseline
+tests/mcp-tool-gating.test.ts::test::MCP tool gating by configured capability	missing	-	baseline
+tests/mcp-tool-gating.test.ts::test::always lists capability-independent tools (graph, map)	missing	-	baseline
+tests/mcp-tool-gating.test.ts::test::hides chiasmus_learn when no LLM is configured	missing	-	baseline
+tests/mcp-tool-gating.test.ts::test::hides chiasmus_search when no embedding provider is configured	missing	-	baseline
+tests/mcp-tool-gating.test.ts::test::keeps gracefully-degrading tools (solve, formalize) listed without an LLM	missing	-	baseline
+tests/mcp-tool-gating.test.ts::test::lists chiasmus_search when an embedding provider is configured	missing	-	baseline
 tests/prolog-input.test.ts::test::extractPrologQuery	missing	-	baseline
 tests/prolog-input.test.ts::test::extracts ?- query from last line	missing	-	baseline
 tests/prolog-input.test.ts::test::extracts ?- query from middle of text (uses last ?- line)	missing	-	baseline
@@ -782,6 +808,7 @@ tests/search/engine.test.ts::test::honors topK smaller than corpus size	missing	
 tests/search/engine.test.ts::test::returns topK results ranked by similarity	missing	-	baseline
 tests/search/engine.test.ts::test::runSearch (MockEmbeddingAdapter)	missing	-	baseline
 tests/search/engine.test.ts::test::text includes the function signature when available	missing	-	baseline
+tests/search/engine.test.ts::test::works when the adapter	missing	-	baseline
 tests/search/vector-store.test.ts::test::VectorStore (R9)	missing	-	baseline
 tests/search/vector-store.test.ts::test::has() checks for id presence	missing	-	baseline
 tests/search/vector-store.test.ts::test::inserts vectors and finds nearest by cosine similarity	missing	-	baseline

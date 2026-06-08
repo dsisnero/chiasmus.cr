@@ -129,4 +129,31 @@ describe Chiasmus::Review do
       end
     end
   end
+
+  describe "delta_against PR review mode" do
+    it "inserts a delta phase as phase 0 when delta_against is supplied" do
+      plan = Chiasmus::Review.build_plan(files, delta_against: "main")
+      phases = plan.phases
+      phases.should_not be_empty
+      phases[0].phase.should contain("0.")
+      phases[0].phase.should match(/delta/i)
+    end
+
+    it "delta phase is absent when delta_against is omitted" do
+      plan = Chiasmus::Review.build_plan(files)
+      phases = plan.phases
+      phases.none? { |p| p.phase.includes?("delta") || p.phase.includes?("0.") }.should be_true
+    end
+
+    it "reporting section mentions PR scope when delta_against is set" do
+      plan = Chiasmus::Review.build_plan(files, delta_against: "main")
+      plan.reporting.instructions.should match(/PR review|delta|change/i)
+    end
+
+    it "delta phase still fires under focus='quick'" do
+      plan = Chiasmus::Review.build_plan(files, "quick", delta_against: "main")
+      phases = plan.phases
+      phases.any? { |p| p.phase =~ /delta/i }.should be_true
+    end
+  end
 end

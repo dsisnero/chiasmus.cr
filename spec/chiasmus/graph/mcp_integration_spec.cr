@@ -44,8 +44,14 @@ TS
       tool = Chiasmus::MCPServer::Tools::GraphTool.new
       arguments = params.arguments || {} of String => JSON::Any
       result = tool.invoke(arguments)
-      content = [MCP::Protocol::TextContentBlock.new(result.to_json)] of MCP::Protocol::ContentBlock
-      MCP::Protocol::CallToolResult.new(content: content)
+      result_json = result.to_json
+      content = [MCP::Protocol::TextContentBlock.new(result_json)] of MCP::Protocol::ContentBlock
+      structured = begin
+        JSON.parse(result_json).as_h
+      rescue
+        nil
+      end
+      MCP::Protocol::CallToolResult.new(content: content, structured_content: structured)
     end
 
     input_schema = Chiasmus::MCPServer::Tools::GraphTool.input_schema
@@ -98,7 +104,8 @@ TS
       "files"    => JSON::Any.new([JSON::Any.new(File.join(src_dir, "server.ts"))]),
       "analysis" => JSON::Any.new("unknown"),
     })
-    result["error"].as_s.should contain("Use one of: #{expected.join(", ")}")
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("Use one of: #{expected.join(", ")}")
   end
 
   it "returns callers via MCP" do

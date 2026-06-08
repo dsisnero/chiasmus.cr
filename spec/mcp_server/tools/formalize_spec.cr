@@ -18,8 +18,8 @@ describe Chiasmus::MCPServer::Tools::FormalizeTool do
     tool = Chiasmus::MCPServer::Tools::FormalizeTool.new
     result = tool.invoke({} of String => JSON::Any)
 
-    result["status"].as_s.should eq("error")
-    result["error"].as_s.should contain("problem")
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("problem")
   end
 
   it "returns an error for empty problem string" do
@@ -28,7 +28,7 @@ describe Chiasmus::MCPServer::Tools::FormalizeTool do
       "problem" => JSON::Any.new(""),
     })
 
-    result["status"].as_s.should eq("error")
+    result.status.should eq("error")
   end
 
   it "returns template instructions and related suggestions for a problem" do
@@ -42,12 +42,13 @@ describe Chiasmus::MCPServer::Tools::FormalizeTool do
       "problem" => JSON::Any.new("Check if access control rules can ever conflict"),
     })
 
-    result["status"].as_s.should eq("success")
-    result["template"].as_s.should eq("policy-contradiction")
-    result["solver"].as_s.should eq("z3")
-    result["instructions"].as_s.should contain("SLOT")
-    suggestions = result["suggestions"].as_a
+    result.status.should eq("success")
+    formalize = result.as(Chiasmus::MCPServer::Types::FormalizeResponse)
+    formalize.template.should eq("policy-contradiction")
+    formalize.solver.should eq("z3")
+    formalize.instructions.should contain("SLOT")
+    suggestions = formalize.suggestions
     suggestions.should_not be_empty
-    suggestions.first.as_h["name"].as_s.should eq("policy-reachability")
+    suggestions.first["name"]?.try(&.as_s?).should eq("policy-reachability")
   end
 end

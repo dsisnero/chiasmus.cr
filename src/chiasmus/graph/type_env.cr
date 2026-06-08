@@ -18,7 +18,7 @@ module Chiasmus
         t = type_text.strip
         t = t.gsub(/^\|+|\|+$/, "").strip
         if t.includes?('|')
-          parts = t.split('|').map(&.strip).reject { |p| p.in?("null", "undefined", "void") }
+          parts = t.split('|').map(&.strip).reject(&.in?("null", "undefined", "void"))
           t = parts.first? || t
         end
         t = t.gsub(/\?$/, "").strip
@@ -131,7 +131,7 @@ module Chiasmus
 
         # Fallback: scan children for type_annotation
         unless field_type
-          (0...child.child_count).each do |j|
+          (0...child.named_child_count).each do |j|
             c = child.named_child(j)
             if c && c.type == "type_annotation"
               inner = c.named_child(0)
@@ -161,36 +161,13 @@ module Chiasmus
 
         # Constructor parameter properties
         if method_name == "constructor"
-          params = child.child_by_field_name("parameters")
-          if params
-            (0...params.named_child_count).each do |k|
-              param = params.named_child(k)
-              if param && param.type == "required_parameter"
-                has_modifier = false
-                (0...param.named_child_count).each do |m|
-                  mc = param.named_child(m)
-                  if mc && (mc.type == "accessibility_modifier" || mc.text(source) == "readonly")
-                    has_modifier = true
-                    break
-                  end
-                end
-                if has_modifier
-                  p_name_node = param.child_by_field_name("pattern") || param.named_child(0)
-                  if p_name_node
-                    param_name = p_name_node.text(source)
-                    param_type = extract_var_annotation(param, source)
-                    fields[param_name] = param_type if param_name && param_type
-                  end
-                end
-              end
-            end
-          end
+          process_constructor_params(child, source, fields)
         end
 
         # Getter return type → field
         is_getter = false
-        (0...child.child_count).each do |g|
-          gc = child.named_child(g)
+        (0...child.named_child_count).each do |getter_idx|
+          gc = child.named_child(getter_idx)
           if gc && gc.type == "get"
             is_getter = true
             break
@@ -207,13 +184,40 @@ module Chiasmus
         end
       end
 
+      private def process_constructor_params(child : TreeSitter::Node, source : String, fields : Hash(String, String)) : Nil
+        params = child.child_by_field_name("parameters")
+        return unless params
+
+        (0...params.named_child_count).each do |k|
+          param = params.named_child(k)
+          if param && param.type == "required_parameter"
+            has_modifier = false
+            (0...param.named_child_count).each do |mod_idx|
+              mc = param.named_child(mod_idx)
+              if mc && (mc.type == "accessibility_modifier" || mc.text(source) == "readonly")
+                has_modifier = true
+                break
+              end
+            end
+            if has_modifier
+              p_name_node = param.child_by_field_name("pattern") || param.named_child(0)
+              if p_name_node
+                param_name = p_name_node.text(source)
+                param_type = extract_var_annotation(param, source)
+                fields[param_name] = param_type if param_name && param_type
+              end
+            end
+          end
+        end
+      end
+
       private def process_property_signature(child : TreeSitter::Node, source : String, fields : Hash(String, String)) : Nil
         name_node = child.child_by_field_name("name")
         return unless name_node
         field_name = name_node.text(source)
         return if field_name.empty?
 
-        (0...child.child_count).each do |j|
+        (0...child.named_child_count).each do |j|
           c = child.named_child(j)
           if c && c.type == "type_annotation"
             inner = c.named_child(0)

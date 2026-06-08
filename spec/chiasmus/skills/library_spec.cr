@@ -185,4 +185,187 @@ describe Chiasmus::Skills::Library do
       end
     end
   end
+
+  describe "learned template persistence" do
+    it "add_learned returns false when the name already exists" do
+      with_skill_library do |library, _dir|
+        result = library.add_learned(Chiasmus::Skills::SkillTemplate.new(
+          name: "policy-contradiction",
+          domain: "authorization",
+          solver: Chiasmus::Solvers::SolverType::Z3,
+          signature: "test",
+          skeleton: "test",
+          slots: [] of Chiasmus::Skills::SlotDef,
+          normalizations: [] of Chiasmus::Skills::Normalization,
+        ))
+        result.should be_false
+      end
+    end
+
+    it "persists learned templates across library instances" do
+      dir = File.join(Dir.tempdir, "chiasmus-skill-library-persist-tpl-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+
+      begin
+        tpl = Chiasmus::Skills::SkillTemplate.new(
+          name: "custom-auth-check",
+          domain: "authorization",
+          solver: Chiasmus::Solvers::SolverType::Z3,
+          signature: "verify custom authorization rules",
+          skeleton: "(declare-const user Bool)\n(assert user)",
+          slots: [
+            Chiasmus::Skills::SlotDef.new(name: "user", description: "the user var", format: "bool"),
+          ],
+          normalizations: [
+            Chiasmus::Skills::Normalization.new(source: "bool", transform: "Bool"),
+          ],
+          tips: ["use declare-const"],
+          example: "(declare-const x Bool)\n(assert x)",
+        )
+
+        lib1 = Chiasmus::Skills::Library.create(dir)
+        lib1.add_learned(tpl).should be_true
+        lib1.close
+
+        lib2 = Chiasmus::Skills::Library.create(dir)
+        restored = lib2.get("custom-auth-check")
+        restored.should_not be_nil
+        r = restored.not_nil!
+        r.template.name.should eq("custom-auth-check")
+        r.template.domain.should eq("authorization")
+        r.template.skeleton.should eq("(declare-const user Bool)\n(assert user)")
+        r.template.slots.size.should eq(1)
+        r.template.normalizations.size.should eq(1)
+        r.template.tips.should eq(["use declare-const"])
+        r.template.example.should eq("(declare-const x Bool)\n(assert x)")
+        r.metadata.promoted.should be_false
+        r.metadata.reuse_count.should eq(0)
+        lib2.close
+      ensure
+        FileUtils.rm_rf(dir)
+      end
+    end
+
+    it "persists promoted state across library instances" do
+      dir = File.join(Dir.tempdir, "chiasmus-skill-library-promote-persist-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+
+      begin
+        tpl = Chiasmus::Skills::SkillTemplate.new(
+          name: "to-promote",
+          domain: "analysis",
+          solver: Chiasmus::Solvers::SolverType::Prolog,
+          signature: "test promote",
+          skeleton: "test.",
+          slots: [] of Chiasmus::Skills::SlotDef,
+          normalizations: [
+            Chiasmus::Skills::Normalization.new(source: "test", transform: "test"),
+          ],
+        )
+
+        lib1 = Chiasmus::Skills::Library.create(dir)
+        lib1.add_learned(tpl)
+        lib1.promote("to-promote").should be_true
+        lib1.close
+
+        lib2 = Chiasmus::Skills::Library.create(dir)
+        restored = lib2.get("to-promote")
+        restored.should_not be_nil
+        restored.not_nil!.metadata.promoted.should be_true
+        lib2.close
+      ensure
+        FileUtils.rm_rf(dir)
+      end
+    end
+
+    it "remove() deletes the template from disk" do
+      dir = File.join(Dir.tempdir, "chiasmus-skill-library-remove-persist-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+
+      begin
+        tpl = Chiasmus::Skills::SkillTemplate.new(
+          name: "to-remove",
+          domain: "analysis",
+          solver: Chiasmus::Solvers::SolverType::Prolog,
+          signature: "test remove",
+          skeleton: "test.",
+          slots: [] of Chiasmus::Skills::SlotDef,
+          normalizations: [
+            Chiasmus::Skills::Normalization.new(source: "test", transform: "test"),
+          ],
+        )
+
+        lib1 = Chiasmus::Skills::Library.create(dir)
+        lib1.add_learned(tpl)
+        lib1.get("to-remove").should_not be_nil
+        lib1.remove("to-remove")
+        lib1.get("to-remove").should be_nil
+        lib1.close
+
+        lib2 = Chiasmus::Skills::Library.create(dir)
+        lib2.get("to-remove").should be_nil
+        lib2.close
+      ensure
+        FileUtils.rm_rf(dir)
+      end
+    end
+
+    it "reloaded templates are searchable" do
+      dir = File.join(Dir.tempdir, "chiasmus-skill-library-search-persist-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+
+      begin
+        tpl = Chiasmus::Skills::SkillTemplate.new(
+          name: "searchable-custom",
+          domain: "dependency",
+          solver: Chiasmus::Solvers::SolverType::Z3,
+          signature: "resolve package dependency constraints for npm",
+          skeleton: "(declare-const pkg Bool)\n(assert pkg)",
+          slots: [] of Chiasmus::Skills::SlotDef,
+          normalizations: [
+            Chiasmus::Skills::Normalization.new(source: "bool", transform: "Bool"),
+          ],
+        )
+
+        lib1 = Chiasmus::Skills::Library.create(dir)
+        lib1.add_learned(tpl)
+        lib1.close
+
+        lib2 = Chiasmus::Skills::Library.create(dir)
+        results = lib2.search("package dependency constraints")
+        names = results.map(&.template.name)
+        names.should contain("searchable-custom")
+        lib2.close
+      ensure
+        FileUtils.rm_rf(dir)
+      end
+    end
+
+    it "cannot promote a nonexistent template name" do
+      with_skill_library do |library, _dir|
+        library.promote("nonexistent").should be_false
+      end
+    end
+
+    it "candidates returns only non-promoted templates" do
+      with_skill_library do |library, _dir|
+        tpl = Chiasmus::Skills::SkillTemplate.new(
+          name: "candidate-test",
+          domain: "analysis",
+          solver: Chiasmus::Solvers::SolverType::Prolog,
+          signature: "test candidates",
+          skeleton: "test.",
+          slots: [] of Chiasmus::Skills::SlotDef,
+          normalizations: [
+            Chiasmus::Skills::Normalization.new(source: "test", transform: "test"),
+          ],
+        )
+        library.add_learned(tpl)
+        cands = library.candidates
+        names = cands.map(&.template.name)
+        names.should contain("candidate-test")
+        names.should_not contain("policy-contradiction")
+      end
+    end
+  end
 end

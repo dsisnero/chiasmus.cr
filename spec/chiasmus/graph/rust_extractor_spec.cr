@@ -134,7 +134,7 @@ describe "Rust extractor" do
 
     hashmap_import = graph.imports.find { |i| i.name == "HashMap" }
     hashmap_import.should_not be_nil
-    hashmap_import.not_nil!.source.should eq("std::collections::HashMap")
+    hashmap_import.not_nil!.source.should eq("std::collections")
   end
 
   it "extracts cross-file call graph" do
@@ -183,7 +183,7 @@ describe "Rust extractor" do
     a_to_b.size.should eq(1)
   end
 
-  it "extracts module declarations" do
+  it "recurses into modules without defining the module name" do
     graph = Chiasmus::Graph::Extractor.extract_graph([
       Chiasmus::Graph::SourceFile.new("test.rs", <<-RUST
         mod utils {
@@ -193,8 +193,126 @@ describe "Rust extractor" do
       ),
     ])
 
+    helper = graph.defines.find { |d| d.name == "helper" }
+    helper.should_not be_nil
+    helper.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
+
     mod_def = graph.defines.find { |d| d.name == "utils" }
-    mod_def.should_not be_nil
-    mod_def.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Interface)
+    mod_def.should be_nil
+  end
+
+  it "extracts free functions with signatures" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.rs", <<-RUST
+        pub fn add(a: i32, b: i32) -> i32 { a + b }
+
+        fn helper(x: i32) -> i32 { x }
+      RUST
+      ),
+    ])
+
+    add = graph.defines.find { |d| d.name == "add" }
+    add.should_not be_nil
+    add.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
+    add.not_nil!.signature.should eq("(a: i32, b: i32) -> i32")
+
+    helper = graph.defines.find { |d| d.name == "helper" }
+    helper.should_not be_nil
+  end
+
+  it "marks pub items as exported, private items as not" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.rs", <<-RUST
+        pub fn public_fn() {}
+        fn private_fn() {}
+        pub struct Point { x: f64 }
+        struct Hidden {}
+      RUST
+      ),
+    ])
+
+    export_names = graph.exports.map(&.name)
+    export_names.should contain("public_fn")
+    export_names.should contain("Point")
+    export_names.should_not contain("private_fn")
+    export_names.should_not contain("Hidden")
+  end
+
+  it "binds renamed imports to their alias" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.rs", <<-RUST
+        use std::io::Result as IoResult;
+      RUST
+      ),
+    ])
+
+    names = graph.imports.map(&.name)
+    names.should contain("IoResult")
+    names.should_not contain("Result")
+  end
+
+  it "attaches trait methods to their trait via contains" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.rs", <<-RUST
+        pub trait Shape {
+            fn area(&self) -> f64;
+        }
+      RUST
+      ),
+    ])
+
+    area = graph.defines.find { |d| d.name == "area" }
+    area.should_not be_nil
+    area.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Method)
+    graph.contains.should contain(Chiasmus::Graph::ContainsFact.new(parent: "Shape", child: "area"))
+  end
+
+  it "does not define the impl type itself as a class" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.rs", <<-RUST
+        struct Point { x: f64, y: f64 }
+
+        impl Point {
+            pub fn area(&self) -> f64 { self.x.hypot(self.y) }
+        }
+      RUST
+      ),
+    ])
+
+    area = graph.defines.find { |d| d.name == "area" }
+    area.should_not be_nil
+    area.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Method)
+
+    point_defs = graph.defines.select { |d| d.name == "Point" }
+    point_defs.size.should eq(1)
+    point_defs.first.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
+  end
+
+  it "handles method calls (field_expression) in call edges" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.rs", <<-RUST
+        pub fn run() {
+            obj.process();
+        }
+      RUST
+      ),
+    ])
+
+    calls = graph.calls.select { |c| c.caller == "run" }.map(&.callee)
+    calls.should contain("process")
+  end
+
+  it "handles associated function calls (scoped_identifier)" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.rs", <<-RUST
+        pub fn run() {
+            Builder::new();
+        }
+      RUST
+      ),
+    ])
+
+    calls = graph.calls.select { |c| c.caller == "run" }.map(&.callee)
+    calls.should contain("new")
   end
 end

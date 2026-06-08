@@ -9,42 +9,33 @@ module Chiasmus
   module MCPServer
     module Tools
       class MapTool
-        private def error_response(message : String) : Hash(String, JSON::Any)
-          JSON.parse(Types::ErrorResponse.new(message).to_json).as_h
-        end
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          args = Types::MapInput.from_json(arguments.to_json)
 
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          files = arguments["files"]?.try(&.as_a?.try(&.map(&.as_s)))
-          mode = arguments["mode"]?.try(&.as_s?) || "overview"
-          path = arguments["path"]?.try(&.as_s?)
-          name = arguments["name"]?.try(&.as_s?)
-          format = arguments["format"]?.try(&.as_s?) || "markdown"
+          return Types::ErrorResponse.new("'files' (non-empty string[]) is required") if args.files.empty?
 
-          return error_response("'files' (non-empty string[]) is required") unless files && !files.empty?
-
-          # Read files and extract graph
-          source_files = files.compact.map { |p| Graph::SourceFile.new(path: p, content: File.read(p)) }
+          source_files = args.files.map { |p| Graph::SourceFile.new(path: p, content: File.read(p)) }
           graph = Graph::Extractor.extract_graph(source_files)
 
-          map = case mode
+          map = case args.mode
                 when "file"
-                  return error_response("'path' required for file mode") unless path
-                  Graph::CodebaseMap.build_file_detail(graph, path)
+                  return Types::ErrorResponse.new("'path' required for file mode") unless args.path
+                  Graph::CodebaseMap.build_file_detail(graph, args.path.not_nil!)
                 when "symbol"
-                  return error_response("'name' required for symbol mode") unless name
-                  Graph::CodebaseMap.build_symbol_detail(graph, name)
+                  return Types::ErrorResponse.new("'name' required for symbol mode") unless args.name
+                  Graph::CodebaseMap.build_symbol_detail(graph, args.name.not_nil!)
                 else
                   Graph::CodebaseMap.build_overview(graph)
                 end
 
           unless map
-            return error_response("No result found for #{mode == "file" ? path : name}")
+            return Types::ErrorResponse.new("No result found for #{args.mode == "file" ? args.path : args.name}")
           end
 
-          rendered = Graph::CodebaseMap.render_map(map, format)
-          {"content" => JSON::Any.new(rendered)}
+          rendered = Graph::CodebaseMap.render_map(map, args.format)
+          Types::MapResponse.new(content: rendered)
         rescue ex
-          error_response(ex.message || ex.class.name)
+          Types::ErrorResponse.new(ex.message || ex.class.name)
         end
 
         def self.tool_name : String
@@ -68,24 +59,12 @@ module Chiasmus
         def self.input_schema : MCP::Protocol::Tool::Input
           ToolSchemas::ToolInputSchema.new(
             properties: {
-              "files" => ToolSchemas::Common.files_property,
-              "mode"  => {
-                "type"        => JSON::Any.new("string"),
-                "description" => JSON::Any.new("Map mode: overview, file, or symbol (default: overview)"),
-              },
-              "path" => {
-                "type"        => JSON::Any.new("string"),
-                "description" => JSON::Any.new("File path (required for file mode)"),
-              },
-              "name" => {
-                "type"        => JSON::Any.new("string"),
-                "description" => JSON::Any.new("Symbol name (required for symbol mode)"),
-              },
-              "format" => {
-                "type"        => JSON::Any.new("string"),
-                "description" => JSON::Any.new("Output format: markdown (default) or json"),
-              },
-            },
+              "files"  => ToolSchemas::Common.files_property.to_json_schema,
+              "mode"   => ToolSchemas::SchemaProperty.new("string", "Map mode: overview, file, or symbol (default: overview)").to_json_schema,
+              "path"   => ToolSchemas::SchemaProperty.new("string", "File path (required for file mode)").to_json_schema,
+              "name"   => ToolSchemas::SchemaProperty.new("string", "Symbol name (required for symbol mode)").to_json_schema,
+              "format" => ToolSchemas::SchemaProperty.new("string", "Output format: markdown (default) or json").to_json_schema,
+            }.transform_values { |v| JSON::Any.new(v) },
             required: ["files"]
           ).to_mcp_input
         end

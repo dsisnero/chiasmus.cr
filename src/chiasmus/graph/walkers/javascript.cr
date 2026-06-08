@@ -104,12 +104,16 @@ module Chiasmus
         file_path : String,
         defines : Array(DefinesFact),
       ) : Nil
-        return unless node.type == "class_declaration"
-
-        name = node.child_by_field_name("name").try(&.text(source))
-        return unless name
-
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
+        case node.type
+        when "class_declaration", "abstract_class_declaration"
+          name = node.child_by_field_name("name").try(&.text(source))
+          return unless name
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
+        when "interface_declaration"
+          name = node.child_by_field_name("name").try(&.text(source))
+          return unless name
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1)
+        end
       end
 
       private def handle_js_call(

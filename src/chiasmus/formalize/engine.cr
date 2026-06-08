@@ -52,10 +52,12 @@ module Chiasmus
 
       # Formalize a problem: select a template and return it with
       # fill instructions. Does NOT execute or call the LLM for filling.
-      def formalize(problem : String) : FormalizeResult
+      def formalize(problem : String) : FormalizeResult?
         results = @library.search(problem, Skills::SearchOptions.new(limit: 1))
         template = if results.empty?
-                     @library.list.first.template # fallback to first template
+                     first = @library.list.first?
+                     return nil unless first
+                     first.template # fallback to first template
                    else
                      results.first.template
                    end
@@ -68,17 +70,27 @@ module Chiasmus
       # submit to solver with correction loop.
       def solve(problem : String, max_rounds : Int32 = 5) : SolveResult
         formalize_result = formalize(problem)
+        unless formalize_result
+          return SolveResult.new(
+            result: Solvers::ErrorResult.new("No matching template found — skill library is empty"),
+            converged: false,
+            rounds: 0,
+            history: [] of Solvers::CorrectionAttempt,
+            template_used: nil,
+            answers: [] of Solvers::PrologAnswer,
+          )
+        end
         template = formalize_result.template
 
         # Ask LLM to fill the template
         filled_spec = llm_fill(problem, template)
 
         # Lint the filled spec
-        linted_spec, lint_errors = lint_loop(filled_spec, template, 2)
+        linted_spec, lint_errors = lint_loop(filled_spec, template, max_rounds)
         unless lint_errors.empty?
           # If linting fails, ask LLM to fix it
           filled_spec = llm_fix_lint(filled_spec, lint_errors, template)
-          linted_spec, lint_errors = lint_loop(filled_spec, template, 2)
+          linted_spec, lint_errors = lint_loop(filled_spec, template, max_rounds)
         end
 
         # Build solver input
@@ -96,11 +108,11 @@ module Chiasmus
 
             fixed = llm_fix(attempt.input, feedback, template)
             # Lint the fix before resubmitting to the solver
-            linted, lint_errors = lint_loop(fixed, template, 2)
+            linted, lint_errors = lint_loop(fixed, template, max_rounds)
             unless lint_errors.empty?
               # If linting fails, try to fix it
               fixed = llm_fix_lint(fixed, lint_errors, template)
-              linted, _ = lint_loop(fixed, template, 2)
+              linted, _ = lint_loop(fixed, template, max_rounds)
             end
 
             build_solver_input(template, linted).as(Solvers::SolverInput?)
@@ -135,7 +147,7 @@ module Chiasmus
 
         tips_section = if tips = template.tips
                          if !tips.empty?
-                           "\nTemplate-specific tips:\n" + tips.join("\n")
+                           "\n⚠ TIPS:\n" + tips.map { |t| "  #{t}" }.join("\n")
                          else
                            ""
                          end
@@ -256,8 +268,8 @@ module Chiasmus
       # Strip markdown fences and trim whitespace from LLM output
       private def clean_response(response : String) : String
         response
-          .gsub(/^```(?:smt-lib|smtlib|smt|prolog|pl)?\n?/, "")
-          .gsub(/^```\n?/, "")
+          .gsub(/^```(?:smt-lib|smtlib|smt|prolog|pl)?\n?/m, "")
+          .gsub(/^```\n?/m, "")
           .strip
       end
 

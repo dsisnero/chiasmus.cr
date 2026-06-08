@@ -31,6 +31,12 @@ describe GraphCache do
       h1.should_not eq h2
       h1.should_not eq h3
     end
+
+    it "resists boundary collision between content and path" do
+      h1 = GraphCache.file_hash("ab", "/c")
+      h2 = GraphCache.file_hash("a", "b/c")
+      h1.should_not eq h2
+    end
   end
 
   describe ".resolve_cache_paths" do
@@ -40,6 +46,12 @@ describe GraphCache do
       paths["repo_dir"].should contain "myrepo"
       paths["files_dir"].should contain "files"
       paths["manifest_path"].should contain "manifest.json"
+    end
+
+    it "returns distinct directories per repo key" do
+      a = GraphCache.resolve_cache_paths("/tmp/x", "repo-a")
+      b = GraphCache.resolve_cache_paths("/tmp/x", "repo-b")
+      a["repo_dir"].should_not eq b["repo_dir"]
     end
   end
 
@@ -124,23 +136,90 @@ describe GraphCache do
         GraphCache.load_snapshot("tmp", cache_dir).should be_nil
       end
     end
+
+    it "overwrites an existing snapshot with the same name" do
+      with_temp_cache do |cache_dir|
+        graph1 = CodeGraph.new(defines: [DefinesFact.new(file: "a.ts", name: "old", kind: SymbolKind::Function, line: 1)])
+        graph2 = CodeGraph.new(defines: [DefinesFact.new(file: "a.ts", name: "new", kind: SymbolKind::Function, line: 1)])
+
+        GraphCache.save_snapshot("main", graph1, cache_dir)
+        GraphCache.save_snapshot("main", graph2, cache_dir)
+        loaded = GraphCache.load_snapshot("main", cache_dir)
+        loaded.should_not be_nil
+        loaded.not_nil!.defines.first.name.should eq "new"
+      end
+    end
+
+    it "sanitizes snapshot names to prevent path traversal" do
+      with_temp_cache do |cache_dir|
+        expect_raises(ArgumentError, /Invalid snapshot name/) do
+          GraphCache.save_snapshot("../../etc/passwd", CodeGraph.new, cache_dir)
+        end
+        expect_raises(ArgumentError, /Invalid snapshot name/) do
+          GraphCache.save_snapshot("foo/bar", CodeGraph.new, cache_dir)
+        end
+        expect_raises(ArgumentError, /Invalid snapshot name/) do
+          GraphCache.save_snapshot("foo\\bar", CodeGraph.new, cache_dir)
+        end
+      end
+    end
   end
 
   describe "LRU eviction" do
     it "evicts oldest entries when over budget" do
       with_temp_cache do |cache_dir|
-        # Save with tiny budget to trigger eviction
         10.times do |i|
           GraphCache.save_file_cache([
             {path: "/abs/file#{i}.ts", content: "function f#{i}() { return #{i}; }", graph: CodeGraph.new},
           ], cache_dir, max_bytes: 100)
         end
-        # Should not crash and total files should be within budget
         result = GraphCache.check_file_cache([
           {path: "/abs/file0.ts", content: "function f0() { return 0; }"},
         ], cache_dir)
-        # The most recent saves should survive; oldest may be evicted
         result[:hits].size.should be <= 10
+      end
+    end
+
+    it "leaves no .tmp files after save" do
+      with_temp_cache do |cache_dir|
+        GraphCache.save_file_cache([
+          {path: "/abs/a.ts", content: "v1", graph: CodeGraph.new},
+        ], cache_dir)
+        paths = GraphCache.resolve_cache_paths(cache_dir)
+        files_dir = paths["files_dir"]
+        if Dir.exists?(files_dir)
+          Dir.children(files_dir).each do |entry|
+            entry.ends_with?(".tmp").should be_false
+          end
+        end
+      end
+    end
+
+    it "manifest carries current schema version" do
+      with_temp_cache do |cache_dir|
+        GraphCache.save_file_cache([
+          {path: "/abs/a.ts", content: "v1", graph: CodeGraph.new},
+        ], cache_dir)
+        paths = GraphCache.resolve_cache_paths(cache_dir)
+        manifest_path = paths["manifest_path"]
+        if File.exists?(manifest_path)
+          manifest = JSON.parse(File.read(manifest_path))
+          manifest["schemaVersion"]?.should_not be_nil
+        end
+      end
+    end
+
+    it "mixed file set partially hits" do
+      with_temp_cache do |cache_dir|
+        GraphCache.save_file_cache([
+          {path: "/abs/a.ts", content: "v1", graph: CodeGraph.new},
+        ], cache_dir)
+        result = GraphCache.check_file_cache([
+          {path: "/abs/a.ts", content: "v1"},
+          {path: "/abs/b.ts", content: "new"},
+        ], cache_dir)
+        result[:hits].size.should eq 1
+        result[:misses].size.should eq 1
       end
     end
   end

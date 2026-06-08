@@ -1380,3 +1380,39 @@ tests/z3-solver.test.ts::test::does not override an explicit :timeout	test	porte
 tests/z3-solver.test.ts::test::injects a default :timeout when none is set	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
 tests/z3-solver.test.ts::test::prepareSmtlib	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
 tests/z3-solver.test.ts::test::still strips check-sat and get-model	test	ported	spec/chiasmus/solvers/z3_solver_spec.cr	Ported
+# New upstream items from vendor/chiasmus @ 07bbf4a (2026-06-05)
+src/graph/extractor.ts::function::collectRustUse	function	ported	src/chiasmus/graph/walkers/rust.cr:141	Ported as collect_rust_use
+src/graph/extractor.ts::function::extractRustCalls	function	ported	src/chiasmus/graph/walkers/rust.cr:107	Ported as extract_rust_calls
+src/graph/extractor.ts::function::extractRustSignature	function	ported	src/chiasmus/graph/walkers/rust.cr:93	Ported as extract_rust_signature
+src/graph/extractor.ts::function::extractRustUse	function	ported	src/chiasmus/graph/walkers/rust.cr:130	Ported as extract_rust_use
+src/graph/extractor.ts::function::isRustPub	function	ported	src/chiasmus/graph/walkers/rust.cr:82	Ported as is_rust_pub?
+src/graph/extractor.ts::function::resolveRustCallee	function	ported	src/chiasmus/graph/walkers/rust.cr:115	Ported as resolve_rust_callee
+src/graph/extractor.ts::function::walkRust	function	ported	src/chiasmus/graph/walkers/rust.cr:6	Ported as walk_rust
+src/search/engine.ts::function::tryDimension	function	intentional_divergence	src/chiasmus/search/engine.cr:82	Crig's EmbeddingModelDyn always knows dimension via ndims; lazy dimension discovery is unnecessary
+tests/create-embedding-from-env.test.ts::test::DeepSeek (no embeddings API)	test	intentional_divergence	-	Crig replaces createEmbeddingFromEnv; LLM adapters are intentional divergence
+tests/create-embedding-from-env.test.ts::test::OpenRouter fallback	test	intentional_divergence	-	Crig replaces createEmbeddingFromEnv
+tests/create-embedding-from-env.test.ts::test::does not take precedence over a working OPENROUTER_API_KEY	test	intentional_divergence	-	Crig replaces createEmbeddingFromEnv
+tests/create-embedding-from-env.test.ts::test::is honored when CHIASMUS_EMBED_URL points at an embeddings-capable endpoint	test	intentional_divergence	-	Crig replaces createEmbeddingFromEnv
+tests/create-embedding-from-env.test.ts::test::returns an OpenAICompatibleEmbeddingAdapter when only OPENROUTER_API_KEY is set	test	intentional_divergence	-	Crig replaces createEmbeddingFromEnv
+tests/create-embedding-from-env.test.ts::test::warns and returns null when only DEEPSEEK_API_KEY is set	test	intentional_divergence	-	Crig replaces createEmbeddingFromEnv
+tests/graph/rust.test.ts::test::Rust support	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:6	Ported as Rust extractor describe block
+tests/graph/rust.test.ts::test::attaches impl methods to their type via contains	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:53	Ported as 'extracts impl methods with contains'
+tests/graph/rust.test.ts::test::binds renamed imports to their alias	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:241	Ported as 'binds renamed imports to their alias'
+tests/graph/rust.test.ts::test::captures /// doc comments as the file doc	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr	Doc extraction infrastructure (FileNode.file_doc) exists; Rust doc comment extraction deferred
+tests/graph/rust.test.ts::test::extractor	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:6	Ported as Rust extractor specs
+tests/graph/rust.test.ts::test::extracts call edges (plain, method, and associated calls)	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:99	Ported as 'extracts call relationships' + method/associated call specs
+tests/graph/rust.test.ts::test::extracts free functions with signatures	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:204	Ported as 'extracts free functions with signatures'
+tests/graph/rust.test.ts::test::extracts structs, enums as classes and traits as interfaces	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:28	Ported as struct/enum + trait extraction specs
+tests/graph/rust.test.ts::test::extracts use declarations as imports	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:122	Ported as 'extracts use (import) declarations'
+tests/graph/rust.test.ts::test::maps .rs extension to rust	test	ported	src/chiasmus/graph/language_registry.cr	Rust .rs mapping in LanguageRegistry
+tests/graph/rust.test.ts::test::marks pub items as exported, private items as not	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:223	Ported as 'marks pub items as exported, private items as not'
+tests/graph/rust.test.ts::test::parser	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr	Parser exercised implicitly via extract_graph
+tests/graph/rust.test.ts::test::parses Rust source natively (sync)	test	ported	src/chiasmus/graph/parser.cr	Parser.parse_source handles .rs files via tree-sitter
+tests/graph/rust.test.ts::test::recurses into modules	test	ported	spec/chiasmus/graph/rust_extractor_spec.cr:186	Ported as 'recurses into modules without defining the module name'
+tests/mcp-tool-gating.test.ts::test::MCP tool gating by configured capability	test	ported	spec/chiasmus/mcp_server/mcp_transport_spec.cr	Tool gating spec added in P12
+tests/mcp-tool-gating.test.ts::test::always lists capability-independent tools (graph, map)	test	ported	spec/chiasmus/mcp_server/mcp_transport_spec.cr	Tool gating spec added in P12
+tests/mcp-tool-gating.test.ts::test::hides chiasmus_learn when no LLM is configured	test	ported	spec/chiasmus/mcp_server/mcp_transport_spec.cr	Tool gating spec added in P12
+tests/mcp-tool-gating.test.ts::test::hides chiasmus_search when no embedding provider is configured	test	ported	spec/chiasmus/mcp_server/mcp_transport_spec.cr	Tool gating spec added in P12
+tests/mcp-tool-gating.test.ts::test::keeps gracefully-degrading tools (solve, formalize) listed without an LLM	test	ported	spec/chiasmus/mcp_server/mcp_transport_spec.cr	Tool gating spec added in P12
+tests/mcp-tool-gating.test.ts::test::lists chiasmus_search when an embedding provider is configured	test	ported	spec/chiasmus/mcp_server/mcp_transport_spec.cr	Tool gating spec added in P12
+tests/search/engine.test.ts::test::works when the adapter	test	intentional_divergence	-	Crig's EmbeddingModelDyn always knows dimension; LazyDimAdapter test not applicable

@@ -22,7 +22,7 @@ private def minimal_go_graph
   )
 end
 
-private def invoke_graph(args : Hash(String, JSON::Any))
+private def invoke_graph(args : Hash(String, JSON::Any)) : Chiasmus::MCPServer::Types::Response
   tool = Chiasmus::MCPServer::Tools::GraphTool.new
   tool.invoke(args)
 end
@@ -46,8 +46,8 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
   describe "error handling" do
     it "requires files and analysis parameters" do
       result = invoke_graph({"analysis" => JSON::Any.new("summary")})
-      result["status"].as_s.should eq("error")
-      result["error"].to_s.should contain("files")
+      result.status.should eq("error")
+      result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("files")
     end
 
     it "rejects unknown analysis type" do
@@ -55,8 +55,8 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
         "files"    => JSON.parse(%(["test.go"])),
         "analysis" => JSON::Any.new("nonexistent"),
       })
-      result["status"].as_s.should eq("error")
-      result["error"].to_s.should contain("Unknown analysis")
+      result.status.should eq("error")
+      result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("Unknown analysis")
     end
 
     it "handles file not found" do
@@ -64,7 +64,7 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
         "files"    => JSON.parse(%(["/nonexistent/path.go"])),
         "analysis" => JSON::Any.new("summary"),
       })
-      result["status"].as_s.should eq("error")
+      result.status.should eq("error")
     end
   end
 
@@ -312,8 +312,8 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
           "analysis" => JSON::Any.new("summary"),
         })
 
-        result["status"].as_s.should eq("success")
-        result["analysis"].as_s.should eq("summary")
+        result.status.should eq("success")
+        result.as(Chiasmus::MCPServer::Types::GraphResponse).analysis.should eq("summary")
       ensure
         File.delete(file_path) if File.exists?(file_path)
       end
@@ -332,7 +332,7 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
           "target"   => JSON::Any.new("helper"),
         })
 
-        result["status"].as_s.should eq("success")
+        result.status.should eq("success")
       ensure
         File.delete(file_path) if File.exists?(file_path)
       end
@@ -343,7 +343,7 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
         "analysis" => JSON::Any.new("summary"),
       })
 
-      result["status"].as_s.should eq("error")
+      result.status.should eq("error")
     end
 
     it "returns error for unknown analysis type via MCP" do
@@ -357,8 +357,8 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
           "analysis" => JSON::Any.new("unknown_type"),
         })
 
-        result["status"].as_s.should eq("error")
-        result["error"].to_s.should contain("Unknown analysis")
+        result.status.should eq("error")
+        result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("Unknown analysis")
       ensure
         File.delete(file_path) if File.exists?(file_path)
       end
@@ -376,8 +376,8 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
           "analysis" => JSON::Any.new("facts"),
         })
 
-        result["status"].as_s.should eq("success")
-        result["result"].to_s.should contain("defines")
+        result.status.should eq("success")
+        result.as(Chiasmus::MCPServer::Types::GraphResponse).result.to_s.should contain("defines")
       ensure
         File.delete(file_path) if File.exists?(file_path)
       end

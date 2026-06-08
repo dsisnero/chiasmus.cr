@@ -49,10 +49,10 @@ module Chiasmus
         hits = [] of NamedTuple(path: String, graph: CodeGraph)
         misses = [] of NamedTuple(path: String, content: String)
 
-        files.each do |f|
-          h = file_hash(f[:content], f[:path])
-          entry = manifest["entries"].as_h[f[:path]]?
-          entry_hash = entry.try { |e| e["hash"].as_s }
+        files.each do |file_info|
+          h = file_hash(file_info[:content], file_info[:path])
+          entry = manifest["entries"].as_h[file_info[:path]]?
+          entry_hash = entry.try(&.["hash"].as_s)
           if entry_hash && entry_hash == h
             cache_path = File.join(paths["files_dir"], "#{h}.json")
             begin
@@ -60,12 +60,12 @@ module Chiasmus
               graph = code_graph_from_json(raw)
               # Best-effort mtime bump for LRU
               File.utime(Time.utc, Time.utc, cache_path) rescue nil
-              hits << {path: f[:path], graph: graph}
+              hits << {path: file_info[:path], graph: graph}
             rescue
-              misses << f
+              misses << file_info
             end
           else
-            misses << f
+            misses << file_info
           end
         end
 
@@ -146,8 +146,8 @@ module Chiasmus
         snap_dir = File.join(paths["repo_dir"], "snapshots")
         return [] of String unless Dir.exists?(snap_dir)
         Dir.children(snap_dir)
-          .select { |e| e.ends_with?(".json") }
-          .map { |e| e.sub(/\.json$/, "") }
+          .select(&.ends_with?(".json"))
+          .map(&.sub(/\.json$/, ""))
       rescue
         [] of String
       end
@@ -163,18 +163,18 @@ module Chiasmus
 
       private def load_manifest(paths : Hash(String, String)) : Hash(String, JSON::Any)
         unless File.exists?(paths["manifest_path"])
-          return Hash(String, JSON::Any).new.tap { |h|
-            h["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION)
-            h["entries"] = JSON.parse(%({}))
+          return Hash(String, JSON::Any).new.tap { |hash|
+            hash["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION)
+            hash["entries"] = JSON.parse(%({}))
           }
         end
-        raw = File.read(paths["manifest_path"]) rescue return Hash(String, JSON::Any).new.tap { |h| h["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION); h["entries"] = JSON.parse(%({})) }
+        raw = File.read(paths["manifest_path"]) rescue return Hash(String, JSON::Any).new.tap { |hash| hash["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION); hash["entries"] = JSON.parse(%({})) }
         parsed = JSON.parse(raw).as_h
         schema = parsed["schemaVersion"]?
         unless schema && schema.raw.is_a?(String) && schema.raw.as(String) == CACHE_SCHEMA_VERSION
-          return Hash(String, JSON::Any).new.tap { |h|
-            h["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION)
-            h["entries"] = JSON.parse(%({}))
+          return Hash(String, JSON::Any).new.tap { |hash|
+            hash["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION)
+            hash["entries"] = JSON.parse(%({}))
           }
         end
         parsed
@@ -194,27 +194,69 @@ module Chiasmus
       end
 
       private def code_graph_to_json(graph : CodeGraph) : String
-        {
-          "defines" => graph.defines.map { |d| {"file" => d.file, "name" => d.name, "kind" => d.kind.to_s, "line" => d.line} },
-          "calls"   => graph.calls.map { |c|
-            h = {"caller" => c.caller, "callee" => c.callee}
-            h = h.merge({"callee_qn" => c.callee_qn.not_nil!}) if c.callee_qn
+        json = {
+          "defines" => graph.defines.map { |defn| {"file" => defn.file, "name" => defn.name, "kind" => defn.kind.to_s, "line" => defn.line} },
+          "calls"   => graph.calls.map { |call_fact|
+            h = {"caller" => call_fact.caller, "callee" => call_fact.callee}
+            callee_qn = call_fact.callee_qn
+            h = h.merge({"callee_qn" => callee_qn}) if callee_qn
             h
           },
           "imports"  => graph.imports.map { |i| {"file" => i.file, "name" => i.name, "source" => i.source} },
           "exports"  => graph.exports.map { |e| {"file" => e.file, "name" => e.name} },
-          "contains" => graph.contains.map { |c| {"parent" => c.parent, "child" => c.child} },
-        }.to_json
+          "contains" => graph.contains.map { |cont| {"parent" => cont.parent, "child" => cont.child} },
+        }
+        graph.files.try do |fns|
+          json = json.merge({
+            "files" => fns.map { |file_node|
+              h = {"path" => file_node.path, "language" => file_node.language}
+              h = h.merge({"line_count" => file_node.line_count}) if file_node.line_count
+              h = h.merge({"token_estimate" => file_node.token_estimate}) if file_node.token_estimate
+              h = h.merge({"file_doc" => file_node.file_doc}) if file_node.file_doc
+              h
+            },
+          })
+        end
+        graph.type_info.try do |type_inf|
+          json = json.merge({
+            "_typeInfo" => type_inf.map { |type_entry|
+              h = {"file" => type_entry.file}
+              h = h.merge({"class_fields" => type_entry.class_fields.map { |class_field|
+                {"class_name" => class_field.class_name, "fields" => class_field.fields}
+              }})
+              h = h.merge({"class_methods" => type_entry.class_methods.try(&.map { |class_meth|
+                {"class_name" => class_meth.class_name, "methods" => class_meth.methods}
+              })}) if type_entry.class_methods
+              h = h.merge({"class_extends" => type_entry.class_extends.try(&.map { |class_ext|
+                {"class_name" => class_ext.class_name, "parent" => class_ext.parent}
+              })}) if type_entry.class_extends
+              h
+            },
+          })
+        end
+        json.to_json
       end
 
       private def code_graph_from_json(raw : String) : CodeGraph
         parsed = JSON.parse(raw)
+        files = parsed["files"]?.try do |fns|
+          fns.as_a.map { |file_node|
+            h = file_node.as_h
+            FileNode.new(
+              path: h["path"].as_s,
+              language: h["language"].as_s,
+              line_count: h["line_count"]?.try(&.as_i?),
+              token_estimate: h["token_estimate"]?.try(&.as_i?),
+              file_doc: h["file_doc"]?.try(&.as_s?),
+            )
+          }
+        end
         CodeGraph.new(
-          defines: parsed["defines"].as_a.map { |d|
-            DefinesFact.new(file: d["file"].as_s, name: d["name"].as_s, kind: SymbolKind.parse(d["kind"].as_s), line: d["line"].as_i)
+          defines: parsed["defines"].as_a.map { |defn|
+            DefinesFact.new(file: defn["file"].as_s, name: defn["name"].as_s, kind: SymbolKind.parse(defn["kind"].as_s), line: defn["line"].as_i)
           },
-          calls: parsed["calls"].as_a.map { |c|
-            CallsFact.new(caller: c["caller"].as_s, callee: c["callee"].as_s, callee_qn: c["callee_qn"]?.try(&.as_s?))
+          calls: parsed["calls"].as_a.map { |call_fact|
+            CallsFact.new(caller: call_fact["caller"].as_s, callee: call_fact["callee"].as_s, callee_qn: call_fact["callee_qn"]?.try(&.as_s?))
           },
           imports: parsed["imports"].as_a.map { |i|
             ImportsFact.new(file: i["file"].as_s, name: i["name"].as_s, source: i["source"].as_s)
@@ -222,9 +264,10 @@ module Chiasmus
           exports: parsed["exports"].as_a.map { |e|
             ExportsFact.new(file: e["file"].as_s, name: e["name"].as_s)
           },
-          contains: parsed["contains"].as_a.map { |c|
-            ContainsFact.new(parent: c["parent"].as_s, child: c["child"].as_s)
+          contains: parsed["contains"].as_a.map { |cont|
+            ContainsFact.new(parent: cont["parent"].as_s, child: cont["child"].as_s)
           },
+          files: files,
         )
       end
 
@@ -236,19 +279,19 @@ module Chiasmus
 
       private def evict_if_over_budget(paths : Hash(String, String), manifest : Hash(String, JSON::Any), budget : Int32) : Nil
         entries = manifest["entries"].as_h
-        manifest_total = entries.values.sum { |e| e["size"].as_s.to_i }
+        manifest_total = entries.values.sum(&.["size"].as_s.to_i)
         return if manifest_total <= budget
 
         files_dir = paths["files_dir"]
         return unless Dir.exists?(files_dir)
 
         disk_entries = [] of NamedTuple(name: String, size: Int64, mtime: Time, path: String)
-        Dir.children(files_dir).each do |n|
-          next unless n.ends_with?(".json")
-          p = File.join(files_dir, n)
+        Dir.children(files_dir).each do |name|
+          next unless name.ends_with?(".json")
+          p = File.join(files_dir, name)
           begin
             st = File.info(p)
-            disk_entries << {name: n, size: st.size, mtime: st.modification_time, path: p}
+            disk_entries << {name: name, size: st.size, mtime: st.modification_time, path: p}
           rescue
           end
         end
@@ -260,7 +303,7 @@ module Chiasmus
 
         # Build hash→filePath index
         hash_to_path = Hash(String, String).new
-        entries.each { |fp, e| hash_to_path[e["hash"].as_s] = fp }
+        entries.each { |file_path, entry| hash_to_path[entry["hash"].as_s] = file_path }
 
         changed = false
         disk_entries.each do |e|

@@ -7,15 +7,40 @@ module Chiasmus
   module MCPServer
     module Tools
       class CraftTool
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           server = MCPServer.current_server
-          return json_hash(Types::ErrorResponse.new("Server not available")) unless server
+          return Types::ErrorResponse.new("Server not available") unless server
 
-          input = parse_input(arguments)
-          result = Skills.craft_template(input, server.skill_library)
-          craft_hash(result)
+          args = Types::CraftInput.from_json(arguments.to_json)
+          result = Skills.craft_template(craft_input_to_domain(args), server.skill_library)
+
+          Types::CraftResponse.new(
+            created: result.created,
+            template: result.template,
+            domain: result.domain,
+            solver: result.solver,
+            slots: result.slots,
+            tested: result.tested,
+            test_result: result.test_result,
+            errors: result.errors || [] of String
+          )
         rescue ex
-          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
+          Types::ErrorResponse.new(ex.message || ex.class.name)
+        end
+
+        private def craft_input_to_domain(args : Types::CraftInput) : Skills::CraftInput
+          Skills::CraftInput.new(
+            name: args.name,
+            domain: args.domain,
+            solver: args.solver,
+            signature: args.signature,
+            skeleton: args.skeleton,
+            slots: args.slots.map { |s| Skills::SlotDef.new(name: s.name, description: s.description, format: s.format) },
+            normalizations: args.normalizations.map { |n| Skills::Normalization.new(source: n.source, transform: n.transform) },
+            tips: args.tips,
+            example: args.example,
+            test: args.test
+          )
         end
 
         def self.tool_name : String
@@ -47,88 +72,6 @@ module Chiasmus
             },
             required: ["name", "domain", "solver", "signature", "skeleton", "slots", "normalizations"]
           ).to_mcp_input
-        end
-
-        private def parse_input(arguments : Hash(String, JSON::Any)) : Skills::CraftInput
-          Skills::CraftInput.new(
-            name: string_arg(arguments, "name"),
-            domain: string_arg(arguments, "domain"),
-            solver: string_arg(arguments, "solver"),
-            signature: string_arg(arguments, "signature"),
-            skeleton: string_arg(arguments, "skeleton"),
-            slots: parse_slots(arguments["slots"]?),
-            normalizations: parse_normalizations(arguments["normalizations"]?),
-            tips: parse_tips(arguments["tips"]?),
-            example: arguments["example"]?.try(&.as_s?),
-            test: arguments["test"]?.try(&.as_bool?) || false
-          )
-        end
-
-        private def string_arg(arguments : Hash(String, JSON::Any), key : String) : String
-          arguments[key]?.try(&.as_s?) || ""
-        end
-
-        private def parse_slots(value : JSON::Any?) : Array(Skills::SlotDef)
-          array = value.try(&.as_a?) || [] of JSON::Any
-          array.map do |item|
-            hash = item.as_h
-            Skills::SlotDef.new(
-              name: hash["name"]?.try(&.as_s?) || "",
-              description: hash["description"]?.try(&.as_s?) || "",
-              format: hash["format"]?.try(&.as_s?) || ""
-            )
-          end
-        end
-
-        private def parse_normalizations(value : JSON::Any?) : Array(Skills::Normalization)
-          array = value.try(&.as_a?) || [] of JSON::Any
-          array.map do |item|
-            hash = item.as_h
-            Skills::Normalization.new(
-              source: hash["source"]?.try(&.as_s?) || "",
-              transform: hash["transform"]?.try(&.as_s?) || ""
-            )
-          end
-        end
-
-        private def parse_tips(value : JSON::Any?) : Array(String)?
-          array = value.try(&.as_a?)
-          return nil unless array
-
-          array.map(&.as_s)
-        end
-
-        private def craft_hash(result : Skills::CraftResult) : Hash(String, JSON::Any)
-          {
-            "created"    => JSON::Any.new(result.created),
-            "template"   => json_string(result.template),
-            "domain"     => json_string(result.domain),
-            "solver"     => json_string(result.solver),
-            "slots"      => json_int(result.slots),
-            "tested"     => JSON::Any.new(result.tested),
-            "testResult" => json_string(result.test_result),
-            "errors"     => JSON::Any.new(string_array(result.errors || [] of String)),
-          }
-        end
-
-        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
-          JSON.parse(response.to_json).as_h
-        end
-
-        private def string_array(values : Array(String)) : Array(JSON::Any)
-          values.map { |value| JSON::Any.new(value) }
-        end
-
-        private def json_string(value : String?) : JSON::Any
-          value ? JSON::Any.new(value) : JSON::Any.new(nil)
-        end
-
-        private def json_int(value : Int32?) : JSON::Any
-          if value
-            JSON::Any.new(value.to_i64)
-          else
-            JSON::Any.new(nil)
-          end
         end
       end
     end

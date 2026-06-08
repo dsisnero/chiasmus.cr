@@ -39,8 +39,8 @@ describe Chiasmus::MCPServer::Tools::CraftTool do
         ])),
       })
 
-      result["created"].as_bool.should be_true
-      result["template"].as_s.should eq("mcp-test-template")
+      result.as(Chiasmus::MCPServer::Types::CraftResponse).created.should be_true
+      result.as(Chiasmus::MCPServer::Types::CraftResponse).template.not_nil!.should eq("mcp-test-template")
       server.skill_library.get("mcp-test-template").should_not be_nil
     end
   end
@@ -59,8 +59,8 @@ describe Chiasmus::MCPServer::Tools::CraftTool do
         "normalizations" => JSON.parse(%([])),
       })
 
-      result["created"].as_bool.should be_false
-      result["errors"].as_a.should_not be_empty
+      result.as(Chiasmus::MCPServer::Types::CraftResponse).created.should be_false
+      result.as(Chiasmus::MCPServer::Types::CraftResponse).errors.should_not be_empty
     end
   end
 
@@ -90,8 +90,8 @@ describe Chiasmus::MCPServer::Tools::CraftTool do
         "normalizations" => JSON.parse(%([{"source":"x","transform":"y"}])),
       })
 
-      result["created"].as_bool.should be_false
-      result["errors"].as_a.should_not be_empty
+      result.as(Chiasmus::MCPServer::Types::CraftResponse).created.should be_false
+      result.as(Chiasmus::MCPServer::Types::CraftResponse).errors.should_not be_empty
     end
   end
 
@@ -99,5 +99,181 @@ describe Chiasmus::MCPServer::Tools::CraftTool do
     Chiasmus::MCPServer::Tools::CraftTool.tool_name.should eq("chiasmus_craft")
     Chiasmus::MCPServer::Tools::CraftTool.tool_description.should_not be_empty
     Chiasmus::MCPServer::Tools::CraftTool.input_schema.should_not be_nil
+  end
+end
+
+describe Chiasmus::Skills do
+  describe ".validate_template" do
+    valid_input = Chiasmus::Skills::CraftInput.new(
+      name: "valid-test-template",
+      domain: "validation",
+      solver: "z3",
+      signature: "A valid test template",
+      skeleton: "(assert {{SLOT:condition}})",
+      slots: [Chiasmus::Skills::SlotDef.new(name: "condition", description: "The condition", format: "(> x 0)")],
+      normalizations: [Chiasmus::Skills::Normalization.new(source: "bool", transform: "Bool")],
+    )
+
+    it "valid template passes validation with no errors" do
+      with_craft_server do |_server, _dir|
+        dir = File.join(Dir.tempdir, "chiasmus-craft-validate-#{Random::Secure.hex(8)}")
+        Dir.mkdir_p(dir)
+        library = Chiasmus::Skills::Library.create(dir)
+        begin
+          errors = Chiasmus::Skills.validate_template(valid_input, library)
+          errors.should be_empty
+        ensure
+          library.close
+          FileUtils.rm_rf(dir)
+        end
+      end
+    end
+
+    it "missing required field returns error" do
+      with_craft_server do |_server, _dir|
+        dir = File.join(Dir.tempdir, "chiasmus-craft-missing-#{Random::Secure.hex(8)}")
+        Dir.mkdir_p(dir)
+        library = Chiasmus::Skills::Library.create(dir)
+        begin
+          input = Chiasmus::Skills::CraftInput.new(
+            name: "", domain: "test", solver: "z3",
+            signature: "s", skeleton: "s",
+            slots: valid_input.slots, normalizations: valid_input.normalizations,
+          )
+          errors = Chiasmus::Skills.validate_template(input, library)
+          errors.any? { |e| e.includes?("required") }.should be_true
+        ensure
+          library.close
+          FileUtils.rm_rf(dir)
+        end
+      end
+    end
+
+    it "invalid solver returns error" do
+      with_craft_server do |_server, _dir|
+        dir = File.join(Dir.tempdir, "chiasmus-craft-solver-#{Random::Secure.hex(8)}")
+        Dir.mkdir_p(dir)
+        library = Chiasmus::Skills::Library.create(dir)
+        begin
+          input = Chiasmus::Skills::CraftInput.new(
+            name: "test", domain: "test", solver: "nonsense",
+            signature: "s", skeleton: "s",
+            slots: valid_input.slots, normalizations: valid_input.normalizations,
+          )
+          errors = Chiasmus::Skills.validate_template(input, library)
+          errors.any? { |e| e.includes?("solver") }.should be_true
+        ensure
+          library.close
+          FileUtils.rm_rf(dir)
+        end
+      end
+    end
+
+    it "slot in skeleton not in slots array returns error" do
+      with_craft_server do |_server, _dir|
+        dir = File.join(Dir.tempdir, "chiasmus-craft-skel-slot-#{Random::Secure.hex(8)}")
+        Dir.mkdir_p(dir)
+        library = Chiasmus::Skills::Library.create(dir)
+        begin
+          input = Chiasmus::Skills::CraftInput.new(
+            name: "test", domain: "test", solver: "z3",
+            signature: "s", skeleton: "(assert {{SLOT:missing}})",
+            slots: [Chiasmus::Skills::SlotDef.new(name: "other", description: "d", format: "f")],
+            normalizations: valid_input.normalizations,
+          )
+          errors = Chiasmus::Skills.validate_template(input, library)
+          errors.any? { |e| e.includes?("referenced") || e.includes?("not defined") }.should be_true
+        ensure
+          library.close
+          FileUtils.rm_rf(dir)
+        end
+      end
+    end
+
+    it "slot in array not in skeleton returns error" do
+      with_craft_server do |_server, _dir|
+        dir = File.join(Dir.tempdir, "chiasmus-craft-array-slot-#{Random::Secure.hex(8)}")
+        Dir.mkdir_p(dir)
+        library = Chiasmus::Skills::Library.create(dir)
+        begin
+          input = Chiasmus::Skills::CraftInput.new(
+            name: "test", domain: "test", solver: "z3",
+            signature: "s", skeleton: "(declare-const x Int)",
+            slots: [Chiasmus::Skills::SlotDef.new(name: "unused", description: "d", format: "f")],
+            normalizations: valid_input.normalizations,
+          )
+          errors = Chiasmus::Skills.validate_template(input, library)
+          errors.any? { |e| e.includes?("not referenced") }.should be_true
+        ensure
+          library.close
+          FileUtils.rm_rf(dir)
+        end
+      end
+    end
+
+    it "empty slots array returns error" do
+      with_craft_server do |_server, _dir|
+        dir = File.join(Dir.tempdir, "chiasmus-craft-empty-slots-#{Random::Secure.hex(8)}")
+        Dir.mkdir_p(dir)
+        library = Chiasmus::Skills::Library.create(dir)
+        begin
+          input = Chiasmus::Skills::CraftInput.new(
+            name: "test", domain: "test", solver: "z3",
+            signature: "s", skeleton: "s",
+            slots: [] of Chiasmus::Skills::SlotDef,
+            normalizations: valid_input.normalizations,
+          )
+          errors = Chiasmus::Skills.validate_template(input, library)
+          errors.any? { |e| e.includes?("slots") }.should be_true
+        ensure
+          library.close
+          FileUtils.rm_rf(dir)
+        end
+      end
+    end
+
+    it "empty normalizations array returns error" do
+      with_craft_server do |_server, _dir|
+        dir = File.join(Dir.tempdir, "chiasmus-craft-empty-norm-#{Random::Secure.hex(8)}")
+        Dir.mkdir_p(dir)
+        library = Chiasmus::Skills::Library.create(dir)
+        begin
+          input = Chiasmus::Skills::CraftInput.new(
+            name: "test", domain: "test", solver: "z3",
+            signature: "s", skeleton: "s",
+            slots: valid_input.slots,
+            normalizations: [] of Chiasmus::Skills::Normalization,
+          )
+          errors = Chiasmus::Skills.validate_template(input, library)
+          errors.any? { |e| e.includes?("normalizations") }.should be_true
+        ensure
+          library.close
+          FileUtils.rm_rf(dir)
+        end
+      end
+    end
+
+    it "validation errors prevent creation" do
+      with_craft_server do |_server, _dir|
+        dir = File.join(Dir.tempdir, "chiasmus-craft-prevent-#{Random::Secure.hex(8)}")
+        Dir.mkdir_p(dir)
+        library = Chiasmus::Skills::Library.create(dir)
+        begin
+          input = Chiasmus::Skills::CraftInput.new(
+            name: "", domain: "", solver: "",
+            signature: "", skeleton: "",
+            slots: [] of Chiasmus::Skills::SlotDef,
+            normalizations: [] of Chiasmus::Skills::Normalization,
+          )
+          result = Chiasmus::Skills.craft_template(input, library)
+          result.created.should be_false
+          result.errors.should_not be_nil
+          result.errors.not_nil!.should_not be_empty
+        ensure
+          library.close
+          FileUtils.rm_rf(dir)
+        end
+      end
+    end
   end
 end

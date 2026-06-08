@@ -11,18 +11,18 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
       "problem" => JSON::Any.new("Check if access control rules can ever conflict"),
     })
 
-    result["status"].as_s.should eq("success")
-    result["fallback"].as_bool.should be_true
-    result["template"].as_s.should eq("policy-contradiction")
-    result["instructions"].as_s.should contain("SLOT")
+    result.status.should eq("success")
+    result.as(Chiasmus::MCPServer::Types::SolveResponse).fallback.should be_true
+    result.as(Chiasmus::MCPServer::Types::SolveResponse).template_used.not_nil!.should eq("policy-contradiction")
+    result.as(Chiasmus::MCPServer::Types::SolveResponse).message.not_nil!.should contain("verify")
   end
 
   it "returns an error when problem is missing" do
     tool = Chiasmus::MCPServer::Tools::SolveTool.new
     result = tool.invoke({} of String => JSON::Any)
 
-    result["status"].as_s.should eq("error")
-    result["error"].as_s.should contain("problem")
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("problem")
   end
 
   it "runs the llm-backed solve path when the server has an agent" do
@@ -37,10 +37,11 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
       "problem" => JSON::Any.new("Find an integer greater than 5"),
     })
 
-    result["status"].as_s.should eq("success")
-    result["fallback"].as_bool.should be_false
-    result["converged"].as_bool.should be_true
-    result["result"].as_h["status"].as_s.should eq("sat")
+    result.status.should eq("success")
+    sr = result.as(Chiasmus::MCPServer::Types::SolveResponse)
+    sr.fallback.should be_false
+    sr.converged.should be_true
+    sr.result.status.should eq("sat")
   end
 
   it "returns template used in response" do
@@ -52,7 +53,7 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
       "problem" => JSON::Any.new("Check if two departments have overlapping access"),
     })
 
-    result["status"].as_s.should eq("success")
-    result["template"].as_s.should_not be_empty
+    result.status.should eq("success")
+    result.as(Chiasmus::MCPServer::Types::SolveResponse).template_used.not_nil!.should_not be_empty
   end
 end

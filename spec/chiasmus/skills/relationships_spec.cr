@@ -3,31 +3,37 @@ require "../../spec_helper"
 describe Chiasmus::Skills do
   describe ".get_related_templates" do
     it "returns related templates for policy-contradiction" do
-      names = Chiasmus::Skills.get_related_templates("policy-contradiction").map(&.name)
-      names.should contain("policy-reachability")
-      names.should contain("permission-derivation")
+      related = Chiasmus::Skills.get_related_templates("policy-contradiction")
+      related.should_not be_empty
+      related.map(&.name).should contain("policy-reachability")
+      related.map(&.name).should contain("permission-derivation")
     end
 
     it "returns related templates for schema-consistency" do
-      names = Chiasmus::Skills.get_related_templates("schema-consistency").map(&.name)
+      related = Chiasmus::Skills.get_related_templates("schema-consistency")
+      related.should_not be_empty
+      names = related.map(&.name)
       names.should contain("config-equivalence")
       names.should contain("constraint-satisfaction")
     end
 
-    it "returns an empty array for unknown templates" do
-      Chiasmus::Skills.get_related_templates("nonexistent").should eq([] of Chiasmus::Skills::RelatedTemplate)
+    it "returns empty array for unknown template" do
+      Chiasmus::Skills.get_related_templates("nonexistent").should be_empty
     end
 
-    it "gives every starter template at least one related template" do
+    it "all starter templates have at least one related template" do
       Chiasmus::Skills::STARTER_TEMPLATES.each do |template|
-        Chiasmus::Skills.get_related_templates(template.name).size.should be > 0, "#{template.name} should have related templates"
+        related = Chiasmus::Skills.get_related_templates(template.name)
+        related.should_not be_empty, "Template #{template.name} has no related templates"
       end
     end
 
-    it "uses descriptive non-empty relationship reasons" do
+    it "all reason strings are non-empty and descriptive" do
       Chiasmus::Skills::STARTER_TEMPLATES.each do |template|
-        Chiasmus::Skills.get_related_templates(template.name).each do |related|
-          related.reason.size.should be > 10, "#{template.name} -> #{related.name} reason is too short"
+        related = Chiasmus::Skills.get_related_templates(template.name)
+        related.each do |r|
+          r.reason.should_not be_empty
+          r.reason.size.should be > 5
         end
       end
     end

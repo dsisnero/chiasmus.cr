@@ -52,7 +52,7 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
       with_formalize_engine do |engine, _library|
         result = engine.formalize(
           "Check if our RBAC rules can ever allow and deny the same user accessing the same resource"
-        )
+        ).not_nil!
 
         result.template.name.should eq("policy-contradiction")
         result.template.solver.should eq(Chiasmus::Solvers::SolverType::Z3)
@@ -64,7 +64,7 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
       with_formalize_engine do |engine, _library|
         result = engine.formalize(
           "Given these business rules and employee data, determine who is eligible for promotion"
-        )
+        ).not_nil!
 
         result.template.solver.should eq(Chiasmus::Solvers::SolverType::Prolog)
         {"rule-inference", "permission-derivation"}.should contain(result.template.name)
@@ -75,7 +75,7 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
       with_formalize_engine do |engine, _library|
         engine.formalize(
           "Can user input reach the database through any chain of function calls?"
-        ).template.name.should eq("graph-reachability")
+        ).not_nil!.template.name.should eq("graph-reachability")
       end
     end
 
@@ -83,7 +83,7 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
       with_formalize_engine do |engine, _library|
         engine.formalize(
           "Find compatible versions for these npm packages given their peer dependency constraints"
-        ).template.name.should eq("constraint-satisfaction")
+        ).not_nil!.template.name.should eq("constraint-satisfaction")
       end
     end
 
@@ -91,9 +91,17 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
       with_formalize_engine do |engine, _library|
         result = engine.formalize(
           "Check if our Kubernetes RBAC roles have conflicting permissions"
-        )
+        ).not_nil!
 
         result.instructions.should contain("Kubernetes")
+      end
+    end
+
+    it "returns a fallback template when search finds nothing" do
+      with_formalize_engine do |engine, _library|
+        result = engine.formalize("zzz xyxxy zzzz blarg no match whatsoever").not_nil!
+        result.template.should_not be_nil
+        result.instructions.should_not be_empty
       end
     end
   end

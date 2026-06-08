@@ -8,7 +8,7 @@ include Chiasmus::Graph
 
 # Mock Crig embedding model for tests
 class MockEmbeddingModel
-  include Crig::EmbeddingModelDyn
+  include Crig::Embeddings::EmbeddingModel
 
   @dim : Int32
 
@@ -27,7 +27,7 @@ class MockEmbeddingModel
     embed_texts([text]).first
   end
 
-  def embed_texts(texts : Array(String)) : Array(Crig::Embeddings::Embedding)
+  def embed_texts(texts : Enumerable(String)) : Array(Crig::Embeddings::Embedding)
     texts.map do |t|
       v = Array(Float64).new(@dim, 0.0)
       t.each_char.with_index { |c, i| v[i % @dim] += c.ord.to_f / 1000.0 }

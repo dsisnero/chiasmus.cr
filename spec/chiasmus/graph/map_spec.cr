@@ -4,20 +4,26 @@ require "../../../src/chiasmus/graph/map"
 
 include Chiasmus::Graph
 
-private def make_graph(defines : Array(NamedTuple(name: String, file: String, kind: String, line: Int32)), files : Array(FileNode) = [] of FileNode) : CodeGraph
+private def make_graph(defines : Array(NamedTuple(name: String, file: String, kind: String, line: Int32, signature: String?)), files : Array(FileNode) = [] of FileNode, exports : Array(NamedTuple(file: String, name: String)) = [] of NamedTuple(file: String, name: String), imports : Array(NamedTuple(file: String, name: String, source: String)) = [] of NamedTuple(file: String, name: String, source: String)) : CodeGraph
+  defs = defines.map { |d|
+    DefinesFact.new(
+      file: d[:file], name: d[:name],
+      kind: case d[:kind]
+      when "function" then SymbolKind::Function
+      when "method"   then SymbolKind::Method
+      when "class"    then SymbolKind::Class
+      else                 SymbolKind::Type
+      end,
+      line: d[:line],
+      signature: d[:signature]?,
+    )
+  }
+  exps = exports.map { |e| ExportsFact.new(file: e[:file], name: e[:name]) }
+  imps = imports.map { |i| ImportsFact.new(file: i[:file], name: i[:name], source: i[:source]) }
   CodeGraph.new(
-    defines: defines.map { |d|
-      DefinesFact.new(
-        file: d[:file], name: d[:name],
-        kind: case d[:kind]
-        when "function" then SymbolKind::Function
-        when "method"   then SymbolKind::Method
-        when "class"    then SymbolKind::Class
-        else                 SymbolKind::Type
-        end,
-        line: d[:line],
-      )
-    },
+    defines: defs,
+    exports: exps,
+    imports: imps,
     files: files.empty? ? nil : files,
   )
 end
@@ -33,12 +39,89 @@ describe CodebaseMap do
 
     it "groups files into directory tree" do
       graph = make_graph(
-        [{name: "foo", file: "src/lib/util.ts", kind: "function", line: 1}],
+        [{name: "foo", file: "src/lib/util.ts", kind: "function", line: 1, signature: nil}],
         [FileNode.new(path: "src/lib/util.ts", language: "typescript")],
       )
       map = CodebaseMap.build_overview(graph)
       map.summary.files.should eq 1
       map.summary.languages.should contain "typescript"
+    end
+
+    it "returns summary counts with exports" do
+      graph = make_graph(
+        [
+          {name: "foo", file: "src/a.ts", kind: "function", line: 1, signature: nil},
+          {name: "bar", file: "src/b.ts", kind: "function", line: 1, signature: nil},
+        ],
+        [
+          FileNode.new(path: "src/a.ts", language: "typescript"),
+          FileNode.new(path: "src/b.ts", language: "typescript"),
+        ],
+        exports: [
+          {file: "src/a.ts", name: "foo"},
+          {file: "src/b.ts", name: "bar"},
+        ],
+      )
+      map = CodebaseMap.build_overview(graph)
+      map.summary.files.should eq 2
+      map.summary.exports.should eq 2
+      map.summary.languages.should contain "typescript"
+    end
+
+    it "produces file entries with export count and token estimate" do
+      graph = make_graph(
+        [
+          {name: "x", file: "a.ts", kind: "function", line: 1, signature: nil},
+          {name: "y", file: "a.ts", kind: "function", line: 3, signature: nil},
+        ],
+        [FileNode.new(path: "a.ts", language: "typescript", token_estimate: 42)],
+        exports: [
+          {file: "a.ts", name: "x"},
+          {file: "a.ts", name: "y"},
+        ],
+      )
+      map = CodebaseMap.build_overview(graph)
+      file = map.root.files[0]
+      file.export_count.should eq 2
+      file.tokens.should eq 42
+    end
+
+    it "truncates topExports to maxExportsPerFile" do
+      defines = (0...12).map { |i|
+        {name: "f#{i}", file: "a.ts", kind: "function", line: i + 1, signature: nil}
+      }
+      exports = (0...12).map { |i|
+        {file: "a.ts", name: "f#{i}"}
+      }
+      graph = make_graph(
+        defines,
+        [FileNode.new(path: "a.ts", language: "typescript")],
+        exports: exports,
+      )
+      map = CodebaseMap.build_overview(graph, max_exports: 3)
+      file = map.root.files[0]
+      file.top_exports.size.should eq 3
+      file.export_count.should eq 12
+    end
+
+    it "renders markdown with summary header" do
+      graph = make_graph(
+        [{name: "foo", file: "src/a.ts", kind: "function", line: 1, signature: nil}],
+        [FileNode.new(path: "src/a.ts", language: "typescript")],
+      )
+      map = CodebaseMap.build_overview(graph)
+      md = CodebaseMap.render_map(map, "markdown")
+      md.should contain "# Codebase Overview"
+    end
+
+    it "captures fileDoc in overview" do
+      graph = make_graph(
+        [{name: "greet", file: "a.ts", kind: "function", line: 1, signature: nil}],
+        [FileNode.new(path: "a.ts", language: "typescript", file_doc: "Greets the world.")],
+      )
+      map = CodebaseMap.build_overview(graph)
+      file = map.root.files[0]
+      file.doc.should eq "Greets the world."
     end
   end
 
@@ -51,8 +134,8 @@ describe CodebaseMap do
     it "returns file detail with symbols" do
       graph = make_graph(
         [
-          {name: "foo", file: "src/lib.ts", kind: "function", line: 1},
-          {name: "bar", file: "src/lib.ts", kind: "function", line: 5},
+          {name: "foo", file: "src/lib.ts", kind: "function", line: 1, signature: nil},
+          {name: "bar", file: "src/lib.ts", kind: "function", line: 5, signature: nil},
         ],
         [FileNode.new(path: "src/lib.ts", language: "typescript")],
       )
@@ -61,6 +144,38 @@ describe CodebaseMap do
       d = detail.not_nil!
       d.path.should eq "src/lib.ts"
       d.symbols.size.should eq 2
+    end
+
+    it "returns exports with signatures and lines" do
+      graph = make_graph(
+        [
+          {name: "foo", file: "src/a.ts", kind: "function", line: 10, signature: "(x: Int32)"},
+        ],
+        [FileNode.new(path: "src/a.ts", language: "typescript")],
+        exports: [{file: "src/a.ts", name: "foo"}],
+      )
+      detail = CodebaseMap.build_file_detail(graph, "src/a.ts")
+      detail.should_not be_nil
+      d = detail.not_nil!
+      d.exports.size.should eq 1
+      d.exports[0].name.should eq "foo"
+      d.exports[0].signature.should eq "(x: Int32)"
+    end
+
+    it "returns imports with sources" do
+      graph = make_graph(
+        [{name: "helper", file: "src/a.ts", kind: "function", line: 1, signature: nil}],
+        [FileNode.new(path: "src/a.ts", language: "typescript")],
+        imports: [
+          {file: "src/a.ts", name: "x", source: "./b"},
+          {file: "src/a.ts", name: "y", source: "./b"},
+        ],
+      )
+      detail = CodebaseMap.build_file_detail(graph, "src/a.ts")
+      detail.should_not be_nil
+      d = detail.not_nil!
+      d.imports.size.should eq 2
+      d.imports.map(&.[:source]).sort.should eq ["./b", "./b"]
     end
   end
 
@@ -93,6 +208,16 @@ describe CodebaseMap do
       map = CodebaseMap.build_overview(CodeGraph.new)
       json = CodebaseMap.render_map(map, "json")
       json.should contain "\"kind\""
+    end
+
+    it "renders markdown with file entries" do
+      graph = make_graph(
+        [{name: "Foo", file: "src/a.ts", kind: "class", line: 1, signature: nil}],
+        [FileNode.new(path: "src/a.ts", language: "typescript")],
+      )
+      map = CodebaseMap.build_overview(graph)
+      md = CodebaseMap.render_map(map, "markdown")
+      md.should contain "# Codebase Overview"
     end
   end
 

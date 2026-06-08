@@ -106,6 +106,7 @@ src/graph/extractor.ts::function::cljProcessCallSite	missing	-	baseline
 src/graph/extractor.ts::function::cljSymName	missing	-	baseline
 src/graph/extractor.ts::function::cljWalkDispatchMethods	missing	-	baseline
 src/graph/extractor.ts::function::collapseSignature	missing	-	baseline
+src/graph/extractor.ts::function::collectRustUse	missing	-	baseline
 src/graph/extractor.ts::function::collectTypeInfo	missing	-	baseline
 src/graph/extractor.ts::function::commonAncestor	missing	-	baseline
 src/graph/extractor.ts::function::countLines	missing	-	baseline
@@ -127,6 +128,9 @@ src/graph/extractor.ts::function::extractParentClassName	missing	-	baseline
 src/graph/extractor.ts::function::extractPythonModuleDocstring	missing	-	baseline
 src/graph/extractor.ts::function::extractPythonSignature	missing	-	baseline
 src/graph/extractor.ts::function::extractReceiverChain	missing	-	baseline
+src/graph/extractor.ts::function::extractRustCalls	missing	-	baseline
+src/graph/extractor.ts::function::extractRustSignature	missing	-	baseline
+src/graph/extractor.ts::function::extractRustUse	missing	-	baseline
 src/graph/extractor.ts::function::extractStringContent	missing	-	baseline
 src/graph/extractor.ts::function::findEnclosingClassName	missing	-	baseline
 src/graph/extractor.ts::function::findEnclosingClassNameForTypeInfo	missing	-	baseline
@@ -135,6 +139,7 @@ src/graph/extractor.ts::function::findPythonEnclosingClass	missing	-	baseline
 src/graph/extractor.ts::function::firstIdentifierIn	missing	-	baseline
 src/graph/extractor.ts::function::isCommentNode	missing	-	baseline
 src/graph/extractor.ts::function::isDocShape	missing	-	baseline
+src/graph/extractor.ts::function::isRustPub	missing	-	baseline
 src/graph/extractor.ts::function::normalizeCommentText	missing	-	baseline
 src/graph/extractor.ts::function::qualifyCaller	missing	-	baseline
 src/graph/extractor.ts::function::qualifyCljName	missing	-	baseline
@@ -142,6 +147,7 @@ src/graph/extractor.ts::function::resolveCallee	missing	-	baseline
 src/graph/extractor.ts::function::resolveGoCallee	missing	-	baseline
 src/graph/extractor.ts::function::resolveImportsInPlace	missing	-	baseline
 src/graph/extractor.ts::function::resolvePythonCallee	missing	-	baseline
+src/graph/extractor.ts::function::resolveRustCallee	missing	-	baseline
 src/graph/extractor.ts::function::scopeKeyOf	missing	-	baseline
 src/graph/extractor.ts::function::stripPythonStringQuotes	missing	-	baseline
 src/graph/extractor.ts::function::walkCallsAndClasses	missing	-	baseline
@@ -152,6 +158,7 @@ src/graph/extractor.ts::function::walkGo	missing	-	baseline
 src/graph/extractor.ts::function::walkNode	missing	-	baseline
 src/graph/extractor.ts::function::walkPython	missing	-	baseline
 src/graph/extractor.ts::function::walkPythonChildren	missing	-	baseline
+src/graph/extractor.ts::function::walkRust	missing	-	baseline
 src/graph/extractor.ts::interface::CljCtx	missing	-	baseline
 src/graph/extractor.ts::interface::ExtractOptions	missing	-	baseline
 src/graph/facts.ts::const::BUILTIN_RULES	missing	-	baseline
@@ -371,6 +378,7 @@ src/search/engine.ts::const::SNIPPET_LINES	missing	-	baseline
 src/search/engine.ts::function::buildSearchCorpus	missing	-	baseline
 src/search/engine.ts::function::makeEntryId	missing	-	baseline
 src/search/engine.ts::function::snippetAround	missing	-	baseline
+src/search/engine.ts::function::tryDimension	missing	-	baseline
 src/search/engine.ts::interface::RunSearchOptions	missing	-	baseline
 src/search/engine.ts::interface::SearchCorpusEntry	missing	-	baseline
 src/search/engine.ts::interface::SearchHit	missing	-	baseline

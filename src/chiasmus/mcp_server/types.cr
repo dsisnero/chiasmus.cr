@@ -198,7 +198,309 @@ module Chiasmus
         end
       end
 
+      # Verify tool response
+      struct VerifyResponse < Response
+        getter result : SolverResultJSON?
+        getter results : Array(SolverResultJSON)?
+
+        def initialize(@result : SolverResultJSON? = nil, @results : Array(SolverResultJSON)? = nil)
+          super("success")
+        end
+
+        def self.error(error_message : String) : ErrorResponse
+          ErrorResponse.new(error_message)
+        end
+      end
+
+      # Lint tool response
+      struct LintResponse < Response
+        getter spec : String
+        getter fixes : Array(String)
+        getter errors : Array(String)
+
+        def initialize(@spec : String, @fixes : Array(String) = [] of String, @errors : Array(String) = [] of String)
+          super("success")
+        end
+      end
+
+      # Graph tool response
+      struct GraphResponse < Response
+        getter analysis : String
+        getter result : JSON::Any
+
+        def initialize(@analysis : String, @result : JSON::Any)
+          super("success")
+        end
+      end
+
+      # Map tool response
+      struct MapResponse < Response
+        getter content : String
+
+        def initialize(@content : String)
+          super("success")
+        end
+      end
+
+      # Search tool response
+      struct SearchHitJSON
+        include JSON::Serializable
+
+        getter name : String
+        getter file : String
+        getter line : Int32
+        getter score : Float64
+
+        def initialize(@name : String, @file : String, @line : Int32, @score : Float64)
+        end
+      end
+
+      struct SearchResponse < Response
+        getter hits : Array(SearchHitJSON)
+        getter warnings : Array(String)?
+
+        def initialize(@hits : Array(SearchHitJSON), @warnings : Array(String)? = nil)
+          super("success")
+        end
+      end
+
+      # Craft tool response
+      struct CraftResponse < Response
+        # ameba:disable Naming/QueryBoolMethods
+        getter created : Bool
+        getter template : String?
+        getter domain : String?
+        getter solver : String?
+        getter slots : Int32?
+        # ameba:disable Naming/QueryBoolMethods
+        getter tested : Bool
+        getter test_result : String?
+        getter errors : Array(String)
+
+        def initialize(@created : Bool, @template : String? = nil, @domain : String? = nil,
+                       @solver : String? = nil, @slots : Int32? = nil, @tested : Bool = false,
+                       @test_result : String? = nil, @errors : Array(String) = [] of String)
+          super("success")
+        end
+      end
+
+      # Review tool response types
+      struct ReviewActionJSON
+        include JSON::Serializable
+
+        getter tool : String
+        getter args : Hash(String, JSON::Any)
+        getter interpret : String
+
+        def initialize(@tool : String, @args : Hash(String, JSON::Any), @interpret : String)
+        end
+      end
+
+      struct ReviewPhaseJSON
+        include JSON::Serializable
+
+        getter phase : String
+        getter goal : String
+        getter actions : Array(ReviewActionJSON)
+
+        def initialize(@phase : String, @goal : String, @actions : Array(ReviewActionJSON))
+        end
+      end
+
+      struct SuggestedTemplateJSON
+        include JSON::Serializable
+
+        getter template : String
+        getter when : String
+        getter workflow : String
+
+        def initialize(@template : String, @when : String, @workflow : String)
+        end
+      end
+
+      struct ReviewReportingJSON
+        include JSON::Serializable
+
+        getter format : String
+        getter severity_levels : Array(String)
+        getter instructions : String
+
+        def initialize(@format : String, @severity_levels : Array(String), @instructions : String)
+        end
+      end
+
+      struct ReviewResponse < Response
+        getter files : Array(String)
+        getter focus : String
+        getter summary : String
+        getter phases : Array(ReviewPhaseJSON)
+        getter suggested_templates : Array(SuggestedTemplateJSON)
+        getter reporting : ReviewReportingJSON
+
+        def initialize(@files : Array(String), @focus : String, @summary : String,
+                       @phases : Array(ReviewPhaseJSON), @suggested_templates : Array(SuggestedTemplateJSON),
+                       @reporting : ReviewReportingJSON)
+          super("success")
+        end
+      end
+
+      # Learn tool response
+      struct LearnResponse < Response
+        getter template : String?
+        getter message : String?
+
+        def initialize(@template : String? = nil, @message : String? = nil)
+          super("success")
+        end
+      end
+
+      # Crig tool response
+      struct CrigResponse < Response
+        getter output : String?
+        getter model : String?
+
+        def initialize(@output : String? = nil, @model : String? = nil)
+          super("success")
+        end
+      end
+
+      # ────────────────────────────────────────────
+      # Tool input structs (JSON::Serializable)
+      # ────────────────────────────────────────────
+
+      struct VerifyInput
+        include JSON::Serializable
+
+        getter solver : String
+        getter input : String?
+        getter spec : String?
+        getter query : String?
+        getter queries : Array(String)?
+        # ameba:disable Naming/QueryBoolMethods
+        getter explain : Bool = false
+        getter format : String = "raw"
+      end
+
+      struct SkillsInput
+        include JSON::Serializable
+
+        getter name : String?
+        getter query : String?
+        getter domain : String?
+        getter solver : String?
+        getter limit : Int32 = 10
+      end
+
+      struct FormalizeInput
+        include JSON::Serializable
+
+        getter problem : String
+      end
+
+      struct SolveInput
+        include JSON::Serializable
+
+        getter problem : String
+      end
+
+      struct LearnInput
+        include JSON::Serializable
+
+        getter solver : String
+        getter spec : String
+        getter problem : String
+      end
+
+      struct LintInput
+        include JSON::Serializable
+
+        getter solver : String
+        getter input : String
+      end
+
+      struct GraphInput
+        include JSON::Serializable
+
+        getter files : Array(String)
+        getter analysis : String
+        getter target : String?
+        getter from : String?
+        getter to : String?
+        getter entry_points : Array(String)?
+      end
+
+      struct MapInput
+        include JSON::Serializable
+
+        getter files : Array(String)
+        getter mode : String = "overview"
+        getter path : String?
+        getter name : String?
+        getter format : String = "markdown"
+      end
+
+      struct SearchInput
+        include JSON::Serializable
+
+        getter query : String
+        getter files : Array(String)
+        getter top_k : Int32 = 10
+        getter languages : Array(String)?
+        getter kinds : Array(String)?
+      end
+
+      struct CraftInput
+        include JSON::Serializable
+
+        getter name : String
+        getter domain : String
+        getter solver : String
+        getter signature : String
+        getter skeleton : String
+        getter slots : Array(SlotDefJSON)
+        getter normalizations : Array(NormalizationDefJSON)
+        getter tips : Array(String)?
+        getter example : String?
+        # ameba:disable Naming/QueryBoolMethods
+        getter test : Bool = false
+      end
+
+      struct SlotDefJSON
+        include JSON::Serializable
+
+        getter name : String
+        getter description : String
+        getter format : String
+      end
+
+      struct NormalizationDefJSON
+        include JSON::Serializable
+
+        getter source : String
+        getter transform : String
+      end
+
+      struct ReviewInput
+        include JSON::Serializable
+
+        getter files : Array(String)
+        getter focus : String?
+        getter entry_points : Array(String)?
+        getter delta_against : String?
+      end
+
+      struct CrigInput
+        include JSON::Serializable
+
+        getter prompt : String
+        getter preamble : String?
+        getter model : String?
+        getter max_turns : Int32 = 0
+      end
+
+      # ────────────────────────────────────────────
       # Helper methods to convert from domain objects to JSON types
+      # ────────────────────────────────────────────
       def self.solver_result_to_json(result : Solvers::SolverResult) : SolverResultJSON
         case result
         when Solvers::SatResult

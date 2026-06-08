@@ -49,6 +49,15 @@ def build_learn_spec_agent_builder(response : String)
 end
 
 describe Chiasmus::MCPServer::Tools::LearnTool do
+  before_each do
+    home = Chiasmus::Utils::Config.chiasmus_home rescue nil
+    if home
+      ["skill_templates.json", "skill_metadata.json"].each do |f|
+        path = File.join(home, f)
+        File.delete(path) if File.exists?(path)
+      end
+    end
+  end
   it "has correct tool name" do
     Chiasmus::MCPServer::Tools::LearnTool.tool_name.should eq("chiasmus_learn")
   end
@@ -69,8 +78,8 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
       "problem" => JSON::Any.new("test"),
     })
 
-    result["status"].as_s.should eq("error")
-    result["error"].to_s.should_not be_empty
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should_not be_empty
   end
 
   it "returns error when spec is missing" do
@@ -80,8 +89,8 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
       "problem" => JSON::Any.new("test"),
     })
 
-    result["status"].as_s.should eq("error")
-    result["error"].to_s.should_not be_empty
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should_not be_empty
   end
 
   it "returns error when problem is missing" do
@@ -91,8 +100,8 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
       "spec"   => JSON::Any.new("(declare-const x Int)"),
     })
 
-    result["status"].as_s.should eq("error")
-    result["error"].to_s.should_not be_empty
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should_not be_empty
   end
 
   it "returns an error when no learner is available" do
@@ -105,8 +114,8 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
       "problem" => JSON::Any.new("test"),
     })
 
-    result["status"].as_s.should eq("error")
-    result["error"].as_s.should contain("LLM")
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("LLM")
     server.skill_learner.should be_nil
   end
 
@@ -133,8 +142,8 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
       "problem" => JSON::Any.new("Check if two port ranges overlap"),
     })
 
-    result["status"].as_s.should eq("success")
-    result["template"].as_s.should eq("port-range-overlap")
+    result.status.should eq("success")
+    result.as(Chiasmus::MCPServer::Types::LearnResponse).template.not_nil!.should eq("port-range-overlap")
     server.skill_library.get("port-range-overlap").should_not be_nil
   end
 end

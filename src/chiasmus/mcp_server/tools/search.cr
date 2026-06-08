@@ -1,10 +1,12 @@
 # chiasmus_search tool — Semantic code search over files
 require "mcp"
+require "crig"
 require "../types"
 require "../tool_schemas"
 require "../../search/engine"
 require "../../search/embedding_cache"
 require "../../graph/extractor"
+require "../../utils/config"
 
 module Chiasmus
   module MCPServer
@@ -12,72 +14,58 @@ module Chiasmus
       class SearchTool
         MAX_FILE_SIZE = 500_000
 
-        private def error_response(message : String) : Hash(String, JSON::Any)
-          JSON.parse(Types::ErrorResponse.new(message).to_json).as_h
-        end
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          args = Types::SearchInput.from_json(arguments.to_json)
 
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          query = arguments["query"]?.try(&.as_s?)
-          files = arguments["files"]?.try(&.as_a?.try(&.map(&.as_s)))
-          top_k = arguments["top_k"]?.try(&.as_i?) || 10
+          return Types::ErrorResponse.new("'query' (non-empty string) is required") if args.query.strip.empty?
+          return Types::ErrorResponse.new("'files' (non-empty array of absolute paths) is required") if args.files.empty?
 
-          return error_response("'query' (non-empty string) is required") unless query && !query.strip.empty?
-          return error_response("'files' (non-empty array of absolute paths) is required") unless files && !files.empty?
+          top_k = {1, {args.top_k, 100}.min}.max
 
-          top_k = {1, {top_k, 100}.min}.max
-
-          # Read files
           file_contents = Hash(String, String).new
           warnings = [] of String
 
-          files.each do |p|
+          args.files.each do |path|
             begin
-              st = File.info(p)
+              st = File.info(path)
               unless st.file?
-                warnings << "skip (not a file): #{p}"
+                warnings << "skip (not a file): #{path}"
                 next
               end
               if st.size > MAX_FILE_SIZE
-                warnings << "skip (over #{MAX_FILE_SIZE} bytes): #{p}"
+                warnings << "skip (over #{MAX_FILE_SIZE} bytes): #{path}"
                 next
               end
-              file_contents[p] = File.read(p)
+              file_contents[path] = File.read(path)
             rescue ex
-              warnings << "read failed: #{p} — #{ex.message}"
+              warnings << "read failed: #{path} — #{ex.message}"
             end
           end
 
           if file_contents.empty?
-            result = {"error" => JSON::Any.new("No readable files in `files`.")} of String => JSON::Any
-            result["warnings"] = JSON::Any.new(warnings) unless warnings.empty?
-            return result
+            return Types::ErrorResponse.new("No readable files in `files`. Warnings: #{warnings.join("; ")}") unless warnings.empty?
+            return Types::ErrorResponse.new("No readable files in `files`.")
           end
 
-          # Extract graph
-          source_files = file_contents.map { |p, c| Graph::SourceFile.new(path: p, content: c) }
+          source_files = file_contents.map { |path, content| Graph::SourceFile.new(path: path, content: content) }
           graph = Graph::Extractor.extract_graph(source_files)
 
-          # Build corpus
           corpus = Search::SearchEngine.build_search_corpus(graph, file_contents)
 
           if corpus.empty?
-            result = {"hits" => JSON::Any.new([] of JSON::Any)} of String => JSON::Any
-            result["warnings"] = JSON::Any.new(warnings) unless warnings.empty?
-            return result
+            return Types::ErrorResponse.new("No searchable content found in files.")
           end
 
-          # Get embedding model from Crig (configured via env)
           model = resolve_embedding_model
           unless model
-            return error_response(
+            return Types::ErrorResponse.new(
               "No embedding provider configured. " +
               "Set OPENAI_API_KEY / DEEPSEEK_API_KEY / OPENROUTER_API_KEY " +
               "(see CHIASMUS_EMBED_* env vars for overrides)."
             )
           end
 
-          # Cache
-          home = MCPServer::Server.chiasmus_home
+          home = Utils::Config.chiasmus_home
           dim = model.ndims
           cache_path = File.join(home, "embeddings", "d#{dim}.json")
           cache = Search::EmbeddingCache.new(cache_path, dim)
@@ -86,46 +74,71 @@ module Chiasmus
           rescue
           end
 
-          # Search
-          hits = Search::SearchEngine.run_search(query.strip, corpus, model, top_k, cache)
+          hits = Search::SearchEngine.run_search(args.query.strip, corpus, model, top_k, cache)
 
-          # Save cache
           begin
             cache.save
           rescue
           end
 
-          result = hits.map do |h|
-            {
-              "name"  => JSON::Any.new(h.name),
-              "file"  => JSON::Any.new(h.file),
-              "line"  => JSON::Any.new(h.line.to_i64),
-              "score" => JSON::Any.new(h.score),
-            }
+          result = hits.map do |hit|
+            Types::SearchHitJSON.new(
+              name: hit.name,
+              file: hit.file,
+              line: hit.line,
+              score: hit.score
+            )
           end
 
-          {
-            "hits" => JSON::Any.new(result),
-          }
+          Types::SearchResponse.new(hits: result, warnings: warnings.empty? ? nil : warnings)
         rescue ex
-          error_response(ex.message || ex.class.name)
+          Types::ErrorResponse.new("#{ex.class}: #{ex.message || "(no message)"}")
         end
 
-        # Resolve embedding model from environment
-        private def resolve_embedding_model : Crig::EmbeddingModelDyn?
-          model_name = ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small"
+        # Resolve embedding model from environment.
+        # Provider priority: CHIASMUS_EMBED_PROVIDER > DEEPSEEK_API_KEY > OPENAI_API_KEY.
+        # Supports: ollama, deepseek, openai.
+        # Ollama defaults to nomic-embed-text, others to text-embedding-3-small.
+        private def resolve_embedding_model
+          provider = ENV["CHIASMUS_EMBED_PROVIDER"]? || "deepseek"
+          base_url = ENV["CHIASMUS_EMBED_URL"]?
+
+          case provider
+          when "ollama"
+            model_name = ENV["CHIASMUS_EMBED_MODEL"]? || Crig::Providers::Ollama::NOMIC_EMBED_TEXT
+            url = base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL
+            client = Crig::Providers::Ollama::Client.new(Crig::Nothing.new, url)
+            return client.embedding_model(model_name)
+          when "deepseek"
+            model_name = ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small"
+            if api_key = ENV["DEEPSEEK_API_KEY"]?
+              url = base_url || "https://api.deepseek.com/v1"
+              client = Crig::Providers::OpenAI::Client.new(api_key, url)
+              return client.embedding_model(model_name)
+            end
+          when "openai"
+            model_name = ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small"
+            if api_key = ENV["OPENAI_API_KEY"]?
+              client = Crig::Providers::OpenAI::Client.new(api_key)
+              return client.embedding_model(model_name)
+            end
+          end
+
+          resolve_embedding_model_fallback(base_url)
+        end
+
+        private def resolve_embedding_model_fallback(base_url : String?)
+          model = ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small"
+
+          if api_key = ENV["DEEPSEEK_API_KEY"]?
+            url = base_url || "https://api.deepseek.com/v1"
+            client = Crig::Providers::OpenAI::Client.new(api_key, url)
+            return client.embedding_model(model)
+          end
 
           if api_key = ENV["OPENAI_API_KEY"]?
             client = Crig::Providers::OpenAI::Client.new(api_key)
-            return client.embedding_model(model_name)
-          end
-
-          if api_key = ENV["DEEPSEEK_API_KEY"]?
-            client = Crig::Providers::OpenAI::Client.new(
-              api_key,
-              "https://api.deepseek.com/v1",
-            )
-            return client.embedding_model(model_name)
+            return client.embedding_model(model)
           end
 
           nil
@@ -156,15 +169,11 @@ module Chiasmus
         def self.input_schema : MCP::Protocol::Tool::Input
           ToolSchemas::ToolInputSchema.new(
             properties: {
-              "query" => {
-                "type"        => JSON::Any.new("string"),
-                "description" => JSON::Any.new("Natural language query for semantic search"),
-              },
-              "files" => ToolSchemas::Common.files_property,
-              "top_k" => {
-                "type"        => JSON::Any.new("number"),
-                "description" => JSON::Any.new("Number of results (1–100, default 10)"),
-              },
+              "query"     => ToolSchemas::SchemaProperty.new("string", "Natural language query for semantic search"),
+              "files"     => ToolSchemas::Common.files_property,
+              "top_k"     => ToolSchemas::SchemaProperty.new("number", "Number of results (1–100, default 10)"),
+              "languages" => ToolSchemas::ArraySchemaProperty.new("Filter by language(s) — e.g. [\"go\", \"rust\"]. Uses Discovery pipeline with broader language support when specified."),
+              "kinds"     => ToolSchemas::ArraySchemaProperty.new("Filter by symbol kind(s) — e.g. [\"class\", \"interface\"]. Requires languages param."),
             },
             required: ["query", "files"]
           ).to_mcp_input

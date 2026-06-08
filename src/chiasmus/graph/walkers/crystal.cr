@@ -176,6 +176,21 @@ module Chiasmus
         return unless parent
         return if parent.type == "method_def" || parent.type == "abstract_method_def"
         return if parent.type == "parameters"
+        return if parent.type == "call"
+        return if parent.type == "assignment"
+        return if parent.type == "binary"
+        return if parent.type == "return_statement"
+
+        # Only record as a call if this identifier has a sibling argument_list
+        # (meaning tree-sitter parsed it as `foo(args)` within a parent that isnt a call node)
+        has_args = false
+        parent.children.each do |sibling|
+          if sibling.type == "argument_list"
+            has_args = true
+            break
+          end
+        end
+        return unless has_args
 
         text = node.text(source)
         record_call(scope_stack.last?, text, calls, call_set)

@@ -6,19 +6,18 @@ module Chiasmus
   module MCPServer
     module Tools
       class FormalizeTool
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          problem = arguments["problem"]?.try(&.as_s?)
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          args = Types::FormalizeInput.from_json(arguments.to_json)
 
-          if problem.nil? || problem.empty?
-            return json_hash(Types::ErrorResponse.new("The 'problem' parameter (string) is required"))
+          if args.problem.empty?
+            return Types::ErrorResponse.new("The 'problem' parameter (string) is required")
           end
 
           server = MCPServer.current_server
-          return json_hash(Types::ErrorResponse.new("Server not available")) unless server
+          return Types::ErrorResponse.new("Server not available") unless server
 
-          # Formalize the problem
-          result = server.formalize(problem)
-          return json_hash(Types::ErrorResponse.new("Formalization engine not available")) unless result
+          result = server.formalize(args.problem)
+          return Types::ErrorResponse.new("Formalization engine not available") unless result
 
           suggestions = server.skill_library.get_related(result.template.name).map do |related|
             JSON.parse({
@@ -27,17 +26,15 @@ module Chiasmus
             }.to_json)
           end
 
-          response = Types::FormalizeResponse.new(
+          Types::FormalizeResponse.new(
             template: result.template.name,
             solver: result.template.solver.to_s.downcase,
             domain: result.template.domain,
             instructions: result.instructions,
             suggestions: suggestions
           )
-
-          json_hash(response)
         rescue ex
-          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
+          Types::ErrorResponse.new(ex.message || ex.class.name)
         end
 
         def self.tool_name : String
@@ -65,10 +62,6 @@ module Chiasmus
             },
             required: ["problem"]
           )
-        end
-
-        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
-          JSON.parse(response.to_json).as_h
         end
       end
     end

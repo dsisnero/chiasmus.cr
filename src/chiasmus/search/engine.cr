@@ -73,7 +73,7 @@ module Chiasmus
       def run_search(
         query : String,
         corpus : Array(SearchCorpusEntry),
-        model : Crig::EmbeddingModelDyn,
+        model : Crig::Embeddings::EmbeddingModel,
         top_k : Int32,
         cache : EmbeddingCache? = nil,
       ) : Array(SearchHit)
@@ -146,7 +146,13 @@ module Chiasmus
       end
 
       private def extract_file_docs(graph : Graph::CodeGraph) : Hash(String, String)
-        Hash(String, String).new
+        docs = Hash(String, String).new
+        graph.files.try &.each do |fn|
+          if doc = fn.file_doc
+            docs[fn.path] = doc
+          end
+        end
+        docs
       end
 
       private def cosine_similarity(a : Array(Float64), b : Array(Float64)) : Float64

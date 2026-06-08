@@ -62,8 +62,14 @@ module Chiasmus
           @server.add_tool(tool_name, tool_description, input_schema) do |params|
             arguments = params.arguments || {} of String => JSON::Any
             result = tool_instance.invoke(arguments)
-            content = [MCP::Protocol::TextContentBlock.new(result.to_json)] of MCP::Protocol::ContentBlock
-            MCP::Protocol::CallToolResult.new(content: content)
+            result_json = result.to_json
+            content = [MCP::Protocol::TextContentBlock.new(result_json)] of MCP::Protocol::ContentBlock
+            structured = begin
+              JSON.parse(result_json).as_h
+            rescue
+              nil
+            end
+            MCP::Protocol::CallToolResult.new(content: content, structured_content: structured)
           end
         end
       end

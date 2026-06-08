@@ -11,12 +11,14 @@ Chiasmus.cr gives LLMs access to formal verification via Z3 (SMT solver) and SWI
 ## 📚 Documentation
 
 ### Core Documentation
+
 - **[AGENTS.md](AGENTS.md)** - Agent engineering guide and porting workflow
 - **[CLAUDE.md](CLAUDE.md)** - Project overview and development guidelines
 - **[plans/inventory/](plans/inventory/)** - Porting inventory and parity tracking
 - **[vendor/chiasmus/README.md](vendor/chiasmus/README.md)** - Upstream documentation
 
 ### Technical Documentation ([docs/](docs/))
+
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and design decisions
 - **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development setup and workflow
 - **[TESTING.md](docs/TESTING.md)** - Testing strategy and guidelines
@@ -25,6 +27,7 @@ Chiasmus.cr gives LLMs access to formal verification via Z3 (SMT solver) and SWI
 - **[INDEX.md](docs/INDEX.md)** - Complete documentation index
 
 ### Reference
+
 - **[lib_issues/](lib_issues/)** - Shard patch tracking and upstream issues
 - **[spec/](spec/)** - Test suite and examples
 
@@ -47,28 +50,71 @@ git submodule update --init --recursive
 ### Usage
 
 **As an MCP server:**
+
 ```bash
-# Run as MCP server
+# Build the binary
+make build
+
+# Verify the server works
+./bin/chiasmus --healthcheck
+
+# Run as MCP server (stdio transport)
 ./bin/chiasmus
 ```
 
-**As a Crig agent (LLM integration):**
-```bash
-# Run as Crig agent with DeepSeek
-CRIG_PROVIDER=deepseek ./bin/chiasmus --rig
+**Adding to OpenCode:**
+
+Add to `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "mcp": {
+    "chiasmus": {
+      "type": "local",
+      "command": ["/path/to/chiasmus.cr/bin/chiasmus"],
+      "enabled": true
+    }
+  }
+}
 ```
 
-**Interactive REPL:**
-```bash
-# Start interactive agent REPL
-./bin/chiasmus --repl
+Then restart OpenCode. The server provides 12 tools for formal verification and code analysis. Run `./bin/chiasmus --healthcheck` first to verify the binary works.
+
+**Adding to Claude Code (Codex):**
+
+Add to `.claude.json` or `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "chiasmus": {
+      "command": "/path/to/chiasmus.cr/bin/chiasmus",
+      "args": []
+    }
+  }
+}
 ```
+
+**Provider configuration (optional):**
+
+Set these env vars for LLM-dependent tools (`chiasmus_solve`, `chiasmus_learn`, `chiasmus_search`):
+
+```bash
+export OPENAI_API_KEY="sk-..."     # for solve/learn
+# or
+export DEEPSEEK_API_KEY="sk-..."   # alternative provider
+# embedding-dependent:
+export OPENAI_API_KEY="sk-..."     # for chiasmus_search
+```
+
+Without API keys, the server gracefully degrades — `chiasmus_solve` falls back to `chiasmus_formalize`, and non-LLM tools (`chiasmus_verify`, `chiasmus_graph`, `chiasmus_map`, `chiasmus_lint`, `chiasmus_skills`, `chiasmus_craft`, `chiasmus_review`) work independently.
 
 ## 🏗️ Architecture & Technology Stack
 
 Chiasmus.cr is a behavior-faithful Crystal port with these key technology choices:
 
 ### Core Dependencies
+
 - **[Crig](https://github.com/dsisnero/crig)** - LLM driver with multi-provider support (DeepSeek, OpenAI, etc.)
 - **[Crolog](https://github.com/dsisnero/crolog)** - SWI-Prolog integration (patched for missing bindings)
 - **[Z3](https://github.com/taw/crystal-z3)** - Z3 SMT solver bindings
@@ -76,11 +122,13 @@ Chiasmus.cr is a behavior-faithful Crystal port with these key technology choice
 - **[MCP](https://github.com/spider-gazelle/mcp.cr)** - Model Context Protocol server implementation
 
 ### Concurrency Model
+
 - **Crystal fibers** for lightweight concurrency
 - **Non-blocking I/O** with `spawn` and `Channel` patterns
 - **Go/Crystal concurrency patterns** for MCP server responsiveness
 
 ### Key Design Decisions
+
 1. **Upstream behavior as source of truth** - Port behavior first, then express with Crystal idioms
 2. **Inventory-first porting** - All work tracked in `plans/inventory/` manifests
 3. **Test parity** - Upstream tests ported as Crystal specs early in process
@@ -89,6 +137,7 @@ Chiasmus.cr is a behavior-faithful Crystal port with these key technology choice
 ## 🔧 Development
 
 ### Quality Gates
+
 ```bash
 make format    # crystal tool format --check src spec
 make lint      # ameba src spec
@@ -97,12 +146,14 @@ make clean     # Clean build artifacts
 ```
 
 ### Porting Workflow
+
 1. Review upstream source in `vendor/chiasmus/`
 2. Check `plans/inventory/` for existing parity tracking
 3. Use `cross-language-crystal-parity` skill to bootstrap/validate parity plan
 4. Implement against inventory items using `porting-to-crystal` workflow
 
 ### Language Mapping (TypeScript → Crystal)
+
 | TypeScript | Crystal |
 |------------|---------|
 | `interface` | `abstract struct` or module with methods |
@@ -118,21 +169,25 @@ make clean     # Clean build artifacts
 ## ✨ Features
 
 ### Formal Verification
+
 - **Z3 SMT solver integration** - Mathematical proof of program properties
 - **SWI-Prolog integration** - Logic programming and rule-based reasoning
 - **Template-based problem formalization** - Natural language to formal logic translation
 
 ### Code Analysis
+
 - **Tree-sitter parsing** - Multi-language source code analysis (Crystal, Python, Go, Clojure, JavaScript/TypeScript)
 - **Call graph analysis** - Reachability, dead code detection, impact analysis
 - **Fact extraction** - AST traversal to build knowledge graphs
 
 ### LLM Integration
+
 - **MCP server** - Model Context Protocol for LLM tool access
 - **Crig agent** - Multi-provider LLM support (DeepSeek, OpenAI, etc.)
 - **Interactive REPL** - Agent-driven problem solving loop
 
 ### Example Use Cases
+
 - **"Can our RBAC rules ever conflict?"** → Z3 finds the exact role/action/resource triple where allow and deny both fire
 - **"Find compatible package versions"** → Z3 solves dependency constraints with incompatibility rules
 - **"Can user input reach the database?"** → Prolog traces all paths through the call graph
@@ -142,7 +197,7 @@ make clean     # Clean build artifacts
 
 ## 📁 Project Structure
 
-```
+```text
 chiasmus.cr/
 ├── src/chiasmus/           # Main source code
 │   ├── graph/             # Tree-sitter analysis (parsers, extractors, walkers)
@@ -182,6 +237,7 @@ We welcome contributions! Please follow the porting workflow in `AGENTS.md`.
 5. Open a Pull Request
 
 ### Porting Guidelines
+
 - **Upstream behavior is source of truth** - Port behavior first, then Crystal idioms
 - **Inventory-first** - Track all work in `plans/inventory/` manifests
 - **Test parity** - Port upstream tests as Crystal specs

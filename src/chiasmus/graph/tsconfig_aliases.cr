@@ -53,7 +53,9 @@ module Chiasmus
       private def strip_json_comments(src : String) : String
         src
           .gsub(/\/\*[\s\S]*?\*\//, "")
-          .gsub(/^\/\/.*$/, "")
+          .lines
+          .map(&.gsub(/\s*\/\/.*/, ""))
+          .join("\n")
       end
 
       # --- Load and merge (recursive extends, cycle-safe) ---

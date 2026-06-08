@@ -6,22 +6,18 @@ module Chiasmus
   module MCPServer
     module Tools
       class SkillsTool
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          name = arguments["name"]?.try(&.as_s?)
-          query = arguments["query"]?.try(&.as_s?)
-          domain = arguments["domain"]?.try(&.as_s?)
-          solver = arguments["solver"]?.try(&.as_s?)
-          limit = arguments["limit"]?.try(&.as_i?) || 10
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          args = Types::SkillsInput.from_json(arguments.to_json)
 
           server = MCPServer.current_server
-          return json_hash(Types::ErrorResponse.new("Server not available")) unless server
+          return Types::ErrorResponse.new("Server not available") unless server
 
           library = server.skill_library
 
-          if name
-            # Get template by exact name
+          if args.name
+            name = args.name.not_nil!
             template = library.get(name)
-            return json_hash(Types::ErrorResponse.new("Template '#{name}' not found")) unless template
+            return Types::ErrorResponse.new("Template '#{name}' not found") unless template
 
             suggestions = library.get_related(name).map do |related|
               JSON.parse({
@@ -30,28 +26,25 @@ module Chiasmus
               }.to_json)
             end
 
-            response = Types::SkillsResponse.new(
+            Types::SkillsResponse.new(
               templates: [Types.template_to_json(template.template)],
               suggestions: suggestions
             )
           else
-            # Search templates
             search_options = Skills::SearchOptions.new(
-              domain: domain,
-              solver: solver ? parse_solver_type(solver) : nil,
-              limit: limit
+              domain: args.domain,
+              solver: args.solver ? parse_solver_type(args.solver.not_nil!) : nil,
+              limit: args.limit
             )
 
-            results = library.search(query || "", search_options)
+            results = library.search(args.query || "", search_options)
 
-            response = Types::SkillsResponse.new(
+            Types::SkillsResponse.new(
               templates: results.map { |search_result| Types.skill_search_result_to_json(search_result).template }
             )
           end
-
-          json_hash(response)
         rescue ex
-          json_hash(Types::ErrorResponse.new(ex.message || ex.class.name))
+          Types::ErrorResponse.new(ex.message || ex.class.name)
         end
 
         def self.tool_name : String
@@ -106,10 +99,6 @@ module Chiasmus
           else
             nil
           end
-        end
-
-        private def json_hash(response : Types::Response) : Hash(String, JSON::Any)
-          JSON.parse(response.to_json).as_h
         end
       end
     end

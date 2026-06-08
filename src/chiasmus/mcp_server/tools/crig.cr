@@ -6,32 +6,25 @@ module Chiasmus
   module MCPServer
     module Tools
       class CrigTool
-        def invoke(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
-          prompt = arguments["prompt"]?.try(&.as_s?)
-          preamble = arguments["preamble"]?.try(&.as_s?) || LLM::DEFAULT_PREAMBLE
-          model = arguments["model"]?.try(&.as_s?) || Crig::Providers::OpenAI::GPT_4O_MINI
-          max_turns = arguments["max_turns"]?.try(&.as_i?) || 0
+        def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          args = Types::CrigInput.from_json(arguments.to_json)
+          prompt = args.prompt
+          preamble = args.preamble || LLM::DEFAULT_PREAMBLE
+          model = args.model || Crig::Providers::OpenAI::GPT_4O_MINI
+          max_turns = args.max_turns
 
-          return error_hash("Missing required parameter: prompt") unless prompt
-
-          # Create config for the requested model
           config = LLM::SimpleConfig.new(model: model, preamble: preamble)
-          return error_hash("API key not configured for selected provider") unless LLM.available?(config)
+          return Types::ErrorResponse.new("API key not configured for selected provider") unless LLM.available?(config)
 
-          # Use the client method to create agent with specific config
           client = LLM.client(config)
           agent = client.agent(model).preamble(preamble).build
           request = agent.prompt(prompt)
           request = request.max_turns(max_turns) if max_turns > 0
           output = request.send
 
-          {
-            "status" => JSON::Any.new("success"),
-            "output" => JSON::Any.new(output),
-            "model"  => JSON::Any.new(model),
-          }
+          Types::CrigResponse.new(output: output, model: model)
         rescue ex
-          error_hash(ex.message || ex.class.name)
+          Types::ErrorResponse.new(ex.message || ex.class.name)
         end
 
         def self.tool_name : String
@@ -64,24 +57,6 @@ module Chiasmus
             },
             required: ["prompt"]
           )
-        end
-
-        def self.call(request : MCP::Protocol::CallToolRequestParams) : MCP::Protocol::CallToolResult
-          result = new.invoke(request.arguments)
-          if result["status"].as_s == "success"
-            content = [MCP::Protocol::TextContentBlock.new(result["output"].as_s)] of MCP::Protocol::ContentBlock
-            MCP::Protocol::CallToolResult.new(content: content)
-          else
-            content = [MCP::Protocol::TextContentBlock.new(result["error"].as_s)] of MCP::Protocol::ContentBlock
-            MCP::Protocol::CallToolResult.new(content: content, is_error: true)
-          end
-        end
-
-        private def error_hash(message : String) : Hash(String, JSON::Any)
-          {
-            "status" => JSON::Any.new("error"),
-            "error"  => JSON::Any.new(message),
-          }
         end
       end
     end

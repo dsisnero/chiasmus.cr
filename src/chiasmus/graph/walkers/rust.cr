@@ -3,6 +3,7 @@ require "../types"
 module Chiasmus
   module Graph
     module Walkers
+      # ameba:disable Metrics/CyclomaticComplexity
       def walk_rust(
         node : TreeSitter::Node,
         source : String,
@@ -14,180 +15,105 @@ module Chiasmus
         exports : Array(ExportsFact),
         contains : Array(ContainsFact),
         call_set : Set(String),
+        impl_type : String? = nil,
       ) : Nil
-        return if handle_rust_scope(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-        handle_rust_call(node, source, scope_stack, calls, call_set)
-        return if handle_rust_use(node, source, file_path, imports)
+        child_count = node.named_child_count.to_i32
+        child_count.times do |i|
+          child = node.named_child(i)
+          next unless child
 
-        walk_rust_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-      end
-
-      private def handle_rust_scope(
-        node : TreeSitter::Node,
-        source : String,
-        file_path : String,
-        scope_stack : Array(String),
-        defines : Array(DefinesFact),
-        calls : Array(CallsFact),
-        imports : Array(ImportsFact),
-        exports : Array(ExportsFact),
-        contains : Array(ContainsFact),
-        call_set : Set(String),
-      ) : Bool
-        case node.type
-        when "function_item"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          kind = rust_in_impl?(node) ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
-          if kind == SymbolKind::Method
-            if impl_type = rust_enclosing_impl_type(node, source)
-              contains << ContainsFact.new(parent: impl_type, child: name)
+          case child.type
+          when "function_item", "function_signature_item"
+            name = child.child_by_field_name("name").try(&.text(source))
+            if name
+              kind = impl_type ? SymbolKind::Method : SymbolKind::Function
+              sig = extract_rust_signature(child, source)
+              defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: child.start_point.row.to_i + 1, signature: sig)
+              if impl_type
+                contains << ContainsFact.new(parent: impl_type, child: name)
+              end
+              if rust_pub?(child)
+                exports << ExportsFact.new(file: file_path, name: name)
+              end
+              with_scope(scope_stack, name) do
+                extract_rust_calls(child.child_by_field_name("body"), source, name, calls, call_set)
+              end
             end
+          when "struct_item", "enum_item", "union_item"
+            name = child.child_by_field_name("name").try(&.text(source))
+            if name
+              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: child.start_point.row.to_i + 1)
+              if rust_pub?(child)
+                exports << ExportsFact.new(file: file_path, name: name)
+              end
+            end
+          when "trait_item"
+            name = child.child_by_field_name("name").try(&.text(source))
+            if name
+              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: child.start_point.row.to_i + 1)
+              if rust_pub?(child)
+                exports << ExportsFact.new(file: file_path, name: name)
+              end
+              body = child.child_by_field_name("body")
+              if body
+                walk_rust(body, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set, impl_type: name)
+              end
+            end
+          when "impl_item"
+            type_name = child.child_by_field_name("type").try(&.text(source))
+            body = child.child_by_field_name("body")
+            if body
+              walk_rust(body, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set, impl_type: type_name)
+            end
+          when "mod_item"
+            body = child.child_by_field_name("body")
+            if body
+              walk_rust(body, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
+            end
+          when "use_declaration"
+            extract_rust_use(child, source, file_path, imports)
           end
-          with_scope(scope_stack, name) do
-            walk_rust_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
-        when "struct_item"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_rust_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
-        when "enum_item"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_rust_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
-        when "trait_item"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_rust_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
-        when "impl_item"
-          type_node = node.child_by_field_name("type")
-          type_name = type_node.try(&.text(source))
-          return false unless type_name
-
-          defines << DefinesFact.new(file: file_path, name: type_name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, type_name) do
-            walk_rust_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
-        when "mod_item"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_rust_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
-        else
-          false
         end
       end
 
-      private def rust_in_impl?(node : TreeSitter::Node) : Bool
-        current = node.parent
-        while current
-          return true if current.type == "impl_item"
-          current = current.parent
+      private def rust_pub?(node : TreeSitter::Node) : Bool
+        count = node.named_child_count.to_i32
+        count.times do |i|
+          c = node.named_child(i)
+          return true if c && c.type == "visibility_modifier"
         end
         false
       end
 
-      private def rust_enclosing_impl_type(node : TreeSitter::Node, source : String) : String?
-        current = node.parent
-        while current
-          if current.type == "impl_item"
-            type_node = current.child_by_field_name("type")
-            return type_node.try(&.text(source))
-          end
-          current = current.parent
-        end
-        nil
+      private def extract_rust_signature(node : TreeSitter::Node, source : String) : String?
+        params = node.child_by_field_name("parameters")
+        return nil unless params
+
+        sig = params.text(source)
+        ret = node.child_by_field_name("return_type")
+        sig += " -> #{ret.text(source)}" if ret
+        collapse_signature(sig)
       end
 
-      private def handle_rust_call(
-        node : TreeSitter::Node,
+      private def collapse_signature(s : String) : String
+        s.gsub(/\s+/, " ").strip
+      end
+
+      private def extract_rust_calls(
+        node : TreeSitter::Node?,
         source : String,
-        scope_stack : Array(String),
+        caller : String,
         calls : Array(CallsFact),
         call_set : Set(String),
       ) : Nil
-        return unless node.type == "call_expression"
+        return unless node
 
-        callee = resolve_rust_callee(node, source)
-        record_call(scope_stack.last?, callee, calls, call_set)
-      end
-
-      private def handle_rust_use(
-        node : TreeSitter::Node,
-        source : String,
-        file_path : String,
-        imports : Array(ImportsFact),
-      ) : Bool
-        return false unless node.type == "use_declaration"
-
-        extract_rust_use_paths(node, source, file_path, imports)
-        true
-      end
-
-      private def extract_rust_use_paths(
-        node : TreeSitter::Node,
-        source : String,
-        file_path : String,
-        imports : Array(ImportsFact),
-      ) : Nil
         node.children.each do |child|
-          case child.type
-          when "scoped_identifier"
-            name = child.child_by_field_name("name").try(&.text(source)) || child.text(source)
-            full_path = child.text(source)
-            imports << ImportsFact.new(file: file_path, name: name, source: full_path)
-          when "identifier"
-            imports << ImportsFact.new(file: file_path, name: child.text(source), source: child.text(source))
-          when "use_as_clause"
-            name_node = child.child_by_field_name("name").try(&.text(source))
-            alias_node = child.child_by_field_name("alias")
-            if alias_node
-              alias_name = alias_node.children.find(&.type.==("identifier")).try(&.text(source))
-              if alias_name && name_node
-                imports << ImportsFact.new(file: file_path, name: alias_name, source: name_node)
-              end
-            end
+          if child.type == "call_expression"
+            callee = resolve_rust_callee(child, source)
+            record_call(caller, callee, calls, call_set)
           end
-        end
-      end
-
-      private def walk_rust_children(
-        node : TreeSitter::Node,
-        source : String,
-        file_path : String,
-        scope_stack : Array(String),
-        defines : Array(DefinesFact),
-        calls : Array(CallsFact),
-        imports : Array(ImportsFact),
-        exports : Array(ExportsFact),
-        contains : Array(ContainsFact),
-        call_set : Set(String),
-      ) : Nil
-        node.children.each do |child|
-          walk_rust(child, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
+          extract_rust_calls(child, source, caller, calls, call_set)
         end
       end
 
@@ -199,15 +125,8 @@ module Chiasmus
         when "identifier"
           fn_node.text(source)
         when "field_expression"
-          value = fn_node.child_by_field_name("value")
           field = fn_node.child_by_field_name("field")
-          if field
-            field.text(source)
-          elsif value
-            value.text(source)
-          else
-            nil
-          end
+          field.try(&.text(source))
         when "scoped_identifier"
           name = fn_node.child_by_field_name("name")
           name.try(&.text(source))
@@ -216,6 +135,67 @@ module Chiasmus
           name.try(&.text(source))
         else
           nil
+        end
+      end
+
+      private def extract_rust_use(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        imports : Array(ImportsFact),
+      ) : Nil
+        count = node.named_child_count.to_i32
+        count.times do |i|
+          child = node.named_child(i)
+          next unless child
+          collect_rust_use(child, "", source, file_path, imports)
+        end
+      end
+
+      # ameba:disable Metrics/CyclomaticComplexity
+      private def collect_rust_use(
+        node : TreeSitter::Node?,
+        prefix : String,
+        source : String,
+        file_path : String,
+        imports : Array(ImportsFact),
+      ) : Nil
+        return unless node
+
+        case node.type
+        when "identifier", "type_identifier"
+          imp_source = prefix.empty? ? node.text(source) : prefix
+          imports << ImportsFact.new(file: file_path, name: node.text(source), source: imp_source)
+        when "scoped_identifier"
+          path = node.child_by_field_name("path").try(&.text(source)) || prefix
+          name = node.child_by_field_name("name").try(&.text(source))
+          if name
+            imports << ImportsFact.new(file: file_path, name: name, source: path.empty? ? name : path)
+          end
+        when "scoped_use_list"
+          path = node.child_by_field_name("path").try(&.text(source)) || prefix
+          count = node.named_child_count.to_i32
+          count.times do |i|
+            child = node.named_child(i)
+            next unless child
+            if child.type == "use_list"
+              list_count = child.named_child_count.to_i32
+              list_count.times do |j|
+                item = child.named_child(j)
+                next unless item
+                collect_rust_use(item, path, source, file_path, imports)
+              end
+            end
+          end
+        when "use_as_clause"
+          alias_node = node.child_by_field_name("alias")
+          path_node = node.child_by_field_name("path")
+          if alias_node && (alias_name = alias_node.text(source))
+            imp_source = prefix.empty? ? (path_node.try(&.text(source)) || alias_name) : prefix
+            imports << ImportsFact.new(file: file_path, name: alias_name, source: imp_source)
+          end
+        when "use_wildcard"
+          # use x::* binds no nameable symbol — skip
         end
       end
     end
