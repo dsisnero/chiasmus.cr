@@ -24,6 +24,7 @@ Chiasmus.cr gives LLMs access to formal verification via Z3 (SMT solver) and SWI
 - **[TESTING.md](docs/TESTING.md)** - Testing strategy and guidelines
 - **[CODING-GUIDELINES.md](docs/CODING-GUIDELINES.md)** - Code style and conventions
 - **[PR-WORKFLOW.md](docs/PR-WORKFLOW.md)** - Pull request workflow
+- **[adding_additional_language.md](docs/adding_additional_language.md)** - Guide: adding new language support
 - **[INDEX.md](docs/INDEX.md)** - Complete documentation index
 
 ### Reference
