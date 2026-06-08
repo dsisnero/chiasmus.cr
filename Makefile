@@ -18,15 +18,15 @@ test:
 
 build:
 	mkdir -p bin
-	crystal build --release -D chiasmus_cli -o bin/chiasmus src/chiasmus.cr
+	crystal build --release -o bin/chiasmus src/chiasmus.cr
 
 release:
 	mkdir -p bin
-	@if crystal build --release --static -D chiasmus_cli -o bin/chiasmus-static src/chiasmus.cr 2>/dev/null; then \
+	@if crystal build --release --static -o bin/chiasmus-static src/chiasmus.cr 2>/dev/null; then \
 		echo "Built static binary"; \
 	else \
 		echo "Static linking failed, building dynamic binary"; \
-		crystal build --release -D chiasmus_cli -o bin/chiasmus-static src/chiasmus.cr; \
+		crystal build --release -o bin/chiasmus-static src/chiasmus.cr; \
 	fi
 
 # Create distribution package with grammars
