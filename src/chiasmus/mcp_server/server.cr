@@ -93,7 +93,9 @@ module Chiasmus
         Log.setup(:warn, Log::IOBackend.new(STDERR))
 
         STDERR.puts "Starting chiasmus MCP server v#{Chiasmus::VERSION}"
-        STDERR.puts "Formal verification server with Z3, Prolog, and tree-sitter analysis"
+        STDERR.puts "  Formal verification with Z3, Prolog, and tree-sitter analysis"
+        STDERR.puts "  Run 'chiasmus --help' for usage options"
+        STDERR.puts "  Waiting for MCP client connection on stdio..."
 
         mcp = build_mcp_transport
         wg = WaitGroup.new(1)
