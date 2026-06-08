@@ -141,12 +141,12 @@ module Chiasmus
     module Analyses
       extend self
 
-      def run_analysis(file_paths : Array(String), request : AnalysisRequest) : AnalysisResult
-        files = file_paths.map do |path|
-          SourceFile.new(path: path, content: File.read(path))
+      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil) : AnalysisResult
+        files = file_paths.map do |file_path|
+          SourceFile.new(path: file_path, content: File.read(file_path))
         end
 
-        run_analysis_from_graph(Extractor.extract_graph(files), request)
+        run_analysis_from_graph(Extractor.extract_graph(files, cache_dir: cache_dir), request)
       end
 
       def run_analysis_from_graph(graph : CodeGraph, request : AnalysisRequest) : AnalysisResult

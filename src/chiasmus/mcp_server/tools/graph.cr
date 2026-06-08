@@ -29,7 +29,7 @@ module Chiasmus
             entry_points: args.entry_points
           )
 
-          result = Graph::Analyses.run_analysis(absolute_files, request)
+          result = Graph::Analyses.run_analysis(absolute_files, request, cache_dir: args.cache)
 
           result_value = if args.analysis == "facts"
                            result.result.as(String)

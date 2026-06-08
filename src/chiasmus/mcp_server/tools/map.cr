@@ -15,7 +15,7 @@ module Chiasmus
           return Types::ErrorResponse.new("'files' (non-empty string[]) is required") if args.files.empty?
 
           source_files = args.files.map { |p| Graph::SourceFile.new(path: p, content: File.read(p)) }
-          graph = Graph::Extractor.extract_graph(source_files)
+          graph = Graph::Extractor.extract_graph(source_files, cache_dir: args.cache)
 
           map = case args.mode
                 when "file"

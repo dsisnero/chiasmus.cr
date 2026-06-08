@@ -427,6 +427,7 @@ module Chiasmus
         getter from : String?
         getter to : String?
         getter entry_points : Array(String)?
+        getter cache : String?
       end
 
       struct MapInput
@@ -437,6 +438,7 @@ module Chiasmus
         getter path : String?
         getter name : String?
         getter format : String = "markdown"
+        getter cache : String?
       end
 
       struct SearchInput

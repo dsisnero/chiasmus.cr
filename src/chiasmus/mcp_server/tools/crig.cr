@@ -61,7 +61,7 @@ module Chiasmus
             if params_props = params["properties"]?
               params_props.as_h.each { |k, v| props[k] = v }
             end
-            params["required"]?.try(&.as_a).try(&.each { |r| required << r.as_s })
+            params["required"]?.try(&.as_a).try(&.each { |req| required << req.as_s })
           end
           MCP::Protocol::Tool::Input.new(properties: props, required: required)
         end

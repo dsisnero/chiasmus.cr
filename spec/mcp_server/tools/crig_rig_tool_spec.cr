@@ -16,7 +16,7 @@ describe Chiasmus::MCPServer::Tools::CrigTool do
     schema.properties.has_key?("preamble").should be_true
     schema.properties.has_key?("model").should be_true
     schema.properties.has_key?("max_turns").should be_true
-    schema.required.not_nil!.includes?("prompt").should be_true
+    (schema.required || raise "required nil").includes?("prompt").should be_true
   end
 
   it "returns Response type (not raw Hash)" do
