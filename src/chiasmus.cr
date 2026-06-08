@@ -142,36 +142,38 @@ end
 # Load all submodules
 require "./chiasmus/**"
 
-# CLI entry point
-require "clip"
+# CLI entry point — compiled only for the chiasmus binary target
+{% if flag?(:chiasmus_cli) %}
+  require "clip"
 
-@[Clip::Doc("Chiasmus MCP server — formal verification with Z3, Prolog, and tree-sitter analysis.")]
-struct ChiasmusCLI
-  include Clip::Mapper
+  @[Clip::Doc("Chiasmus MCP server — formal verification with Z3, Prolog, and tree-sitter analysis.")]
+  struct ChiasmusCLI
+    include Clip::Mapper
 
-  @[Clip::Option("--version")]
-  getter? version : Bool = false
+    @[Clip::Option("--version")]
+    getter? version : Bool = false
 
-  @[Clip::Option("--healthcheck")]
-  getter? healthcheck : Bool = false
-end
-
-begin
-  cli = ChiasmusCLI.parse(ARGV)
-rescue ex : Clip::ParsingError
-  puts ex
-  exit 1
-end
-
-case cli
-when Clip::Mapper::Help
-  puts cli.help
-when ChiasmusCLI
-  if cli.version?
-    puts "chiasmus v#{Chiasmus::VERSION}"
-  elsif cli.healthcheck?
-    Chiasmus.healthcheck
-  else
-    Chiasmus.run
+    @[Clip::Option("--healthcheck")]
+    getter? healthcheck : Bool = false
   end
-end
+
+  begin
+    cli = ChiasmusCLI.parse(ARGV)
+  rescue ex : Clip::ParsingError
+    puts ex
+    exit 1
+  end
+
+  case cli
+  when Clip::Mapper::Help
+    puts cli.help
+  when ChiasmusCLI
+    if cli.version?
+      puts "chiasmus v#{Chiasmus::VERSION}"
+    elsif cli.healthcheck?
+      Chiasmus.healthcheck
+    else
+      Chiasmus.run
+    end
+  end
+{% end %}
