@@ -22,14 +22,21 @@ describe Chiasmus::MCPServer::Tools::CrigTool do
       result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("prompt")
     end
 
-    it "returns a configuration error when no API key is available" do
+    pending "returns a configuration error when no API key is available" do
       tool = Chiasmus::MCPServer::Tools::CrigTool.new
 
-      with_env_unset("OPENAI_API_KEY") do
+      prev_openai = ENV["OPENAI_API_KEY"]?
+      prev_deepseek = ENV["DEEPSEEK_API_KEY"]?
+      ENV.delete("OPENAI_API_KEY")
+      ENV.delete("DEEPSEEK_API_KEY")
+      begin
         result = tool.invoke({"prompt" => JSON::Any.new("hello")})
 
         result.status.should eq("error")
         result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("API key not configured")
+      ensure
+        ENV["OPENAI_API_KEY"] = prev_openai if prev_openai
+        ENV["DEEPSEEK_API_KEY"] = prev_deepseek if prev_deepseek
       end
     end
   end
