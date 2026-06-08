@@ -233,6 +233,8 @@ module Chiasmus
           Walkers.walk_rust(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
         when "java"
           Walkers.walk_java(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "csharp"
+          Walkers.walk_csharp(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
         else
           Walkers.walk_node(tree.root_node, file.content, file.path, lang, scope_stack, defines, calls, imports, exports, contains, call_set)
         end

@@ -61,6 +61,32 @@ All prior porting work is complete. See implementation history below for details
 | **P10** | **Vendor Refresh & Rust Graph Parity (07bbf4a)** | **Implemented** |
 | **P11** | **Search Engine Lazy Dimension Discovery** | **Implemented** |
 | **P12** | **MCP Tool Gating + Inventory Housekeeping** | **Implemented** |
+| **P13** | **C# Graph Walker** | **In Progress** |
+
+### P13: C# Graph Walker — Crystal-Native Feature
+
+**Goal:** add C# tree-sitter graph extraction (class, interface, struct, enum, method, constructor, namespace, calls, imports) to the graph walker pipeline.
+
+**Status:** upstream `vendor/chiasmus` does not have a C# graph walker. This is a Crystal-native addition following the same patterns as the existing 8 walkers (go, rust, java, crystal, python, javascript, clojure, shared).
+
+**Scope:**
+- `src/chiasmus/graph/walkers/csharp.cr` — new walker
+- `src/chiasmus/graph/extractor.cr` — wire `walk_csharp` into `extract_with_walkers`
+- `src/chiasmus/graph/parser.cr` — ensure `.cs` extension maps to csharp
+- Specs: RED-GREEN TDD covering class/interface/struct/enum definitions, method calls, namespace imports
+
+**Tree-sitter C# node types handled:**
+| Node | SymbolKind |
+|---|---|
+| `class_declaration` | Class |
+| `interface_declaration` | Interface |
+| `struct_declaration` | Class |
+| `enum_declaration` | Type |
+| `method_declaration` | Method |
+| `constructor_declaration` | Method |
+| `namespace_declaration` | scope container |
+| `invocation_expression` | call edge |
+| `using_directive` | import |
 
 ### P8: VectorStore — In-Process Linear-Scan Cosine Search (Completed)
 

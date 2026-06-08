@@ -40,7 +40,7 @@ module Chiasmus
           TreeSitter::Repository.language_names
         end
 
-        def load_language_from_grammar_path(language : String, grammar_path : String) : TreeSitter::Language?
+        def load_language_from_grammar_path(language : String, grammar_path : String?) : TreeSitter::Language?
           LanguageLoader.load_language_from_grammar_path(language, grammar_path)
         end
       end
@@ -96,11 +96,15 @@ module Chiasmus
         end
 
         private def try_load_language(language : String) : TreeSitter::Language?
+          # Try grammar manager path first
           if path = @grammar_gateway.get_grammar_path(language)
-            return @language_gateway.load_language_from_grammar_path(language, path)
+            if lang = @language_gateway.load_language_from_grammar_path(language, path)
+              return lang
+            end
           end
 
-          nil
+          # Fallback: try vendor directory directly (for languages like csharp)
+          @language_gateway.load_language_from_grammar_path(language, nil)
         rescue
           nil
         end
