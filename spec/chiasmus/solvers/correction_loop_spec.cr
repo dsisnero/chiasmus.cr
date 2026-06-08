@@ -18,7 +18,7 @@ describe Chiasmus::Solvers do
       end
 
       it "passes through a correct spec without correction" do
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           raise "Fixer should not be called for correct input"
         }
 
@@ -34,7 +34,7 @@ describe Chiasmus::Solvers do
       end
 
       it "fixes a minor syntax error within 2 rounds" do
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           S::Z3SolverInput.new("(declare-const x Int) (assert (> x 5))")
         }
 
@@ -50,7 +50,7 @@ describe Chiasmus::Solvers do
 
       it "handles multi-round fixes for semantic errors" do
         fix_attempt = 0
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           fix_attempt += 1
           if fix_attempt == 1
             S::Z3SolverInput.new("(declare-const x Int) (assert (> x \"ten\"))")
@@ -69,13 +69,16 @@ describe Chiasmus::Solvers do
         result.converged.should be_true
         result.rounds.should eq(3)
         result.history.size.should eq(3)
-        result.history[0].result.not_nil!.status.should eq("error")
-        result.history[1].result.not_nil!.status.should eq("error")
-        result.history[2].result.not_nil!.status.should eq("sat")
+        h0r = result.history[0].result || raise("nil h0r")
+        h0r.status.should eq("error")
+        h1r = result.history[1].result || raise("nil h1r")
+        h1r.status.should eq("error")
+        h2r = result.history[2].result || raise("nil h2r")
+        h2r.status.should eq("sat")
       end
 
       it "hits max rounds on unfixable spec and returns diagnostics" do
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           S::Z3SolverInput.new("(declare-const x Int) (assert (> x \"always_broken\"))")
         }
 
@@ -89,11 +92,15 @@ describe Chiasmus::Solvers do
         result.rounds.should eq(3)
         result.result.status.should eq("error")
         result.history.size.should eq(3)
-        result.history.each { |h| h.result.not_nil!.status.should eq("error") }
+        result.history.each do |entry|
+          entry_result = entry.result || raise("nil entry_result")
+          entry_result.should_not be_nil
+          entry_result.status.should eq("error")
+        end
       end
 
       it "correctly distinguishes solver errors from valid UNSAT" do
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           S::Z3SolverInput.new("(declare-const x Int) (assert (> x 10)) (assert (< x 5))")
         }
 
@@ -109,7 +116,7 @@ describe Chiasmus::Solvers do
 
       it "stops early when fixer gives up (returns null)" do
         fixer_calls = 0
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           fixer_calls += 1
           nil
         }
@@ -129,7 +136,7 @@ describe Chiasmus::Solvers do
     describe "enhanced feedback" do
       it "passes full SolverResult to fixer via result parameter" do
         captured_result = nil
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           captured_result = result
           nil
         }
@@ -140,15 +147,17 @@ describe Chiasmus::Solvers do
         )
 
         captured_result.should_not be_nil
-        captured_result.try { |r| r.status.should eq("error") }
-        captured_result.try { |r| r.is_a?(S::ErrorResult).should be_true }
-        captured_result.try { |r| r.as(S::ErrorResult).error.should_not be_empty }
+        if cres = captured_result
+          cres.status.should eq("error")
+          cres.is_a?(S::ErrorResult).should be_true
+          cres.as(S::ErrorResult).error.should_not be_empty
+        end
       end
     end
 
     describe "Prolog" do
       it "passes through a correct Prolog program without correction" do
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           raise "Should not be called"
         }
 
@@ -163,7 +172,7 @@ describe Chiasmus::Solvers do
       end
 
       it "fixes a malformed Prolog program" do
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, round : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           S::PrologSolverInput.new("parent(tom, bob).", "parent(tom, X).")
         }
 
@@ -179,7 +188,7 @@ describe Chiasmus::Solvers do
 
       it "provides error history for debugging" do
         round = 0
-        fixer = ->(attempt : S::CorrectionAttempt, error : String, r : Int32, result : S::SolverResult?, input : S::SolverInput?) : S::SolverInput? {
+        fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           round += 1
           if round < 3
             S::PrologSolverInput.new("parent(tom bob).", "parent(tom, X).")
@@ -195,10 +204,14 @@ describe Chiasmus::Solvers do
 
         result.converged.should be_true
         result.rounds.should eq(4)
-        result.history[0].result.not_nil!.status.should eq("error")
-        result.history[1].result.not_nil!.status.should eq("error")
-        result.history[2].result.not_nil!.status.should eq("error")
-        result.history[3].result.not_nil!.status.should eq("success")
+        h0 = result.history[0].result || raise("nil h0")
+        h0.status.should eq("error")
+        h1 = result.history[1].result || raise("nil h1")
+        h1.status.should eq("error")
+        h2 = result.history[2].result || raise("nil h2")
+        h2.status.should eq("error")
+        h3 = result.history[3].result || raise("nil h3")
+        h3.status.should eq("success")
       end
     end
   end

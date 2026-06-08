@@ -15,7 +15,7 @@ describe "Benchmark: Problem 1 - RBAC Policy Conflict Detection" do
 
     it "returns the specific conflicting triple" do
       result = Benchmark::Traditional.solve_rbac(Benchmark::Problems::RBACRules)
-      match = result.conflicts.find { |c| c[:role] == "auditor" && c[:action] == "read" && c[:resource] == "billing" }
+      match = result.conflicts.find { |conflict| conflict[:role] == "auditor" && conflict[:action] == "read" && conflict[:resource] == "billing" }
       match.should_not be_nil
     end
 
@@ -47,7 +47,7 @@ describe "Benchmark: Problem 1 - RBAC Policy Conflict Detection" do
         rules:     Benchmark::Problems::RBACRules,
       }
       result = Benchmark::Chiasmus.solve_rbac(input)
-      match = result.conflicts.find { |c| c[:role] == "auditor" && c[:action] == "read" && c[:resource] == "billing" }
+      match = result.conflicts.find { |conflict| conflict[:role] == "auditor" && conflict[:action] == "read" && conflict[:resource] == "billing" }
       match.should_not be_nil
     end
 

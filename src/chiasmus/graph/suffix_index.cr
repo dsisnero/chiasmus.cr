@@ -66,6 +66,26 @@ module Chiasmus
         new(exact, lower, known)
       end
 
+      private def try_resolve_candidate(parts : Array(String)) : String?
+        (0...parts.size).each do |i|
+          suffix = parts[i..].join('/')
+          next if suffix.empty?
+
+          CANDIDATE_EXTS.each do |ext|
+            hit = get(suffix + ext) || get_insensitive(suffix + ext)
+            return hit if hit
+
+            idx_hit = get(suffix + "/index" + ext) || get_insensitive(suffix + "/index" + ext)
+            return idx_hit if idx_hit
+          end
+
+          direct = get(suffix) || get_insensitive(suffix)
+          return direct if direct
+        end
+
+        nil
+      end
+
       def resolve_import(import_path : String, primary_guess : String?) : String?
         return nil if size == 0
 
@@ -84,21 +104,8 @@ module Chiasmus
         candidates << import_parts unless import_parts.empty?
 
         candidates.each do |parts|
-          (0...parts.size).each do |i|
-            suffix = parts[i..].join('/')
-            next if suffix.empty?
-
-            CANDIDATE_EXTS.each do |ext|
-              hit = get(suffix + ext) || get_insensitive(suffix + ext)
-              return hit if hit
-
-              idx_hit = get(suffix + "/index" + ext) || get_insensitive(suffix + "/index" + ext)
-              return idx_hit if idx_hit
-            end
-
-            direct = get(suffix) || get_insensitive(suffix)
-            return direct if direct
-          end
+          hit = try_resolve_candidate(parts)
+          return hit if hit
         end
 
         nil

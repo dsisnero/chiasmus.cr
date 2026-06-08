@@ -7,13 +7,13 @@ include Chiasmus::Graph
 
 private def build_graph(calls : Array(Tuple(String, String)), defines : Array(String) = [] of String) : CodeGraph
   all_names = Set(String).new
-  defines.each { |n| all_names << n }
+  defines.each { |name| all_names << name }
   calls.each do |(a, b)|
     all_names << a
     all_names << b
   end
   CodeGraph.new(
-    defines: all_names.map { |n| DefinesFact.new(file: "t.ts", name: n, kind: SymbolKind::Function, line: 1) },
+    defines: all_names.map { |name| DefinesFact.new(file: "t.ts", name: name, kind: SymbolKind::Function, line: 1) },
     calls: calls.map { |(caller, callee)| CallsFact.new(caller: caller, callee: callee) },
   )
 end
@@ -29,7 +29,7 @@ describe CommunityDetection do
       graph = build_graph([] of Tuple(String, String), ["a", "b", "c"])
       communities = CommunityDetection.detect(graph)
       communities.size.should eq 3
-      communities.each { |c| c.members.size.should eq 1 }
+      communities.each(&.members.size.should(eq(1)))
     end
 
     it "separates two cliques connected by a single bridge" do
@@ -42,7 +42,7 @@ describe CommunityDetection do
       communities.size.should be >= 2
 
       community_of = Hash(String, Int32).new
-      communities.each { |c| c.members.each { |m| community_of[m] = c.id } }
+      communities.each { |community| community.members.each { |member| community_of[member] = community.id } }
 
       community_of["a"].should eq community_of["b"]
       community_of["a"].should eq community_of["c"]
@@ -71,13 +71,13 @@ describe CommunityDetection do
       if communities.size > 1
         communities[0].members.size.should be >= communities[1].members.size
       end
-      communities.each_with_index { |c, i| c.id.should eq i }
+      communities.each_with_index { |community, idx| community.id.should eq idx }
     end
 
     it "members within each community are lexically sorted" do
       communities = CommunityDetection.detect(build_graph([] of Tuple(String, String), ["charlie", "alice", "bob"]))
-      communities.each do |c|
-        c.members.should eq c.members.sort
+      communities.each do |community|
+        community.members.should eq community.members.sort
       end
     end
 
@@ -87,9 +87,9 @@ describe CommunityDetection do
         {"d", "e"}, {"e", "f"}, {"d", "f"},
       ]
       communities = CommunityDetection.detect(build_graph(edges))
-      communities.each do |c|
-        c.cohesion.should be >= 0.0
-        c.cohesion.should be <= 1.0
+      communities.each do |community|
+        community.cohesion.should be >= 0.0
+        community.cohesion.should be <= 1.0
       end
     end
   end
@@ -119,11 +119,11 @@ describe CommunityDetection do
     edges = [] of Tuple(String, String)
     a = (0...10).map { |i| "a#{i}" }
     b = (0...10).map { |i| "b#{i}" }
-    a.each_with_index do |ai, i|
-      ((i + 1)...a.size).each { |j| edges << {ai, a[j]} }
+    a.each_with_index do |a_item, idx|
+      ((idx + 1)...a.size).each { |j| edges << {a_item, a[j]} }
     end
-    b.each_with_index do |bi, i|
-      ((i + 1)...b.size).each { |j| edges << {bi, b[j]} }
+    b.each_with_index do |b_item, idx|
+      ((idx + 1)...b.size).each { |j| edges << {b_item, b[j]} }
     end
     edges << {"a0", "b0"}
 

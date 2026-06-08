@@ -10,11 +10,11 @@ private def build_graph(
   export_names : Array(String) = [] of String,
 ) : CodeGraph
   CodeGraph.new(
-    defines: defines.map { |d|
+    defines: defines.map { |defn|
       DefinesFact.new(
-        file: d[:file]? || "t.ts",
-        name: d[:name],
-        kind: case d[:kind]?
+        file: defn[:file]? || "t.ts",
+        name: defn[:name],
+        kind: case defn[:kind]?
         when "method" then SymbolKind::Method
         when "class"  then SymbolKind::Class
         else               SymbolKind::Function

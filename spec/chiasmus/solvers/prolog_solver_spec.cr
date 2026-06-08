@@ -35,7 +35,7 @@ describe Chiasmus::Solvers::PrologSolver do
     PROLOG
 
     result.should be_a(Chiasmus::Solvers::SuccessResult)
-    names = result.as(Chiasmus::Solvers::SuccessResult).answers.map { |answer| answer.bindings["Who"]? }.compact
+    names = result.as(Chiasmus::Solvers::SuccessResult).answers.compact_map { |answer| answer.bindings["Who"]? }
     names.should contain("bob")
     names.should contain("ann")
   end
@@ -97,7 +97,9 @@ describe Chiasmus::Solvers::PrologSolver do
     result.should be_a(Chiasmus::Solvers::SuccessResult)
     trace = result.as(Chiasmus::Solvers::SuccessResult).trace
     trace.should_not be_nil
-    trace.not_nil!.join(" ").should contain("ancestor")
+    if t = trace
+      t.join(" ").should contain("ancestor")
+    end
   end
 
   it "handles ground queries (no variables)" do
@@ -135,7 +137,9 @@ describe Chiasmus::Solvers::PrologSolver do
     result.should be_a(Chiasmus::Solvers::SuccessResult)
     trace = result.as(Chiasmus::Solvers::SuccessResult).trace
     trace.should_not be_nil
-    trace.not_nil!.size.should be > 0
+    if t = trace
+      t.size.should be > 0
+    end
   end
 
   it "returns trace with multiple rule applications" do
@@ -152,7 +156,9 @@ describe Chiasmus::Solvers::PrologSolver do
     result.should be_a(Chiasmus::Solvers::SuccessResult)
     trace = result.as(Chiasmus::Solvers::SuccessResult).trace
     trace.should_not be_nil
-    trace.not_nil!.join(" ").should contain("path")
+    if t = trace
+      t.join(" ").should contain("path")
+    end
   end
 
   it "handles list operations" do
@@ -165,7 +171,7 @@ describe Chiasmus::Solvers::PrologSolver do
     PROLOG
 
     result.should be_a(Chiasmus::Solvers::SuccessResult)
-    values = result.as(Chiasmus::Solvers::SuccessResult).answers.map { |a| a.bindings["X"]? }.compact
+    values = result.as(Chiasmus::Solvers::SuccessResult).answers.compact_map { |a| a.bindings["X"]? }
     values.should contain("a")
     values.should contain("b")
     values.should contain("c")

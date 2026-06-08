@@ -17,8 +17,8 @@ describe Chiasmus::Graph::Extractor do
       names = graph.defines.map(&.name)
       names.should contain("handleRequest")
       names.should contain("validate")
-      graph.defines.all? { |d| d.kind == Chiasmus::Graph::SymbolKind::Function }.should be_true
-      graph.defines.all? { |d| d.file == "test.ts" }.should be_true
+      graph.defines.all? { |defn| defn.kind == Chiasmus::Graph::SymbolKind::Function }.should be_true
+      graph.defines.all? { |defn| defn.file == "test.ts" }.should be_true
     end
 
     it "extracts arrow functions assigned to const" do
@@ -43,7 +43,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+      call_pairs = graph.calls.map { |call_fact| "#{call_fact.caller}->#{call_fact.callee}" }
       call_pairs.should contain("a->b")
       call_pairs.should contain("a->c")
       call_pairs.should contain("b->c")
@@ -59,7 +59,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      callees = graph.calls.select { |c| c.caller == "foo" }.map(&.callee)
+      callees = graph.calls.select { |call_fact| call_fact.caller == "foo" }.map(&.callee)
       callees.should contain("bar")
       callees.should contain("baz")
     end
@@ -75,16 +75,17 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      class_define = graph.defines.find { |d| d.name == "MyService" }
+      class_define = graph.defines.find { |defn| defn.name == "MyService" }
       class_define.should_not be_nil
-      class_define.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
+      cd = class_define || raise "Expected class_define to be non-nil"
+      cd.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
 
-      methods = graph.defines.select { |d| d.kind == Chiasmus::Graph::SymbolKind::Method }
+      methods = graph.defines.select { |defn| defn.kind == Chiasmus::Graph::SymbolKind::Method }
       method_names = methods.map(&.name)
       method_names.should contain("handleRequest")
       method_names.should contain("validate")
 
-      contains_pairs = graph.contains.map { |c| "#{c.parent}->#{c.child}" }
+      contains_pairs = graph.contains.map { |contain_fact| "#{contain_fact.parent}->#{contain_fact.child}" }
       contains_pairs.should contain("MyService->handleRequest")
       contains_pairs.should contain("MyService->validate")
     end
@@ -129,7 +130,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+      call_pairs = graph.calls.map { |call_fact| "#{call_fact.caller}->#{call_fact.callee}" }
       call_pairs.should contain("handleRequest->query")
       call_pairs.should contain("query->connect")
 
@@ -149,7 +150,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      a_to_b_calls = graph.calls.select { |c| c.caller == "a" && c.callee == "b" }
+      a_to_b_calls = graph.calls.select { |call_fact| call_fact.caller == "a" && call_fact.callee == "b" }
       a_to_b_calls.size.should eq(1)
     end
 
@@ -182,7 +183,7 @@ describe Chiasmus::Graph::Extractor do
       names = graph.defines.map(&.name)
       names.should contain("handle_request")
       names.should contain("validate")
-      graph.defines.all? { |d| d.kind == Chiasmus::Graph::SymbolKind::Function }.should be_true
+      graph.defines.all? { |defn| defn.kind == Chiasmus::Graph::SymbolKind::Function }.should be_true
     end
 
     it "extracts class with methods and contains" do
@@ -198,16 +199,17 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      class_def = graph.defines.find { |d| d.name == "Animal" }
+      class_def = graph.defines.find { |defn| defn.name == "Animal" }
       class_def.should_not be_nil
-      class_def.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
+      cd = class_def || raise "Expected class_def to be non-nil"
+      cd.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
 
-      methods = graph.defines.select { |d| d.kind == Chiasmus::Graph::SymbolKind::Method }
+      methods = graph.defines.select { |defn| defn.kind == Chiasmus::Graph::SymbolKind::Method }
       method_names = methods.map(&.name)
       method_names.should contain("__init__")
       method_names.should contain("speak")
 
-      contains_pairs = graph.contains.map { |c| "#{c.parent}->#{c.child}" }
+      contains_pairs = graph.contains.map { |contain_fact| "#{contain_fact.parent}->#{contain_fact.child}" }
       contains_pairs.should contain("Animal->__init__")
       contains_pairs.should contain("Animal->speak")
     end
@@ -227,7 +229,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+      call_pairs = graph.calls.map { |call_fact| "#{call_fact.caller}->#{call_fact.callee}" }
       call_pairs.should contain("greet->format_name")
       call_pairs.should contain("main->print")
       call_pairs.should contain("main->greet")
@@ -246,7 +248,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      callees = graph.calls.select { |c| c.caller == "speak" }.map(&.callee)
+      callees = graph.calls.select { |call_fact| call_fact.caller == "speak" }.map(&.callee)
       callees.should contain("greet")
     end
 
@@ -267,7 +269,8 @@ describe Chiasmus::Graph::Extractor do
 
       path_import = graph.imports.find { |i| i.name == "Path" }
       path_import.should_not be_nil
-      path_import.not_nil!.source.should eq("pathlib")
+      pi = path_import || raise "Expected path_import to be non-nil"
+      pi.source.should eq("pathlib")
     end
 
     it "extracts cross-file call graph" do
@@ -289,7 +292,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+      call_pairs = graph.calls.map { |call_fact| "#{call_fact.caller}->#{call_fact.callee}" }
       call_pairs.should contain("handle->query")
       call_pairs.should contain("query->connect")
     end
@@ -308,7 +311,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      a_to_b_calls = graph.calls.select { |c| c.caller == "a" && c.callee == "b" }
+      a_to_b_calls = graph.calls.select { |call_fact| call_fact.caller == "a" && call_fact.callee == "b" }
       a_to_b_calls.size.should eq(1)
     end
 
@@ -323,9 +326,10 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      inner = graph.defines.find { |d| d.name == "inner" }
+      inner = graph.defines.find { |defn| defn.name == "inner" }
       inner.should_not be_nil
-      inner.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
+      inn = inner || raise "Expected inner to be non-nil"
+      inn.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
     end
 
     it "extracts multiple imports from a single from-import statement" do
@@ -356,7 +360,7 @@ describe Chiasmus::Graph::Extractor do
       names = graph.defines.map(&.name)
       names.should contain("handleRequest")
       names.should contain("validate")
-      graph.defines.all? { |d| d.kind == Chiasmus::Graph::SymbolKind::Function }.should be_true
+      graph.defines.all? { |defn| defn.kind == Chiasmus::Graph::SymbolKind::Function }.should be_true
     end
 
     it "extracts methods with receiver type and contains" do
@@ -379,16 +383,17 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      struct_def = graph.defines.find { |d| d.name == "Animal" }
+      struct_def = graph.defines.find { |defn| defn.name == "Animal" }
       struct_def.should_not be_nil
-      struct_def.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
+      sd = struct_def || raise "Expected struct_def to be non-nil"
+      sd.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
 
-      methods = graph.defines.select { |d| d.kind == Chiasmus::Graph::SymbolKind::Method }
+      methods = graph.defines.select { |defn| defn.kind == Chiasmus::Graph::SymbolKind::Method }
       method_names = methods.map(&.name)
       method_names.should contain("Speak")
       method_names.should contain("Greet")
 
-      contains_pairs = graph.contains.map { |c| "#{c.parent}->#{c.child}" }
+      contains_pairs = graph.contains.map { |contain_fact| "#{contain_fact.parent}->#{contain_fact.child}" }
       contains_pairs.should contain("Animal->Speak")
       contains_pairs.should contain("Animal->Greet")
     end
@@ -411,7 +416,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+      call_pairs = graph.calls.map { |call_fact| "#{call_fact.caller}->#{call_fact.callee}" }
       call_pairs.should contain("greet->Sprintf")
       call_pairs.should contain("main->Println")
       call_pairs.should contain("main->greet")
@@ -429,9 +434,10 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      iface = graph.defines.find { |d| d.name == "Speaker" }
+      iface = graph.defines.find { |defn| defn.name == "Speaker" }
       iface.should_not be_nil
-      iface.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Interface)
+      ifc = iface || raise "Expected iface to be non-nil"
+      ifc.kind.should eq(Chiasmus::Graph::SymbolKind::Interface)
     end
 
     it "extracts import declarations" do
@@ -499,7 +505,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+      call_pairs = graph.calls.map { |call_fact| "#{call_fact.caller}->#{call_fact.callee}" }
       call_pairs.should contain("main->Handle")
       call_pairs.should contain("Handle->Query")
       call_pairs.should contain("Query->connect")
@@ -521,7 +527,7 @@ describe Chiasmus::Graph::Extractor do
         ),
       ])
 
-      a_to_b = graph.calls.select { |c| c.caller == "a" && c.callee == "b" }
+      a_to_b = graph.calls.select { |call_fact| call_fact.caller == "a" && call_fact.callee == "b" }
       a_to_b.size.should eq(1)
     end
 

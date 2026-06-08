@@ -16,9 +16,10 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
       schema.properties.has_key?("files").should be_true
       req = schema.required
       req.should_not be_nil
-      req = req.not_nil!
-      req.includes?("query").should be_true
-      req.includes?("files").should be_true
+      if r = req
+        r.includes?("query").should be_true
+        r.includes?("files").should be_true
+      end
     end
 
     it "includes languages filter param" do
@@ -107,11 +108,6 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
       ruby_items = [
         make_item("src/worker.rb::class::Worker", "class", "Worker", "src/worker.rb"),
       ]
-
-      sources = {
-        "src/server.ts" => "export class Server {}",
-        "src/worker.rb" => "class Worker; end",
-      }
 
       # Only build index for TypeScript
       filter_langs = ["typescript"].to_set

@@ -30,47 +30,56 @@ describe "Chiasmus MCP Server Transport" do
 
   describe "initialize and tools/list" do
     it "accepts MCP initialize and returns server info" do
-      result = client.list_tools
+      result = (client || raise("not connected")).list_tools
       result.should_not be_nil
-      names = result.not_nil!.tools.map(&.name)
+      names = result.try(&.tools).try(&.map(&.name)) || raise("nil names")
       names.should contain("chiasmus_verify")
     end
 
     it "lists all 11 expected tools" do
-      result = client.list_tools.not_nil!
-      names = result.tools.map(&.name)
+      result = (client || raise("not connected")).list_tools
+      result.should_not be_nil
+      if result
+        names = result.tools.map(&.name)
 
-      expected = [
-        "chiasmus_verify",
-        "chiasmus_skills",
-        "chiasmus_formalize",
-        "chiasmus_solve",
-        "chiasmus_learn",
-        "chiasmus_lint",
-        "chiasmus_graph",
-        "chiasmus_map",
-        "chiasmus_search",
-        "chiasmus_craft",
-        "chiasmus_review",
-      ]
-      expected.each { |tool| names.should contain(tool) }
+        expected = [
+          "chiasmus_verify",
+          "chiasmus_skills",
+          "chiasmus_formalize",
+          "chiasmus_solve",
+          "chiasmus_learn",
+          "chiasmus_lint",
+          "chiasmus_graph",
+          "chiasmus_map",
+          "chiasmus_search",
+          "chiasmus_craft",
+          "chiasmus_review",
+        ]
+        expected.each { |tool| names.should contain(tool) }
+      end
     end
 
     it "tools have descriptions and input schemas" do
-      result = client.list_tools.not_nil!
-
-      verify_tool = result.tools.find { |t| t.name == "chiasmus_verify" }
-      verify_tool.should_not be_nil
-      verify_tool.not_nil!.description.should_not be_nil
-      verify_tool.not_nil!.description.not_nil!.should contain("z3")
-      verify_tool.not_nil!.input_schema.properties.has_key?("solver").should be_true
-      verify_tool.not_nil!.input_schema.properties.has_key?("spec").should be_true
+      result = (client || raise("not connected")).list_tools
+      result.should_not be_nil
+      if result
+        verify_tool = result.tools.find { |tool| tool.name == "chiasmus_verify" }
+        verify_tool.should_not be_nil
+        if verify_tool
+          verify_tool.description.should_not be_nil
+          if desc = verify_tool.description
+            desc.should contain("z3")
+          end
+          verify_tool.input_schema.properties.has_key?("solver").should be_true
+          verify_tool.input_schema.properties.has_key?("spec").should be_true
+        end
+      end
     end
   end
 
   describe "tools/call via transport" do
     it "chiasmus_verify returns sat for Z3 tautology" do
-      result = client.call_tool("chiasmus_verify", {
+      result = (client || raise("not connected")).call_tool("chiasmus_verify", {
         "solver" => JSON::Any.new("z3"),
         "spec"   => JSON::Any.new("(declare-const x Int)\n(assert (= x x))"),
       }).as(MCP::Protocol::CallToolResult)
@@ -83,7 +92,7 @@ describe "Chiasmus MCP Server Transport" do
     end
 
     it "chiasmus_verify returns error for missing parameters" do
-      result = client.call_tool("chiasmus_verify", {} of String => JSON::Any).as(MCP::Protocol::CallToolResult)
+      result = (client || raise("not connected")).call_tool("chiasmus_verify", {} of String => JSON::Any).as(MCP::Protocol::CallToolResult)
       content_block = result.content.first.as(MCP::Protocol::TextContentBlock)
       parsed = JSON.parse(content_block.text)
       parsed["status"].as_s.should eq("error")

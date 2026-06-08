@@ -211,6 +211,42 @@ module Chiasmus
         channel
       end
 
+      # Process a single language update check+install (returns 1 if updated, 0 otherwise)
+      private def self.process_language_update(
+        language : String,
+        dry_run : Bool,
+        results : Hash(String, Utils::BoolResult),
+      ) : Int32
+        update_channel = GrammarManager.instance.update_check_async(language)
+        update_result = Utils::Timeout.with_timeout_async(30_000, update_channel)
+
+        if update_result && update_result.success?
+          if update_result.value == true
+            results[language] = Utils::BoolResult.new(value: true)
+
+            if dry_run
+              0
+            else
+              install_channel = GrammarManager.instance.ensure_grammar_async(language)
+              install_result = Utils::Timeout.with_timeout_async(120_000, install_channel)
+
+              if install_result && install_result.success? && install_result.value == true
+                1
+              else
+                results[language] = Utils::BoolResult.failure("Failed to update", {"language" => language})
+                0
+              end
+            end
+          else
+            results[language] = Utils::BoolResult.new(value: false)
+            0
+          end
+        else
+          results[language] = update_result || Utils::BoolResult.failure("Failed to check updates", {"language" => language})
+          0
+        end
+      end
+
       # Update all installed grammars (async)
       def self.update_all_async(dry_run : Bool = false) : Channel(Utils::BatchResult)
         channel = Channel(Utils::BatchResult).new
@@ -234,37 +270,7 @@ module Chiasmus
               language_dir = File.join(cache_dir, language)
               next unless Dir.exists?(language_dir)
 
-              # Check for updates
-              update_channel = GrammarManager.instance.update_check_async(language)
-              update_result = Utils::Timeout.with_timeout_async(30_000, update_channel)
-
-              if update_result && update_result.success?
-                if update_result.value == true
-                  results[language] = Utils::BoolResult.new(value: true) # Update available
-
-                  unless dry_run
-                    # Reinstall
-                    install_channel = GrammarManager.instance.ensure_grammar_async(language)
-                    install_result = Utils::Timeout.with_timeout_async(120_000, install_channel)
-
-                    if install_result && install_result.success? && install_result.value == true
-                      updated += 1
-                    else
-                      results[language] = Utils::BoolResult.failure(
-                        "Failed to update",
-                        {"language" => language}
-                      )
-                    end
-                  end
-                else
-                  results[language] = Utils::BoolResult.new(value: false) # Up to date
-                end
-              else
-                results[language] = update_result || Utils::BoolResult.failure(
-                  "Failed to check updates",
-                  {"language" => language}
-                )
-              end
+              updated += process_language_update(language, dry_run, results)
             end
 
             batch_result = Utils::BatchResult.new(results: results)

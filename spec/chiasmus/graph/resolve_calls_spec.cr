@@ -155,7 +155,9 @@ describe CallResolver do
           ),
         ],
       )
-      registry = CallResolver.build_class_field_registry(graph.type_info.not_nil!)
+      type_info = graph.type_info
+      type_info.should_not be_nil
+      registry = CallResolver.build_class_field_registry(type_info || raise("type_info nil"))
       results = CallResolver.resolve_calls_with_registry(graph, registry)
 
       results["run\0worker"].should eq "Foo.worker"
@@ -194,7 +196,9 @@ describe CallResolver do
           ),
         ],
       )
-      registry = CallResolver.build_class_field_registry(graph.type_info.not_nil!)
+      type_info = graph.type_info
+      type_info.should_not be_nil
+      registry = CallResolver.build_class_field_registry(type_info || raise("type_info nil"))
       results = CallResolver.resolve_calls_with_registry(graph, registry)
 
       results["f\0login"].should eq "Svc.login"
@@ -221,7 +225,9 @@ describe CallResolver do
           ),
         ],
       )
-      registry = CallResolver.build_class_field_registry(graph.type_info.not_nil!)
+      type_info = graph.type_info
+      type_info.should_not be_nil
+      registry = CallResolver.build_class_field_registry(type_info || raise("type_info nil"))
       results = CallResolver.resolve_calls_with_registry(graph, registry)
 
       results.has_key?("f\0has").should be_false
@@ -256,7 +262,9 @@ describe CallResolver do
           ),
         ],
       )
-      registry = CallResolver.build_class_field_registry(graph.type_info.not_nil!)
+      type_info = graph.type_info
+      type_info.should_not be_nil
+      registry = CallResolver.build_class_field_registry(type_info || raise("type_info nil"))
       results = CallResolver.resolve_calls_with_registry(graph, registry)
 
       results["main\0foo"].should eq "Helper.foo"
@@ -295,7 +303,9 @@ describe CallResolver do
           ),
         ],
       )
-      registry = CallResolver.build_class_field_registry(graph.type_info.not_nil!)
+      type_info = graph.type_info
+      type_info.should_not be_nil
+      registry = CallResolver.build_class_field_registry(type_info || raise("type_info nil"))
       results = CallResolver.resolve_calls_with_registry(graph, registry)
 
       results.has_key?("f\0run").should be_false

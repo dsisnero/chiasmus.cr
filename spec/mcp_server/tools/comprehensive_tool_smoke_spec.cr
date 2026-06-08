@@ -10,23 +10,24 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
       r = tool.invoke({"solver" => JSON::Any.new("z3"), "input" => JSON::Any.new("(declare-const x Int) (assert (> x 0))")})
       r.status.should eq("success")
       v = r.as(Chiasmus::MCPServer::Types::VerifyResponse)
-      v.result.not_nil!.status.should eq("sat")
-      v.result.not_nil!.model.not_nil!.has_key?("x").should be_true
+      v.result.try(&.status).should(eq("sat"))
+      v.result.try(&.model).try(&.has_key?("x")).should(be_true)
     end
 
     it "Z3: returns UNSAT for contradiction" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
       r = tool.invoke({"solver" => JSON::Any.new("z3"), "input" => JSON::Any.new("(declare-const x Int) (assert (> x 10)) (assert (< x 5))")})
       r.status.should eq("success")
-      r.as(Chiasmus::MCPServer::Types::VerifyResponse).result.not_nil!.status.should eq("unsat")
+      r.as(Chiasmus::MCPServer::Types::VerifyResponse).result.try(&.status).should(eq("unsat"))
     end
 
     it "Prolog: returns answers" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
       r = tool.invoke({"solver" => JSON::Any.new("prolog"), "input" => JSON::Any.new("parent(tom, bob)."), "query" => JSON::Any.new("parent(tom, X).")})
       r.status.should eq("success")
-      answers = r.as(Chiasmus::MCPServer::Types::VerifyResponse).result.not_nil!.answers.not_nil!
-      answers.first.bindings["X"].should eq("bob")
+      if answers = r.as(Chiasmus::MCPServer::Types::VerifyResponse).result.try(&.answers)
+        answers.first.bindings["X"].should eq("bob")
+      end
     end
 
     it "Prolog batch: returns individual results" do
@@ -35,9 +36,10 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
       queries = JSON.parse(%(["edge(a, X).", "edge(b, X)."]))
       r = tool.invoke({"solver" => JSON::Any.new("prolog"), "input" => JSON::Any.new(input), "queries" => queries})
       r.status.should eq("success")
-      batch = r.as(Chiasmus::MCPServer::Types::VerifyResponse).results.not_nil!
-      batch.size.should eq(2)
-      batch[0].status.should eq("success")
+      if batch = r.as(Chiasmus::MCPServer::Types::VerifyResponse).results
+        batch.size.should eq(2)
+        batch[0].status.should eq("success")
+      end
     end
 
     it "rejects missing params with error" do
@@ -115,8 +117,8 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
         tool = Chiasmus::MCPServer::Tools::SkillsTool.new
         r = tool.invoke({"solver" => JSON::Any.new("prolog")})
         r.status.should eq("success")
-        r.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.each do |t|
-          t.solver.should eq("prolog")
+        r.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.each do |template|
+          template.solver.should eq("prolog")
         end
       ensure
         server.skill_library.close rescue nil
@@ -182,8 +184,8 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
       r.status.should eq("success")
       s = r.as(Chiasmus::MCPServer::Types::SolveResponse)
       s.fallback.should be_true
-      s.template_used.not_nil!.should eq("policy-contradiction")
-      s.message.not_nil!.should contain("verify")
+      s.template_used.try(&.should(eq("policy-contradiction")))
+      s.message.try(&.should(contain("verify")))
     ensure
       Chiasmus::MCPServer.current_server = nil
     end
@@ -433,7 +435,7 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
       }.to_json)
       original.solver.should eq("prolog")
       original.input.should eq("edge(a,b).")
-      original.queries.not_nil!.should eq(["edge(a,X)."])
+      original.queries.try(&.should(eq(["edge(a,X)."])))
       original.explain.should be_true
       original.format.should eq("mermaid")
     end

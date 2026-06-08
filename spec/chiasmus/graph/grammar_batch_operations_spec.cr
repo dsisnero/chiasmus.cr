@@ -17,9 +17,9 @@ describe Chiasmus::Graph::GrammarBatchOperations do
       result = Chiasmus::Graph::GrammarBatchOperations.resolve_dependencies(languages, dependencies)
 
       # javascript should come before typescript and tsx
-      javascript_index = result.index("javascript").not_nil!
-      typescript_index = result.index("typescript").not_nil!
-      tsx_index = result.index("tsx").not_nil!
+      javascript_index = result.index!("javascript")
+      typescript_index = result.index!("typescript")
+      tsx_index = result.index!("tsx")
 
       javascript_index.should be < typescript_index
       javascript_index.should be < tsx_index
@@ -83,7 +83,7 @@ describe Chiasmus::Graph::GrammarBatchOperations do
 
       # Check that we got results for all default languages
       if value = result.value
-        value.keys.sort.should eq Chiasmus::Graph::GrammarBatchOperations::DEFAULT_REQUIRED_LANGUAGES.keys.sort
+        value.keys.sort!.should eq Chiasmus::Graph::GrammarBatchOperations::DEFAULT_REQUIRED_LANGUAGES.keys.sort!
 
         # At least some grammars should be missing (we can't guarantee all are missing
         # because some might be embedded or available via tree-sitter)

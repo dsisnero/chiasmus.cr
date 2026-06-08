@@ -85,7 +85,8 @@ TS
   end
 
   it "appears in tool list" do
-    result = client.not_nil!.list_tools
+    c = client || raise "Expected client"
+    result = (c || raise("not connected")).list_tools
     result.should_not be_nil
     tools = result.as(MCP::Protocol::ListToolsResult)
     names = tools.tools.map(&.name)
@@ -109,7 +110,8 @@ TS
   end
 
   it "returns callers via MCP" do
-    result = client.not_nil!.call_tool(
+    c = client || raise "Expected client"
+    result = (c || raise("not connected")).call_tool(
       "chiasmus_graph",
       {
         "files"    => JSON::Any.new([JSON::Any.new(File.join(src_dir, "server.ts")), JSON::Any.new(File.join(src_dir, "db.ts"))]),
@@ -125,7 +127,8 @@ TS
   end
 
   it "returns summary with correct counts" do
-    result = client.not_nil!.call_tool(
+    c = client || raise "Expected client"
+    result = (c || raise("not connected")).call_tool(
       "chiasmus_graph",
       {
         "files"    => JSON::Any.new([JSON::Any.new(File.join(src_dir, "server.ts")), JSON::Any.new(File.join(src_dir, "db.ts"))]),
@@ -141,7 +144,8 @@ TS
   end
 
   it "returns dead code analysis" do
-    result = client.not_nil!.call_tool(
+    c = client || raise "Expected client"
+    result = (c || raise("not connected")).call_tool(
       "chiasmus_graph",
       {
         "files"    => JSON::Any.new([JSON::Any.new(File.join(src_dir, "server.ts")), JSON::Any.new(File.join(src_dir, "db.ts"))]),
@@ -156,7 +160,8 @@ TS
   end
 
   it "returns error for missing parameters" do
-    result = client.not_nil!.call_tool(
+    c = client || raise "Expected client"
+    result = (c || raise("not connected")).call_tool(
       "chiasmus_graph",
       {} of String => JSON::Any,
     ).as(MCP::Protocol::CallToolResult)
@@ -167,7 +172,8 @@ TS
   end
 
   it "returns facts as raw Prolog" do
-    result = client.not_nil!.call_tool(
+    c = client || raise "Expected client"
+    result = (c || raise("not connected")).call_tool(
       "chiasmus_graph",
       {
         "files"    => JSON::Any.new([JSON::Any.new(File.join(src_dir, "server.ts"))]),

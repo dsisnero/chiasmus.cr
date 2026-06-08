@@ -9,7 +9,7 @@ private macro as_error(result)
 end
 
 private def solver_result(result)
-  as_verify(result).result.not_nil!
+  as_verify(result).result || raise "Expected result"
 end
 
 describe Chiasmus::MCPServer::Tools::VerifyTool do
@@ -48,7 +48,7 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       result.status.should eq("success")
       sr = solver_result(result)
       sr.status.should eq("sat")
-      model = sr.model.not_nil!
+      model = sr.model || raise "Expected model"
       model.has_key?("x").should be_true
     end
 
@@ -75,7 +75,7 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       result.status.should eq("success")
       sr = solver_result(result)
       sr.status.should eq("error")
-      err = sr.error.not_nil!
+      err = sr.error || raise "Expected error"
       err.should_not be_empty
     end
 
@@ -91,7 +91,7 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       result.status.should eq("success")
       sr = solver_result(result)
       sr.status.should eq("success")
-      answers = sr.answers.not_nil!
+      answers = sr.answers || raise "Expected answers"
       answers.size.should be >= 1
       answers.first.bindings["X"].should eq("bob")
     end
@@ -124,7 +124,7 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       result.status.should eq("success")
       sr = solver_result(result)
       sr.status.should eq("unsat")
-      core = sr.unsat_core.not_nil!
+      core = sr.unsat_core || raise "Expected unsat_core"
       core.size.should be > 0
     end
 
@@ -166,12 +166,15 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
 
       result.status.should eq("success")
       verify = as_verify(result)
-      batch = verify.results.not_nil!
+      batch = verify.results || raise "Expected results"
       batch.size.should eq(3)
       batch[0].status.should eq("success")
-      batch[0].answers.not_nil!.first.bindings["X"].should eq("b")
-      batch[1].answers.not_nil!.first.bindings["X"].should eq("c")
-      batch[2].answers.not_nil!.first.bindings["X"].should eq("d")
+      a0 = batch[0].answers || raise "Expected answers[0]"
+      a0.first.bindings["X"].should eq("b")
+      a1 = batch[1].answers || raise "Expected answers[1]"
+      a1.first.bindings["X"].should eq("c")
+      a2 = batch[2].answers || raise "Expected answers[2]"
+      a2.first.bindings["X"].should eq("d")
     end
 
     it "rejects prolog queries arrays containing non-strings" do
@@ -199,7 +202,7 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       result.status.should eq("success")
       sr = solver_result(result)
       sr.status.should eq("success")
-      trace = sr.trace.not_nil!
+      trace = sr.trace || raise "Expected trace"
       trace.size.should be > 0
     end
 
@@ -215,7 +218,7 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
 
       result.status.should eq("success")
       verify = as_verify(result)
-      batch = verify.results.not_nil!
+      batch = verify.results || raise "Expected results"
       batch.size.should eq(2)
       batch[0].status.should eq("success")
       batch[1].status.should eq("error")

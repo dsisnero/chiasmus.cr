@@ -279,34 +279,50 @@ module Chiasmus
         end
 
         # extends_type_clause for interfaces, and class_heritage scanning
+        extract_extends_from_heritage(class_node, source, class_name, entries)
+
+        entries
+      end
+
+      private def extract_extends_from_heritage(
+        class_node : TreeSitter::Node,
+        source : String,
+        class_name : String,
+        entries : Array(ClassExtendsEntry),
+      ) : Nil
         (0...class_node.named_child_count).each do |i|
           child = class_node.named_child(i)
           next unless child
           case child.type
           when "class_heritage"
-            # class_heritage contains extends_clause children
-            (0...child.named_child_count).each do |j|
-              ec = child.named_child(j)
-              next unless ec
-              if ec.type == "extends_clause"
-                # Scan extends_clause children for type identifiers
-                (0...ec.named_child_count).each do |k|
-                  tc = ec.named_child(k)
-                  next unless tc
-                  if tc.type == "identifier" || tc.type == "type_identifier" || tc.type == "nested_type_identifier"
-                    parent_name = tc.text(source).strip
-                    entries << ClassExtendsEntry.new(class_name: class_name, parent: parent_name) unless parent_name.empty?
-                  end
-                end
-              end
-            end
+            extract_class_heritage_entries(child, source, class_name, entries)
           when "extends_type_clause"
             parent_name = child.text(source).strip
             entries << ClassExtendsEntry.new(class_name: class_name, parent: parent_name) unless parent_name.empty?
           end
         end
+      end
 
-        entries
+      private def extract_class_heritage_entries(
+        heritage_node : TreeSitter::Node,
+        source : String,
+        class_name : String,
+        entries : Array(ClassExtendsEntry),
+      ) : Nil
+        (0...heritage_node.named_child_count).each do |j|
+          ec = heritage_node.named_child(j)
+          next unless ec
+          next unless ec.type == "extends_clause"
+
+          (0...ec.named_child_count).each do |k|
+            tc = ec.named_child(k)
+            next unless tc
+            if tc.type.in?("identifier", "type_identifier", "nested_type_identifier")
+              parent_name = tc.text(source).strip
+              entries << ClassExtendsEntry.new(class_name: class_name, parent: parent_name) unless parent_name.empty?
+            end
+          end
+        end
       end
 
       # --- Collect per-file type info ---

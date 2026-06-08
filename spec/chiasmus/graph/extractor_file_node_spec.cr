@@ -41,9 +41,9 @@ describe Chiasmus::Graph::Extractor do
         graph = Extractor.extract_graph(sources)
 
         graph.files.should_not be_nil
-        file_nodes = graph.files.not_nil!
+        file_nodes = graph.files || raise "Expected files to be non-nil"
         file_nodes.size.should be >= 1
-        file_nodes.find { |f| f.path == go_file }.should_not be_nil
+        file_nodes.find(&.path.==(go_file)).should_not be_nil
       ensure
         File.delete(go_file) if File.exists?(go_file)
         File.delete(crystal_file) if File.exists?(crystal_file)
@@ -71,13 +71,15 @@ describe Chiasmus::Graph::Extractor do
 
         graph = Extractor.extract_graph(sources)
 
-        file_nodes = graph.files.not_nil!
-        fn = file_nodes.find { |f| f.path == go_file }.not_nil!
+        file_nodes = graph.files || raise "Expected files to be non-nil"
+        fn = file_nodes.find! { |file_node| file_node.path == go_file }
         fn.language.should eq("go")
         fn.line_count.should_not be_nil
-        fn.line_count.not_nil!.should be > 0
+        lc = fn.line_count || raise "Expected line_count to be non-nil"
+        lc.should be > 0
         fn.token_estimate.should_not be_nil
-        fn.token_estimate.not_nil!.should be > 0
+        te = fn.token_estimate || raise "Expected token_estimate to be non-nil"
+        te.should be > 0
       ensure
         File.delete(go_file) if File.exists?(go_file)
       end
@@ -106,7 +108,7 @@ describe Chiasmus::Graph::Extractor do
         map = CodebaseMap.build_overview(graph)
 
         map.should_not be_nil
-        m = map.not_nil!
+        m = map || raise "Expected map to be non-nil"
         m.summary.files.should eq(1)
       ensure
         File.delete(go_file) if File.exists?(go_file)

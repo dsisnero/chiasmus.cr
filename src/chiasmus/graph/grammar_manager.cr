@@ -837,22 +837,7 @@ module Chiasmus
             # Infer language if not provided
             inferred_language = language
             unless inferred_language
-              # Try to infer from directory name
-              dir_name = File.basename(local_path)
-              inferred_language = GrammarMetadataStore.infer_language_from_package(dir_name)
-
-              # Try to infer from grammar.json
-              unless inferred_language && File.exists?(grammar_json)
-                begin
-                  grammar_data = JSON.parse(File.read(grammar_json))
-                  if name = grammar_data["name"]?.try(&.as_s?)
-                    inferred_language = GrammarMetadataStore.infer_language_from_package(name)
-                  end
-                rescue
-                  # Ignore errors
-                end
-              end
-
+              inferred_language = infer_language_from_path(local_path, grammar_json)
               unless inferred_language
                 channel.send(Utils::BoolResult.failure(
                   "Could not infer language from local grammar. Please specify with --language option.",
@@ -1055,6 +1040,23 @@ module Chiasmus
         if GrammarMetadataStore.save(language_dir, metadata)
           metadata
         else
+          nil
+        end
+      end
+
+      private def infer_language_from_path(local_path : String, grammar_json : String) : String?
+        dir_name = File.basename(local_path)
+        lang = GrammarMetadataStore.infer_language_from_package(dir_name)
+        return lang if lang
+
+        return nil unless File.exists?(grammar_json)
+
+        begin
+          grammar_data = JSON.parse(File.read(grammar_json))
+          if name = grammar_data["name"]?.try(&.as_s?)
+            GrammarMetadataStore.infer_language_from_package(name)
+          end
+        rescue
           nil
         end
       end

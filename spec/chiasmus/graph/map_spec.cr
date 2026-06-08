@@ -5,17 +5,17 @@ require "../../../src/chiasmus/graph/map"
 include Chiasmus::Graph
 
 private def make_graph(defines : Array(NamedTuple(name: String, file: String, kind: String, line: Int32, signature: String?)), files : Array(FileNode) = [] of FileNode, exports : Array(NamedTuple(file: String, name: String)) = [] of NamedTuple(file: String, name: String), imports : Array(NamedTuple(file: String, name: String, source: String)) = [] of NamedTuple(file: String, name: String, source: String)) : CodeGraph
-  defs = defines.map { |d|
+  defs = defines.map { |defn|
     DefinesFact.new(
-      file: d[:file], name: d[:name],
-      kind: case d[:kind]
+      file: defn[:file], name: defn[:name],
+      kind: case defn[:kind]
       when "function" then SymbolKind::Function
       when "method"   then SymbolKind::Method
       when "class"    then SymbolKind::Class
       else                 SymbolKind::Type
       end,
-      line: d[:line],
-      signature: d[:signature]?,
+      line: defn[:line],
+      signature: defn[:signature]?,
     )
   }
   exps = exports.map { |e| ExportsFact.new(file: e[:file], name: e[:name]) }
@@ -141,7 +141,7 @@ describe CodebaseMap do
       )
       detail = CodebaseMap.build_file_detail(graph, "src/lib.ts")
       detail.should_not be_nil
-      d = detail.not_nil!
+      d = detail || raise "Expected detail"
       d.path.should eq "src/lib.ts"
       d.symbols.size.should eq 2
     end
@@ -156,7 +156,7 @@ describe CodebaseMap do
       )
       detail = CodebaseMap.build_file_detail(graph, "src/a.ts")
       detail.should_not be_nil
-      d = detail.not_nil!
+      d = detail || raise "Expected detail"
       d.exports.size.should eq 1
       d.exports[0].name.should eq "foo"
       d.exports[0].signature.should eq "(x: Int32)"
@@ -173,9 +173,9 @@ describe CodebaseMap do
       )
       detail = CodebaseMap.build_file_detail(graph, "src/a.ts")
       detail.should_not be_nil
-      d = detail.not_nil!
+      d = detail || raise "Expected detail"
       d.imports.size.should eq 2
-      d.imports.map(&.[:source]).sort.should eq ["./b", "./b"]
+      d.imports.map(&.[:source]).sort!.should eq ["./b", "./b"]
     end
   end
 
@@ -197,7 +197,7 @@ describe CodebaseMap do
       )
       detail = CodebaseMap.build_symbol_detail(graph, "main")
       detail.should_not be_nil
-      d = detail.not_nil!
+      d = detail || raise "Expected detail"
       d.name.should eq "main"
       d.callees.should contain "helper"
     end

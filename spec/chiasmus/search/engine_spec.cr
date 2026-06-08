@@ -28,10 +28,10 @@ class MockEmbeddingModel
   end
 
   def embed_texts(texts : Enumerable(String)) : Array(Crig::Embeddings::Embedding)
-    texts.map do |t|
+    texts.map do |text|
       v = Array(Float64).new(@dim, 0.0)
-      t.each_char.with_index { |c, i| v[i % @dim] += c.ord.to_f / 1000.0 }
-      Crig::Embeddings::Embedding.new(document: t, vec: v)
+      text.each_char.with_index { |char, i| v[i % @dim] += char.ord.to_f / 1000.0 }
+      Crig::Embeddings::Embedding.new(document: text, vec: v)
     end
   end
 
@@ -124,7 +124,7 @@ describe SearchEngine do
         restored.load
         restored.get("test text").should_not be_nil
       ensure
-        Dir.children(dir).each { |c| File.delete(File.join(dir, c)) rescue nil }
+        Dir.children(dir).each { |child| File.delete(File.join(dir, child)) rescue nil }
         Dir.delete(dir) rescue nil
       end
     end

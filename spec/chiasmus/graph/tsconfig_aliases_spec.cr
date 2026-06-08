@@ -9,7 +9,7 @@ private def with_temp_dir(& : String ->)
   begin
     yield dir
   ensure
-    Dir.children(dir).each { |c| File.delete(File.join(dir, c)) rescue nil }
+    Dir.children(dir).each { |child| File.delete(File.join(dir, child)) rescue nil }
     Dir.delete(dir) rescue nil
   end
 end

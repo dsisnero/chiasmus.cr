@@ -16,19 +16,19 @@ describe "Benchmark: Problem 3 - Data Flow Taint Analysis" do
   describe "Traditional" do
     it "finds that http_request can reach db_query" do
       result = Benchmark::Traditional.solve_taint(input)
-      match = result.reachable.find { |r| r[:source] == "http_request" && r[:sink] == "db_query" }
+      match = result.reachable.find { |reachable| reachable[:source] == "http_request" && reachable[:sink] == "db_query" }
       match.should_not be_nil
     end
 
     it "finds that http_request can reach eval_engine" do
       result = Benchmark::Traditional.solve_taint(input)
-      match = result.reachable.find { |r| r[:source] == "http_request" && r[:sink] == "eval_engine" }
+      match = result.reachable.find { |reachable| reachable[:source] == "http_request" && reachable[:sink] == "eval_engine" }
       match.should_not be_nil
     end
 
     it "finds that http_request can reach file_write" do
       result = Benchmark::Traditional.solve_taint(input)
-      match = result.reachable.find { |r| r[:source] == "http_request" && r[:sink] == "file_write" }
+      match = result.reachable.find { |reachable| reachable[:source] == "http_request" && reachable[:sink] == "file_write" }
       match.should_not be_nil
     end
 
@@ -44,7 +44,7 @@ describe "Benchmark: Problem 3 - Data Flow Taint Analysis" do
       next pending("swipl not installed") unless swipl_available?
 
       result = Benchmark::Chiasmus.solve_taint(input)
-      match = result.reachable.find { |r| r[:source] == "http_request" && r[:sink] == "db_query" }
+      match = result.reachable.find { |reachable| reachable[:source] == "http_request" && reachable[:sink] == "db_query" }
       match.should_not be_nil
     end
 
@@ -52,7 +52,7 @@ describe "Benchmark: Problem 3 - Data Flow Taint Analysis" do
       next pending("swipl not installed") unless swipl_available?
 
       result = Benchmark::Chiasmus.solve_taint(input)
-      match = result.reachable.find { |r| r[:source] == "http_request" && r[:sink] == "eval_engine" }
+      match = result.reachable.find { |reachable| reachable[:source] == "http_request" && reachable[:sink] == "eval_engine" }
       match.should_not be_nil
     end
 
@@ -60,7 +60,7 @@ describe "Benchmark: Problem 3 - Data Flow Taint Analysis" do
       next pending("swipl not installed") unless swipl_available?
 
       result = Benchmark::Chiasmus.solve_taint(input)
-      match = result.reachable.find { |r| r[:source] == "http_request" && r[:sink] == "file_write" }
+      match = result.reachable.find { |reachable| reachable[:source] == "http_request" && reachable[:sink] == "file_write" }
       match.should_not be_nil
     end
 

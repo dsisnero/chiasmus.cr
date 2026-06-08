@@ -153,10 +153,10 @@ describe Chiasmus::Graph::Analyses do
       Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Cycles)
     )
 
-    cycleNodes = result.result.as(Array(String))
-    cycleNodes.should contain("a")
-    cycleNodes.should contain("b")
-    cycleNodes.should contain("c")
+    cycle_nodes = result.result.as(Array(String))
+    cycle_nodes.should contain("a")
+    cycle_nodes.should contain("b")
+    cycle_nodes.should contain("c")
   end
 
   it "returns a path when one exists" do

@@ -46,7 +46,7 @@ private def list_tool_names(server : MCP::Server::Server) : Array(String)
   )
   client.connect(client_t)
 
-  result = client.list_tools.as(MCP::Protocol::ListToolsResult)
+  result = (client || raise("not connected")).list_tools.as(MCP::Protocol::ListToolsResult)
   names = result.tools.map(&.name)
 
   client.close

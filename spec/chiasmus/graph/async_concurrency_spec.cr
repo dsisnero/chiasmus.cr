@@ -136,8 +136,9 @@ describe "async graph concurrency" do
     result = Chiasmus::Utils::Timeout.with_timeout_async(100, channel)
 
     result.should_not be_nil
-    result.not_nil!.success?.should be_true
-    result.not_nil!.value.should eq(lang)
+    raise "expected non-nil result" if result.nil?
+    result.success?.should be_true
+    result.value.should eq(lang)
   end
 
   it "broadcasts parser results to all pending waiters" do
@@ -152,10 +153,12 @@ describe "async graph concurrency" do
     second = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[1])
     first.should_not be_nil
     second.should_not be_nil
-    first.not_nil!.success?.should be_true
-    second.not_nil!.success?.should be_true
-    first.not_nil!.value.should eq(lang)
-    second.not_nil!.value.should eq(lang)
+    raise "expected non-nil first" if first.nil?
+    first.success?.should be_true
+    raise "expected non-nil second" if second.nil?
+    second.success?.should be_true
+    first.value.should eq(lang)
+    second.value.should eq(lang)
   end
 
   it "returns cached parser languages without deadlocking" do
@@ -167,8 +170,9 @@ describe "async graph concurrency" do
     result = Chiasmus::Utils::Timeout.with_timeout_async(100, channel)
 
     result.should_not be_nil
-    result.not_nil!.success?.should be_true
-    result.not_nil!.value.should eq(lang)
+    raise "expected non-nil result" if result.nil?
+    result.success?.should be_true
+    result.value.should eq(lang)
   end
 
   it "broadcasts parser results to another waiter set" do
@@ -184,10 +188,12 @@ describe "async graph concurrency" do
 
     first.should_not be_nil
     second.should_not be_nil
-    first.not_nil!.success?.should be_true
-    second.not_nil!.success?.should be_true
-    first.not_nil!.value.should eq(lang)
-    second.not_nil!.value.should eq(lang)
+    raise "expected non-nil first" if first.nil?
+    first.success?.should be_true
+    raise "expected non-nil second" if second.nil?
+    second.success?.should be_true
+    first.value.should eq(lang)
+    second.value.should eq(lang)
   end
 
   it "treats missing cached grammar as an unavailable grammar, not a timeout failure" do
@@ -199,8 +205,9 @@ describe "async graph concurrency" do
     result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, channel)
 
     result.should_not be_nil
-    result.not_nil!.success?.should be_true
-    result.not_nil!.value.should eq(false)
+    raise "expected non-nil result" if result.nil?
+    result.success?.should be_true
+    result.value.should eq(false)
   end
 
   it "loads an XDG-cached grammar asynchronously without repository parser directories" do
@@ -216,9 +223,12 @@ describe "async graph concurrency" do
       result = Chiasmus::Utils::Timeout.with_timeout_async(5_000, channel)
 
       result.should_not be_nil
-      result.not_nil!.success?.should be_true
-      result.not_nil!.value.should_not be_nil
-      result.not_nil!.value.not_nil!.name.should eq("python")
+      raise "expected non-nil result" if result.nil?
+      result.success?.should be_true
+      result.value.should_not be_nil
+      value = result.value
+      raise "expected non-nil value" if value.nil?
+      value.name.should eq("python")
     end
   end
 end

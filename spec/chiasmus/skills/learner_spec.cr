@@ -41,12 +41,16 @@ describe Chiasmus::Skills::Learner do
         )
 
         result.should_not be_nil
-        result.not_nil!.name.should eq("port-range-overlap")
-        result.not_nil!.solver.should eq(Chiasmus::Solvers::SolverType::Z3)
+        if result
+          result.name.should eq("port-range-overlap")
+          result.solver.should eq(Chiasmus::Solvers::SolverType::Z3)
+        end
 
         found = library.get("port-range-overlap")
         found.should_not be_nil
-        found.not_nil!.metadata.promoted.should be_false
+        if found
+          found.metadata.promoted.should be_false
+        end
       end
     end
 
@@ -75,7 +79,9 @@ describe Chiasmus::Skills::Learner do
         )
 
         result.should_not be_nil
-        result.not_nil!.solver.should eq(Chiasmus::Solvers::SolverType::Prolog)
+        if result
+          result.solver.should eq(Chiasmus::Solvers::SolverType::Prolog)
+        end
       end
     end
 
@@ -140,12 +146,20 @@ describe Chiasmus::Skills::Learner do
         })
 
         learner.extract_template(Chiasmus::Solvers::SolverType::Z3, "(declare-const x Int)", "unique test")
-        library.get_metadata("unique-test-template").not_nil!.promoted.should be_false
+        meta = library.get_metadata("unique-test-template")
+        meta.should_not be_nil
+        if meta
+          meta.promoted.should be_false
+        end
 
         3.times { library.record_use("unique-test-template", true) }
         learner.check_promotions
 
-        library.get_metadata("unique-test-template").not_nil!.promoted.should be_true
+        meta = library.get_metadata("unique-test-template")
+        meta.should_not be_nil
+        if meta
+          meta.promoted.should be_true
+        end
       end
     end
 
@@ -168,7 +182,11 @@ describe Chiasmus::Skills::Learner do
         library.record_use("flaky-template", false)
         learner.check_promotions
 
-        library.get_metadata("flaky-template").not_nil!.promoted.should be_false
+        meta = library.get_metadata("flaky-template")
+        meta.should_not be_nil
+        if meta
+          meta.promoted.should be_false
+        end
       end
     end
   end

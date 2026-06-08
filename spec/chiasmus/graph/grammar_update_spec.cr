@@ -45,7 +45,8 @@ describe Chiasmus::Graph::GrammarManager do
         result.should be_a Chiasmus::Utils::BoolResult
         result.failure?.should be_true
         result.error.should_not be_nil
-        result.error.not_nil!.should contain("No URL for git grammar")
+        err = result.error || raise "Expected error"
+        err.should contain("No URL for git grammar")
       end
     end
 
@@ -74,7 +75,8 @@ describe Chiasmus::Graph::GrammarManager do
         result.should be_a Chiasmus::Utils::BoolResult
         result.failure?.should be_true
         result.error.should_not be_nil
-        result.error.not_nil!.should contain("No package name for npm grammar")
+        err = result.error || raise "Expected error"
+        err.should contain("No package name for npm grammar")
       end
     end
 
@@ -128,7 +130,8 @@ describe Chiasmus::Graph::GrammarManager do
         result.should be_a Chiasmus::Utils::BoolResult
         result.failure?.should be_true
         result.error.should_not be_nil
-        result.error.not_nil!.should contain("Unknown grammar type")
+        err = result.error || raise "Expected error"
+        err.should contain("Unknown grammar type")
       end
     end
   end

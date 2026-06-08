@@ -152,8 +152,8 @@ describe Chiasmus::Formalize do
           %[(assert (= x "He said ""hello"""))],
           Chiasmus::Solvers::SolverType::Z3,
         )
-        result.errors.none? { |e| e.includes?("Unbalanced") }.should be_true
-        result.errors.none? { |e| e.includes?("Unmatched") }.should be_true
+        result.errors.none?(&.includes?("Unbalanced")).should be_true
+        result.errors.none?(&.includes?("Unmatched")).should be_true
       end
 
       it "handles nested parens inside SMT-LIB strings with doubled quotes" do
@@ -161,8 +161,8 @@ describe Chiasmus::Formalize do
           %[(assert (= x "a(""b"))],
           Chiasmus::Solvers::SolverType::Z3,
         )
-        result.errors.none? { |e| e.includes?("Unbalanced") }.should be_true
-        result.errors.none? { |e| e.includes?("Unmatched") }.should be_true
+        result.errors.none?(&.includes?("Unbalanced")).should be_true
+        result.errors.none?(&.includes?("Unmatched")).should be_true
       end
 
       it "reports unbalanced parens outside strings correctly" do
@@ -170,7 +170,7 @@ describe Chiasmus::Formalize do
           %[(assert (= x "hello")],
           Chiasmus::Solvers::SolverType::Z3,
         )
-        result.errors.any? { |e| e.includes?("Unbalanced") }.should be_true
+        result.errors.any?(&.includes?("Unbalanced")).should be_true
       end
 
       it "does not misinterpret backslash before quote as escape" do
@@ -178,7 +178,7 @@ describe Chiasmus::Formalize do
           %[(assert (= msg "hello\\"extra"))],
           Chiasmus::Solvers::SolverType::Z3,
         )
-        result.errors.any? { |e| e.includes?("Unbalanced") }.should be_true
+        result.errors.any?(&.includes?("Unbalanced")).should be_true
       end
     end
   end

@@ -27,11 +27,13 @@ describe Chiasmus::Solvers::Z3Solver do
     y = sat.model["y"]?
     x.should_not be_nil
     y.should_not be_nil
-    x_value = x.not_nil!.to_i
-    y_value = y.not_nil!.to_i
-    x_value.should be > 0
-    y_value.should be < 10
-    (x_value + y_value).should eq(7)
+    if x && y
+      x_value = x.to_i
+      y_value = y.to_i
+      x_value.should be > 0
+      y_value.should be < 10
+      (x_value + y_value).should eq(7)
+    end
   end
 
   it "returns unsat for contradictory constraints" do
@@ -86,8 +88,11 @@ describe Chiasmus::Solvers::Z3Solver do
     result.should be_a(Chiasmus::Solvers::UnsatResult)
     unsat = result.as(Chiasmus::Solvers::UnsatResult)
     unsat.unsat_core.should_not be_nil
-    core = unsat.unsat_core.not_nil!.join(" ")
-    core.should match(/gt10|lt5/)
+    if core = unsat.unsat_core
+      core.join(" ").should match(/gt10|lt5/)
+    else
+      fail("expected unsat_core to not be nil")
+    end
   end
 
   it "treats empty input as vacuously satisfiable" do
@@ -149,7 +154,11 @@ describe Chiasmus::Solvers::Z3Solver do
     result.should be_a(Chiasmus::Solvers::UnsatResult)
     unsat = result.as(Chiasmus::Solvers::UnsatResult)
     unsat.unsat_core.should_not be_nil
-    unsat.unsat_core.not_nil!.should be_a(Array(String))
+    if core = unsat.unsat_core
+      core.should be_a(Array(String))
+    else
+      fail("expected unsat_core to not be nil")
+    end
   end
 
   it "does not include unsat_core for SAT results" do
@@ -174,6 +183,10 @@ describe Chiasmus::Solvers::Z3Solver do
     result.should be_a(Chiasmus::Solvers::UnsatResult)
     unsat = result.as(Chiasmus::Solvers::UnsatResult)
     unsat.unsat_core.should_not be_nil
-    unsat.unsat_core.not_nil!.should be_a(Array(String))
+    if core = unsat.unsat_core
+      core.should be_a(Array(String))
+    else
+      fail("expected unsat_core to not be nil")
+    end
   end
 end

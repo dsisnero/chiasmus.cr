@@ -50,9 +50,15 @@ describe "Dogfood: realistic problem domains" do
 
       result.should be_a(Chiasmus::Solvers::SatResult)
       sat = result.as(Chiasmus::Solvers::SatResult)
-      a = sat.model["lib_a"].not_nil!.to_i
-      b = sat.model["lib_b"].not_nil!.to_i
-      c = sat.model["lib_c"].not_nil!.to_i
+      a = sat.model["lib_a"]
+      raise "expected non-nil lib_a" if a.nil?
+      a = a.to_i
+      b = sat.model["lib_b"]
+      raise "expected non-nil lib_b" if b.nil?
+      b = b.to_i
+      c = sat.model["lib_c"]
+      raise "expected non-nil lib_c" if c.nil?
+      c = c.to_i
       a.should be >= 2
       b.should be >= 1
       c.should be >= 1
@@ -82,7 +88,9 @@ describe "Dogfood: realistic problem domains" do
 
       result.should be_a(Chiasmus::Solvers::SatResult)
       sat = result.as(Chiasmus::Solvers::SatResult)
-      port = sat.model["port"].not_nil!.to_i
+      port_val = sat.model["port"]
+      raise "expected non-nil port" if port_val.nil?
+      port = port_val.to_i
       port.should be >= 100
       port.should be <= 200
     end
@@ -116,7 +124,7 @@ describe "Dogfood: realistic problem domains" do
       PROLOG
 
       result.should be_a(Chiasmus::Solvers::SuccessResult)
-      actions = result.as(Chiasmus::Solvers::SuccessResult).answers.map { |a| a.bindings["Action"]? }.compact
+      actions = result.as(Chiasmus::Solvers::SuccessResult).answers.compact_map { |a| a.bindings["Action"]? }
       actions.should contain("read")
       actions.should contain("write")
       actions.should contain("delete")
@@ -138,7 +146,7 @@ describe "Dogfood: realistic problem domains" do
       PROLOG
 
       result.should be_a(Chiasmus::Solvers::SuccessResult)
-      destinations = result.as(Chiasmus::Solvers::SuccessResult).answers.map { |a| a.bindings["Where"]? }.compact
+      destinations = result.as(Chiasmus::Solvers::SuccessResult).answers.compact_map { |a| a.bindings["Where"]? }
       destinations.should contain("database")
       destinations.should contain("log_file")
       destinations.should contain("api_handler")

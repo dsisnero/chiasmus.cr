@@ -26,7 +26,7 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
     result.status.should eq("success")
     skills = result.as(Chiasmus::MCPServer::Types::SkillsResponse)
     skills.templates.first.name.should eq("policy-contradiction")
-    suggestions = skills.suggestions.not_nil!
+    suggestions = skills.suggestions || raise "Expected suggestions"
     suggestions.map { |sug| sug["name"]?.try(&.as_s?) }.should contain("policy-reachability")
     suggestions.map { |sug| sug["name"]?.try(&.as_s?) }.should contain("permission-derivation")
   end
@@ -82,8 +82,8 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
     result.status.should eq("success")
     templates = result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates
     templates.should_not be_empty
-    templates.each do |t|
-      t.domain.should eq("authorization")
+    templates.each do |tmpl|
+      tmpl.domain.should eq("authorization")
     end
   end
 

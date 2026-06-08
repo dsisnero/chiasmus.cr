@@ -105,8 +105,9 @@ module Chiasmus
 
               result = GrammarMetadataStore.load(temp_dir)
               result.should_not be_nil
-              result.not_nil!.url.should eq metadata.url
-              result.not_nil!.language.should eq metadata.language
+              res = result || raise "Expected result"
+              res.url.should eq metadata.url
+              res.language.should eq metadata.language
             ensure
               FileUtils.rm_rf(temp_dir)
             end
@@ -347,10 +348,11 @@ module Chiasmus
 
               refreshed = GrammarMetadataStore.load(grammar_dir)
               refreshed.should_not be_nil
-              refreshed.not_nil!.type.should eq "npm"
-              refreshed.not_nil!.url.should eq "https://registry.npmjs.org/tree-sitter-python"
-              refreshed.not_nil!.version.should eq "1.2.3"
-              refreshed.not_nil!.installed_at.should eq existing_metadata.installed_at
+              ref = refreshed || raise "Expected refreshed"
+              ref.type.should eq "npm"
+              ref.url.should eq "https://registry.npmjs.org/tree-sitter-python"
+              ref.version.should eq "1.2.3"
+              ref.installed_at.should eq existing_metadata.installed_at
             ensure
               FileUtils.rm_rf(temp_dir)
             end
@@ -375,11 +377,12 @@ module Chiasmus
 
               metadata = GrammarMetadataStore.infer_metadata(grammar_dir)
               metadata.should_not be_nil
-              metadata.not_nil!.type.should eq "git"
-              metadata.not_nil!.url.should eq "https://github.com/tree-sitter/tree-sitter-python.git"
-              metadata.not_nil!.package_name.should eq "tree-sitter-python"
-              metadata.not_nil!.language.should eq "python"
-              metadata.not_nil!.version.should eq "0.25.0"
+              md = metadata || raise "Expected metadata"
+              md.type.should eq "git"
+              md.url.should eq "https://github.com/tree-sitter/tree-sitter-python.git"
+              md.package_name.should eq "tree-sitter-python"
+              md.language.should eq "python"
+              md.version.should eq "0.25.0"
             ensure
               FileUtils.rm_rf(temp_dir)
             end

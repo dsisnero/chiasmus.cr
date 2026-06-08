@@ -31,9 +31,9 @@ describe Chiasmus::Skills do
     it "all reason strings are non-empty and descriptive" do
       Chiasmus::Skills::STARTER_TEMPLATES.each do |template|
         related = Chiasmus::Skills.get_related_templates(template.name)
-        related.each do |r|
-          r.reason.should_not be_empty
-          r.reason.size.should be > 5
+        related.each do |rel|
+          rel.reason.should_not be_empty
+          rel.reason.size.should be > 5
         end
       end
     end

@@ -19,7 +19,7 @@ end
 
 class FakeGrammarGateway < Chiasmus::Graph::Parser::GrammarGateway
   property current_path : String?
-  property available = true
+  getter? available : Bool
   getter ensure_calls = 0
   getter init_calls = 0
 
@@ -126,7 +126,11 @@ class FakeResolver < Chiasmus::Graph::Parser::LanguageResolver
   end
 
   def supported_languages : Array(String)
-    @logical_language ? [@logical_language.not_nil!] : [] of String
+    if lang = @logical_language
+      [lang]
+    else
+      [] of String
+    end
   end
 
   def known_language?(language : String) : Bool
@@ -191,8 +195,9 @@ module Chiasmus
         result = Chiasmus::Utils::Timeout.with_timeout_async(100, Parser.parse_async("some content", "test.unknown"))
 
         result.should_not be_nil
-        result.not_nil!.failure?.should be_true
-        result.not_nil!.error.should eq("Unsupported file extension")
+        res = result || raise "Expected result"
+        res.failure?.should be_true
+        res.error.should eq("Unsupported file extension")
       end
 
       it "loads a language through injected collaborators" do
@@ -207,8 +212,9 @@ module Chiasmus
         result = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
 
         result.should_not be_nil
-        result.not_nil!.success?.should be_true
-        result.not_nil!.value.should eq(language)
+        res = result || raise "Expected result"
+        res.success?.should be_true
+        res.value.should eq(language)
         environment.ensure_calls.should eq(1)
         grammar.init_calls.should eq(1)
         grammar.ensure_calls.should eq(0)
@@ -230,10 +236,10 @@ module Chiasmus
         )
 
         result = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
-
         result.should_not be_nil
-        result.not_nil!.success?.should be_true
-        result.not_nil!.value.should eq(language)
+        res = result || raise "Expected result"
+        res.success?.should be_true
+        res.value.should eq(language)
         grammar.ensure_calls.should eq(1)
         loader.loads.should eq([{"python", "/tmp/python.so"}])
       end
@@ -257,8 +263,10 @@ module Chiasmus
 
         first.should_not be_nil
         second.should_not be_nil
-        first.not_nil!.value.should eq(language)
-        second.not_nil!.value.should eq(language)
+        first_res = first || raise "Expected first"
+        second_res = second || raise "Expected second"
+        first_res.value.should eq(language)
+        second_res.value.should eq(language)
         loader.loads.should eq([{"python", "/tmp/python.so"}])
       end
 

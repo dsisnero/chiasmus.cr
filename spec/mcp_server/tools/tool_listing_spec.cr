@@ -59,7 +59,7 @@ describe "created template in skills search" do
         })
 
         result.status.should eq("success")
-        names = result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.map { |t| t.name }
+        names = result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.map(&.name)
         names.should contain("mcp-test-template")
       ensure
         server.skill_library.close

@@ -174,26 +174,28 @@ module Chiasmus
 
         parent = node.parent
         return unless parent
-        return if parent.type == "method_def" || parent.type == "abstract_method_def"
-        return if parent.type == "parameters"
-        return if parent.type == "call"
-        return if parent.type == "assignment"
-        return if parent.type == "binary"
-        return if parent.type == "return_statement"
-
-        # Only record as a call if this identifier has a sibling argument_list
-        # (meaning tree-sitter parsed it as `foo(args)` within a parent that isnt a call node)
-        has_args = false
-        parent.children.each do |sibling|
-          if sibling.type == "argument_list"
-            has_args = true
-            break
-          end
-        end
-        return unless has_args
+        return if skip_crystal_identifier_parent?(parent)
 
         text = node.text(source)
         record_call(scope_stack.last?, text, calls, call_set)
+      end
+
+      private def skip_crystal_identifier_parent?(parent : TreeSitter::Node) : Bool
+        return true if parent.type.in?("method_def", "abstract_method_def", "parameters")
+        return true if parent.type.in?("call", "assignment", "binary", "return_statement")
+
+        unless has_argument_list_sibling?(parent)
+          return true
+        end
+
+        false
+      end
+
+      private def has_argument_list_sibling?(parent : TreeSitter::Node) : Bool
+        parent.children.each do |sibling|
+          return true if sibling.type == "argument_list"
+        end
+        false
       end
 
       private def handle_crystal_require(

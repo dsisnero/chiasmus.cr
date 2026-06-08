@@ -6,11 +6,11 @@ include Chiasmus::Graph
 
 private def make_graph(defines : Array(NamedTuple(file: String, name: String, kind: String)), calls : Array(Tuple(String, String))) : CodeGraph
   CodeGraph.new(
-    defines: defines.map { |d|
+    defines: defines.map { |defn|
       DefinesFact.new(
-        file: d[:file],
-        name: d[:name],
-        kind: case d[:kind]
+        file: defn[:file],
+        name: defn[:name],
+        kind: case defn[:kind]
         when "class"  then SymbolKind::Class
         when "method" then SymbolKind::Method
         else               SymbolKind::Function

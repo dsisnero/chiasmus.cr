@@ -45,7 +45,7 @@ describe "server.cr tool pipeline integration" do
       }).as(MCP::Protocol::CallToolResult)
 
       result.is_error.should be_falsey
-      structured = result.structured_content.not_nil!
+      structured = result.structured_content || raise "Expected structured_content"
       structured["status"].as_s.should eq("success")
       structured.has_key?("result").should be_true
 
@@ -97,7 +97,7 @@ describe "server.cr tool pipeline integration" do
         "input"  => JSON::Any.new("parent(tom, bob)."),
       }).as(MCP::Protocol::CallToolResult)
 
-      structured = result.structured_content.not_nil!
+      structured = result.structured_content || raise "Expected structured_content"
       structured["status"].as_s.should eq("error")
       structured["error"].as_s.should match(/query/i)
 
@@ -145,7 +145,7 @@ describe "server.cr tool pipeline integration" do
 
       result = client.call_tool("chiasmus_crig", {} of String => JSON::Any).as(MCP::Protocol::CallToolResult)
 
-      structured = result.structured_content.not_nil!
+      structured = result.structured_content || raise "Expected structured_content"
       structured["status"].as_s.should eq("error")
       structured["error"].as_s.should contain("prompt")
 

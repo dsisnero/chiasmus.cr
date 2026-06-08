@@ -22,7 +22,8 @@ describe "Benchmark: Problem 2 - Package Dependency Resolution" do
 
     it "all versions are within allowed ranges" do
       result = Benchmark::Traditional.solve_deps(input)
-      a = result.assignment.not_nil!
+      a = result.assignment
+      raise "expected non-nil assignment" if a.nil?
       input[:packages].each do |pkg, info|
         info[:versions].should contain(a[pkg])
       end
@@ -30,7 +31,8 @@ describe "Benchmark: Problem 2 - Package Dependency Resolution" do
 
     it "respects dependency requirements" do
       result = Benchmark::Traditional.solve_deps(input)
-      a = result.assignment.not_nil!
+      a = result.assignment
+      raise "expected non-nil assignment" if a.nil?
       input[:requirements].each do |req|
         next if (cond = req[:condition]) && a[req[:package]] < cond
         a[req[:requires]].should be >= req[:minVersion]
@@ -39,7 +41,8 @@ describe "Benchmark: Problem 2 - Package Dependency Resolution" do
 
     it "respects incompatibilities" do
       result = Benchmark::Traditional.solve_deps(input)
-      a = result.assignment.not_nil!
+      a = result.assignment
+      raise "expected non-nil assignment" if a.nil?
       input[:incompatibilities].each do |inc|
         both_match = a[inc[:packageA]] == inc[:versionA] && a[inc[:packageB]] == inc[:versionB]
         both_match.should be_false
@@ -60,7 +63,8 @@ describe "Benchmark: Problem 2 - Package Dependency Resolution" do
       next pending("z3 not installed") unless z3_available?
 
       result = Benchmark::Chiasmus.solve_deps(input)
-      a = result.assignment.not_nil!
+      a = result.assignment
+      raise "expected non-nil assignment" if a.nil?
       input[:packages].each do |pkg, info|
         info[:versions].should contain(a[pkg])
       end
@@ -70,7 +74,8 @@ describe "Benchmark: Problem 2 - Package Dependency Resolution" do
       next pending("z3 not installed") unless z3_available?
 
       result = Benchmark::Chiasmus.solve_deps(input)
-      a = result.assignment.not_nil!
+      a = result.assignment
+      raise "expected non-nil assignment" if a.nil?
       input[:requirements].each do |req|
         next if (cond = req[:condition]) && a[req[:package]] < cond
         a[req[:requires]].should be >= req[:minVersion]
@@ -81,7 +86,8 @@ describe "Benchmark: Problem 2 - Package Dependency Resolution" do
       next pending("z3 not installed") unless z3_available?
 
       result = Benchmark::Chiasmus.solve_deps(input)
-      a = result.assignment.not_nil!
+      a = result.assignment
+      raise "expected non-nil assignment" if a.nil?
       input[:incompatibilities].each do |inc|
         both_match = a[inc[:packageA]] == inc[:versionA] && a[inc[:packageB]] == inc[:versionB]
         both_match.should be_false

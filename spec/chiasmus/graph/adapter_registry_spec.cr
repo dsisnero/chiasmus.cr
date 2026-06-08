@@ -145,7 +145,9 @@ module Chiasmus
         adapter = TestAdapter.new
         AdapterRegistry.register_adapter(adapter)
 
-        AdapterRegistry.get_adapter("test-lang").not_nil!.search_paths.should eq(["/nonexistent/path"])
+        resolved = AdapterRegistry.get_adapter("test-lang")
+        raise "expected non-nil adapter" if resolved.nil?
+        resolved.search_paths.should eq(["/nonexistent/path"])
       end
 
       it "clears registrations" do
@@ -189,7 +191,9 @@ module Chiasmus
           AdapterRegistry.language_for_ext(".mf").should eq("manifest-lang")
           AdapterRegistry.language_for_ext("mf2").should eq("manifest-lang")
           AdapterRegistry.grammar_language_for_ext(".mf").should eq("javascript")
-          AdapterRegistry.get_adapter("manifest-lang").not_nil!.search_paths.should eq([File.join(dir, "nested")])
+          resolved2 = AdapterRegistry.get_adapter("manifest-lang")
+          raise "expected non-nil adapter" if resolved2.nil?
+          resolved2.search_paths.should eq([File.join(dir, "nested")])
           diagnostics.should be_empty
           factory.build_count.should eq(1)
         end

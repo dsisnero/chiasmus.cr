@@ -60,14 +60,14 @@ describe Chiasmus::Skills do
     it "requires non-empty string fields" do
       with_craft_library do |library, _dir|
         errors = Chiasmus::Skills.validate_template(valid_craft_input(name: ""), library)
-        errors.any? { |error| error.includes?("name") }.should be_true
+        errors.any?(&.includes?("name")).should be_true
       end
     end
 
     it "rejects invalid solver values" do
       with_craft_library do |library, _dir|
         errors = Chiasmus::Skills.validate_template(valid_craft_input(solver: "invalid"), library)
-        errors.any? { |error| error.includes?("solver") }.should be_true
+        errors.any?(&.includes?("solver")).should be_true
       end
     end
 
@@ -105,7 +105,7 @@ describe Chiasmus::Skills do
         Chiasmus::Skills.craft_template(valid_craft_input, library)
 
         errors = Chiasmus::Skills.validate_template(valid_craft_input, library)
-        errors.any? { |error| error.includes?("already exists") }.should be_true
+        errors.any?(&.includes?("already exists")).should be_true
       end
     end
 
@@ -186,7 +186,9 @@ describe Chiasmus::Skills do
 
         result.created.should be_false
         result.errors.should_not be_nil
-        result.errors.not_nil!.should_not be_empty
+        if errors = result.errors
+          errors.should_not be_empty
+        end
       end
     end
   end

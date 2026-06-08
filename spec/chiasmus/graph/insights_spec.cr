@@ -7,9 +7,9 @@ include Chiasmus::Graph
 
 private def build_graph(calls : Array(Tuple(String, String))) : CodeGraph
   names = Set(String).new
-  calls.each { |(a, b)| names << a; names << b }
+  calls.each { |(caller, callee)| names << caller; names << callee }
   CodeGraph.new(
-    defines: names.map { |n| DefinesFact.new(file: "t.ts", name: n, kind: SymbolKind::Function, line: 1) },
+    defines: names.map { |name| DefinesFact.new(file: "t.ts", name: name, kind: SymbolKind::Function, line: 1) },
     calls: calls.map { |(caller, callee)| CallsFact.new(caller: caller, callee: callee) },
   )
 end
@@ -50,7 +50,7 @@ describe Insights do
         {"x", "mango"}, {"y", "mango"},
       ]
       hubs = Insights.detect_hubs(build_graph(edges), top_n: 3)
-      same_degree = hubs.select { |h| h.degree == 2 }.map(&.name)
+      same_degree = hubs.select { |hub| hub.degree == 2 }.map(&.name)
       same_degree.should eq same_degree.sort
     end
   end
@@ -84,7 +84,7 @@ describe Insights do
         {"c", "d"},
       ]
       bridges = Insights.detect_bridges(build_graph(edges))
-      bridges.each { |b| b.score.should be > 0.0 }
+      bridges.each(&.score.should(be > 0.0))
     end
   end
 
@@ -104,12 +104,13 @@ describe Insights do
       communities = CommunityDetection.detect(graph)
       surprises = Insights.detect_surprises(graph, communities: communities)
 
-      endpoints = surprises.map { |s| [s.source, s.target].sort.join("|") }
+      endpoints = surprises.map { |surprise| [surprise.source, surprise.target].sort.join("|") }
       endpoints.should contain(["a", "d"].sort.join("|"))
 
-      xcom = surprises.find { |s| [s.source, s.target].sort.join("|") == ["a", "d"].sort.join("|") }
+      xcom = surprises.find { |surprise| [surprise.source, surprise.target].sort.join("|") == ["a", "d"].sort.join("|") }
       xcom.should_not be_nil
-      xcom.not_nil!.reasons.should contain "cross-community"
+      xc = xcom || raise "Expected xcom"
+      xc.reasons.should contain "cross-community"
     end
 
     it "peripheral-to-hub edges earn a +1 bonus" do
@@ -118,9 +119,10 @@ describe Insights do
         {"leaf", "hub"},
       ]
       surprises = Insights.detect_surprises(build_graph(edges))
-      leaf_hub = surprises.find { |s| [s.source, s.target].sort.join("|") == ["hub", "leaf"].sort.join("|") }
+      leaf_hub = surprises.find { |surprise| [surprise.source, surprise.target].sort.join("|") == ["hub", "leaf"].sort.join("|") }
       leaf_hub.should_not be_nil
-      leaf_hub.not_nil!.reasons.should contain "peripheral-to-hub"
+      lh = leaf_hub || raise "Expected leaf_hub"
+      lh.reasons.should contain "peripheral-to-hub"
     end
 
     it "respects topN option" do

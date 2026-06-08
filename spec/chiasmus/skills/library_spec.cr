@@ -143,9 +143,11 @@ describe Chiasmus::Skills::Library do
 
         meta = library.get_metadata("policy-contradiction")
         meta.should_not be_nil
-        meta.not_nil!.reuse_count.should eq(3)
-        meta.not_nil!.success_count.should eq(2)
-        meta.not_nil!.last_used.should_not be_nil
+        if meta
+          meta.reuse_count.should eq(3)
+          meta.success_count.should eq(2)
+          meta.last_used.should_not be_nil
+        end
       end
     end
 
@@ -161,8 +163,10 @@ describe Chiasmus::Skills::Library do
         reopened = Chiasmus::Skills::Library.create(dir)
         meta = reopened.get_metadata("graph-reachability")
         meta.should_not be_nil
-        meta.not_nil!.reuse_count.should eq(1)
-        meta.not_nil!.success_count.should eq(1)
+        if meta
+          meta.reuse_count.should eq(1)
+          meta.success_count.should eq(1)
+        end
         reopened.close
       ensure
         FileUtils.rm_rf(dir)
@@ -175,7 +179,9 @@ describe Chiasmus::Skills::Library do
       with_skill_library do |library, _dir|
         result = library.get("policy-contradiction")
         result.should_not be_nil
-        result.not_nil!.template.name.should eq("policy-contradiction")
+        if result
+          result.template.name.should eq("policy-contradiction")
+        end
       end
     end
 
@@ -230,16 +236,17 @@ describe Chiasmus::Skills::Library do
         lib2 = Chiasmus::Skills::Library.create(dir)
         restored = lib2.get("custom-auth-check")
         restored.should_not be_nil
-        r = restored.not_nil!
-        r.template.name.should eq("custom-auth-check")
-        r.template.domain.should eq("authorization")
-        r.template.skeleton.should eq("(declare-const user Bool)\n(assert user)")
-        r.template.slots.size.should eq(1)
-        r.template.normalizations.size.should eq(1)
-        r.template.tips.should eq(["use declare-const"])
-        r.template.example.should eq("(declare-const x Bool)\n(assert x)")
-        r.metadata.promoted.should be_false
-        r.metadata.reuse_count.should eq(0)
+        if r = restored
+          r.template.name.should eq("custom-auth-check")
+          r.template.domain.should eq("authorization")
+          r.template.skeleton.should eq("(declare-const user Bool)\n(assert user)")
+          r.template.slots.size.should eq(1)
+          r.template.normalizations.size.should eq(1)
+          r.template.tips.should eq(["use declare-const"])
+          r.template.example.should eq("(declare-const x Bool)\n(assert x)")
+          r.metadata.promoted.should be_false
+          r.metadata.reuse_count.should eq(0)
+        end
         lib2.close
       ensure
         FileUtils.rm_rf(dir)
@@ -271,7 +278,9 @@ describe Chiasmus::Skills::Library do
         lib2 = Chiasmus::Skills::Library.create(dir)
         restored = lib2.get("to-promote")
         restored.should_not be_nil
-        restored.not_nil!.metadata.promoted.should be_true
+        if restored
+          restored.metadata.promoted.should be_true
+        end
         lib2.close
       ensure
         FileUtils.rm_rf(dir)

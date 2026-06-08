@@ -12,9 +12,12 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     })
 
     result.status.should eq("success")
-    result.as(Chiasmus::MCPServer::Types::SolveResponse).fallback.should be_true
-    result.as(Chiasmus::MCPServer::Types::SolveResponse).template_used.not_nil!.should eq("policy-contradiction")
-    result.as(Chiasmus::MCPServer::Types::SolveResponse).message.not_nil!.should contain("verify")
+    resp = result.as(Chiasmus::MCPServer::Types::SolveResponse)
+    resp.fallback.should be_true
+    template_used = resp.template_used || raise "Expected template_used"
+    template_used.should eq("policy-contradiction")
+    message = resp.message || raise "Expected message"
+    message.should contain("verify")
   end
 
   it "returns an error when problem is missing" do
@@ -54,6 +57,8 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     })
 
     result.status.should eq("success")
-    result.as(Chiasmus::MCPServer::Types::SolveResponse).template_used.not_nil!.should_not be_empty
+    resp = result.as(Chiasmus::MCPServer::Types::SolveResponse)
+    template_used = resp.template_used || raise "Expected template_used"
+    template_used.should_not be_empty
   end
 end

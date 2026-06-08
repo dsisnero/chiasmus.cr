@@ -22,25 +22,7 @@ module Chiasmus
 
           top_k = {1, {args.top_k, 100}.min}.max
 
-          file_contents = Hash(String, String).new
-          warnings = [] of String
-
-          args.files.each do |path|
-            begin
-              st = File.info(path)
-              unless st.file?
-                warnings << "skip (not a file): #{path}"
-                next
-              end
-              if st.size > MAX_FILE_SIZE
-                warnings << "skip (over #{MAX_FILE_SIZE} bytes): #{path}"
-                next
-              end
-              file_contents[path] = File.read(path)
-            rescue ex
-              warnings << "read failed: #{path} — #{ex.message}"
-            end
-          end
+          file_contents, warnings = read_search_files(args.files)
 
           if file_contents.empty?
             return Types::ErrorResponse.new("No readable files in `files`. Warnings: #{warnings.join("; ")}") unless warnings.empty?
@@ -93,6 +75,30 @@ module Chiasmus
           Types::SearchResponse.new(hits: result, warnings: warnings.empty? ? nil : warnings)
         rescue ex
           Types::ErrorResponse.new("#{ex.class}: #{ex.message || "(no message)"}")
+        end
+
+        private def read_search_files(files : Array(String)) : {Hash(String, String), Array(String)}
+          file_contents = Hash(String, String).new
+          warnings = [] of String
+
+          files.each do |path|
+            begin
+              st = File.info(path)
+              unless st.file?
+                warnings << "skip (not a file): #{path}"
+                next
+              end
+              if st.size > MAX_FILE_SIZE
+                warnings << "skip (over #{MAX_FILE_SIZE} bytes): #{path}"
+                next
+              end
+              file_contents[path] = File.read(path)
+            rescue ex
+              warnings << "read failed: #{path} — #{ex.message}"
+            end
+          end
+
+          {file_contents, warnings}
         end
 
         # Resolve embedding model from environment.

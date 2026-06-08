@@ -22,8 +22,9 @@ describe Chiasmus::Graph::GrammarManager do
       it "returns metadata for installed grammar" do
         cache_dir = Chiasmus::Graph::GrammarManager.instance.cache_dir
         cache_dir.should_not be_nil
+        cdir = cache_dir || raise "Expected cache_dir"
 
-        python_dir = File.join(cache_dir.not_nil!, "python")
+        python_dir = File.join(cdir, "python")
         Dir.mkdir_p(python_dir)
 
         metadata = Chiasmus::Graph::GrammarMetadata.new(
@@ -40,10 +41,10 @@ describe Chiasmus::Graph::GrammarManager do
 
         result = Chiasmus::Graph::GrammarManager.instance.get_grammar_metadata("python")
         result.should_not be_nil
-        result = result.not_nil!
-        result.package_name.should eq "tree-sitter-python"
-        result.language.should eq "python"
-        result.type.should eq "git"
+        res = result || raise "Expected result"
+        res.package_name.should eq "tree-sitter-python"
+        res.language.should eq "python"
+        res.type.should eq "git"
       end
 
       it "returns nil for non-existent grammar" do
@@ -94,16 +95,17 @@ SCRIPT
 
           cache_dir = Chiasmus::Graph::GrammarManager.instance.cache_dir
           cache_dir.should_not be_nil
+          cdir = cache_dir || raise "Expected cache_dir"
 
-          fake_dir = File.join(cache_dir.not_nil!, "fake")
+          fake_dir = File.join(cdir, "fake")
           File.exists?(File.join(fake_dir, "libtree-sitter-fake.#{ext}")).should be_true
 
           metadata = Chiasmus::Graph::GrammarMetadataStore.load(fake_dir)
           metadata.should_not be_nil
-          metadata = metadata.not_nil!
-          metadata.type.should eq "local"
-          metadata.language.should eq "fake"
-          metadata.url.should eq local_grammar_dir
+          md = metadata || raise "Expected metadata"
+          md.type.should eq "local"
+          md.language.should eq "fake"
+          md.url.should eq local_grammar_dir
         ensure
           if original_path
             ENV["PATH"] = original_path
@@ -123,7 +125,8 @@ SCRIPT
 
         result.failure?.should be_true
         result.error.should_not be_nil
-        result.error.not_nil!.should contain("Local directory does not exist")
+        err = result.error || raise "Expected error"
+        err.should contain("Local directory does not exist")
       end
     end
   end

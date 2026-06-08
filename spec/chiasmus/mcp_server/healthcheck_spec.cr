@@ -12,7 +12,9 @@ describe "Chiasmus Healthcheck" do
       result[:success].should be_true
       tools = result[:tools]
       tools.should_not be_nil
-      tools.not_nil!.should be > 0
+      if tools
+        tools.should be > 0
+      end
       result[:version].should eq(Chiasmus::VERSION)
       result[:error]?.should be_nil
     ensure

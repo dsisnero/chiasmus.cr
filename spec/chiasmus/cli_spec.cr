@@ -3,7 +3,7 @@ require "../spec_helper"
 describe "chiasmus CLI" do
   it "produces help output with --help" do
     output = IO::Memory.new
-    status = Process.run(
+    Process.run(
       "./bin/chiasmus",
       ["--help"],
       output: output,
@@ -15,7 +15,7 @@ describe "chiasmus CLI" do
 
   it "shows version with --version" do
     output = IO::Memory.new
-    status = Process.run(
+    Process.run(
       "./bin/chiasmus",
       ["--version"],
       output: output,

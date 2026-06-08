@@ -52,8 +52,8 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
   before_each do
     home = Chiasmus::Utils::Config.chiasmus_home rescue nil
     if home
-      ["skill_templates.json", "skill_metadata.json"].each do |f|
-        path = File.join(home, f)
+      ["skill_templates.json", "skill_metadata.json"].each do |file|
+        path = File.join(home, file)
         File.delete(path) if File.exists?(path)
       end
     end
@@ -143,7 +143,9 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
     })
 
     result.status.should eq("success")
-    result.as(Chiasmus::MCPServer::Types::LearnResponse).template.not_nil!.should eq("port-range-overlap")
+    resp = result.as(Chiasmus::MCPServer::Types::LearnResponse)
+    template = resp.template || raise "Expected template"
+    template.should eq("port-range-overlap")
     server.skill_library.get("port-range-overlap").should_not be_nil
   end
 end

@@ -69,6 +69,28 @@ module Chiasmus
         "#{n} #{singular}#{n == 1 ? "" : "s"}"
       end
 
+      private def build_diff_summary(
+        added_nodes : Array(String),
+        added_edges : Array(GraphDiffEdge),
+        added_imports : Array(ImportsFact),
+        added_exports : Array(ExportsFact),
+        removed_nodes : Array(String),
+        removed_edges : Array(GraphDiffEdge),
+        removed_imports : Array(ImportsFact),
+        removed_exports : Array(ExportsFact),
+      ) : String
+        parts = [] of String
+        parts << pluralize(added_nodes.size, "new node") unless added_nodes.empty?
+        parts << pluralize(added_edges.size, "new edge") unless added_edges.empty?
+        parts << pluralize(added_imports.size, "new import") unless added_imports.empty?
+        parts << pluralize(added_exports.size, "new export") unless added_exports.empty?
+        parts << "#{pluralize(removed_nodes.size, "node")} removed" unless removed_nodes.empty?
+        parts << "#{pluralize(removed_edges.size, "edge")} removed" unless removed_edges.empty?
+        parts << "#{pluralize(removed_imports.size, "import")} removed" unless removed_imports.empty?
+        parts << "#{pluralize(removed_exports.size, "export")} removed" unless removed_exports.empty?
+        parts.empty? ? "no changes" : parts.join(", ")
+      end
+
       def diff(before : CodeGraph, after : CodeGraph) : GraphDiffResult
         before_nodes = collect_nodes(before)
         after_nodes = collect_nodes(after)
@@ -100,16 +122,8 @@ module Chiasmus
         added_imports, removed_imports = diff_by_key(before.imports, after.imports, ->import_key(ImportsFact))
         added_exports, removed_exports = diff_by_key(before.exports, after.exports, ->export_key(ExportsFact))
 
-        parts = [] of String
-        parts << pluralize(added_nodes.size, "new node") unless added_nodes.empty?
-        parts << pluralize(added_edges.size, "new edge") unless added_edges.empty?
-        parts << pluralize(added_imports.size, "new import") unless added_imports.empty?
-        parts << pluralize(added_exports.size, "new export") unless added_exports.empty?
-        parts << "#{pluralize(removed_nodes.size, "node")} removed" unless removed_nodes.empty?
-        parts << "#{pluralize(removed_edges.size, "edge")} removed" unless removed_edges.empty?
-        parts << "#{pluralize(removed_imports.size, "import")} removed" unless removed_imports.empty?
-        parts << "#{pluralize(removed_exports.size, "export")} removed" unless removed_exports.empty?
-        summary = parts.empty? ? "no changes" : parts.join(", ")
+        summary = build_diff_summary(added_nodes, added_edges, added_imports, added_exports,
+          removed_nodes, removed_edges, removed_imports, removed_exports)
 
         GraphDiffResult.new(
           added_nodes: added_nodes,

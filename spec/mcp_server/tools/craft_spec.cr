@@ -39,8 +39,10 @@ describe Chiasmus::MCPServer::Tools::CraftTool do
         ])),
       })
 
-      result.as(Chiasmus::MCPServer::Types::CraftResponse).created.should be_true
-      result.as(Chiasmus::MCPServer::Types::CraftResponse).template.not_nil!.should eq("mcp-test-template")
+      resp = result.as(Chiasmus::MCPServer::Types::CraftResponse)
+      resp.created.should be_true
+      template = resp.template || raise "Expected template"
+      template.should eq("mcp-test-template")
       server.skill_library.get("mcp-test-template").should_not be_nil
     end
   end
@@ -141,7 +143,7 @@ describe Chiasmus::Skills do
             slots: valid_input.slots, normalizations: valid_input.normalizations,
           )
           errors = Chiasmus::Skills.validate_template(input, library)
-          errors.any? { |e| e.includes?("required") }.should be_true
+          errors.any?(&.includes?("required")).should be_true
         ensure
           library.close
           FileUtils.rm_rf(dir)
@@ -161,7 +163,7 @@ describe Chiasmus::Skills do
             slots: valid_input.slots, normalizations: valid_input.normalizations,
           )
           errors = Chiasmus::Skills.validate_template(input, library)
-          errors.any? { |e| e.includes?("solver") }.should be_true
+          errors.any?(&.includes?("solver")).should be_true
         ensure
           library.close
           FileUtils.rm_rf(dir)
@@ -203,7 +205,7 @@ describe Chiasmus::Skills do
             normalizations: valid_input.normalizations,
           )
           errors = Chiasmus::Skills.validate_template(input, library)
-          errors.any? { |e| e.includes?("not referenced") }.should be_true
+          errors.any?(&.includes?("not referenced")).should be_true
         ensure
           library.close
           FileUtils.rm_rf(dir)
@@ -224,7 +226,7 @@ describe Chiasmus::Skills do
             normalizations: valid_input.normalizations,
           )
           errors = Chiasmus::Skills.validate_template(input, library)
-          errors.any? { |e| e.includes?("slots") }.should be_true
+          errors.any?(&.includes?("slots")).should be_true
         ensure
           library.close
           FileUtils.rm_rf(dir)
@@ -245,7 +247,7 @@ describe Chiasmus::Skills do
             normalizations: [] of Chiasmus::Skills::Normalization,
           )
           errors = Chiasmus::Skills.validate_template(input, library)
-          errors.any? { |e| e.includes?("normalizations") }.should be_true
+          errors.any?(&.includes?("normalizations")).should be_true
         ensure
           library.close
           FileUtils.rm_rf(dir)
@@ -267,8 +269,9 @@ describe Chiasmus::Skills do
           )
           result = Chiasmus::Skills.craft_template(input, library)
           result.created.should be_false
-          result.errors.should_not be_nil
-          result.errors.not_nil!.should_not be_empty
+          errors = result.errors
+          errors.should_not be_nil
+          (errors || raise("nil errors")).should_not be_empty
         ensure
           library.close
           FileUtils.rm_rf(dir)

@@ -26,10 +26,15 @@ describe "MCP Transport-Level Harness" do
     end
 
     it "tools have descriptions via ListToolsResult" do
-      result = harness.client.list_tools.not_nil!
-      verify_tool = result.tools.find { |t| t.name == "chiasmus_verify" }
-      verify_tool.should_not be_nil
-      verify_tool.not_nil!.description.should be_a(String)
+      result = harness.client.list_tools
+      result.should_not be_nil
+      if result
+        verify_tool = result.tools.find { |tool| tool.name == "chiasmus_verify" }
+        verify_tool.should_not be_nil
+        if verify_tool
+          verify_tool.description.should be_a(String)
+        end
+      end
     end
   end
 

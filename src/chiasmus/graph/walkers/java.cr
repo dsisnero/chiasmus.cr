@@ -36,57 +36,65 @@ module Chiasmus
       ) : Bool
         case node.type
         when "method_declaration"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          kind = java_in_class?(node) ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
-          if class_name = java_enclosing_class(node, source)
-            contains << ContainsFact.new(parent: class_name, child: name)
-          end
-          with_scope(scope_stack, name) do
-            walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
+          java_handle_method_scope(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
         when "class_declaration"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
+          java_handle_declaration_scope(node, source, file_path, SymbolKind::Class, scope_stack, defines, calls, imports, exports, contains, call_set)
         when "interface_declaration"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
-        when "enum_declaration"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
-        when "record_declaration"
-          name = node.child_by_field_name("name").try(&.text(source))
-          return false unless name
-
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
+          java_handle_declaration_scope(node, source, file_path, SymbolKind::Interface, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "enum_declaration", "record_declaration"
+          java_handle_declaration_scope(node, source, file_path, SymbolKind::Class, scope_stack, defines, calls, imports, exports, contains, call_set)
         else
           false
         end
+      end
+
+      private def java_handle_method_scope(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        calls : Array(CallsFact),
+        imports : Array(ImportsFact),
+        exports : Array(ExportsFact),
+        contains : Array(ContainsFact),
+        call_set : Set(String),
+      ) : Bool
+        name = node.child_by_field_name("name").try(&.text(source))
+        return false unless name
+
+        kind = java_in_class?(node) ? SymbolKind::Method : SymbolKind::Function
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
+        if class_name = java_enclosing_class(node, source)
+          contains << ContainsFact.new(parent: class_name, child: name)
+        end
+        with_scope(scope_stack, name) do
+          walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        end
+        true
+      end
+
+      private def java_handle_declaration_scope(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        kind : SymbolKind,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        calls : Array(CallsFact),
+        imports : Array(ImportsFact),
+        exports : Array(ExportsFact),
+        contains : Array(ContainsFact),
+        call_set : Set(String),
+      ) : Bool
+        name = node.child_by_field_name("name").try(&.text(source))
+        return false unless name
+
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
+        with_scope(scope_stack, name) do
+          walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        end
+        true
       end
 
       private def handle_java_call(

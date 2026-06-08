@@ -208,11 +208,13 @@ describe Chiasmus::Discovery do
 
       func = result.items.find { |i| i.name == "hello" }
       func.should_not be_nil
-      func.not_nil!.id.should eq("src/app.ts::function::hello")
+      raise "expected non-nil func" if func.nil?
+      func.id.should eq("src/app.ts::function::hello")
 
       cls = result.items.find { |i| i.name == "Foo" }
       cls.should_not be_nil
-      cls.not_nil!.id.should eq("src/app.ts::class::Foo")
+      raise "expected non-nil cls" if cls.nil?
+      cls.id.should eq("src/app.ts::class::Foo")
     end
   end
 

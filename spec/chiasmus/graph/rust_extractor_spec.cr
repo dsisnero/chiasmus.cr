@@ -22,7 +22,7 @@ describe "Rust extractor" do
     names = graph.defines.map(&.name)
     names.should contain("handle_request")
     names.should contain("validate")
-    graph.defines.all? { |d| d.kind == Chiasmus::Graph::SymbolKind::Function }.should be_true
+    graph.defines.all? { |defn| defn.kind == Chiasmus::Graph::SymbolKind::Function }.should be_true
   end
 
   it "extracts struct and enum declarations" do
@@ -45,9 +45,11 @@ describe "Rust extractor" do
     names.should contain("Point")
     names.should contain("Direction")
 
-    point = graph.defines.find { |d| d.name == "Point" }
+    point = graph.defines.find { |defn| defn.name == "Point" }
     point.should_not be_nil
-    point.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
+    if point
+      point.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
+    end
   end
 
   it "extracts impl methods with contains" do
@@ -71,12 +73,12 @@ describe "Rust extractor" do
       ),
     ])
 
-    methods = graph.defines.select { |d| d.kind == Chiasmus::Graph::SymbolKind::Method }
+    methods = graph.defines.select { |defn| defn.kind == Chiasmus::Graph::SymbolKind::Method }
     method_names = methods.map(&.name)
     method_names.should contain("new")
     method_names.should contain("distance")
 
-    contains_pairs = graph.contains.map { |c| "#{c.parent}->#{c.child}" }
+    contains_pairs = graph.contains.map { |child| "#{child.parent}->#{child.child}" }
     contains_pairs.should contain("Point->new")
     contains_pairs.should contain("Point->distance")
   end
@@ -91,9 +93,11 @@ describe "Rust extractor" do
       ),
     ])
 
-    iface = graph.defines.find { |d| d.name == "Speaker" }
+    iface = graph.defines.find { |defn| defn.name == "Speaker" }
     iface.should_not be_nil
-    iface.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Interface)
+    if iface
+      iface.kind.should eq(Chiasmus::Graph::SymbolKind::Interface)
+    end
   end
 
   it "extracts call relationships" do
@@ -114,7 +118,7 @@ describe "Rust extractor" do
       ),
     ])
 
-    call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+    call_pairs = graph.calls.map { |call| "#{call.caller}->#{call.callee}" }
     call_pairs.should contain("greet->helper")
     call_pairs.should contain("main->greet")
   end
@@ -132,9 +136,11 @@ describe "Rust extractor" do
     names.should contain("HashMap")
     names.should contain("Value")
 
-    hashmap_import = graph.imports.find { |i| i.name == "HashMap" }
+    hashmap_import = graph.imports.find { |entry| entry.name == "HashMap" }
     hashmap_import.should_not be_nil
-    hashmap_import.not_nil!.source.should eq("std::collections")
+    if hashmap_import
+      hashmap_import.source.should eq("std::collections")
+    end
   end
 
   it "extracts cross-file call graph" do
@@ -159,7 +165,7 @@ describe "Rust extractor" do
       ),
     ])
 
-    call_pairs = graph.calls.map { |c| "#{c.caller}->#{c.callee}" }
+    call_pairs = graph.calls.map { |call| "#{call.caller}->#{call.callee}" }
     call_pairs.should contain("main->handle")
     call_pairs.should contain("handle->query")
     call_pairs.should contain("query->connect")
@@ -179,7 +185,7 @@ describe "Rust extractor" do
       ),
     ])
 
-    a_to_b = graph.calls.select { |c| c.caller == "a" && c.callee == "b" }
+    a_to_b = graph.calls.select { |call| call.caller == "a" && call.callee == "b" }
     a_to_b.size.should eq(1)
   end
 
@@ -193,11 +199,13 @@ describe "Rust extractor" do
       ),
     ])
 
-    helper = graph.defines.find { |d| d.name == "helper" }
+    helper = graph.defines.find { |defn| defn.name == "helper" }
     helper.should_not be_nil
-    helper.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
+    if helper
+      helper.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
+    end
 
-    mod_def = graph.defines.find { |d| d.name == "utils" }
+    mod_def = graph.defines.find { |defn| defn.name == "utils" }
     mod_def.should be_nil
   end
 
@@ -211,12 +219,14 @@ describe "Rust extractor" do
       ),
     ])
 
-    add = graph.defines.find { |d| d.name == "add" }
+    add = graph.defines.find { |defn| defn.name == "add" }
     add.should_not be_nil
-    add.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
-    add.not_nil!.signature.should eq("(a: i32, b: i32) -> i32")
+    if add
+      add.kind.should eq(Chiasmus::Graph::SymbolKind::Function)
+      add.signature.should eq("(a: i32, b: i32) -> i32")
+    end
 
-    helper = graph.defines.find { |d| d.name == "helper" }
+    helper = graph.defines.find { |defn| defn.name == "helper" }
     helper.should_not be_nil
   end
 
@@ -261,9 +271,11 @@ describe "Rust extractor" do
       ),
     ])
 
-    area = graph.defines.find { |d| d.name == "area" }
+    area = graph.defines.find { |defn| defn.name == "area" }
     area.should_not be_nil
-    area.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Method)
+    if area
+      area.kind.should eq(Chiasmus::Graph::SymbolKind::Method)
+    end
     graph.contains.should contain(Chiasmus::Graph::ContainsFact.new(parent: "Shape", child: "area"))
   end
 
@@ -279,11 +291,13 @@ describe "Rust extractor" do
       ),
     ])
 
-    area = graph.defines.find { |d| d.name == "area" }
+    area = graph.defines.find { |defn| defn.name == "area" }
     area.should_not be_nil
-    area.not_nil!.kind.should eq(Chiasmus::Graph::SymbolKind::Method)
+    if area
+      area.kind.should eq(Chiasmus::Graph::SymbolKind::Method)
+    end
 
-    point_defs = graph.defines.select { |d| d.name == "Point" }
+    point_defs = graph.defines.select { |defn| defn.name == "Point" }
     point_defs.size.should eq(1)
     point_defs.first.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
   end
@@ -297,8 +311,7 @@ describe "Rust extractor" do
       RUST
       ),
     ])
-
-    calls = graph.calls.select { |c| c.caller == "run" }.map(&.callee)
+    calls = graph.calls.select { |call| call.caller == "run" }.map(&.callee)
     calls.should contain("process")
   end
 
@@ -312,7 +325,7 @@ describe "Rust extractor" do
       ),
     ])
 
-    calls = graph.calls.select { |c| c.caller == "run" }.map(&.callee)
+    calls = graph.calls.select { |call| call.caller == "run" }.map(&.callee)
     calls.should contain("new")
   end
 end

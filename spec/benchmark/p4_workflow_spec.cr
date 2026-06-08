@@ -31,15 +31,15 @@ describe "Benchmark: Problem 4 - Workflow State Machine Validation" do
 
     it "does not flag reachable states as unreachable" do
       result = Benchmark::Traditional.solve_workflow(input)
-      reachable_states.each do |s|
-        result.unreachable_states.should_not contain(s)
+      reachable_states.each do |state|
+        result.unreachable_states.should_not contain(state)
       end
     end
 
     it "does not flag states with outgoing transitions as dead-ends" do
       result = Benchmark::Traditional.solve_workflow(input)
-      has_outgoing.each do |s|
-        result.dead_end_states.should_not contain(s)
+      has_outgoing.each do |state|
+        result.dead_end_states.should_not contain(state)
       end
     end
   end
@@ -63,8 +63,8 @@ describe "Benchmark: Problem 4 - Workflow State Machine Validation" do
       next pending("swipl not installed") unless swipl_available?
 
       result = Benchmark::Chiasmus.solve_workflow(input)
-      reachable_states.each do |s|
-        result.unreachable_states.should_not contain(s)
+      reachable_states.each do |state|
+        result.unreachable_states.should_not contain(state)
       end
     end
 
@@ -72,8 +72,8 @@ describe "Benchmark: Problem 4 - Workflow State Machine Validation" do
       next pending("swipl not installed") unless swipl_available?
 
       result = Benchmark::Chiasmus.solve_workflow(input)
-      has_outgoing.each do |s|
-        result.dead_end_states.should_not contain(s)
+      has_outgoing.each do |state|
+        result.dead_end_states.should_not contain(state)
       end
     end
   end

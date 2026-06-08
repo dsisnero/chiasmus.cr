@@ -74,42 +74,41 @@ module Chiasmus
       return error_response("Problem is required") unless problem
       return error_response("LLM not available. Set API key.") unless @engine
 
-      # Formalize the problem
       engine = @engine || raise "Formalization engine not available"
       formalize_result = engine.formalize(problem)
       return error_response("No matching template found — skill library is empty") unless formalize_result
       template = formalize_result.template
 
-      # Determine solver
-      solver = case solver_type
-               when "z3"     then Solvers::Z3Solver.new
-               when "prolog" then Solvers::PrologSolver.new
-               when "auto"
-                 case template.solver
-                 when Solvers::SolverType::Z3     then Solvers::Z3Solver.new
-                 when Solvers::SolverType::Prolog then Solvers::PrologSolver.new
-                 else                                  Solvers::Z3Solver.new
-                 end
-               else Solvers::Z3Solver.new
-               end
+      solver = resolve_solver(solver_type, template)
 
-      # Use engine's solve method which handles the whole process
       solve_result = engine.solve(problem)
 
-      if debug
-        puts "=== DEBUG ==="
-        puts "Template: #{template.name}"
-        puts "Solver: #{solver.class}"
-        puts "Rounds: #{solve_result.rounds}"
-        puts "Converged: #{solve_result.converged}"
-        puts "============="
+      print_debug(template, solver, solve_result) if debug
+
+      format_response(problem, template, solver, solve_result.result, debug)
+    end
+
+    private def resolve_solver(solver_type : String, template : Skills::SkillTemplate) : Solvers::Solver
+      case solver_type
+      when "z3"     then Solvers::Z3Solver.new
+      when "prolog" then Solvers::PrologSolver.new
+      when "auto"
+        case template.solver
+        when Solvers::SolverType::Z3     then Solvers::Z3Solver.new
+        when Solvers::SolverType::Prolog then Solvers::PrologSolver.new
+        else                                  Solvers::Z3Solver.new
+        end
+      else Solvers::Z3Solver.new
       end
+    end
 
-      # Get the final result
-      result = solve_result.result
-
-      # Format response
-      format_response(problem, template, solver, result, debug)
+    private def print_debug(template : Skills::SkillTemplate, solver : Solvers::Solver, solve_result) : Nil
+      puts "=== DEBUG ==="
+      puts "Template: #{template.name}"
+      puts "Solver: #{solver.class}"
+      puts "Rounds: #{solve_result.rounds}"
+      puts "Converged: #{solve_result.converged}"
+      puts "============="
     end
 
     private def chiasmus_home : String

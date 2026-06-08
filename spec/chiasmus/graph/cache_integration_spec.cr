@@ -26,13 +26,17 @@ describe "GraphCache integration with extract_graph" do
       # First extraction (cache miss)
       graph1 = Extractor.extract_graph(sources, cache_dir: cache_dir)
       graph1.defines.size.should eq(2)
-      graph1.files.not_nil!.find { |f| f.path == go_file }.should_not be_nil
+      files = graph1.files
+      raise "expected non-nil files" if files.nil?
+      files.find { |file_node| file_node.path == go_file }.should_not be_nil
 
       # Second extraction (cache hit — should skip tree-sitter parse)
       graph2 = Extractor.extract_graph(sources, cache_dir: cache_dir)
       graph2.defines.size.should eq(2)
       graph2.defines.map(&.name).should eq(graph1.defines.map(&.name))
-      graph2.files.not_nil!.size.should eq(graph1.files.not_nil!.size)
+      files2 = graph2.files
+      raise "expected non-nil files" if files2.nil?
+      files2.size.should eq(files.size)
     ensure
       File.delete(go_file) if File.exists?(go_file)
       FileUtils.rm_rf(cache_dir) if Dir.exists?(cache_dir)
@@ -57,7 +61,6 @@ describe "GraphCache integration with extract_graph" do
       sources1 = [SourceFile.new(path: go_file1, content: content1), SourceFile.new(path: go_file2, content: content2a)]
       graph1 = Extractor.extract_graph(sources1, cache_dir: cache_dir)
       graph1.defines.size.should eq(2)
-      names1 = graph1.defines.map(&.name).to_set
 
       # Second extraction — only go_file2 changed
       File.write(go_file2, content2b)
@@ -108,11 +111,17 @@ describe "GraphCache integration with extract_graph" do
       names_from_cache.should eq(names_no_cache)
 
       # FileNodes should match
-      graph_with_cache.files.not_nil!.map(&.path).to_set.should eq(
-        graph_no_cache.files.not_nil!.map(&.path).to_set
+      files_wc = graph_with_cache.files
+      raise "expected non-nil files" if files_wc.nil?
+      files_nc = graph_no_cache.files
+      raise "expected non-nil files" if files_nc.nil?
+      files_fc = graph_from_cache.files
+      raise "expected non-nil files" if files_fc.nil?
+      files_wc.map(&.path).to_set.should eq(
+        files_nc.map(&.path).to_set
       )
-      graph_from_cache.files.not_nil!.map(&.path).to_set.should eq(
-        graph_no_cache.files.not_nil!.map(&.path).to_set
+      files_fc.map(&.path).to_set.should eq(
+        files_nc.map(&.path).to_set
       )
     ensure
       File.delete(go_file) if File.exists?(go_file)

@@ -38,21 +38,27 @@ describe TypeEnv, "integration" do
       src = "class Svc {} class App extends Svc {}"
       root = parse_ts(src)
       info = TypeEnv.collect_type_info(root, src, "test.ts")
-      extends = info.class_extends.not_nil!
-      extends.size.should eq 1
-      extends[0].class_name.should eq "App"
-      extends[0].parent.should eq "Svc"
+      class_extends = info.class_extends
+      class_extends.should_not be_nil
+      if class_extends
+        class_extends.size.should eq 1
+        class_extends[0].class_name.should eq "App"
+        class_extends[0].parent.should eq "Svc"
+      end
     end
 
     it "extracts method names from classes" do
       src = "class Foo { login() {} logout() {} }"
       root = parse_ts(src)
       info = TypeEnv.collect_type_info(root, src, "test.ts")
-      methods = info.class_methods.not_nil!
-      methods.size.should eq 1
-      methods[0].class_name.should eq "Foo"
-      methods[0].methods.should contain "login"
-      methods[0].methods.should contain "logout"
+      class_methods = info.class_methods
+      class_methods.should_not be_nil
+      if class_methods
+        class_methods.size.should eq 1
+        class_methods[0].class_name.should eq "Foo"
+        class_methods[0].methods.should contain "login"
+        class_methods[0].methods.should contain "logout"
+      end
     end
 
     it "returns nil class_methods when no methods found" do

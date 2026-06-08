@@ -10,7 +10,7 @@ private def with_temp_cache(& : String ->)
   begin
     yield dir
   ensure
-    Dir.children(dir).each { |c| File.delete(File.join(dir, c)) rescue nil }
+    Dir.children(dir).each { |child| File.delete(File.join(dir, child)) rescue nil }
     Dir.delete(dir) rescue nil
   end
 end
@@ -110,7 +110,8 @@ describe GraphCache do
 
         loaded = GraphCache.load_snapshot("main", cache_dir)
         loaded.should_not be_nil
-        loaded.not_nil!.defines.first.name.should eq "main"
+        snapshot = loaded || raise "Expected snapshot to be non-nil"
+        snapshot.defines.first.name.should eq "main"
       end
     end
 
@@ -146,7 +147,8 @@ describe GraphCache do
         GraphCache.save_snapshot("main", graph2, cache_dir)
         loaded = GraphCache.load_snapshot("main", cache_dir)
         loaded.should_not be_nil
-        loaded.not_nil!.defines.first.name.should eq "new"
+        snapshot = loaded || raise "Expected snapshot to be non-nil"
+        snapshot.defines.first.name.should eq "new"
       end
     end
 

@@ -373,7 +373,7 @@ describe Chiasmus::Search::CodeIndex do
       all_results = go_index.search("thing") + ts_index.search("thing")
       all_results.size.should eq(2)
 
-      go_results = all_results.select { |r| r.document.language == "go" }
+      go_results = all_results.select { |res| res.document.language == "go" }
       go_results.size.should eq(1)
       go_results[0].document.name.should eq("Alpha")
     end
@@ -405,7 +405,7 @@ describe Chiasmus::Search::CodeIndex do
       results.size.should eq(2) # both match "handle" via "Service"
 
       # user can filter client-side by kind
-      class_results = results.select { |r| r.document.kind == "class" }
+      class_results = results.select { |res| res.document.kind == "class" }
       class_results.size.should eq(1)
       class_results[0].document.kind.should eq("class")
       class_results[0].document.name.should eq("Service")
@@ -631,7 +631,7 @@ describe Chiasmus::Search::CodeIndex do
       index = builder.from_items(items, sources).build
 
       hashes = index.file_hashes
-      hashes.keys.sort.should eq(["src/a.go", "src/b.go"])
+      hashes.keys.sort!.should eq(["src/a.go", "src/b.go"])
       hashes["src/a.go"].size.should eq(32) # SHA-256
       hashes["src/b.go"].size.should eq(32)
     end
@@ -733,7 +733,7 @@ describe Chiasmus::Search::CodeIndex do
       index = builder.from_items(items, sources).build
 
       filtered = index.documents_in_files(["src/a.go", "src/c.go"])
-      filtered.map(&.name).sort.should eq(["F", "H"])
+      filtered.map(&.name).sort!.should eq(["F", "H"])
     end
   end
 end

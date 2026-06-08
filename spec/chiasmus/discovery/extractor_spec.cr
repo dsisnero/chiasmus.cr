@@ -74,7 +74,8 @@ describe Chiasmus::Discovery::QueryExtractor do
 
     func = items.find { |i| i.name == "hello" }
     func.should_not be_nil
-    func.not_nil!.id.should eq("src/app.ts::function::hello")
+    raise "expected non-nil func" if func.nil?
+    func.id.should eq("src/app.ts::function::hello")
   end
 end
 
