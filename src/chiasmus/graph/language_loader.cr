@@ -26,6 +26,17 @@ module Chiasmus
           end
         end
 
+        # C++ tree-sitter grammar at vendor/grammars/tree-sitter-cpp
+        if language == "cpp"
+          repo_root = Path[__DIR__].join("../../..").expand
+          vendor_path = repo_root.join("vendor/grammars/tree-sitter-cpp").to_s
+          vendor_dir = Path.new(vendor_path)
+          if Dir.exists?(vendor_path)
+            ts_language = load_dylib(language, vendor_dir)
+            return TreeSitter::Language.new(language, ts_language)
+          end
+        end
+
         if grammar_path && !grammar_path.empty?
           grammar_dir = Dir.exists?(grammar_path) ? Path.new(grammar_path) : Path.new(File.dirname(grammar_path))
           ts_language = TreeSitter::Repository.load_shared_object(language, grammar_dir)

@@ -61,7 +61,13 @@ All prior porting work is complete. See implementation history below for details
 | **P10** | **Vendor Refresh & Rust Graph Parity (07bbf4a)** | **Implemented** |
 | **P11** | **Search Engine Lazy Dimension Discovery** | **Implemented** |
 | **P12** | **MCP Tool Gating + Inventory Housekeeping** | **Implemented** |
-| **P13** | **C# Graph Walker** | **In Progress** |
+| **P13** | **C# Graph Walker** | **Implemented** |
+| **P14** | **JSON::Serializable Refactor + Dead Code** | **Implemented** |
+| **P15** | **Walker Fixes + Enum/Union Extraction** | **Implemented** |
+| **P16** | **GraphCache + FileNode + 37x Speedup** | **Implemented** |
+| **P17** | **CLI Friendliness + Output Schemas + Search (Ollama)** | **Implemented** |
+| **P18** | **Diff/Snapshot Analysis Wiring** | **Implemented** |
+| **P19** | **Graph Walker: C++** | **In Progress** |
 
 ### P13: C# Graph Walker — Crystal-Native Feature
 
@@ -693,10 +699,10 @@ Upstream exposes 16 graph analyses via `chiasmus_graph`. All ported.
 | `bridges` | ✓ | ✓ | `insights_spec.cr` |
 | `surprises` | ✓ | ✓ | `insights_spec.cr` |
 | `communities` | ✓ | ✓ | `community_spec.cr` |
-| `diff` | ✓ | ✓ (stub) | `diff_spec.cr` |
+| `diff` | ✓ | ✓ | `diff_snapshot_spec.cr`, `graph_diff_spec.cr` |
 | `entry-points` | ✓ | ✓ | `entry_points_spec.cr` |
 
-**Note:** `diff` analysis against saved snapshots is stubbed (`"diff requires a snapshot name (not yet wired)"`). Cache integration for file-level parsing is not yet wired into the analysis pipeline.
+**Note:** All 16 analyses fully wired and tested.
 
 ## Discovery Extractor Language Coverage
 
@@ -738,6 +744,7 @@ Per-language AST walkers for the `extract_graph` pipeline:
 | crystal | `walkers/crystal.cr` | Implemented |
 | java | `walkers/java.cr` | Implemented |
 | clojure | `walkers/clojure.cr` + `ClojureSourceExtractor` | Implemented (WASM parser divergence) |
+| csharp | `walkers/csharp.cr` | Implemented (Crystal-native) |
 
 ## Maintenance Mode Runbook
 

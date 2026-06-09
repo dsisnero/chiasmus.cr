@@ -7,6 +7,7 @@ require "./walkers/crystal"
 require "./walkers/rust"
 require "./walkers/java"
 require "./walkers/csharp"
+require "./walkers/cpp"
 
 module Chiasmus
   module Graph
