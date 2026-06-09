@@ -345,8 +345,6 @@ module Chiasmus
         when "type_identifier", "identifier"
           member.text(source)
         when "object_type"
-          # Anonymous object type — extract first property_signature name as a label
-          name = nil
           (0...member.named_child_count).each do |idx|
             child = member.named_child(idx)
             next unless child
