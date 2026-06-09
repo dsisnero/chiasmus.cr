@@ -43,6 +43,8 @@ module Chiasmus
           java_handle_declaration_scope(node, source, file_path, SymbolKind::Interface, scope_stack, defines, calls, imports, exports, contains, call_set)
         when "enum_declaration", "record_declaration"
           java_handle_declaration_scope(node, source, file_path, SymbolKind::Class, scope_stack, defines, calls, imports, exports, contains, call_set)
+          extract_java_enum_members(node, source, file_path, defines)
+          true
         else
           false
         end
@@ -183,6 +185,27 @@ module Chiasmus
           end
         end
         nil
+      end
+
+      private def extract_java_enum_members(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        defines : Array(DefinesFact),
+      ) : Nil
+        (0...node.named_child_count).each do |child_idx|
+          child = node.named_child(child_idx)
+          next unless child
+          next unless child.type == "enum_body"
+          (0...child.named_child_count).each do |member_idx|
+            member = child.named_child(member_idx)
+            next unless member
+            next unless member.type == "enum_constant"
+            name = member.child_by_field_name("name").try(&.text(source))
+            next unless name
+            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1)
+          end
+        end
       end
     end
   end

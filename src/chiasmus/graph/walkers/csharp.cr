@@ -75,6 +75,22 @@ module Chiasmus
         name = node.child_by_field_name("name").try(&.text(source))
         return false unless name
         defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+
+        # Extract enum members from enum_member_declaration_list
+        (0...node.named_child_count).each do |child_idx|
+          child = node.named_child(child_idx)
+          next unless child
+          next unless child.type == "enum_member_declaration_list"
+          (0...child.named_child_count).each do |member_idx|
+            member = child.named_child(member_idx)
+            next unless member
+            next unless member.type == "enum_member_declaration"
+            member_name = member.child_by_field_name("name").try(&.text(source))
+            next unless member_name
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1)
+          end
+        end
+
         true
       end
 
