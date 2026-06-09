@@ -428,6 +428,7 @@ module Chiasmus
         getter to : String?
         getter entry_points : Array(String)?
         getter cache : String?
+        getter against : String?
       end
 
       struct MapInput

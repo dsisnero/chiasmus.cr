@@ -26,10 +26,11 @@ module Chiasmus
             target: args.target,
             from: args.from,
             to: args.to,
-            entry_points: args.entry_points
+            entry_points: args.entry_points,
+            against: args.against
           )
 
-          result = Graph::Analyses.run_analysis(absolute_files, request, cache_dir: args.cache)
+          result = Graph::Analyses.run_analysis(absolute_files, request, cache_dir: args.cache, snapshot_cache_dir: args.cache)
 
           result_value = if args.analysis == "facts"
                            result.result.as(String)
@@ -87,6 +88,7 @@ module Chiasmus
               "from"         => ToolSchemas::Common.from_property,
               "to"           => ToolSchemas::Common.to_property,
               "entry_points" => ToolSchemas::Common.entry_points_property,
+              "against"      => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against (required for diff analysis)"),
             },
             required: ["files", "analysis"]
           ).to_mcp_input
