@@ -184,11 +184,14 @@ module Chiasmus
         return true if parent.type.in?("method_def", "abstract_method_def", "parameters")
         return true if parent.type.in?("call", "assignment", "binary", "return_statement")
 
-        unless has_argument_list_sibling?(parent)
-          return true
-        end
+        # Allow calls where parent is an expression container (bare method calls)
+        return false if parent.type.in?("expressions", "then", "else", "elsif", "when", "begin", "ensure", "body_statement")
 
-        false
+        # Allow calls with argument_list sibling (explicit calls without call wrapper)
+        return false if has_argument_list_sibling?(parent)
+
+        # Default: skip — not in a call context
+        true
       end
 
       private def has_argument_list_sibling?(parent : TreeSitter::Node) : Bool
