@@ -113,6 +113,10 @@ module Chiasmus
           name = node.child_by_field_name("name").try(&.text(source))
           return unless name
           defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1)
+        when "type_alias_declaration"
+          name = node.child_by_field_name("name").try(&.text(source))
+          return unless name
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
         end
       end
 

@@ -55,6 +55,8 @@ module Chiasmus
           crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Class, defines, calls, imports, exports, contains, call_set)
         when "module_def"
           crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Interface, defines, calls, imports, exports, contains, call_set)
+        when "enum_def"
+          crystal_enum_scope(node, source, file_path, defines)
         when "alias"
           crystal_alias_scope(node, source, file_path, defines)
         else
@@ -72,6 +74,39 @@ module Chiasmus
         return false unless name
 
         defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+        true
+      end
+
+      private def crystal_enum_scope(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        defines : Array(DefinesFact),
+      ) : Bool
+        name = node.children.find(&.type.==("constant")).try(&.text(source))
+        return false unless name
+
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+
+        # Extract enum members (constants/const_assign inside the enum body)
+        node.children.each do |child|
+          next unless child.type == "expressions"
+          child.children.each do |member|
+            member_name = case member.type
+                          when "constant"
+                            member.text(source)
+                          when "const_assign"
+                            name_node = member.children.find(&.type.==("constant"))
+                            name_node.try(&.text(source))
+                          else
+                            nil
+                          end
+            next unless member_name
+            next if member_name == name
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1)
+          end
+        end
+
         true
       end
 

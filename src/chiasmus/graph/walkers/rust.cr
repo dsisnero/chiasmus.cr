@@ -39,12 +39,35 @@ module Chiasmus
                 extract_rust_calls(child.child_by_field_name("body"), source, name, calls, call_set)
               end
             end
-          when "struct_item", "enum_item", "union_item"
+          when "struct_item", "union_item"
             name = child.child_by_field_name("name").try(&.text(source))
             if name
               defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: child.start_point.row.to_i + 1)
               if rust_pub?(child)
                 exports << ExportsFact.new(file: file_path, name: name)
+              end
+            end
+          when "enum_item"
+            name = child.child_by_field_name("name").try(&.text(source))
+            if name
+              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: child.start_point.row.to_i + 1)
+              if rust_pub?(child)
+                exports << ExportsFact.new(file: file_path, name: name)
+              end
+            end
+            # Extract enum variants
+            (0...child.named_child_count).each do |child_idx|
+              variant_child = child.named_child(child_idx)
+              next unless variant_child
+              next unless variant_child.type == "enum_variant_list"
+              (0...variant_child.named_child_count).each do |variant_idx|
+                variant = variant_child.named_child(variant_idx)
+                next unless variant
+                next unless variant.type == "enum_variant"
+                variant_name = variant.child_by_field_name("name").try(&.text(source))
+                if variant_name
+                  defines << DefinesFact.new(file: file_path, name: variant_name, kind: SymbolKind::Type, line: variant.start_point.row.to_i + 1)
+                end
               end
             end
           when "trait_item"
