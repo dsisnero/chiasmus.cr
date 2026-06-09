@@ -237,6 +237,8 @@ module Chiasmus
           Walkers.walk_csharp(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
         when "cpp"
           Walkers.walk_cpp(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "bash"
+          Walkers.walk_bash(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
         else
           Walkers.walk_node(tree.root_node, file.content, file.path, lang, scope_stack, defines, calls, imports, exports, contains, call_set)
         end
