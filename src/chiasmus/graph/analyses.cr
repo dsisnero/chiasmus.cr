@@ -99,7 +99,8 @@ module Chiasmus
       target : String? = nil,
       from : String? = nil,
       to : String? = nil,
-      entry_points : Array(String)? = nil
+      entry_points : Array(String)? = nil,
+      against : String? = nil
 
     record AnalysisResult,
       analysis : AnalysisType,
@@ -141,20 +142,21 @@ module Chiasmus
     module Analyses
       extend self
 
-      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil) : AnalysisResult
+      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil) : AnalysisResult
         files = file_paths.map do |file_path|
           SourceFile.new(path: file_path, content: File.read(file_path))
         end
 
-        run_analysis_from_graph(Extractor.extract_graph(files, cache_dir: cache_dir), request)
+        graph = Extractor.extract_graph(files, cache_dir: cache_dir)
+        run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir)
       end
 
-      def run_analysis_from_graph(graph : CodeGraph, request : AnalysisRequest) : AnalysisResult
-        result = handle_analysis_request(graph, request)
+      def run_analysis_from_graph(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil) : AnalysisResult
+        result = handle_analysis_request(graph, request, snapshot_cache_dir)
         AnalysisResult.new(analysis: request.analysis, result: result.as(AnalysisPayload))
       end
 
-      private def handle_analysis_request(graph : CodeGraph, request : AnalysisRequest)
+      private def handle_analysis_request(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil)
         case request.analysis
         when AnalysisType::Facts
           Facts.graph_to_prolog(graph, request.entry_points)
@@ -174,28 +176,49 @@ module Chiasmus
           handle_path(graph, request.from, request.to)
         when AnalysisType::Impact
           handle_target_analysis(graph, request.target, :impact)
-        when AnalysisType::LayerViolation
-          violations = LayerViolation.find(graph)
-          violations.map { |v| {"caller" => v.caller, "callee" => v.callee, "callerLayer" => v.caller_layer, "calleeLayer" => v.callee_layer} }.to_json
-        when AnalysisType::Hubs
-          hubs = Insights.detect_hubs(graph)
-          hubs.map { |h| {"name" => h.name, "degree" => h.degree.to_s} }.to_json
-        when AnalysisType::Bridges
-          bridges = Insights.detect_bridges(graph)
-          bridges.map { |b| {"name" => b.name, "score" => b.score.to_s} }.to_json
-        when AnalysisType::Surprises
-          surprises = Insights.detect_surprises(graph)
-          surprises.map { |s| {"source" => s.source, "target" => s.target, "score" => s.score.to_s, "reasons" => s.reasons} }.to_json
-        when AnalysisType::Community
-          comms = CommunityDetection.detect(graph)
-          comms.map { |c| {"id" => c.id.to_s, "members" => c.members, "cohesion" => c.cohesion.to_s} }.to_json
         when AnalysisType::Diff
-          {"error" => "diff requires a snapshot name (not yet wired)"}.to_json
+          handle_diff(graph, request.against, snapshot_cache_dir)
+        when AnalysisType::LayerViolation
+          LayerViolation.find(graph).map { |lv| {
+            "caller" => lv.caller, "callee" => lv.callee,
+            "caller_layer" => lv.caller_layer, "callee_layer" => lv.callee_layer,
+          } }.to_json
+        when AnalysisType::Hubs
+          Insights.detect_hubs(graph).map { |h| {"name" => h.name, "degree" => h.degree.to_s} }.to_json
+        when AnalysisType::Bridges
+          Insights.detect_bridges(graph).map { |b| {"name" => b.name, "score" => b.score.to_s} }.to_json
+        when AnalysisType::Surprises
+          Insights.detect_surprises(graph).map { |s| {"source" => s.source, "target" => s.target, "score" => s.score, "reasons" => s.reasons.join(",")} }.to_json
+        when AnalysisType::Community
+          CommunityDetection.detect(graph).map { |c| {
+            "id" => c.id, "members" => c.members, "cohesion" => c.cohesion,
+          } }.to_json
         when AnalysisType::EntryPoints
           EntryPoints.detect(graph)
         else
-          missing_parameter_result
+          {"error" => "Unknown analysis type"}.to_json
         end
+      end
+
+      private def handle_diff(graph : CodeGraph, against_name : String?, snapshot_cache_dir : String?) : String
+        return {"error" => "diff requires a snapshot name"}.to_json unless against_name
+        return {"error" => "diff requires a cache directory to load snapshots"}.to_json unless snapshot_cache_dir
+
+        before = GraphCache.load_snapshot(against_name, snapshot_cache_dir)
+        return {"error" => "snapshot '#{against_name}' not found in #{snapshot_cache_dir}"}.to_json unless before
+
+        diff_result = GraphDiffer.diff(before, graph)
+        {
+          "added_nodes"     => diff_result.added_nodes,
+          "removed_nodes"   => diff_result.removed_nodes,
+          "added_edges"     => diff_result.added_edges.map { |e| {"source" => e.source, "target" => e.target} },
+          "removed_edges"   => diff_result.removed_edges.map { |e| {"source" => e.source, "target" => e.target} },
+          "added_imports"   => diff_result.added_imports.size,
+          "removed_imports" => diff_result.removed_imports.size,
+          "added_exports"   => diff_result.added_exports.size,
+          "removed_exports" => diff_result.removed_exports.size,
+          "summary"         => diff_result.summary,
+        }.to_json
       end
 
       private def handle_target_analysis(graph : CodeGraph, target : String?, analysis_type : Symbol)
