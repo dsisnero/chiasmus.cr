@@ -74,6 +74,23 @@ module Chiasmus
         return false unless name
 
         defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+
+        # Extract aliased types (direct constants or union_type children)
+        node.children.each do |child|
+          case child.type
+          when "constant"
+            child_name = child.text(source)
+            next if child_name == name
+            defines << DefinesFact.new(file: file_path, name: child_name, kind: SymbolKind::Type, line: child.start_point.row.to_i + 1)
+          when "union_type"
+            child.children.each do |union_child|
+              next unless union_child.type == "constant"
+              union_name = union_child.text(source)
+              defines << DefinesFact.new(file: file_path, name: union_name, kind: SymbolKind::Type, line: union_child.start_point.row.to_i + 1)
+            end
+          end
+        end
+
         true
       end
 

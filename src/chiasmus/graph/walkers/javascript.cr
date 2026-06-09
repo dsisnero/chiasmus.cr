@@ -117,6 +117,13 @@ module Chiasmus
           name = node.child_by_field_name("name").try(&.text(source))
           return unless name
           defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+          # Extract union type members (handles nested union_type)
+          (0...node.named_child_count).each do |child_idx|
+            child = node.named_child(child_idx)
+            next unless child
+            next unless child.type == "union_type"
+            extract_union_members(child, source, file_path, defines)
+          end
         end
       end
 
@@ -329,6 +336,44 @@ module Chiasmus
             if name_node
               imports << ImportsFact.new(file: file_path, name: name_node.text(source), source: import_source)
             end
+          end
+        end
+      end
+
+      private def union_member_name(member : TreeSitter::Node, source : String) : String?
+        case member.type
+        when "type_identifier", "identifier"
+          member.text(source)
+        when "object_type"
+          # Anonymous object type — extract first property_signature name as a label
+          name = nil
+          (0...member.named_child_count).each do |idx|
+            child = member.named_child(idx)
+            next unless child
+            if child.type == "property_signature"
+              prop_name = child.child_by_field_name("name").try(&.text(source))
+              return prop_name if prop_name
+            end
+          end
+          nil
+        when "literal_type"
+          member.text(source).gsub(/"/, "")
+        else
+          member.text(source)
+        end
+      end
+
+      private def extract_union_members(node : TreeSitter::Node, source : String, file_path : String, defines : Array(DefinesFact)) : Nil
+        (0...node.named_child_count).each do |member_idx|
+          member = node.named_child(member_idx)
+          next unless member
+          if member.type == "union_type"
+            # Recursively extract nested union types (left-associative tree)
+            extract_union_members(member, source, file_path, defines)
+          else
+            member_name = union_member_name(member, source)
+            next unless member_name
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Type, line: member.start_point.row.to_i + 1)
           end
         end
       end
