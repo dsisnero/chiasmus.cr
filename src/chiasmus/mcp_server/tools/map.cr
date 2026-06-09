@@ -68,6 +68,12 @@ module Chiasmus
             required: ["files"]
           ).to_mcp_input
         end
+
+        def self.output_schema : MCP::Protocol::Tool::Input
+          MCP::Protocol::Tool::Input.new(
+            properties: JSON.parse(%({"status":{"type":"string"},"content":{"type":"string"}})).as_h
+          )
+        end
       end
     end
   end

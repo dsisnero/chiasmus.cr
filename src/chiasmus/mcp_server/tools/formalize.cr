@@ -63,6 +63,12 @@ module Chiasmus
             required: ["problem"]
           )
         end
+
+        def self.output_schema : MCP::Protocol::Tool::Input
+          MCP::Protocol::Tool::Input.new(
+            properties: JSON.parse(%({"status":{"type":"string"},"template":{"type":"string"},"solver":{"type":"string"},"domain":{"type":"string"},"instructions":{"type":"string"}})).as_h
+          )
+        end
       end
     end
   end

@@ -51,6 +51,12 @@ module Chiasmus
             required: ["solver", "input"]
           ).to_mcp_input
         end
+
+        def self.output_schema : MCP::Protocol::Tool::Input
+          MCP::Protocol::Tool::Input.new(
+            properties: JSON.parse(%({"status":{"type":"string"},"spec":{"type":"string"},"fixes":{"type":"array"},"errors":{"type":"array"}})).as_h
+          )
+        end
       end
     end
   end

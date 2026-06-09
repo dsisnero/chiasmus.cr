@@ -86,6 +86,12 @@ module Chiasmus
             message: "No LLM API key configured. Returning template instructions instead. Fill the slots and use chiasmus_verify."
           )
         end
+
+        def self.output_schema : MCP::Protocol::Tool::Input
+          MCP::Protocol::Tool::Input.new(
+            properties: JSON.parse(%({"status":{"type":"string"},"result":{"type":"object"},"converged":{"type":"boolean"},"rounds":{"type":"integer"}})).as_h
+          )
+        end
       end
     end
   end

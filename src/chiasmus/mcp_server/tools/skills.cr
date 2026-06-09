@@ -100,6 +100,12 @@ module Chiasmus
             nil
           end
         end
+
+        def self.output_schema : MCP::Protocol::Tool::Input
+          MCP::Protocol::Tool::Input.new(
+            properties: JSON.parse(%({"status":{"type":"string"},"templates":{"type":"array"}})).as_h
+          )
+        end
       end
     end
   end
