@@ -9,6 +9,13 @@ require "./walkers/java"
 require "./walkers/csharp"
 require "./walkers/cpp"
 require "./walkers/bash"
+require "./walkers/c"
+require "./walkers/dart"
+require "./walkers/kotlin"
+require "./walkers/perl"
+require "./walkers/php"
+require "./walkers/proto"
+require "./walkers/scala"
 
 module Chiasmus
   module Graph

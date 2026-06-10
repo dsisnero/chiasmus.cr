@@ -23,8 +23,11 @@ Metrics/CyclomaticComplexity:
   - src/chiasmus/discovery/predicate_evaluator.cr
   - src/chiasmus/formalize/validate.cr
   - src/chiasmus/graph/analyses.cr
+  - src/chiasmus/graph/extractor.cr
   - src/chiasmus/graph/resolve_calls.cr
   - src/chiasmus/graph/tsconfig_aliases.cr
+  - src/chiasmus/graph/walkers/scala.cr
+  - src/chiasmus/graph/walkers/dart.cr
 
 Naming/BlockParameterName:
   Excluded:

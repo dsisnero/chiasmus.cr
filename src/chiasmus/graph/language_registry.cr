@@ -273,6 +273,12 @@ module Chiasmus
           extensions: [".pl", ".pm"]
         )
 
+        registry["proto"] = LanguageInfo.new(
+          name: "proto",
+          package: "tree-sitter-proto",
+          extensions: [".proto"]
+        )
+
         registry["r"] = LanguageInfo.new(
           name: "r",
           package: "tree-sitter-r",

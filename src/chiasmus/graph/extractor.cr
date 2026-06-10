@@ -239,6 +239,20 @@ module Chiasmus
           Walkers.walk_cpp(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
         when "bash"
           Walkers.walk_bash(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "c"
+          Walkers.walk_c(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "dart"
+          Walkers.walk_dart(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "kotlin"
+          Walkers.walk_kotlin(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "perl"
+          Walkers.walk_perl(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "php"
+          Walkers.walk_php(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "proto"
+          Walkers.walk_proto(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        when "scala"
+          Walkers.walk_scala(tree.root_node, file.content, file.path, scope_stack, defines, calls, imports, exports, contains, call_set)
         else
           Walkers.walk_node(tree.root_node, file.content, file.path, lang, scope_stack, defines, calls, imports, exports, contains, call_set)
         end
