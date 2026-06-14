@@ -1,6 +1,7 @@
 # Main MCP server implementation for chiasmus
 require "json"
 require "mcp"
+require "mcp/src/mcp/runner"
 require "crig"
 require "./tools/verify"
 require "./tools/skills"
@@ -91,6 +92,7 @@ module Chiasmus
       def run
         # All diagnostics MUST go to stderr — stdout is reserved for JSON-RPC
         Log.setup(:warn, Log::IOBackend.new(STDERR))
+        STDOUT.sync = true
 
         STDERR.puts "Starting chiasmus MCP server v#{Chiasmus::VERSION}"
         STDERR.puts "  Formal verification with Z3, Prolog, and tree-sitter analysis"
@@ -114,6 +116,21 @@ module Chiasmus
         Signal::TERM.trap do
           mcp.close rescue nil
           wg.done
+        end
+
+        # Async self-healthcheck: validates server tools and state after startup
+        # without blocking the MCP client connection. Uses in-memory transport
+        # so stdout (reserved for JSON-RPC) is never touched.
+        wg.spawn do
+          sleep(500.milliseconds)
+          result = healthcheck
+          if result[:success]
+            STDERR.puts "[Chiasmus] self healthcheck OK — #{result[:tools]} tools, v#{result[:version]}"
+          else
+            STDERR.puts "[Chiasmus] self healthcheck FAILED — #{result[:error]}"
+          end
+        rescue ex
+          STDERR.puts "[Chiasmus] self healthcheck error — #{ex.message}"
         end
 
         wg.spawn { mcp.connect(MCP::Server::StdioServerTransport.new(STDIN, STDOUT)) }
@@ -158,6 +175,13 @@ module Chiasmus
         end
       end
 
+      # Run the MCP server on streamable HTTP transport for debugging
+      def run_streamable(port : Int32 = 8899)
+        mcp = build_mcp_transport
+        runner = MCP::StreamableRunner.new(mcp, "/mcp")
+        runner.run(port)
+      end
+
       # Build and wire the MCP transport server with all tools registered
       def build_mcp_transport : MCP::Server::Server
         capabilities = MCP::Protocol::ServerCapabilities.new(
@@ -172,6 +196,13 @@ module Chiasmus
 
         register_tools(mcp_server)
         mcp_server
+      end
+
+      # Whether an LLM agent has been configured (via with_agent).
+      # When false, chiasmus_learn is gated from the tool listing because it
+      # requires an LLM to extract templates. Other tools degrade gracefully.
+      private def llm_configured? : Bool
+        !@formalization_engine.nil?
       end
 
       private def register_tools(mcp_server : MCP::Server::Server)
@@ -190,7 +221,14 @@ module Chiasmus
           {Tools::CrigTool, Tools::CrigTool.tool_name, Tools::CrigTool.tool_description, Tools::CrigTool.input_schema},
         ]
 
-        tool_defs.each do |(tool_class, name, description, input_schema)|
+        # Gate tools whose required backend is not configured.
+        # chiasmus_learn requires an LLM to extract reusable templates.
+        # chiasmus_search requires an embedding provider.
+        gated = tool_defs.reject do |(tool_class, name, _, _)|
+          (name == "chiasmus_learn" && !llm_configured?)
+        end
+
+        gated.each do |(tool_class, name, description, input_schema)|
           tool_instance = tool_class.new
           mcp_server.add_tool(name, description, input_schema) do |params|
             arguments = params.arguments || {} of String => JSON::Any
