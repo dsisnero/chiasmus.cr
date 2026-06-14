@@ -42,7 +42,7 @@ describe "chiasmus_graph diff analysis via MCP" do
       "files"    => JSON::Any.new([JSON::Any.new(go_file)]),
       "analysis" => JSON::Any.new("diff"),
       "against"  => JSON::Any.new("baseline"),
-      "cache"    => JSON::Any.new(cache_dir),
+      "cache"    => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
     })
 
     result.status.should eq("success")

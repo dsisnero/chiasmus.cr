@@ -64,4 +64,35 @@ describe "Diff analysis with snapshots" do
     json.should_not contain("not yet wired")
     FileUtils.rm_rf(cache_dir)
   end
+
+  it "GraphCache.default_cache_dir respects CHIASMUS_CACHE_DIR env var" do
+    with_env({"CHIASMUS_CACHE_DIR" => "/custom/cache/path"}) do
+      GraphCache.default_cache_dir.should eq("/custom/cache/path")
+    end
+  end
+
+  it "GraphCache.default_cache_dir falls back to XDG_CACHE_HOME/chiasmus" do
+    with_env({"CHIASMUS_CACHE_DIR" => nil, "XDG_CACHE_HOME" => "/xdg/cache"}) do
+      GraphCache.default_cache_dir.should eq(File.join("/xdg/cache", "chiasmus"))
+    end
+  end
+
+  it "GraphCache.default_cache_dir falls back to ~/.cache/chiasmus" do
+    with_env({"CHIASMUS_CACHE_DIR" => nil, "XDG_CACHE_HOME" => nil}) do
+      expected = File.join(Path.home.to_s, ".cache", "chiasmus")
+      GraphCache.default_cache_dir.should eq(expected)
+    end
+  end
+
+  it "GraphCache.default_max_bytes_per_repo respects env var" do
+    with_env({"CHIASMUS_CACHE_MAX_PER_REPO" => "1048576"}) do
+      GraphCache.default_max_bytes_per_repo.should eq(1048576)
+    end
+  end
+
+  it "GraphCache.default_max_bytes_per_repo ignores invalid env values" do
+    with_env({"CHIASMUS_CACHE_MAX_PER_REPO" => "not-a-number"}) do
+      GraphCache.default_max_bytes_per_repo.should eq(64 * 1024 * 1024)
+    end
+  end
 end
