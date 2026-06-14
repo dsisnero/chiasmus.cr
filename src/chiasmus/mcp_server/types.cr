@@ -418,6 +418,14 @@ module Chiasmus
         getter input : String
       end
 
+      struct GraphCacheOptions
+        include JSON::Serializable
+
+        getter cache_dir : String?
+        getter repo_key : String?
+        getter max_bytes_per_repo : Int32?
+      end
+
       struct GraphInput
         include JSON::Serializable
 
@@ -427,7 +435,8 @@ module Chiasmus
         getter from : String?
         getter to : String?
         getter entry_points : Array(String)?
-        getter cache : String?
+        getter cache : GraphCacheOptions?
+        getter save_snapshot : String?
         getter against : String?
       end
 

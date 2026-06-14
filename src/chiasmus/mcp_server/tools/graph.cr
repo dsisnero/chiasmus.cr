@@ -30,7 +30,11 @@ module Chiasmus
             against: args.against
           )
 
-          result = Graph::Analyses.run_analysis(absolute_files, request, cache_dir: args.cache, snapshot_cache_dir: args.cache)
+          cache_dir = if (cache_opts = args.cache)
+                        cache_opts.cache_dir || Graph::GraphCache.default_cache_dir
+                      end
+          repo_key = args.cache.try(&.repo_key)
+          result = Graph::Analyses.run_analysis(absolute_files, request, cache_dir: cache_dir, snapshot_cache_dir: cache_dir, repo_key: repo_key, save_snapshot: args.save_snapshot)
 
           result_value = if args.analysis == "facts"
                            result.result.as(String)
@@ -82,13 +86,15 @@ module Chiasmus
         def self.input_schema : MCP::Protocol::Tool::Input
           ToolSchemas::ToolInputSchema.new(
             properties: {
-              "files"        => ToolSchemas::Common.files_property,
-              "analysis"     => ToolSchemas::Common.analysis_property,
-              "target"       => ToolSchemas::Common.target_property,
-              "from"         => ToolSchemas::Common.from_property,
-              "to"           => ToolSchemas::Common.to_property,
-              "entry_points" => ToolSchemas::Common.entry_points_property,
-              "against"      => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against (required for diff analysis)"),
+              "files"         => ToolSchemas::Common.files_property,
+              "analysis"      => ToolSchemas::Common.analysis_property,
+              "target"        => ToolSchemas::Common.target_property,
+              "from"          => ToolSchemas::Common.from_property,
+              "to"            => ToolSchemas::Common.to_property,
+              "entry_points"  => ToolSchemas::Common.entry_points_property,
+              "against"       => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against (required for diff analysis)"),
+              "cache"         => ToolSchemas::SchemaProperty.new("object", "Cache options for per-file extraction cache and snapshot persistence. Supply {cache_dir, repo_key, max_bytes_per_repo}."),
+              "save_snapshot" => ToolSchemas::SchemaProperty.new("string", "Save the extracted graph under this snapshot name after analysis (requires cache)"),
             },
             required: ["files", "analysis"]
           ).to_mcp_input

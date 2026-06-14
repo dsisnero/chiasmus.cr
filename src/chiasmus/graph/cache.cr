@@ -7,6 +7,7 @@
 require "openssl"
 require "json"
 require "./types"
+require "../utils/xdg"
 
 module Chiasmus
   module Graph
@@ -24,6 +25,18 @@ module Chiasmus
 
       def default_repo_key(cwd : String = Dir.current) : String
         OpenSSL::Digest.new("SHA256").update(cwd).final.hexstring[0, 16]
+      end
+
+      def default_cache_dir : String
+        ENV["CHIASMUS_CACHE_DIR"]? || Utils::XDG.chiasmus_cache_dir
+      end
+
+      def default_max_bytes_per_repo : Int32
+        if env = ENV["CHIASMUS_CACHE_MAX_PER_REPO"]?
+          n = env.to_i32?
+          return n if n && n > 0
+        end
+        DEFAULT_MAX_BYTES
       end
 
       def resolve_cache_paths(cache_dir : String, repo_key : String = "default") : Hash(String, String)

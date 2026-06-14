@@ -100,7 +100,8 @@ module Chiasmus
       from : String? = nil,
       to : String? = nil,
       entry_points : Array(String)? = nil,
-      against : String? = nil
+      against : String? = nil,
+      include_insights : Bool = false
 
     record AnalysisResult,
       analysis : AnalysisType,
@@ -142,21 +143,37 @@ module Chiasmus
     module Analyses
       extend self
 
-      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil) : AnalysisResult
+      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil, repo_key : String? = nil, save_snapshot : String? = nil) : AnalysisResult
+        # Guard: save+diff against same snapshot would clobber baseline before diff runs
+        if save_snapshot && request.analysis.diff? && request.against == save_snapshot
+          return AnalysisResult.new(
+            analysis: request.analysis,
+            result: {"error" => "save_snapshot and against cannot name the same snapshot ('#{save_snapshot}') — the save would overwrite the baseline before the diff runs. Use distinct names."}.to_json.as(AnalysisPayload)
+          )
+        end
+
         files = file_paths.map do |file_path|
           SourceFile.new(path: file_path, content: File.read(file_path))
         end
 
         graph = Extractor.extract_graph(files, cache_dir: cache_dir)
-        run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir)
+
+        if save_snapshot && cache_dir
+          begin
+            GraphCache.save_snapshot(save_snapshot, graph, cache_dir, repo_key: repo_key || "default")
+          rescue ex
+          end
+        end
+
+        run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
       end
 
-      def run_analysis_from_graph(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil) : AnalysisResult
-        result = handle_analysis_request(graph, request, snapshot_cache_dir)
+      def run_analysis_from_graph(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil, repo_key : String? = nil) : AnalysisResult
+        result = handle_analysis_request(graph, request, snapshot_cache_dir, repo_key)
         AnalysisResult.new(analysis: request.analysis, result: result.as(AnalysisPayload))
       end
 
-      private def handle_analysis_request(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil)
+      private def handle_analysis_request(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil, repo_key : String? = nil)
         case request.analysis
         when AnalysisType::Facts
           Facts.graph_to_prolog(graph, request.entry_points)
@@ -177,7 +194,7 @@ module Chiasmus
         when AnalysisType::Impact
           handle_target_analysis(graph, request.target, :impact)
         when AnalysisType::Diff
-          handle_diff(graph, request.against, snapshot_cache_dir)
+          handle_diff(graph, request.against, snapshot_cache_dir, repo_key)
         when AnalysisType::LayerViolation
           LayerViolation.find(graph).map { |lv| {
             "caller" => lv.caller, "callee" => lv.callee,
@@ -200,11 +217,11 @@ module Chiasmus
         end
       end
 
-      private def handle_diff(graph : CodeGraph, against_name : String?, snapshot_cache_dir : String?) : String
+      private def handle_diff(graph : CodeGraph, against_name : String?, snapshot_cache_dir : String?, repo_key : String? = nil) : String
         return {"error" => "diff requires a snapshot name"}.to_json unless against_name
         return {"error" => "diff requires a cache directory to load snapshots"}.to_json unless snapshot_cache_dir
 
-        before = GraphCache.load_snapshot(against_name, snapshot_cache_dir)
+        before = GraphCache.load_snapshot(against_name, snapshot_cache_dir, repo_key: repo_key || "default")
         return {"error" => "snapshot '#{against_name}' not found in #{snapshot_cache_dir}"}.to_json unless before
 
         diff_result = GraphDiffer.diff(before, graph)
