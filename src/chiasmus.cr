@@ -33,109 +33,33 @@ module Chiasmus
     server.run
   end
 
-  # Healthcheck — spawns server as child process and verifies MCP protocol via stdio
+  # Healthcheck — verifies MCP server via in-memory transport without spawning a child process
   def self.healthcheck
-    binary = find_server_binary
-
+    server = MCPServer::Factory.from_env
     begin
-      server_proc = Process.new(
-        binary,
-        output: Process::Redirect::Pipe,
-        input: Process::Redirect::Pipe,
-        error: Process::Redirect::Close,
-      )
-
-      sleep(3.seconds)
-
-      # Send MCP initialize
-      init = {
-        jsonrpc: "2.0",
-        id:      1,
-        method:  "initialize",
-        params:  {
-          protocolVersion: MCP::Protocol::LATEST_PROTOCOL_VERSION,
-          capabilities:    {} of String => String,
-          clientInfo:      {name: "healthcheck", version: Chiasmus::VERSION},
-        },
-      }.to_json
-      server_proc.input.puts(init)
-      server_proc.input.flush
-
-      response = server_proc.output.gets
-      unless response
-        puts "chiasmus healthcheck FAILED"
-        puts "  error: no response to initialize"
-        server_proc.terminate
-        exit 1
-      end
-
-      parsed = JSON.parse(response)
-      if parsed["error"]?
-        puts "chiasmus healthcheck FAILED"
-        puts "  error: #{parsed["error"]}"
-        server_proc.terminate
-        exit 1
-      end
-
-      # Send initialized notification
-      initialized = {jsonrpc: "2.0", method: "notifications/initialized", params: {} of String => String}.to_json
-      server_proc.input.puts(initialized)
-      server_proc.input.flush
-
-      # Send tools/list
-      list_req = {jsonrpc: "2.0", id: 2, method: "tools/list", params: {} of String => String}.to_json
-      server_proc.input.puts(list_req)
-      server_proc.input.flush
-
-      list_resp = server_proc.output.gets
-      unless list_resp
-        puts "chiasmus healthcheck FAILED"
-        puts "  error: no response to tools/list"
-        server_proc.terminate
-        exit 1
-      end
-
-      list_result = JSON.parse(list_resp)
-      tools = list_result["result"]?.try(&.["tools"]?.try(&.as_a))
-      tool_count = tools.try(&.size) || 0
-
-      if tool_count > 0
+      result = server.healthcheck
+      if result[:success]
         puts "chiasmus healthcheck OK"
-        puts "  version: #{Chiasmus::VERSION}"
-        puts "  tools:   #{tool_count}"
-        server_proc.terminate
-        exit 0
+        puts "  version: #{result[:version]}"
+        puts "  tools:   #{result[:tools]}"
       else
         puts "chiasmus healthcheck FAILED"
-        puts "  error: no tools returned"
-        server_proc.terminate
+        puts "  error: #{result[:error]}"
         exit 1
       end
     rescue ex
       puts "chiasmus healthcheck FAILED"
       puts "  error: #{ex.message || ex.class.name}"
       exit 1
+    ensure
+      server.skill_library.close rescue nil
     end
   end
 
-  # Find the chiasmus server binary
-  private def self.find_server_binary : String
-    ENV["CHIASMUS_BIN"]? || begin
-      bin = File.join(Dir.current, "bin", "chiasmus")
-      return bin if File.file?(bin)
-
-      bin = File.join(Dir.current, "bin", "chiasmus-static")
-      return bin if File.file?(bin)
-
-      # Try the same directory as the current executable
-      if exe_path = Process.executable_path
-        dir = File.dirname(exe_path)
-        candidate = File.join(dir, "chiasmus")
-        return candidate if File.file?(candidate)
-      end
-
-      "chiasmus"
-    end
+  # Run server on streamable HTTP transport for debugging with mcp-debug
+  def self.run_streamable(port : Int32 = 8899)
+    server = MCPServer::Factory.from_env
+    server.run_streamable(port)
   end
 end
 
@@ -145,6 +69,12 @@ require "./chiasmus/**"
 # CLI entry point
 require "clip"
 
+# CLI entry point — runs when this file is the main executable.
+# The ChiasmusCLI struct must be available at compile time for Clip::Mapper,
+# so we always define it. The case block runs at runtime via at_exit
+# only when PROGRAM_NAME indicates we're a chiasmus binary, avoiding
+# interference with test suites (where require loads the module without
+# executing the CLI).
 @[Clip::Doc("Chiasmus MCP server — formal verification with Z3, Prolog, and tree-sitter analysis.")]
 struct ChiasmusCLI
   include Clip::Mapper
@@ -154,24 +84,39 @@ struct ChiasmusCLI
 
   @[Clip::Option("--healthcheck")]
   getter? healthcheck : Bool = false
+
+  @[Clip::Option("--streamable")]
+  getter? streamable : Bool = false
+
+  @[Clip::Option("--port")]
+  getter port : Int32 = 8899
 end
 
-begin
-  cli = ChiasmusCLI.parse(ARGV)
-rescue ex : Clip::ParsingError
-  puts ex
-  exit 1
-end
+at_exit do
+  exe = File.basename(PROGRAM_NAME)
+  unless exe.starts_with?("chiasmus")
+    next
+  end
 
-case cli
-when Clip::Mapper::Help
-  puts cli.help
-when ChiasmusCLI
-  if cli.version?
-    puts "chiasmus v#{Chiasmus::VERSION}"
-  elsif cli.healthcheck?
-    Chiasmus.healthcheck
-  else
-    Chiasmus.run
+  begin
+    cli = ChiasmusCLI.parse(ARGV)
+  rescue ex : Clip::ParsingError
+    puts ex
+    exit 1
+  end
+
+  case cli
+  when Clip::Mapper::Help
+    puts cli.help
+  when ChiasmusCLI
+    if cli.version?
+      puts "chiasmus v#{Chiasmus::VERSION}"
+    elsif cli.healthcheck?
+      Chiasmus.healthcheck
+    elsif cli.streamable?
+      Chiasmus.run_streamable(cli.port)
+    else
+      Chiasmus.run
+    end
   end
 end
