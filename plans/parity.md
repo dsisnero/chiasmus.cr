@@ -746,6 +746,59 @@ Per-language AST walkers for the `extract_graph` pipeline:
 | clojure | `walkers/clojure.cr` + `ClojureSourceExtractor` | Implemented (WASM parser divergence) |
 | csharp | `walkers/csharp.cr` | Implemented (Crystal-native) |
 
+### P18: Diff/Snapshot Analysis Wiring — Fixes Needed (2026-06-14)
+
+**Goal:** complete the `save_snapshot` + `diff`/`against` wiring that P18 declared complete but left with three gaps.
+
+**Problem:** `chiasmus_graph` snapshot save/load worked at the `GraphCache` level (cache.cr) but was never wired into the MCP tool handler. The `input_schema` didn't expose `cache` or `saveSnapshot`. Calling `chiasmus_graph(analysis="diff", against="baseline")` always returned `"diff requires a cache directory to load snapshots"` because `snapshot_cache_dir` was nil.
+
+**Root cause:** Three missing pieces in the port:
+
+| # | File | Missing | Upstream reference |
+|---|------|---------|-------------------|
+| 1 | `src/chiasmus/mcp_server/types.cr:421` | `GraphInput.saveSnapshot : String?` field | `analyses.ts:84` — `saveSnapshot?: string` |
+| 2 | `src/chiasmus/mcp_server/tools/graph.cr:82-95` | `input_schema` missing `cache` and `save_snapshot` properties | `analyses.ts:80,84` — `cache?: CacheOptions` and `saveSnapshot?: string` |
+| 3 | `src/chiasmus/graph/analyses.cr:145` | `graph.cr:33` passes `args.cache` but `run_analysis` never calls `GraphCache.save_snapshot()` after extraction | `analyses.ts:161-175` — calls `saveSnapshot(request.saveSnapshot, graph, request.cache)` |
+
+**Upstream behavior** (`vendor/chiasmus/src/graph/analyses.ts:106-179`):
+
+1. `runAnalysis(filePaths, request)` accepts `request.saveSnapshot?: string` and `request.cache?: CacheOptions`
+2. After `extractGraph()` → if `request.saveSnapshot` is set AND `request.cache` is provided → `saveSnapshot(request.saveSnapshot, graph, request.cache)`
+3. Guard: if `saveSnapshot == against` AND `analysis == "diff"` → reject with error (save would clobber baseline before diff)
+4. Without `cache`, `saveSnapshot` produces a warning, not an error (graceful degradation)
+
+**Fix plan (TDD):**
+
+| Step | Test | Implementation |
+|------|------|---------------|
+| 1 | Red: `graph_diff_spec.cr` — test that diff with no cache returns meaningful error | Existing |
+| 2 | Red: `graph tool` — pass `cache`+`saveSnapshot` → verify snapshot file exists on disk | New |
+| 3 | Red: `graph tool` — pass `cache`+`against` → diff against saved snapshot works | New |
+| 4 | Red: `graph tool` — pass `saveSnapshot==against` with analysis=`diff` → returns guard error | New |
+| 5 | Green: add `saveSnapshot` to `GraphInput` | `types.cr:421` |
+| 6 | Green: add `cache` and `saveSnapshot` to `input_schema` | `graph.cr:82` |
+| 7 | Green: wire `save_snapshot` call in `run_analysis` | `analyses.cr:145` |
+| 8 | Green: guard `saveSnapshot == against` for diff | `analyses.cr:145` |
+| 9 | Refactor: verify all 16 analyses still pass downstream in chiasmus.cr | 1138 specs |
+
+**Files to change:**
+- `src/chiasmus/mcp_server/types.cr` — add `saveSnapshot` to `GraphInput`
+- `src/chiasmus/mcp_server/tools/graph.cr` — add `cache`/`saveSnapshot` to `input_schema`, pass `saveSnapshot`
+- `src/chiasmus/graph/analyses.cr` — wire `save_snapshot` call, guard same-name rejection
+- `spec/chiasmus/graph/graph_diff_spec.cr` — TDD:
+  - diff returns error without cache dir
+  - diff returns error when snapshot not found
+  - save + load round-trip works
+  - save + diff against same snapshot is rejected
+  - save then diff against saved snapshot succeeds
+
+**Acceptance:**
+- `[ ]` `save_snapshot="baseline"` with `cache="/tmp/cache"` creates `<cache>/default/snapshots/baseline.json`
+- `[ ]` `analysis="diff"` + `against="baseline"` + `cache="/tmp/cache"` returns diff result
+- `[ ]` `saveSnapshot="x"` + `against="x"` + `analysis="diff"` returns guard error
+- `[ ]` All existing graph tests still pass
+- `[ ]` 1138 chiasmus specs pass
+
 ## Maintenance Mode Runbook
 
 ### After `git submodule update --remote vendor/chiasmus`
