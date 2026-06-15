@@ -912,3 +912,67 @@ describe "Unknown tool handling" do
     end
   end
 end
+
+describe "full pipeline: graph facts to prolog verify" do
+  it "queries graph facts via chiasmus_verify Prolog" do
+    path, cleanup = temp_source_file("go", "package main
+func hello() {}
+func main() { hello() }
+")
+    begin
+      mcp_server, client = connect_server_and_client
+      begin
+        result = call_tool(client, "chiasmus_graph", {
+          "files"    => JSON.parse([path].to_json),
+          "analysis" => JSON::Any.new("facts"),
+        })
+        result["status"].as_s.should eq("success")
+
+        prolog = result["result"].as_s
+        verify = call_tool(client, "chiasmus_verify", {
+          "solver" => JSON::Any.new("prolog"),
+          "spec"   => JSON::Any.new(prolog),
+          "query"  => JSON::Any.new("caller_of(hello, Who)."),
+        })
+        verify["status"].as_s.should eq("success")
+      ensure
+        disconnect(mcp_server, client)
+      end
+    ensure
+      cleanup.call
+    end
+  end
+
+  it "snapshot save then diff detects changes via transport" do
+    path, cleanup = temp_source_file("go", "package main
+func hello() {}
+")
+    cache_dir = File.join(Dir.tempdir, "chiasmus-pipe-#{Random::Secure.hex(8)}")
+    begin
+      mcp_server, client = connect_server_and_client
+      begin
+        save = call_tool(client, "chiasmus_graph", {
+          "files"         => JSON.parse([path].to_json),
+          "analysis"      => JSON::Any.new("summary"),
+          "save_snapshot" => JSON::Any.new("v1"),
+          "cache"         => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
+        })
+        save["status"].as_s.should eq("success")
+
+        diff = call_tool(client, "chiasmus_graph", {
+          "files"    => JSON.parse([path].to_json),
+          "analysis" => JSON::Any.new("diff"),
+          "against"  => JSON::Any.new("v1"),
+          "cache"    => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
+        })
+        diff["status"].as_s.should eq("success")
+        diff["analysis"].as_s.should eq("diff")
+      ensure
+        disconnect(mcp_server, client)
+      end
+    ensure
+      cleanup.call
+      FileUtils.rm_rf(cache_dir)
+    end
+  end
+end
