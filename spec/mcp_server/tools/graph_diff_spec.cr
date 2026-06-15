@@ -151,4 +151,30 @@ describe "chiasmus_graph diff analysis via MCP" do
     }.to_json)
     input.include_insights.should be_false
   end
+
+  it "GraphCacheOptions max_bytes_per_repo is parsed from JSON" do
+    input = Chiasmus::MCPServer::Types::GraphInput.from_json({
+      "files"    => ["/tmp/test.go"],
+      "analysis" => "summary",
+      "cache"    => {"cache_dir" => "/tmp/c", "max_bytes_per_repo" => 1048576},
+    }.to_json)
+    opts = input.cache || raise("Expected cache")
+    opts.max_bytes_per_repo.should eq(1048576)
+  end
+
+  it "run_analysis threads max_bytes to extract_graph" do
+    cache_dir = File.join(Dir.tempdir, "chiasmus-maxbytes-#{Random::Secure.hex(8)}")
+    go_file = File.join(Dir.tempdir, "maxbytes-test.go")
+    File.write(go_file, "package main\nfunc f() {}")
+
+    result = Chiasmus::Graph::Analyses.run_analysis(
+      [go_file],
+      Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Summary),
+      cache_dir: cache_dir,
+    )
+    result.analysis.should eq(Chiasmus::Graph::AnalysisType::Summary)
+
+    File.delete(go_file)
+    FileUtils.rm_rf(cache_dir)
+  end
 end

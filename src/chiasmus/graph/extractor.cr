@@ -13,7 +13,7 @@ module Chiasmus
     module Extractor
       extend self
 
-      def extract_graph(files : Array(SourceFile), parser = Parser, cache_dir : String? = nil) : CodeGraph
+      def extract_graph(files : Array(SourceFile), parser = Parser, cache_dir : String? = nil, max_bytes : Int32? = nil) : CodeGraph
         # Determine files to extract (split cached vs fresh)
         to_extract = files
         cached = [] of NamedTuple(path: String, graph: CodeGraph)
@@ -46,7 +46,7 @@ module Chiasmus
 
         # Save fresh graphs to cache
         if cache_dir && !fresh_graphs.empty?
-          GraphCache.save_file_cache(fresh_graphs, cache_dir)
+          GraphCache.save_file_cache(fresh_graphs, cache_dir, max_bytes: max_bytes || GraphCache.default_max_bytes_per_repo)
         end
 
         # Merge cached graphs

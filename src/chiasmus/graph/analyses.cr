@@ -143,7 +143,7 @@ module Chiasmus
     module Analyses
       extend self
 
-      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil, repo_key : String? = nil, save_snapshot : String? = nil) : AnalysisResult
+      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil, repo_key : String? = nil, max_bytes : Int32? = nil, save_snapshot : String? = nil) : AnalysisResult
         # Guard: save+diff against same snapshot would clobber baseline before diff runs
         if save_snapshot && request.analysis.diff? && request.against == save_snapshot
           return AnalysisResult.new(
@@ -156,7 +156,7 @@ module Chiasmus
           SourceFile.new(path: file_path, content: File.read(file_path))
         end
 
-        graph = Extractor.extract_graph(files, cache_dir: cache_dir)
+        graph = Extractor.extract_graph(files, cache_dir: cache_dir, max_bytes: max_bytes)
 
         if save_snapshot && cache_dir
           begin
