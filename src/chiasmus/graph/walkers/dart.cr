@@ -15,10 +15,28 @@ module Chiasmus
         contains : Array(ContainsFact),
         call_set : Set(String),
       ) : Nil
+        class_scope = dart_enter_scope(node, source, scope_stack)
         handle_dart_node(node, source, file_path, scope_stack, defines, calls, imports, contains, call_set)
 
         node.children.each do |child|
           walk_dart(child, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        end
+
+        scope_stack.pop if class_scope
+      end
+
+      private def dart_enter_scope(
+        node : TreeSitter::Node,
+        source : String,
+        scope_stack : Array(String),
+      ) : String?
+        case node.type
+        when "class_definition"
+          name = dart_name(node, source)
+          if name
+            scope_stack << name
+            name
+          end
         end
       end
 
@@ -37,16 +55,20 @@ module Chiasmus
         when "class_definition"
           name = dart_name(node, source)
           return unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
-          if enclosing = scope_stack.last?
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          if scope_stack.size > 1 && (enclosing = scope_stack[-2]?)
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
+        when "constructor_signature", "factory_constructor_signature", "constant_constructor_signature"
+          handle_dart_constructor(node, source, file_path, scope_stack, defines, contains)
+        when "enum_declaration"
+          handle_dart_enum(node, source, file_path, defines)
         when "function_signature"
           name = dart_name(node, source)
           return unless name
           dart_pop_method_scope(scope_stack)
           kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -57,11 +79,10 @@ module Chiasmus
           name = dart_name(sig, source)
           return unless name
           dart_pop_method_scope(scope_stack)
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
-          scope_stack << name
         when "expression_statement"
           handle_dart_call(node, source, scope_stack, calls, call_set)
         when "import_or_export"
@@ -146,6 +167,46 @@ module Chiasmus
         import_name = str_lit.text(source).gsub(/['"]/, "")
         name_part = import_name.split("/").last? || import_name
         imports << ImportsFact.new(file: file_path, name: name_part, source: import_name)
+      end
+
+      private def handle_dart_enum(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        defines : Array(DefinesFact),
+      ) : Bool
+        name = node.child_by_field_name("name").try(&.text(source))
+        return false unless name
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+
+        enum_body = dart_find_child(node, "enum_body")
+        if enum_body
+          (0...enum_body.named_child_count).each do |i|
+            constant = enum_body.named_child(i)
+            next unless constant && constant.type == "enum_constant"
+            constant_name = constant.child_by_field_name("name").try(&.text(source))
+            next unless constant_name
+            defines << DefinesFact.new(file: file_path, name: constant_name, kind: SymbolKind::Variable, line: constant.start_point.row.to_i + 1, end_line: constant.end_point.row.to_i + 1)
+          end
+        end
+
+        true
+      end
+
+      private def handle_dart_constructor(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
+      ) : Bool
+        return false unless scope_stack.last?
+        defines << DefinesFact.new(file: file_path, name: ".ctor", kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        if enclosing = scope_stack.last?
+          contains << ContainsFact.new(parent: enclosing, child: ".ctor")
+        end
+        true
       end
     end
   end

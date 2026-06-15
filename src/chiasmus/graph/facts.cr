@@ -19,7 +19,7 @@ module Chiasmus
         path(A, B, Visited, [A|Rest]) :- calls(A, Mid), \\+ member(Mid, Visited), path(Mid, B, [Mid|Visited], Rest).
 
         % Dead code: defined function not called by anyone and not an entry point
-        dead(Name) :- defines(_, Name, function, _), \\+ calls(_, Name), \\+ entry_point(Name).
+        dead(Name) :- defines(_, Name, function, _, _), \\+ calls(_, Name), \\+ entry_point(Name).
 
         % Convenience predicates
         caller_of(Target, Caller) :- calls(Caller, Target).
@@ -35,7 +35,7 @@ module Chiasmus
       def graph_to_prolog(graph : CodeGraph, entry_points : Array(String)? = nil) : String
         lines = [] of String
 
-        lines << ":- dynamic(defines/4)."
+        lines << ":- dynamic(defines/5)."
         lines << ":- dynamic(calls/2)."
         lines << ":- dynamic(imports/3)."
         lines << ":- dynamic(exports/2)."
@@ -44,7 +44,7 @@ module Chiasmus
         lines << ""
 
         graph.defines.each do |fact|
-          lines << "defines(#{escape_atom(fact.file)}, #{escape_atom(fact.name)}, #{escape_atom(fact.kind.to_prolog_atom)}, #{fact.line})."
+          lines << "defines(#{escape_atom(fact.file)}, #{escape_atom(fact.name)}, #{escape_atom(fact.kind.to_prolog_atom)}, #{fact.line}, #{fact.end_line})."
         end
         lines << "" unless graph.defines.empty?
 

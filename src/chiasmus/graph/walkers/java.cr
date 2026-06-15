@@ -66,7 +66,7 @@ module Chiasmus
         return false unless name
 
         kind = java_in_class?(node) ? SymbolKind::Method : SymbolKind::Function
-        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         if class_name = java_enclosing_class(node, source)
           contains << ContainsFact.new(parent: class_name, child: name)
         end
@@ -92,7 +92,7 @@ module Chiasmus
         name = node.child_by_field_name("name").try(&.text(source))
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         with_scope(scope_stack, name) do
           walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
         end
@@ -203,7 +203,7 @@ module Chiasmus
             next unless member.type == "enum_constant"
             name = member.child_by_field_name("name").try(&.text(source))
             next unless name
-            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1, end_line: member.end_point.row.to_i + 1)
           end
         end
       end

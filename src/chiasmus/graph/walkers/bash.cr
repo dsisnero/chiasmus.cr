@@ -39,7 +39,7 @@ module Chiasmus
         return unless name
 
         func_name = name.text(source)
-        defines << DefinesFact.new(file: file_path, name: func_name, kind: SymbolKind::Function, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: func_name, kind: SymbolKind::Function, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         with_scope(scope_stack, func_name) do
           walk_bash_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
         end

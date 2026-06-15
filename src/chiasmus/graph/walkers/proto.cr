@@ -37,7 +37,7 @@ module Chiasmus
         when "message"
           name = proto_find_identifier(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           with_scope(scope_stack, name) do
             walk_proto_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
           end
@@ -45,7 +45,7 @@ module Chiasmus
         when "service"
           name = proto_find_identifier(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           with_scope(scope_stack, name) do
             walk_proto_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
           end
@@ -53,7 +53,7 @@ module Chiasmus
         when "rpc"
           name = proto_find_identifier(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end

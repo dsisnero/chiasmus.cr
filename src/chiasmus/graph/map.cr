@@ -14,7 +14,8 @@ module Chiasmus
       name : String,
       kind : String,
       line : Int32,
-      signature : String?
+      signature : String?,
+      line_end : Int32 = 0
 
     record OverviewFile,
       path : String,
@@ -83,7 +84,7 @@ module Chiasmus
           top_exports = defines
             .select { |d| exports.try(&.includes?(d.name)) || false }
             .first(max_exports)
-            .map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.line, signature: d.signature) }
+            .map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.line, line_end: d.end_line, signature: d.signature) }
 
           languages << fn.language
           total_tokens += fn.token_estimate || 0
@@ -158,9 +159,9 @@ module Chiasmus
           tokens: fn.token_estimate,
           doc: fn.file_doc.try { |d| d[0, DEFAULT_DOC_LEN] },
           exports: defines.select { |d| export_names.includes?(d.name) }
-            .map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.line, signature: d.signature) },
+            .map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.line, line_end: d.end_line, signature: d.signature) },
           imports: imports.map { |i| {name: i.name, source: i.source} },
-          symbols: defines.map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.line, signature: d.signature) },
+          symbols: defines.map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.line, line_end: d.end_line, signature: d.signature) },
         )
       end
 

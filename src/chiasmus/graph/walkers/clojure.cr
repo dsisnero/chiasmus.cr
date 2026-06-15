@@ -122,7 +122,7 @@ module Chiasmus
               file: file_path,
               name: defn[:name],
               kind: SymbolKind::Function,
-              line: child.start_point.row.to_i + 1
+              line: child.start_point.row.to_i + 1, end_line: child.end_point.row.to_i + 1
             )
             defn_names.add(defn[:name])
             unless defn[:private]

@@ -20,6 +20,7 @@ module Chiasmus
       name : String,
       kind : SymbolKind,
       line : Int32,
+      end_line : Int32 = 0,
       signature : String? = nil
 
     record CallsFact,

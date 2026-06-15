@@ -54,7 +54,7 @@ module Chiasmus
       private def handle_csharp_class(node, source, file_path, scope_stack, defines, calls, imports, contains, call_set)
         name = node.child_by_field_name("name").try(&.text(source))
         return false unless name
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         with_scope(scope_stack, name) do
           walk_csharp_children(node, source, file_path, scope_stack, defines, calls, imports, [] of ExportsFact, contains, call_set)
         end
@@ -64,7 +64,7 @@ module Chiasmus
       private def handle_csharp_interface(node, source, file_path, scope_stack, defines, calls, imports, contains, call_set)
         name = node.child_by_field_name("name").try(&.text(source))
         return false unless name
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         with_scope(scope_stack, name) do
           walk_csharp_children(node, source, file_path, scope_stack, defines, calls, imports, [] of ExportsFact, contains, call_set)
         end
@@ -74,7 +74,7 @@ module Chiasmus
       private def handle_csharp_enum(node, source, file_path, defines)
         name = node.child_by_field_name("name").try(&.text(source))
         return false unless name
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
 
         # Extract enum members from enum_member_declaration_list
         (0...node.named_child_count).each do |child_idx|
@@ -87,7 +87,7 @@ module Chiasmus
             next unless member.type == "enum_member_declaration"
             member_name = member.child_by_field_name("name").try(&.text(source))
             next unless member_name
-            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1, end_line: member.end_point.row.to_i + 1)
           end
         end
 
@@ -97,7 +97,7 @@ module Chiasmus
       private def handle_csharp_method(node, source, file_path, scope_stack, defines, calls, imports, contains, call_set)
         name = node.child_by_field_name("name").try(&.text(source))
         return false unless name
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end
@@ -108,7 +108,7 @@ module Chiasmus
       end
 
       private def handle_csharp_constructor(node, source, file_path, scope_stack, defines, calls, imports, contains, call_set)
-        defines << DefinesFact.new(file: file_path, name: ".ctor", kind: SymbolKind::Method, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: ".ctor", kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: ".ctor")
         end

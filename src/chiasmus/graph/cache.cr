@@ -208,7 +208,7 @@ module Chiasmus
 
       private def code_graph_to_json(graph : CodeGraph) : String
         json = {
-          "defines" => graph.defines.map { |defn| {"file" => defn.file, "name" => defn.name, "kind" => defn.kind.to_s, "line" => defn.line} },
+          "defines" => graph.defines.map { |defn| h = {"file" => defn.file, "name" => defn.name, "kind" => defn.kind.to_s, "line" => defn.line}; h = h.merge({"end_line" => defn.end_line}) if defn.end_line > 0; h },
           "calls"   => graph.calls.map { |call_fact|
             h = {"caller" => call_fact.caller, "callee" => call_fact.callee}
             callee_qn = call_fact.callee_qn
@@ -266,7 +266,7 @@ module Chiasmus
         end
         CodeGraph.new(
           defines: parsed["defines"].as_a.map { |defn|
-            DefinesFact.new(file: defn["file"].as_s, name: defn["name"].as_s, kind: SymbolKind.parse(defn["kind"].as_s), line: defn["line"].as_i)
+            DefinesFact.new(file: defn["file"].as_s, name: defn["name"].as_s, kind: SymbolKind.parse(defn["kind"].as_s), line: defn["line"].as_i, end_line: defn["end_line"]?.try(&.as_i?) || 0)
           },
           calls: parsed["calls"].as_a.map { |call_fact|
             CallsFact.new(caller: call_fact["caller"].as_s, callee: call_fact["callee"].as_s, callee_qn: call_fact["callee_qn"]?.try(&.as_s?))

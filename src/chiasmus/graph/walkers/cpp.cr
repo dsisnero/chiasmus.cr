@@ -36,7 +36,7 @@ module Chiasmus
         when "class_specifier", "struct_specifier"
           name = cpp_declaration_name(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           with_scope(scope_stack, name) do
             walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
           end
@@ -45,7 +45,7 @@ module Chiasmus
           name = cpp_function_name(node, source)
           return false unless name
           kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -84,7 +84,7 @@ module Chiasmus
         end
         return false unless mname
 
-        defines << DefinesFact.new(file: file_path, name: mname, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: mname, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: mname)
         end

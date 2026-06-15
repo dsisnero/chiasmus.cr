@@ -38,19 +38,26 @@ module Chiasmus
         when "class_declaration"
           name = kotlin_class_name(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1)
-          if enclosing = scope_stack.last?
-            contains << ContainsFact.new(parent: enclosing, child: name)
+
+          if kotlin_find_child(node, "enum_class_body")
+            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+            kotlin_extract_enum_entries(node, source, file_path, defines)
+            true
+          else
+            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+            if enclosing = scope_stack.last?
+              contains << ContainsFact.new(parent: enclosing, child: name)
+            end
+            with_scope(scope_stack, name) do
+              walk_kotlin_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
+            end
+            true
           end
-          with_scope(scope_stack, name) do
-            walk_kotlin_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
-          end
-          true
         when "function_declaration"
           name = kotlin_find_child(node, "simple_identifier").try(&.text(source))
           return false unless name
           kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -102,6 +109,27 @@ module Chiasmus
 
         import_text = node.text(source).gsub(/^import\s+/, "").strip
         imports << ImportsFact.new(file: file_path, name: import_text, source: import_text)
+      end
+
+      private def kotlin_extract_enum_entries(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        defines : Array(DefinesFact),
+      ) : Nil
+        ecb = kotlin_find_child(node, "enum_class_body")
+        return unless ecb
+
+        entries = kotlin_find_child(ecb, "_enum_entries")
+        if entries
+          (0...entries.named_child_count).each do |i|
+            entry = entries.named_child(i)
+            next unless entry && entry.type == "enum_entry"
+            entry_name = kotlin_find_child(entry, "simple_identifier").try(&.text(source))
+            next unless entry_name
+            defines << DefinesFact.new(file: file_path, name: entry_name, kind: SymbolKind::Variable, line: entry.start_point.row.to_i + 1, end_line: entry.end_point.row.to_i + 1)
+          end
+        end
       end
 
       private def walk_kotlin_children(

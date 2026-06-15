@@ -28,7 +28,7 @@ module Chiasmus
             if name
               kind = impl_type ? SymbolKind::Method : SymbolKind::Function
               sig = extract_rust_signature(child, source)
-              defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: child.start_point.row.to_i + 1, signature: sig)
+              defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: child.start_point.row.to_i + 1, end_line: child.end_point.row.to_i + 1, signature: sig)
               if impl_type
                 contains << ContainsFact.new(parent: impl_type, child: name)
               end
@@ -42,7 +42,7 @@ module Chiasmus
           when "struct_item", "union_item"
             name = child.child_by_field_name("name").try(&.text(source))
             if name
-              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: child.start_point.row.to_i + 1)
+              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: child.start_point.row.to_i + 1, end_line: child.end_point.row.to_i + 1)
               if rust_pub?(child)
                 exports << ExportsFact.new(file: file_path, name: name)
               end
@@ -50,7 +50,7 @@ module Chiasmus
           when "enum_item"
             name = child.child_by_field_name("name").try(&.text(source))
             if name
-              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: child.start_point.row.to_i + 1)
+              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: child.start_point.row.to_i + 1, end_line: child.end_point.row.to_i + 1)
               if rust_pub?(child)
                 exports << ExportsFact.new(file: file_path, name: name)
               end
@@ -66,14 +66,14 @@ module Chiasmus
                 next unless variant.type == "enum_variant"
                 variant_name = variant.child_by_field_name("name").try(&.text(source))
                 if variant_name
-                  defines << DefinesFact.new(file: file_path, name: variant_name, kind: SymbolKind::Type, line: variant.start_point.row.to_i + 1)
+                  defines << DefinesFact.new(file: file_path, name: variant_name, kind: SymbolKind::Type, line: variant.start_point.row.to_i + 1, end_line: variant.end_point.row.to_i + 1)
                 end
               end
             end
           when "trait_item"
             name = child.child_by_field_name("name").try(&.text(source))
             if name
-              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: child.start_point.row.to_i + 1)
+              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: child.start_point.row.to_i + 1, end_line: child.end_point.row.to_i + 1)
               if rust_pub?(child)
                 exports << ExportsFact.new(file: file_path, name: name)
               end

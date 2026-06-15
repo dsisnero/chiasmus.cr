@@ -41,7 +41,7 @@ module Chiasmus
           return false unless crystal_method_name
 
           kind = is_class_method ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: crystal_method_name, kind: kind, line: node.start_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: crystal_method_name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: crystal_method_name)
           end
@@ -73,7 +73,7 @@ module Chiasmus
         name = node.children.find(&.type.==("constant")).try(&.text(source))
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
 
         # Extract aliased types (direct constants or union_type children)
         node.children.each do |child|
@@ -81,12 +81,12 @@ module Chiasmus
           when "constant"
             child_name = child.text(source)
             next if child_name == name
-            defines << DefinesFact.new(file: file_path, name: child_name, kind: SymbolKind::Type, line: child.start_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: child_name, kind: SymbolKind::Type, line: child.start_point.row.to_i + 1, end_line: child.end_point.row.to_i + 1)
           when "union_type"
             child.children.each do |union_child|
               next unless union_child.type == "constant"
               union_name = union_child.text(source)
-              defines << DefinesFact.new(file: file_path, name: union_name, kind: SymbolKind::Type, line: union_child.start_point.row.to_i + 1)
+              defines << DefinesFact.new(file: file_path, name: union_name, kind: SymbolKind::Type, line: union_child.start_point.row.to_i + 1, end_line: union_child.end_point.row.to_i + 1)
             end
           end
         end
@@ -103,7 +103,7 @@ module Chiasmus
         name = node.children.find(&.type.==("constant")).try(&.text(source))
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
 
         # Extract enum members (constants/const_assign inside the enum body)
         node.children.each do |child|
@@ -120,7 +120,7 @@ module Chiasmus
                           end
             next unless member_name
             next if member_name == name
-            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1, end_line: member.end_point.row.to_i + 1)
           end
         end
 
@@ -143,7 +143,7 @@ module Chiasmus
         name = node.children.find(&.type.==("constant")).try(&.text(source))
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
         with_scope(scope_stack, name) do
           walk_crystal_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
         end
