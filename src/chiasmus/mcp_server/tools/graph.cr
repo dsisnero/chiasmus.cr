@@ -27,7 +27,8 @@ module Chiasmus
             from: args.from,
             to: args.to,
             entry_points: args.entry_points,
-            against: args.against
+            against: args.against,
+            include_insights: args.include_insights
           )
 
           cache_dir = if (cache_opts = args.cache)
@@ -86,15 +87,16 @@ module Chiasmus
         def self.input_schema : MCP::Protocol::Tool::Input
           ToolSchemas::ToolInputSchema.new(
             properties: {
-              "files"         => ToolSchemas::Common.files_property,
-              "analysis"      => ToolSchemas::Common.analysis_property,
-              "target"        => ToolSchemas::Common.target_property,
-              "from"          => ToolSchemas::Common.from_property,
-              "to"            => ToolSchemas::Common.to_property,
-              "entry_points"  => ToolSchemas::Common.entry_points_property,
-              "against"       => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against (required for diff analysis)"),
-              "cache"         => ToolSchemas::SchemaProperty.new("object", "Cache options for per-file extraction cache and snapshot persistence. Supply {cache_dir, repo_key, max_bytes_per_repo}."),
-              "save_snapshot" => ToolSchemas::SchemaProperty.new("string", "Save the extracted graph under this snapshot name after analysis (requires cache)"),
+              "files"            => ToolSchemas::Common.files_property,
+              "analysis"         => ToolSchemas::Common.analysis_property,
+              "target"           => ToolSchemas::Common.target_property,
+              "from"             => ToolSchemas::Common.from_property,
+              "to"               => ToolSchemas::Common.to_property,
+              "entry_points"     => ToolSchemas::Common.entry_points_property,
+              "against"          => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against (required for diff analysis)"),
+              "cache"            => ToolSchemas::SchemaProperty.new("object", "Cache options for per-file extraction cache and snapshot persistence. Supply {cache_dir, repo_key, max_bytes_per_repo}."),
+              "save_snapshot"    => ToolSchemas::SchemaProperty.new("string", "Save the extracted graph under this snapshot name after analysis (requires cache)"),
+              "include_insights" => ToolSchemas::SchemaProperty.new("boolean", "For analysis=facts: also emit community/2, cohesion/2, hub/2, bridge/2 facts"),
             },
             required: ["files", "analysis"]
           ).to_mcp_input

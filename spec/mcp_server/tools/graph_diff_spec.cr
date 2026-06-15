@@ -129,4 +129,26 @@ describe "chiasmus_graph diff analysis via MCP" do
     File.delete(go_file)
     FileUtils.rm_rf(cache_dir)
   end
+
+  it "GraphInput accepts include_insights field" do
+    input = Chiasmus::MCPServer::Types::GraphInput.from_json({
+      "files"            => ["/tmp/test.go"],
+      "analysis"         => "facts",
+      "include_insights" => true,
+    }.to_json)
+    input.include_insights.should be_true
+  end
+
+  it "input schema includes include_insights parameter" do
+    schema = Chiasmus::MCPServer::Tools::GraphTool.input_schema
+    schema.properties.has_key?("include_insights").should be_true
+  end
+
+  it "include_insights defaults to false" do
+    input = Chiasmus::MCPServer::Types::GraphInput.from_json({
+      "files"    => ["/tmp/test.go"],
+      "analysis" => "facts",
+    }.to_json)
+    input.include_insights.should be_false
+  end
 end
