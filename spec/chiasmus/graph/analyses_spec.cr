@@ -268,4 +268,80 @@ describe Chiasmus::Graph::Analyses do
     error_val = result.result.as(Hash(String, String))["error"]
     error_val.should match(/missing/i)
   end
+
+  describe "diff and snapshot analysis" do
+    it "diff returns error when against name is nil" do
+      result = Chiasmus::Graph::Analyses.run_analysis_from_graph(
+        make_graph,
+        Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Diff),
+        snapshot_cache_dir: "/tmp/cache",
+      )
+      result.result.as(String).should contain("diff requires a snapshot name")
+    end
+
+    it "diff returns error when snapshot_cache_dir is nil" do
+      result = Chiasmus::Graph::Analyses.run_analysis_from_graph(
+        make_graph,
+        Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Diff, against: "baseline"),
+      )
+      result.result.as(String).should contain("diff requires a cache directory")
+    end
+
+    it "diff returns error when snapshot not found" do
+      cache_dir = File.join(Dir.tempdir, "chiasmus-diff-notfound-#{Random::Secure.hex(8)}")
+      result = Chiasmus::Graph::Analyses.run_analysis_from_graph(
+        make_graph,
+        Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Diff, against: "nonexistent"),
+        snapshot_cache_dir: cache_dir,
+      )
+      result.result.as(String).should contain("not found")
+    end
+
+    it "diff returns added/removed nodes when snapshot exists" do
+      cache_dir = File.join(Dir.tempdir, "chiasmus-diff-#{Random::Secure.hex(8)}")
+
+      before = Chiasmus::Graph::CodeGraph.new(
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.go", name: "oldFunc", kind: Chiasmus::Graph::SymbolKind::Function, line: 1)],
+      )
+      Chiasmus::Graph::GraphCache.save_snapshot("base", before, cache_dir)
+
+      after = make_graph(
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.go", name: "newFunc", kind: Chiasmus::Graph::SymbolKind::Function, line: 1)],
+      )
+
+      result = Chiasmus::Graph::Analyses.run_analysis_from_graph(
+        after,
+        Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Diff, against: "base"),
+        snapshot_cache_dir: cache_dir,
+      )
+      json = result.result.as(String)
+      json.should contain("added_nodes")
+      json.should contain("removed_nodes")
+      json.should contain("oldFunc")
+      json.should contain("newFunc")
+
+      FileUtils.rm_rf(cache_dir)
+    end
+
+    it "rejects save_snapshot == against for diff analysis" do
+      cache_dir = File.join(Dir.tempdir, "chiasmus-guard-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(cache_dir)
+      go_file = File.join(Dir.tempdir, "guard-test-#{Random::Secure.hex(8)}.go")
+      File.write(go_file, "package main\nfunc f() {}")
+
+      result = Chiasmus::Graph::Analyses.run_analysis(
+        [go_file],
+        Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Diff, against: "same"),
+        cache_dir: cache_dir,
+        save_snapshot: "same",
+      )
+
+      # The code doesn't let through invalid requests, so check it returns an error
+      result.analysis.should eq(Chiasmus::Graph::AnalysisType::Diff)
+      result.result.to_s.should contain("cannot name the same snapshot")
+
+      File.delete(go_file)
+      FileUtils.rm_rf(cache_dir)
+    end
+  end
 end

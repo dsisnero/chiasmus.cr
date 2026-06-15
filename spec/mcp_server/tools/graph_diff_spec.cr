@@ -53,4 +53,80 @@ describe "chiasmus_graph diff analysis via MCP" do
     File.delete(go_file)
     FileUtils.rm_rf(cache_dir)
   end
+
+  it "GraphInput accepts save_snapshot field" do
+    input = Chiasmus::MCPServer::Types::GraphInput.from_json({
+      "files"         => ["/tmp/test.go"],
+      "analysis"      => "summary",
+      "save_snapshot" => "my-baseline",
+    }.to_json)
+    input.save_snapshot.should eq("my-baseline")
+  end
+
+  it "GraphInput accepts cache as GraphCacheOptions object" do
+    input = Chiasmus::MCPServer::Types::GraphInput.from_json({
+      "files"    => ["/tmp/test.go"],
+      "analysis" => "summary",
+      "cache"    => {"cache_dir" => "/tmp/cache", "repo_key" => "my-project"},
+    }.to_json)
+    input.cache.should_not be_nil
+    opts = input.cache || raise("Expected cache")
+    opts.cache_dir.should eq("/tmp/cache")
+    opts.repo_key.should eq("my-project")
+  end
+
+  it "input schema includes save_snapshot parameter" do
+    schema = Chiasmus::MCPServer::Tools::GraphTool.input_schema
+    schema.properties.has_key?("save_snapshot").should be_true
+  end
+
+  it "input schema includes cache parameter" do
+    schema = Chiasmus::MCPServer::Tools::GraphTool.input_schema
+    schema.properties.has_key?("cache").should be_true
+  end
+
+  it "rejects same-name save_snapshot and against for diff analysis" do
+    cache_dir = File.join(Dir.tempdir, "chiasmus-guard-#{Random::Secure.hex(8)}")
+    go_file = File.join(Dir.tempdir, "guard-test.go")
+    File.write(go_file, "package main\nfunc f() {}")
+
+    tool = Chiasmus::MCPServer::Tools::GraphTool.new
+    result = tool.invoke({
+      "files"         => JSON::Any.new([JSON::Any.new(go_file)]),
+      "analysis"      => JSON::Any.new("diff"),
+      "against"       => JSON::Any.new("same-name"),
+      "save_snapshot" => JSON::Any.new("same-name"),
+      "cache"         => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
+    })
+
+    result.status.should eq("success")
+    g = result.as(Chiasmus::MCPServer::Types::GraphResponse)
+    g.result.to_s.should contain("cannot name the same snapshot")
+
+    File.delete(go_file)
+    FileUtils.rm_rf(cache_dir)
+  end
+
+  it "saves snapshot when save_snapshot and cache are provided" do
+    cache_dir = File.join(Dir.tempdir, "chiasmus-save-#{Random::Secure.hex(8)}")
+    go_file = File.join(Dir.tempdir, "save-test.go")
+    File.write(go_file, "package main\nfunc f() {}")
+
+    tool = Chiasmus::MCPServer::Tools::GraphTool.new
+    result = tool.invoke({
+      "files"         => JSON::Any.new([JSON::Any.new(go_file)]),
+      "analysis"      => JSON::Any.new("summary"),
+      "save_snapshot" => JSON::Any.new("tool-saved"),
+      "cache"         => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
+    })
+
+    result.status.should eq("success")
+
+    loaded = Chiasmus::Graph::GraphCache.load_snapshot("tool-saved", cache_dir)
+    loaded.should_not be_nil
+    (loaded || raise("Expected snapshot")).defines.map(&.name).should contain("f")
+
+    File.delete(go_file)
+    FileUtils.rm_rf(cache_dir)
+  end
 end
