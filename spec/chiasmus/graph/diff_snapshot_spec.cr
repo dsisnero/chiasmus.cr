@@ -95,4 +95,62 @@ describe "Diff analysis with snapshots" do
       GraphCache.default_max_bytes_per_repo.should eq(64 * 1024 * 1024)
     end
   end
+
+  describe "snapshot lifecycle" do
+    it "list_snapshots returns saved snapshot names" do
+      cache_dir = File.join(Dir.tempdir, "chiasmus-list-#{Random::Secure.hex(8)}")
+      graph = CodeGraph.new(
+        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, line: 1)],
+      )
+      GraphCache.save_snapshot("snap1", graph, cache_dir)
+      GraphCache.save_snapshot("snap2", graph, cache_dir)
+
+      names = GraphCache.list_snapshots(cache_dir)
+      names.sort.should eq(["snap1", "snap2"])
+      FileUtils.rm_rf(cache_dir)
+    end
+
+    it "list_snapshots returns empty array for nonexistent directory" do
+      cache_dir = File.join(Dir.tempdir, "chiasmus-empty-#{Random::Secure.hex(8)}")
+      names = GraphCache.list_snapshots(cache_dir)
+      names.should be_empty
+    end
+
+    it "delete_snapshot removes a saved snapshot" do
+      cache_dir = File.join(Dir.tempdir, "chiasmus-del-#{Random::Secure.hex(8)}")
+      graph = CodeGraph.new(
+        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, line: 1)],
+      )
+      GraphCache.save_snapshot("temp", graph, cache_dir)
+
+      loaded_before = GraphCache.load_snapshot("temp", cache_dir)
+      loaded_before.should_not be_nil
+
+      GraphCache.delete_snapshot("temp", cache_dir)
+      loaded_after = GraphCache.load_snapshot("temp", cache_dir)
+      loaded_after.should be_nil
+      FileUtils.rm_rf(cache_dir)
+    end
+
+    it "delete_snapshot is a no-op for nonexistent snapshot" do
+      cache_dir = File.join(Dir.tempdir, "chiasmus-delnoop-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(cache_dir)
+      GraphCache.delete_snapshot("nonexistent", cache_dir)
+      FileUtils.rm_rf(cache_dir)
+    end
+
+    it "clear_repo_cache removes all snapshots" do
+      cache_dir = File.join(Dir.tempdir, "chiasmus-clear-#{Random::Secure.hex(8)}")
+      graph = CodeGraph.new(
+        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, line: 1)],
+      )
+      GraphCache.save_snapshot("s1", graph, cache_dir)
+      GraphCache.save_snapshot("s2", graph, cache_dir)
+
+      GraphCache.clear_repo_cache(cache_dir)
+      loaded = GraphCache.load_snapshot("s1", cache_dir)
+      loaded.should be_nil
+      FileUtils.rm_rf(cache_dir)
+    end
+  end
 end
