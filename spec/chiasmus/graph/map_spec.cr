@@ -264,6 +264,37 @@ describe CodebaseMap do
       md.should contain("line 10-25")
       md.should contain("line 30")
     end
+
+    it "symbol detail JSON includes defines with line_end" do
+      graph = CodeGraph.new(
+        defines: [
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 10, end_line: 25),
+        ],
+        calls: [CallsFact.new(caller: "main", callee: "foo")],
+      )
+      detail = CodebaseMap.build_symbol_detail(graph, "foo")
+      detail.should_not be_nil
+      d = detail || raise "Expected detail"
+
+      json = CodebaseMap.render_map(d, "json")
+      json.should contain("defines")
+      json.should contain("line_end")
+      json.should contain("25")
+    end
+
+    it "symbol detail markdown shows line range" do
+      graph = CodeGraph.new(
+        defines: [
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 10, end_line: 25),
+        ],
+      )
+      detail = CodebaseMap.build_symbol_detail(graph, "foo")
+      detail.should_not be_nil
+      d = detail || raise "Expected detail"
+
+      md = CodebaseMap.render_map(d, "markdown")
+      md.should contain("a.ts:10-25")
+    end
   end
 
   describe ".glob_match" do

@@ -237,6 +237,23 @@ module Chiasmus
             json.object do
               json.field "kind", "symbol"
               json.field "name", map.name
+              json.field "defines" do
+                json.array do
+                  map.defines.each do |d|
+                    json.object do
+                      json.field "file", d[:file]
+                      json.field "kind", d[:kind]
+                      json.field "line", d[:line]
+                      if d[:line_end] > 0
+                        json.field "line_end", d[:line_end]
+                      end
+                      if sig = d[:signature]
+                        json.field "signature", sig
+                      end
+                    end
+                  end
+                end
+              end
               json.field "callers", map.callers
               json.field "callees", map.callees
             end
@@ -257,7 +274,12 @@ module Chiasmus
           lines.join("
 ")
         when SymbolDetail
-          lines = ["## #{map.name}", "", "**Defined in**: #{map.defines.map(&.[:file]).join(", ")}"]
+          defined_in = map.defines.map { |d|
+            loc = "#{d[:file]}:#{d[:line]}"
+            loc += "-#{d[:line_end]}" if d[:line_end] > 0
+            loc
+          }.join(", ")
+          lines = ["## #{map.name}", "", "**Defined in**: #{defined_in}"]
           unless map.callers.empty?
             lines << "**Callers**: #{map.callers.join(", ")}"
           end
