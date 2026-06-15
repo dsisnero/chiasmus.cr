@@ -176,7 +176,7 @@ module Chiasmus
       private def handle_analysis_request(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil, repo_key : String? = nil)
         case request.analysis
         when AnalysisType::Facts
-          Facts.graph_to_prolog(graph, request.entry_points)
+          Facts.graph_to_prolog(graph, request.entry_points, request.include_insights)
         when AnalysisType::Summary
           build_summary(graph)
         when AnalysisType::Callers

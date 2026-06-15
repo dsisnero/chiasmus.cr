@@ -1,6 +1,8 @@
 require "spec"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/facts"
+require "../../../src/chiasmus/graph/community"
+require "../../../src/chiasmus/graph/insights"
 require "../../../src/chiasmus/graph/extractor"
 require "../../../src/chiasmus/solvers/prolog_solver"
 
@@ -272,6 +274,36 @@ describe Chiasmus::Graph::Facts do
       ensure
         tmp.delete
       end
+    end
+  end
+
+  describe "include_insights" do
+    it "omits insight facts by default" do
+      graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, line: 1)],
+      )
+      program = Chiasmus::Graph::Facts.graph_to_prolog(graph)
+      program.should_not contain("community(")
+      program.should_not contain("cohesion(")
+      program.should_not contain("hub(")
+      program.should_not contain("bridge(")
+    end
+
+    it "emits community and cohesion facts when include_insights is true" do
+      graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "bar", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "foo", callee: "bar"),
+          Chiasmus::Graph::CallsFact.new(caller: "bar", callee: "foo"),
+        ],
+      )
+      program = Chiasmus::Graph::Facts.graph_to_prolog(graph, include_insights: true)
+      program.should contain("community(")
+      program.should contain("cohesion(")
+      program.should contain("hub(")
     end
   end
 end

@@ -32,7 +32,7 @@ module Chiasmus
         "'#{value.gsub("'", "''")}'"
       end
 
-      def graph_to_prolog(graph : CodeGraph, entry_points : Array(String)? = nil) : String
+      def graph_to_prolog(graph : CodeGraph, entry_points : Array(String)? = nil, include_insights : Bool = false) : String
         lines = [] of String
 
         lines << ":- dynamic(defines/5)."
@@ -74,8 +74,38 @@ module Chiasmus
         end
 
         lines << ""
+        emit_insight_facts(graph, lines) if include_insights
         lines << BUILTIN_RULES
         lines.join("\n")
+      end
+
+      private def emit_insight_facts(graph : CodeGraph, lines : Array(String)) : Nil
+        communities = CommunityDetection.detect(graph)
+        unless communities.empty?
+          communities.each do |c|
+            lines << "cohesion(#{c.id}, #{c.cohesion})."
+            c.members.each do |m|
+              lines << "community(#{escape_atom(m)}, #{c.id})."
+            end
+          end
+          lines << ""
+        end
+
+        hubs = Insights.detect_hubs(graph)
+        unless hubs.empty?
+          hubs.each do |h|
+            lines << "hub(#{escape_atom(h.name)}, #{h.degree})."
+          end
+          lines << ""
+        end
+
+        bridges = Insights.detect_bridges(graph)
+        unless bridges.empty?
+          bridges.each do |b|
+            lines << "bridge(#{escape_atom(b.name)}, #{b.score.to_s})."
+          end
+          lines << ""
+        end
       end
     end
   end
