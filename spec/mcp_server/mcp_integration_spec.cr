@@ -1034,4 +1034,47 @@ func hello() {}
       end
     end
   end
+describe "chiasmus_verify batch queries through transport" do
+    it "runs multiple Prolog queries against the same program" do
+      mcp_server, client = connect_server_and_client
+      begin
+        result = call_tool(client, "chiasmus_verify", {
+          "solver"  => JSON::Any.new("prolog"),
+          "spec"    => JSON::Any.new("edge(a,b). edge(b,c)."),
+          "queries" => JSON.parse(%(["edge(a,X).", "edge(b,X)."])),
+        })
+        result["status"].as_s.should eq("success")
+      ensure
+        disconnect(mcp_server, client)
+      end
+    end
+
+    it "rejects non-string array elements in queries" do
+      mcp_server, client = connect_server_and_client
+      begin
+        result = call_tool(client, "chiasmus_verify", {
+          "solver"  => JSON::Any.new("prolog"),
+          "spec"    => JSON::Any.new("edge(a,b)."),
+          "queries" => JSON.parse(%(["edge(a,X).", 42])),
+        })
+        result["status"].as_s.should eq("error")
+      ensure
+        disconnect(mcp_server, client)
+      end
+    end
+
+    it "returns error for empty queries array" do
+      mcp_server, client = connect_server_and_client
+      begin
+        result = call_tool(client, "chiasmus_verify", {
+          "solver"  => JSON::Any.new("prolog"),
+          "spec"    => JSON::Any.new("edge(a,b)."),
+          "queries" => JSON.parse(%([])),
+        })
+        result["status"].as_s.should eq("error")
+      ensure
+        disconnect(mcp_server, client)
+      end
+    end
+  end
 end
