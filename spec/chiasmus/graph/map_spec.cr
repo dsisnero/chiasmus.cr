@@ -221,6 +221,51 @@ describe CodebaseMap do
     end
   end
 
+  describe "line_end in output" do
+    it "JSON file detail includes line_end when end_line > 0" do
+      graph = CodeGraph.new(
+        defines: [
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 10, end_line: 25),
+          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, line: 30, end_line: 0),
+        ],
+        files: [FileNode.new(path: "a.ts", language: "typescript")],
+      )
+      detail = CodebaseMap.build_file_detail(graph, "a.ts")
+      detail.should_not be_nil
+      d = detail || raise "Expected detail"
+
+      json = CodebaseMap.render_map(d, "json")
+      # foo has end_line > 0 → should appear
+      json.should contain("foo")
+      json.should contain("line_end")
+      # bar has end_line 0 → should not have line_end in JSON
+      parsed = JSON.parse(json)
+      symbols = parsed["symbols"].as_a
+      foo_sym = symbols.find { |s| s["name"] == "foo" }
+      foo_sym.try { |fs| fs["line_end"].as_i.should eq(25) }
+
+      bar_sym = symbols.find { |s| s["name"] == "bar" }
+      bar_sym.try { |bs| bs.as_h.has_key?("line_end").should be_false }
+    end
+
+    it "markdown shows line range when end_line > 0" do
+      graph = CodeGraph.new(
+        defines: [
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 10, end_line: 25),
+          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, line: 30, end_line: 0),
+        ],
+        files: [FileNode.new(path: "a.ts", language: "typescript")],
+      )
+      detail = CodebaseMap.build_file_detail(graph, "a.ts")
+      detail.should_not be_nil
+      d = detail || raise "Expected detail"
+
+      md = CodebaseMap.render_map(d, "markdown")
+      md.should contain("line 10-25")
+      md.should contain("line 30")
+    end
+  end
+
   describe ".glob_match" do
     it "matches exact paths" do
       CodebaseMap.glob_match("src/index.ts", "src/index.ts").should be_true

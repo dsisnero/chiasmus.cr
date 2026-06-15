@@ -57,7 +57,7 @@ module Chiasmus
     record SymbolDetail,
       kind : String,
       name : String,
-      defines : Array(NamedTuple(file: String, kind: String, line: Int32, signature: String?)),
+      defines : Array(NamedTuple(file: String, kind: String, line: Int32, line_end: Int32, signature: String?)),
       callers : Array(String),
       callees : Array(String)
 
@@ -175,7 +175,7 @@ module Chiasmus
         SymbolDetail.new(
           kind: "symbol",
           name: name,
-          defines: defs.map { |d| {file: d.file, kind: d.kind.to_s.downcase, line: d.line, signature: d.signature} },
+          defines: defs.map { |d| {file: d.file, kind: d.kind.to_s.downcase, line: d.line, line_end: d.end_line, signature: d.signature} },
           callers: callers,
           callees: callees,
         )
@@ -220,6 +220,9 @@ module Chiasmus
                       json.field "name", s.name
                       json.field "kind", s.kind
                       json.field "line", s.line
+                      if s.line_end > 0
+                        json.field "line_end", s.line_end
+                      end
                       if sig = s.signature
                         json.field "signature", sig
                       end
@@ -250,7 +253,7 @@ module Chiasmus
 ")
         when FileDetail
           lines = ["## #{map.path}", "", "**Language**: #{map.language}", "**Symbols**: #{map.symbols.size}"]
-          map.symbols.each { |s| lines << "- `#{s.name}` (#{s.kind}) line #{s.line}#{s.signature ? " — #{s.signature}" : ""}" }
+          map.symbols.each { |s| lines << "- `#{s.name}` (#{s.kind}) line #{s.line}#{s.line_end > 0 ? "-#{s.line_end}" : ""}#{s.signature ? " — #{s.signature}" : ""}" }
           lines.join("
 ")
         when SymbolDetail
