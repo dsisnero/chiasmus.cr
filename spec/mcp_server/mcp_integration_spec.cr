@@ -975,4 +975,63 @@ func hello() {}
       FileUtils.rm_rf(cache_dir)
     end
   end
+
+  describe "chiasmus_graph structural analyses through transport" do
+    it "dead-code finds unreachable functions" do
+      path, cleanup = temp_source_file("go", "package main\nfunc reachable() {}\nfunc unreachable() {}\nfunc main() { reachable() }\n")
+      begin
+        mcp_server, client = connect_server_and_client
+        begin
+          result = call_tool(client, "chiasmus_graph", {
+            "files"    => JSON.parse([path].to_json),
+            "analysis" => JSON::Any.new("dead-code"),
+          })
+          result["status"].as_s.should eq("success")
+        ensure
+          disconnect(mcp_server, client)
+        end
+      ensure
+        cleanup.call
+      end
+    end
+
+    it "callers returns functions that call the target" do
+      path, cleanup = temp_source_file("go", "package main\nfunc main() { helper() }\nfunc helper() {}\n")
+      begin
+        mcp_server, client = connect_server_and_client
+        begin
+          result = call_tool(client, "chiasmus_graph", {
+            "files"    => JSON.parse([path].to_json),
+            "analysis" => JSON::Any.new("callers"),
+            "target"   => JSON::Any.new("helper"),
+          })
+          result["status"].as_s.should eq("success")
+        ensure
+          disconnect(mcp_server, client)
+        end
+      ensure
+        cleanup.call
+      end
+    end
+
+    it "paths finds call chain between functions" do
+      path, cleanup = temp_source_file("go", "package main\nfunc a() { b() }\nfunc b() { c() }\nfunc c() {}\n")
+      begin
+        mcp_server, client = connect_server_and_client
+        begin
+          result = call_tool(client, "chiasmus_graph", {
+            "files"    => JSON.parse([path].to_json),
+            "analysis" => JSON::Any.new("path"),
+            "from"     => JSON::Any.new("a"),
+            "to"       => JSON::Any.new("c"),
+          })
+          result["status"].as_s.should eq("success")
+        ensure
+          disconnect(mcp_server, client)
+        end
+      ensure
+        cleanup.call
+      end
+    end
+  end
 end
