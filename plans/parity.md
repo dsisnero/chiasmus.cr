@@ -74,6 +74,7 @@ All prior porting work is complete. See implementation history below for details
 | **P21** | **Parallel Graph Extraction** | **Implemented** |
 | **P23** | **Parallel File I/O** | **Implemented** |
 | **P24** | **Async Cache & Snapshot Writes** | **Implemented** |
+| **P25** | **Parallel Brandes' Algorithm (Betweenness)** | **Implemented** |
 
 ### P21: Parallel Graph Extraction — Implemented
 
