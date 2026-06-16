@@ -57,6 +57,30 @@ describe "Dart graph walker" do
     graph.imports.size.should be >= 2
   end
 
+  it "extracts enum declarations" do
+    code = <<-DART
+      enum Color { red, green, blue }
+    DART
+    sources = [SourceFile.new(path: "/tmp/t.dart", content: code)]
+    graph = Extractor.extract_graph(sources)
+    names = graph.defines.map(&.name).to_set
+    names.should contain("Color")
+  end
+
+  it "captures constructor declarations" do
+    code = <<-DART
+      class Point {
+        int x, y;
+        Point(this.x, this.y);
+      }
+    DART
+    sources = [SourceFile.new(path: "/tmp/t.dart", content: code)]
+    graph = Extractor.extract_graph(sources)
+    names = graph.defines.map(&.name).to_set
+    names.should contain("Point")
+    names.should contain(".ctor")
+  end
+
   it "produces file nodes for Dart files" do
     code = "void main() {}"
     sources = [SourceFile.new(path: "/tmp/t.dart", content: code)]

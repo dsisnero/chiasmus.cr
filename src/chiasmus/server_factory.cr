@@ -118,11 +118,56 @@ module Chiasmus
         Server.with_agent(agent)
       end
 
-      # Create a server based on environment configuration
+      # Create a server without an LLM agent — tools that need an LLM
+      # degrade gracefully (chiasmus_formalize falls back to template search,
+      # chiasmus_solve falls back to formalize, chiasmus_learn returns
+      # "no LLM configured", chiasmus_crig returns "no API key").
+      private def self.no_llm_server : Server(LLM::MockCompletionModel)
+        server = Server(LLM::MockCompletionModel).new
+        MCPServer::RUNTIME_LOCK.synchronize do
+          MCPServer.current_server = server
+        end
+        server
+      end
+
+      # Create a server based on environment configuration.
+      #
+      # Uses the provider-specific API key to detect whether an LLM backend
+      # is available. Falls back to a server without LLM when the key is
+      # missing, so the MCP process still starts and responds to tools/list
+      # (hiding chiasmus_learn). Matches upstream createLLMFromEnv() behaviour.
       def self.from_env
-        provider = ENV["CHIASMUS_LLM_PROVIDER"]? || "openai"
-        model = ENV["CHIASMUS_LLM_MODEL"]? || Crig::Providers::OpenAI::GPT_4O_MINI
+        provider = ENV["CHIASMUS_LLM_PROVIDER"]? || "deepseek"
+        model = ENV["CHIASMUS_LLM_MODEL"]? || Crig::Providers::DeepSeek::DEEPSEEK_CHAT
+
+        unless provider_api_key_set?(provider)
+          STDERR.puts "[Chiasmus] No #{provider}_API_KEY set — starting without LLM"
+          STDERR.puts "[Chiasmus] chiasmus_learn gated; formalize/solve degrade gracefully"
+          return no_llm_server
+        end
+
         server_for_provider(provider, model)
+      rescue ex
+        STDERR.puts "[Chiasmus] LLM unavailable: #{ex.message}"
+        no_llm_server
+      end
+
+      private def self.provider_api_key_set?(provider : String) : Bool
+        case provider.downcase
+        when "openai"    then check_key(ENV["OPENAI_API_KEY"]?)
+        when "deepseek"  then check_key(ENV["DEEPSEEK_API_KEY"]?)
+        when "anthropic" then check_key(ENV["ANTHROPIC_API_KEY"]?)
+        when "gemini"    then check_key(ENV["GEMINI_API_KEY"]?)
+        when "groq"      then check_key(ENV["GROQ_API_KEY"]?)
+        when "mistral"   then check_key(ENV["MISTRAL_API_KEY"]?)
+        when "cohere"    then check_key(ENV["COHERE_API_KEY"]?)
+        when "ollama"    then true # local, no API key needed
+        else                  true # unknown provider; let it try
+        end
+      end
+
+      private def self.check_key(val : String?) : Bool
+        !val.nil? && !val.blank?
       end
 
       private def self.server_for_provider(provider : String, model : String)

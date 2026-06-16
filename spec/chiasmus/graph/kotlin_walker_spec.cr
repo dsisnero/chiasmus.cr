@@ -57,6 +57,25 @@ describe "Kotlin graph walker" do
     graph.imports.size.should be >= 2
   end
 
+  it "extracts enum class declarations as types with enum entries" do
+    code = <<-KT
+      enum class Color {
+        RED,
+        GREEN,
+        BLUE
+      }
+    KT
+    sources = [SourceFile.new(path: "/tmp/t.kt", content: code)]
+    graph = Extractor.extract_graph(sources)
+
+    names = graph.defines.map(&.name).to_set
+    names.should contain("Color")
+
+    color_def = graph.defines.find { |defn| defn.name == "Color" }
+    color_def.should_not be_nil
+    (color_def || raise("")).kind.should eq(SymbolKind::Type)
+  end
+
   it "produces file nodes for Kotlin files" do
     code = "fun main() {}"
     sources = [SourceFile.new(path: "/tmp/t.kt", content: code)]

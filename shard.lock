@@ -4,6 +4,14 @@ shards:
     git: https://github.com/crystal-ameba/ameba.git
     version: 1.6.4
 
+  ansi:
+    git: https://github.com/dsisnero/ansi.git
+    version: 0.1.0+git.commit.4cf33c14c2ff5da0ac7ed38a2f0aa7eb4128f209
+
+  baked_file_system:
+    git: https://github.com/schovi/baked_file_system.git
+    version: 0.14.0+git.commit.425bf6195fb41173216e68e11e5f63e6fc9487da
+
   bidi:
     git: https://github.com/dsisnero/bidi.git
     version: 0.5.0
@@ -11,6 +19,10 @@ shards:
   bm25:
     git: https://github.com/dsisnero/bm25.git
     version: 0.1.0+git.commit.758c82971b4a7aee22f8bc48795cb47bff637bb4
+
+  cellwrap:
+    git: https://github.com/dsisnero/cellwrap.git
+    version: 0.1.0+git.commit.d898f154af8cdf6ac85cfc72a24f4a354be3d88b
 
   cgl:
     git: https://github.com/romainfranceschini/cgl.git
@@ -24,9 +36,17 @@ shards:
     git: https://github.com/dsisnero/cml.git
     version: 0.5.0+git.commit.dc848d779ff3fc2f534e0f22f495d20171f3bb63
 
+  colorful:
+    git: https://github.com/dsisnero/colorful.git
+    version: 0.1.0+git.commit.f6fbe31e048dab06783e34b82f52d7527763f7eb
+
+  colorprofile:
+    git: https://github.com/dsisnero/colorprofile.git
+    version: 0.1.0+git.commit.c689a6d8a71c5d8fb3b863a1eb6dc10e7fa0f931
+
   crig:
     git: https://github.com/dsisnero/crig.git
-    version: 0.3.4
+    version: 0.38.10
 
   crig-postgres:
     git: https://github.com/dsisnero/crig-postgres.git
@@ -38,15 +58,23 @@ shards:
 
   crimage:
     git: https://github.com/naqvis/crimage.git
-    version: 1.0.5+git.commit.2b3abbcdca426a2a13a39b986326f9a2f7f65bc6
+    version: 1.0.5+git.commit.7d3244a3850646e3d398cef071f7c3e3f52c7518
 
   crolog:
     git: https://github.com/dsisnero/crolog.git
     version: 0.0.2+git.commit.984f92fe994877400e3dc32f0a6abdd03649316a
 
+  csuuid:
+    git: https://github.com/wyhaines/csuuid.cr.git
+    version: 1.0.2
+
   db:
     git: https://github.com/crystal-lang/crystal-db.git
     version: 0.14.0
+
+  debug:
+    git: https://github.com/sija/debug.cr.git
+    version: 2.0.4
 
   discordcr:
     git: https://github.com/shardlab/discordcr.git
@@ -58,31 +86,99 @@ shards:
 
   json-schema:
     git: https://github.com/spider-gazelle/json-schema.git
-    version: 1.3.2
+    version: 1.3.3
+
+  lipgloss:
+    git: https://github.com/dsisnero/lipgloss.git
+    version: 2.0.1
 
   mcp:
-    git: https://github.com/spider-gazelle/mcp.cr.git
-    version: 0.2.0+git.commit.d6ca3e5a3ad37e394af7cf91a2c0717f73cd232f
+    git: https://github.com/dsisnero/mcp.cr.git
+    version: 0.2.3
+
+  mosaic:
+    git: https://github.com/dsisnero/mosaic.git
+    version: 0.1.0+git.commit.afef1373e37de29845d762daf31b12f93c05f153
+
+  nbchannel:
+    git: https://github.com/wyhaines/nbchannel.cr.git
+    version: 0.1.0
+
+  opentelemetry-api:
+    git: https://github.com/wyhaines/opentelemetry-api.cr.git
+    version: 0.5.1
+
+  opentelemetry-sdk:
+    git: https://github.com/wyhaines/opentelemetry-sdk.cr.git
+    version: 0.6.2
+
+  parse_date:
+    git: https://github.com/wyhaines/parsedate.cr.git
+    version: 0.1.2
 
   pdfbox:
     git: https://github.com/dsisnero/pdfbox.git
-    version: 0.1.0+git.commit.81bec3a7066813a0d22ab07555bc52a246c0a00c
+    version: 0.1.0+git.commit.6d263f2c65c068b02d42885b2abd2fc9f592b2a8
 
   pg:
     git: https://github.com/will/crystal-pg.git
     version: 0.29.0+git.commit.c16d54814405e2b9748d9bddc3d8ce0d41d2190f
 
+  protobuf:
+    git: https://github.com/jeromegn/protobuf.cr.git
+    version: 2.3.1
+
+  retriable:
+    git: https://github.com/sija/retriable.cr.git
+    version: 0.2.5
+
   similar:
     git: https://github.com/dsisnero/similar.cr.git
     version: 0.1.0+git.commit.52cfbb2cf1295fabc0a4bf2405819181bcae6046
+
+  splay_tree_map:
+    git: https://github.com/wyhaines/splay_tree_map.cr.git
+    version: 0.4.0
 
   sqlite3:
     git: https://github.com/dsisnero/crystal-sqlite3.git
     version: 0.22.0+git.commit.0f06a9de2c373e73496e25ed29f1a38f006d1003
 
+  stumpy_core:
+    git: https://github.com/stumpycr/stumpy_core.git
+    version: 1.9.1
+
+  stumpy_png:
+    git: https://github.com/stumpycr/stumpy_png.git
+    version: 5.0.1
+
+  terminfo:
+    git: https://github.com/docelic/terminfo.git
+    version: 0.8.1
+
+  textseg:
+    git: https://github.com/naqvis/uni_text_seg.git
+    version: 0.1.3
+
+  time-ext:
+    git: https://github.com/wyhaines/time-ext.cr.git
+    version: 1.0.1
+
+  tracing:
+    git: https://github.com/dsisnero/tracing.cr.git
+    version: 0.5.1
+
   tree_sitter:
     git: https://github.com/dsisnero/crystal-tree-sitter.git
     version: 0.1.0+git.commit.6b19a0497b60140984d59322e6216d7826f928a6
+
+  ultraviolet:
+    git: https://github.com/dsisnero/ultraviolet.git
+    version: 1.0.1
+
+  uniwidth:
+    git: https://github.com/naqvis/uni_char_width.git
+    version: 0.1.3
 
   z3:
     git: https://github.com/taw/crystal-z3.git

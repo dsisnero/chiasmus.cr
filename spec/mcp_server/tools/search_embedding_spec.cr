@@ -64,11 +64,26 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
       end
     end
 
-    it "returns error when no embedding API key is set" do
+    it "defaults to ollama when CHIASMUS_EMBED_PROVIDER is not set" do
       with_env({
         "DEEPSEEK_API_KEY"        => nil,
         "OPENAI_API_KEY"          => nil,
         "CHIASMUS_EMBED_PROVIDER" => nil,
+      }) do
+        tool = Chiasmus::MCPServer::Tools::SearchTool.new
+        r = tool.invoke({
+          "query" => JSON::Any.new("test"),
+          "files" => JSON::Any.new([JSON::Any.new(__FILE__)]),
+        })
+        r.status.should eq("success")
+      end
+    end
+
+    it "returns error when no API key for non-ollama provider" do
+      with_env({
+        "DEEPSEEK_API_KEY"        => nil,
+        "OPENAI_API_KEY"          => nil,
+        "CHIASMUS_EMBED_PROVIDER" => "deepseek",
       }) do
         tool = Chiasmus::MCPServer::Tools::SearchTool.new
         r = tool.invoke({

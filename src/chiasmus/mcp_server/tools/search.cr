@@ -106,7 +106,7 @@ module Chiasmus
         # Supports: ollama, deepseek, openai.
         # Ollama defaults to nomic-embed-text, others to text-embedding-3-small.
         private def resolve_embedding_model
-          provider = ENV["CHIASMUS_EMBED_PROVIDER"]? || "deepseek"
+          provider = ENV["CHIASMUS_EMBED_PROVIDER"]? || "ollama"
           base_url = ENV["CHIASMUS_EMBED_URL"]?
 
           case provider
