@@ -2,6 +2,12 @@ require "spec"
 require "../../../src/chiasmus/graph/mermaid"
 require "../../../src/chiasmus/solvers/prolog_solver"
 
+private def swipl_available? : Bool
+  Process.run("which", ["swipl"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+rescue
+  false
+end
+
 describe Chiasmus::Graph::Mermaid do
   describe ".parse" do
     it "parses simple edge A --> B" do
@@ -87,6 +93,12 @@ describe Chiasmus::Graph::Mermaid do
   end
 
   describe "solver integration" do
+    before_all do
+      unless swipl_available?
+        pending "swipl not installed"
+      end
+    end
+
     it "produces valid prolog for flowcharts" do
       solver = Chiasmus::Solvers::PrologSolver.new
       result = solver.solve(

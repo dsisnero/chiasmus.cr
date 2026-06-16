@@ -1,15 +1,28 @@
 require "uuid"
 require "./types"
+require "./z3_solver"
+require "./prolog_solver"
 require "crolog"
 
 module Chiasmus
   module Solvers
-    # SolverSession wraps a solver instance with a unique ID for isolation.
-    # Mirrors the upstream SolverSession API.
+    PROLOG_QUERY_TIMEOUT = 30.seconds
+
+    # Each SolverSession has a unique ID and spawns its own dispatch fiber.
+    # PrologRuntime is a shared singleton (SWI-Prolog is not thread-safe).
+    # Requests are serialized through the runtime's Mutex.
     class SolverSession
       getter id : String
 
+      record PrologRequest,
+        program : String,
+        query : String,
+        explain : Bool,
+        response : Channel(SolverResult)
+
       def initialize(@id : String, @solver : Solver)
+        @channel = Channel(PrologRequest).new(4)
+        @disposed = false
       end
 
       def self.create(type : String) : SolverSession
@@ -19,57 +32,61 @@ module Chiasmus
                  when "prolog" then PrologSolver.new
                  else               raise "Unknown solver type: #{type}"
                  end
-        SolverSession.new(id, solver)
+        session = SolverSession.new(id, solver)
+        session.start_worker if type.downcase == "prolog"
+        session
       end
 
-      def solve(input : SolverInput) : SolverResult
-        @solver.solve(input)
-      end
+      # Spawn a dispatch fiber for this session.
+      # All Prolog calls go through the shared PrologRuntime (mutex-protected).
+      protected def start_worker : Nil
+        chan = @channel || raise "Bug: channel not initialized"
+        session_id = @id
 
-      def dispose : Nil
-        @solver.dispose
-      end
-    end
-
-    class Session
-      record PrologRequest, program : String, query : String, explain : Bool, response : Channel(SolverResult)
-
-      @@instance : Session?
-      @@instance_lock = Mutex.new
-
-      def self.instance : Session
-        @@instance_lock.synchronize do
-          @@instance ||= new
-        end
-      end
-
-      @prolog_requests = Channel(PrologRequest).new(64)
-
-      private def initialize
-        spawn(name: "chiasmus-prolog-worker") do
-          runtime = PrologRuntime.new
+        spawn(name: "chiasmus-session-#{session_id}") do
+          runtime = PrologRuntime.shared
           loop do
-            request = nil.as(PrologRequest?)
+            request = chan.receive?
+            break unless request
             begin
-              request = @prolog_requests.receive
               result = runtime.solve(request.program, request.query, request.explain)
               request.response.send(result)
             rescue ex
-              request.try(&.response.send(ErrorResult.new(ex.message || ex.class.name)))
+              request.response.send(ErrorResult.new(ex.message || ex.class.name))
             end
-          rescue ex
           end
         end
       end
 
-      def solve_prolog_async(program : String, query : String, explain : Bool = false) : Channel(SolverResult)
-        response = Channel(SolverResult).new(1)
-        @prolog_requests.send(PrologRequest.new(program, query, explain, response))
-        response
+      def solve(input : SolverInput) : SolverResult
+        raise "Session disposed" if @disposed
+
+        case input
+        when PrologSolverInput
+          solve_prolog(input.program, input.query, input.explain)
+        else
+          @solver.solve(input)
+        end
       end
 
-      def solve_prolog(program : String, query : String, explain : Bool = false) : SolverResult
-        solve_prolog_async(program, query, explain).receive
+      private def solve_prolog(program : String, query : String, explain : Bool) : SolverResult
+        chan = @channel || raise "Prolog worker not started"
+        response = Channel(SolverResult).new(1)
+        chan.send(PrologRequest.new(program, query, explain, response))
+
+        select
+        when result = response.receive
+          result
+        when timeout(PROLOG_QUERY_TIMEOUT)
+          ErrorResult.new("Prolog query timed out after #{PROLOG_QUERY_TIMEOUT}")
+        end
+      end
+
+      def dispose : Nil
+        return if @disposed
+        @disposed = true
+        @channel.try(&.close)
+        @solver.dispose
       end
     end
   end

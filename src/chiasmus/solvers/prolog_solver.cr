@@ -9,6 +9,12 @@ module Chiasmus
       MAX_INFERENCES    = 100_000
       MAX_TRACE_ENTRIES =     500
 
+      @session : SolverSession?
+
+      private def ensure_session : SolverSession
+        @session ||= SolverSession.create("prolog")
+      end
+
       def type : SolverType
         SolverType::Prolog
       end
@@ -20,14 +26,18 @@ module Chiasmus
       end
 
       def solve(program : String, query : String, explain : Bool = false) : SolverResult
-        Session.instance.solve_prolog(program, query, explain)
+        ensure_session.solve(PrologSolverInput.new(program: program, query: query, explain: explain))
       end
 
       def solve_async(program : String, query : String, explain : Bool = false) : Channel(SolverResult)
-        Session.instance.solve_prolog_async(program, query, explain)
+        chan = Channel(SolverResult).new(1)
+        spawn { chan.send(solve(program, query, explain)) }
+        chan
       end
 
       def dispose : Nil
+        @session.try(&.dispose)
+        @session = nil
       end
     end
 
@@ -39,6 +49,23 @@ module Chiasmus
       @@init_lock = Mutex.new
       @@initialized = false
       @@module_counter = Atomic(Int64).new(0_i64)
+      @@shared : PrologRuntime?
+      @@shared_lock = Mutex.new
+      @@solve_lock = Mutex.new
+
+      # Thread-safe shared PrologRuntime singleton.
+      # SWI-Prolog is not fiber-safe so all access goes through one instance
+      # protected by a Mutex in SolverSession workers.
+      def self.shared : PrologRuntime
+        @@shared_lock.synchronize do
+          @@shared ||= new
+        end
+      end
+
+      # Reset the shared instance (for tests).
+      def self.reset_shared : Nil
+        @@shared_lock.synchronize { @@shared = nil }
+      end
 
       def initialize
         self.class.ensure_initialized
@@ -54,6 +81,12 @@ module Chiasmus
       end
 
       def solve(program : String, query : String, explain : Bool) : SolverResult
+        @@solve_lock.synchronize do
+          solve_impl(program, query, explain)
+        end
+      end
+
+      private def solve_impl(program : String, query : String, explain : Bool) : SolverResult
         source = explain ? instrument_for_tracing(program) : program
         temp_file = write_program(source)
         temp_path = temp_file.path

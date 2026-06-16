@@ -47,7 +47,6 @@ module Chiasmus
     end
 
     @engine : Formalize::Engine(M)?
-    @session : Solvers::Session?
     @library : Skills::Library?
 
     def initialize(agent : Crig::Agent(M)? = nil)
@@ -62,8 +61,6 @@ module Chiasmus
         @library = nil
         @engine = nil
       end
-
-      @session = Solvers::Session.instance
     end
 
     def call(arguments : Hash(String, JSON::Any)) : String
