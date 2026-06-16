@@ -58,4 +58,30 @@ describe "parallel insights" do
     result.size.should be >= 1
     result.first.name.should eq("hub")
   end
+
+  it "detect_surprises produces deterministic output" do
+    graph = CodeGraph.new(
+      defines: [
+        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, line: 1),
+        DefinesFact.new(file: "t.cr", name: "hub", kind: SymbolKind::Function, line: 2),
+        DefinesFact.new(file: "t.cr", name: "leaf1", kind: SymbolKind::Function, line: 3),
+        DefinesFact.new(file: "t.cr", name: "leaf2", kind: SymbolKind::Function, line: 4),
+      ],
+      calls: [
+        CallsFact.new(caller: "a", callee: "hub"),
+        CallsFact.new(caller: "hub", callee: "leaf1"),
+        CallsFact.new(caller: "hub", callee: "leaf2"),
+      ],
+      imports: [] of ImportsFact,
+      exports: [] of ExportsFact,
+      contains: [] of ContainsFact,
+    )
+
+    r1 = Insights.detect_surprises(graph)
+    r2 = Insights.detect_surprises(graph)
+
+    r1.map(&.source).should eq(r2.map(&.source))
+    r1.map(&.target).should eq(r2.map(&.target))
+    r1.map(&.score).should eq(r2.map(&.score))
+  end
 end

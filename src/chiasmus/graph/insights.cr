@@ -158,8 +158,18 @@ module Chiasmus
         communities : Array(Community)? = nil,
         top_n : Int32 = 10,
       ) : Array(SurprisingConnection)
-        comms = communities || CommunityDetection.detect(graph)
-        degree = GraphUtil.undirected_degree(graph)
+        if communities
+          comms = communities
+          degree = GraphUtil.undirected_degree(graph)
+        else
+          # Run community detection and degree calculation concurrently
+          comm_chan = Channel(Array(Community)).new(1)
+          deg_chan = Channel(Hash(String, Int32)).new(1)
+          spawn { comm_chan.send(CommunityDetection.detect(graph)) }
+          spawn { deg_chan.send(GraphUtil.undirected_degree(graph)) }
+          comms = comm_chan.receive
+          degree = deg_chan.receive
+        end
 
         node_to_community = Hash(String, Int32).new
         comms.each { |c| c.members.each { |m| node_to_community[m] = c.id } }
