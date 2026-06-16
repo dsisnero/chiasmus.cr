@@ -182,7 +182,7 @@ module Chiasmus
       # Find grammar source directory
       grammar_dir = find_grammar_dir(language)
       unless grammar_dir && Dir.exists?(grammar_dir)
-        puts "Error: Grammar source for '#{language}' not found in vendor/grammars/"
+        puts "Error: Grammar source for '#{language}' not found in grammars/"
         puts "Available grammars:"
         list_available_grammars
         exit 1
@@ -263,7 +263,7 @@ module Chiasmus
     end
 
     private def list_grammars
-      puts "Available grammars in vendor/grammars/:"
+      puts "Available grammars in grammars/:"
       list_available_grammars
 
       return unless cache_dir = @cache_dir || default_cache_dir
@@ -342,7 +342,7 @@ module Chiasmus
     end
 
     private def find_grammar_dir(language : String) : String?
-      vendor_grammars_dir = File.expand_path("../../vendor/grammars", __DIR__)
+      vendor_grammars_dir = File.expand_path("../../grammars", __DIR__)
 
       # Check for tree-sitter-language directory
       dir_name = "tree-sitter-#{language}"
@@ -494,9 +494,9 @@ module Chiasmus
       puts "Updating grammar sources..." if @verbose
       puts "Dry run: #{@dry_run}" if @dry_run && @verbose
 
-      vendor_grammars_dir = File.expand_path("../../vendor/grammars", __DIR__)
+      vendor_grammars_dir = File.expand_path("../../grammars", __DIR__)
       unless Dir.exists?(vendor_grammars_dir)
-        puts "Error: vendor/grammars directory not found"
+        puts "Error: grammars directory not found"
         exit 1
       end
 
@@ -776,7 +776,7 @@ module Chiasmus
       language_dir = File.join(cache_dir, language)
       return unless Dir.exists?(language_dir)
 
-      vendor_grammars_dir = File.expand_path("../../vendor/grammars", __DIR__)
+      vendor_grammars_dir = File.expand_path("../../grammars", __DIR__)
       vendor_grammar_dir = find_grammar_dir_in_vendor(language, vendor_grammars_dir)
       return unless vendor_grammar_dir && Dir.exists?(vendor_grammar_dir)
 

@@ -5,8 +5,8 @@ module Chiasmus
       # Execute a block with a timeout
       # Returns the result or nil if timeout occurs
       def self.with_timeout(timeout_ms : Int32, &block : -> T) : T? forall T
-        result_channel = Channel(T?).new
-        timeout_channel = Channel(Nil).new
+        result_channel = Channel(T?).new(1)
+        timeout_channel = Channel(Nil).new(1)
 
         # Spawn the operation
         spawn do
@@ -36,7 +36,7 @@ module Chiasmus
       # Execute an async operation (Channel-based) with timeout
       # Returns the result or nil if timeout occurs
       def self.with_timeout_async(timeout_ms : Int32, channel : Channel(T)) : T? forall T
-        timeout_channel = Channel(Nil).new
+        timeout_channel = Channel(Nil).new(1)
 
         # Spawn the timeout
         spawn do
@@ -55,7 +55,7 @@ module Chiasmus
 
       # Create a channel that times out after specified duration
       def self.timeout_channel(timeout_ms : Int32) : Channel(Nil)
-        channel = Channel(Nil).new
+        channel = Channel(Nil).new(1)
 
         spawn do
           sleep timeout_ms.milliseconds

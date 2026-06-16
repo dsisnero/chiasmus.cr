@@ -83,7 +83,7 @@ module Chiasmus
       # Initialize with default paths
       def self.init_defaults
         # Add our vendored grammar directories
-        vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
+        vendor_dir = File.expand_path("../../../grammars", __DIR__)
         if Dir.exists?(vendor_dir)
           add_parser_directory(vendor_dir)
 

@@ -192,11 +192,11 @@ module ASTExplorer
 
     Examples:
       crystal run scripts/explore_ast.cr -- \\
-        --grammar vendor/grammars/tree-sitter-python \\
+        --grammar grammars/tree-sitter-python \\
         --source "def foo(): pass"
 
       crystal run scripts/explore_ast.cr -- \\
-        --grammar vendor/grammars/tree-sitter-go \\
+        --grammar grammars/tree-sitter-go \\
         --file test.go --field-names
     HELP
   end

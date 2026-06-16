@@ -60,7 +60,7 @@ REPO_URL_MAP = {
 
 # Main vendor directory (where the project expects them - at project root)
 PROJECT_ROOT    = File.expand_path("..", __DIR__)
-MAIN_VENDOR_DIR = File.join(PROJECT_ROOT, "vendor/grammars")
+MAIN_VENDOR_DIR = File.join(PROJECT_ROOT, "grammars")
 # Temp directory for downloads (under project root, ignored by .gitignore)
 TEMP_DIR = File.join(PROJECT_ROOT, "tmp/grammars")
 

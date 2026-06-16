@@ -26,8 +26,8 @@ module Chiasmus
         lib_name = "libtree-sitter-#{language}"
 
         search_paths = @@grammar_directories.dup
-        # Auto-register project vendor/grammars relative to this file
-        project_vendor = File.expand_path("../../../vendor/grammars", __DIR__)
+        # Auto-register project grammars relative to this file
+        project_vendor = File.expand_path("../../../grammars", __DIR__)
         if Dir.exists?(project_vendor) && !search_paths.includes?(project_vendor)
           search_paths << project_vendor
         end

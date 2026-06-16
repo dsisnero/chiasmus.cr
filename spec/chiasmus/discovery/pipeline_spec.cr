@@ -1,10 +1,33 @@
 require "../../spec_helper"
 require "tree_sitter"
 require "file_utils"
+require "../../../src/chiasmus/utils/timeout"
 
-vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
+vendor_dir = File.expand_path("../../../grammars", __DIR__)
 if Dir.exists?(vendor_dir)
   Chiasmus::Discovery.register_grammar_directory(vendor_dir)
+end
+
+struct MissingGrammarExtractor < Chiasmus::Discovery::LanguageExtractor
+  def language : String
+    "missing"
+  end
+
+  def extensions : Array(String)
+    [".missing"]
+  end
+
+  def grammar_language : String
+    "definitely-missing-grammar"
+  end
+
+  def extract(
+    root_node : TreeSitter::Node,
+    source : String,
+    file_path : String,
+  ) : Array(Chiasmus::Discovery::Item)
+    [] of Chiasmus::Discovery::Item
+  end
 end
 
 describe Chiasmus::Discovery::Pipeline do
@@ -122,5 +145,22 @@ describe Chiasmus::Discovery::Pipeline do
     ensure
       FileUtils.rm_rf(dir)
     end
+  end
+
+  it "accounts for files whose grammar cannot be loaded without waiting for the global timeout" do
+    pipeline = Chiasmus::Discovery::Pipeline.new([
+      MissingGrammarExtractor.new,
+    ])
+
+    result = Chiasmus::Utils::Timeout.with_timeout(200) do
+      pipeline.discover_files([
+        {"test.missing", "noop"},
+      ])
+    end
+
+    result.should_not be_nil
+    resolved = result || raise "expected pipeline result"
+    resolved.items.should be_empty
+    resolved.parser_mode.should eq("tree-sitter")
   end
 end

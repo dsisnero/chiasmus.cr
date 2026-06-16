@@ -95,3 +95,70 @@ jobs:
         DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       run: |
         crystal spec spec/chiasmus/solvers/ spec/chiasmus/formalize/ spec/chiasmus/skills/ spec/chiasmus/dogfood_spec.cr spec/chiasmus/cli_spec.cr spec/chiasmus/agent_cli_spec.cr
+
+  build-clis:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest }
+          - { os: macos-latest }
+          - { os: windows-latest }
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Crystal
+      uses: crystal-lang/install-crystal@v1
+      with:
+        crystal: latest
+
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgmp-dev libssl-dev pkg-config liblzma-dev
+        git clone --depth 1 --branch v0.26.8 https://github.com/tree-sitter/tree-sitter.git /tmp/tree-sitter-lib
+        cd /tmp/tree-sitter-lib && make && sudo make install && sudo ldconfig
+
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install gmp openssl pkg-config tree-sitter xz
+
+    - name: Install Windows dependencies
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        git clone --depth 1 --branch v0.26.8 https://github.com/tree-sitter/tree-sitter.git /tmp/tree-sitter-lib
+        cd /tmp/tree-sitter-lib
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+        cmake --build build --config Release
+        cmake --install build --prefix /c/tree-sitter
+        echo "LIB=/c/tree-sitter/lib" >> $GITHUB_ENV
+        echo "INCLUDE=/c/tree-sitter/include" >> $GITHUB_ENV
+
+    - name: Install tree-sitter CLI
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: tree-sitter-cli
+
+    - name: Install shards
+      run: shards install
+
+    - name: Compile grammar libraries
+      run: crystal run scripts/setup_grammars.cr
+
+    - name: Build discovery and parity CLIs
+      shell: bash
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          CRYSTAL_LIB=$(dirname $(command -v crystal))/../lib
+          cp /c/tree-sitter/lib/tree-sitter.lib "$CRYSTAL_LIB/" 2>/dev/null || true
+          cp /c/tree-sitter/lib/tree-sitter.lib . 2>/dev/null || true
+        fi
+        shards build chiasmus-discover chiasmus-parity

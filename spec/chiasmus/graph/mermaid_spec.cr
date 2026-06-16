@@ -8,6 +8,15 @@ rescue
   false
 end
 
+private def with_prolog_solver(&)
+  solver = Chiasmus::Solvers::PrologSolver.new
+  begin
+    yield solver
+  ensure
+    solver.dispose
+  end
+end
+
 describe Chiasmus::Graph::Mermaid do
   describe ".parse" do
     it "parses simple edge A --> B" do
@@ -100,35 +109,38 @@ describe Chiasmus::Graph::Mermaid do
     end
 
     it "produces valid prolog for flowcharts" do
-      solver = Chiasmus::Solvers::PrologSolver.new
-      result = solver.solve(
-        Chiasmus::Graph::Mermaid.parse("graph TD\n  A[Start] --> B[Middle]\n  B --> C[End]"),
-        "edge(a, b)."
-      )
+      with_prolog_solver do |solver|
+        result = solver.solve(
+          Chiasmus::Graph::Mermaid.parse("graph TD\n  A[Start] --> B[Middle]\n  B --> C[End]"),
+          "edge(a, b)."
+        )
 
-      result.status.should eq("success")
+        result.status.should eq("success")
+      end
     end
 
     it "supports reachability on flowcharts" do
-      solver = Chiasmus::Solvers::PrologSolver.new
-      result = solver.solve(
-        Chiasmus::Graph::Mermaid.parse("graph TD\n  A --> B\n  B --> C\n  C --> D"),
-        "reaches(a, d)."
-      )
+      with_prolog_solver do |solver|
+        result = solver.solve(
+          Chiasmus::Graph::Mermaid.parse("graph TD\n  A --> B\n  B --> C\n  C --> D"),
+          "reaches(a, d)."
+        )
 
-      result.status.should eq("success")
-      result.as(Chiasmus::Solvers::SuccessResult).answers.size.should be > 0
+        result.status.should eq("success")
+        result.as(Chiasmus::Solvers::SuccessResult).answers.size.should be > 0
+      end
     end
 
     it "produces valid prolog for state diagrams" do
-      solver = Chiasmus::Solvers::PrologSolver.new
-      result = solver.solve(
-        Chiasmus::Graph::Mermaid.parse("stateDiagram-v2\n  Idle --> Active : start\n  Active --> Done : finish"),
-        "can_reach(idle, done)."
-      )
+      with_prolog_solver do |solver|
+        result = solver.solve(
+          Chiasmus::Graph::Mermaid.parse("stateDiagram-v2\n  Idle --> Active : start\n  Active --> Done : finish"),
+          "can_reach(idle, done)."
+        )
 
-      result.status.should eq("success")
-      result.as(Chiasmus::Solvers::SuccessResult).answers.size.should be > 0
+        result.status.should eq("success")
+        result.as(Chiasmus::Solvers::SuccessResult).answers.size.should be > 0
+      end
     end
   end
 end

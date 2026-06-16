@@ -10,6 +10,15 @@ rescue
   false
 end
 
+private def with_prolog_solver(&)
+  solver = Chiasmus::Solvers::PrologSolver.new
+  begin
+    yield solver
+  ensure
+    solver.dispose
+  end
+end
+
 describe "Dogfood: realistic problem domains" do
   describe "Z3: Policy contradiction detection" do
     it "detects that 3 tasks cannot fit in 2 non-overlapping slots" do
@@ -100,73 +109,76 @@ describe "Dogfood: realistic problem domains" do
     it "derives transitive permissions through role hierarchy" do
       next pending("swipl not installed") unless swipl_available?
 
-      solver = Chiasmus::Solvers::PrologSolver.new
-      result = solver.solve(<<-PROLOG, "can(alice, Action).")
-        role(alice, admin).
-        role(bob, editor).
-        role(carol, viewer).
+      with_prolog_solver do |solver|
+        result = solver.solve(<<-PROLOG, "can(alice, Action).")
+          role(alice, admin).
+          role(bob, editor).
+          role(carol, viewer).
 
-        inherits(admin, editor).
-        inherits(editor, viewer).
+          inherits(admin, editor).
+          inherits(editor, viewer).
 
-        has_role(User, Role) :- role(User, Role).
-        has_role(User, Role) :- role(User, R), inherits(R, Mid), has_role_chain(Mid, Role).
+          has_role(User, Role) :- role(User, Role).
+          has_role(User, Role) :- role(User, R), inherits(R, Mid), has_role_chain(Mid, Role).
 
-        has_role_chain(Role, Role).
-        has_role_chain(Start, End) :- inherits(Start, Mid), has_role_chain(Mid, End).
+          has_role_chain(Role, Role).
+          has_role_chain(Start, End) :- inherits(Start, Mid), has_role_chain(Mid, End).
 
-        can(User, read) :- has_role(User, viewer).
-        can(User, read) :- has_role(User, editor).
-        can(User, read) :- has_role(User, admin).
-        can(User, write) :- has_role(User, editor).
-        can(User, write) :- has_role(User, admin).
-        can(User, delete) :- has_role(User, admin).
-      PROLOG
+          can(User, read) :- has_role(User, viewer).
+          can(User, read) :- has_role(User, editor).
+          can(User, read) :- has_role(User, admin).
+          can(User, write) :- has_role(User, editor).
+          can(User, write) :- has_role(User, admin).
+          can(User, delete) :- has_role(User, admin).
+        PROLOG
 
-      result.should be_a(Chiasmus::Solvers::SuccessResult)
-      actions = result.as(Chiasmus::Solvers::SuccessResult).answers.compact_map { |a| a.bindings["Action"]? }
-      actions.should contain("read")
-      actions.should contain("write")
-      actions.should contain("delete")
+        result.should be_a(Chiasmus::Solvers::SuccessResult)
+        actions = result.as(Chiasmus::Solvers::SuccessResult).answers.compact_map { |a| a.bindings["Action"]? }
+        actions.should contain("read")
+        actions.should contain("write")
+        actions.should contain("delete")
+      end
     end
 
     it "checks data lineage / reachability" do
       next pending("swipl not installed") unless swipl_available?
 
-      solver = Chiasmus::Solvers::PrologSolver.new
-      result = solver.solve(<<-PROLOG, "reaches(user_input, Where).")
-        flows(user_input, api_handler).
-        flows(api_handler, validator).
-        flows(validator, database).
-        flows(api_handler, logger).
-        flows(logger, log_file).
+      with_prolog_solver do |solver|
+        result = solver.solve(<<-PROLOG, "reaches(user_input, Where).")
+          flows(user_input, api_handler).
+          flows(api_handler, validator).
+          flows(validator, database).
+          flows(api_handler, logger).
+          flows(logger, log_file).
 
-        reaches(A, B) :- flows(A, B).
-        reaches(A, B) :- flows(A, Mid), reaches(Mid, B).
-      PROLOG
+          reaches(A, B) :- flows(A, B).
+          reaches(A, B) :- flows(A, Mid), reaches(Mid, B).
+        PROLOG
 
-      result.should be_a(Chiasmus::Solvers::SuccessResult)
-      destinations = result.as(Chiasmus::Solvers::SuccessResult).answers.compact_map { |a| a.bindings["Where"]? }
-      destinations.should contain("database")
-      destinations.should contain("log_file")
-      destinations.should contain("api_handler")
+        result.should be_a(Chiasmus::Solvers::SuccessResult)
+        destinations = result.as(Chiasmus::Solvers::SuccessResult).answers.compact_map { |a| a.bindings["Where"]? }
+        destinations.should contain("database")
+        destinations.should contain("log_file")
+        destinations.should contain("api_handler")
+      end
     end
 
     it "validates workflow state machine transitions" do
       next pending("swipl not installed") unless swipl_available?
 
-      solver = Chiasmus::Solvers::PrologSolver.new
-      result = solver.solve(<<-PROLOG, "path(draft, published).")
-        transition(draft, submit, pending_review).
-        transition(pending_review, approve, approved).
-        transition(approved, publish, published).
+      with_prolog_solver do |solver|
+        result = solver.solve(<<-PROLOG, "path(draft, published).")
+          transition(draft, submit, pending_review).
+          transition(pending_review, approve, approved).
+          transition(approved, publish, published).
 
-        path(A, B) :- transition(A, _, B).
-        path(A, B) :- transition(A, _, X), path(X, B).
-      PROLOG
+          path(A, B) :- transition(A, _, B).
+          path(A, B) :- transition(A, _, X), path(X, B).
+        PROLOG
 
-      result.should be_a(Chiasmus::Solvers::SuccessResult)
-      result.as(Chiasmus::Solvers::SuccessResult).answers.size.should be >= 1
+        result.should be_a(Chiasmus::Solvers::SuccessResult)
+        result.as(Chiasmus::Solvers::SuccessResult).answers.size.should be >= 1
+      end
     end
   end
 end

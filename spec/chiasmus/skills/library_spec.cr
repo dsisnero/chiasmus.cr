@@ -172,6 +172,32 @@ describe Chiasmus::Skills::Library do
         FileUtils.rm_rf(dir)
       end
     end
+
+    it "records concurrent usage without dropping increments" do
+      with_skill_library do |library, _dir|
+        start = Channel(Nil).new
+        done = Channel(Nil).new
+        workers = 16
+
+        workers.times do
+          spawn do
+            start.receive
+            library.record_use("policy-contradiction", true)
+            done.send(nil)
+          end
+        end
+
+        workers.times { start.send(nil) }
+        workers.times { done.receive }
+
+        meta = library.get_metadata("policy-contradiction")
+        meta.should_not be_nil
+        if meta
+          meta.reuse_count.should eq(workers)
+          meta.success_count.should eq(workers)
+        end
+      end
+    end
   end
 
   describe "#get" do
@@ -353,6 +379,38 @@ describe Chiasmus::Skills::Library do
     it "cannot promote a nonexistent template name" do
       with_skill_library do |library, _dir|
         library.promote("nonexistent").should be_false
+      end
+    end
+
+    it "allows only one concurrent learned insert for the same name" do
+      with_skill_library do |library, _dir|
+        template = Chiasmus::Skills::SkillTemplate.new(
+          name: "concurrent-template",
+          domain: "analysis",
+          solver: Chiasmus::Solvers::SolverType::Prolog,
+          signature: "test concurrent insert",
+          skeleton: "test.",
+          slots: [] of Chiasmus::Skills::SlotDef,
+          normalizations: [
+            Chiasmus::Skills::Normalization.new(source: "test", transform: "test"),
+          ],
+        )
+
+        start = Channel(Nil).new
+        results = Channel(Bool).new
+
+        2.times do
+          spawn do
+            start.receive
+            results.send(library.add_learned(template))
+          end
+        end
+
+        2.times { start.send(nil) }
+        outcomes = [results.receive, results.receive]
+
+        outcomes.count(true).should eq(1)
+        library.get("concurrent-template").should_not be_nil
       end
     end
 

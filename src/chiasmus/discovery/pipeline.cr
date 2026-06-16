@@ -35,10 +35,9 @@ module Chiasmus
           spawn do
             semaphore.send(nil)
             begin
-              extracted = process_file(file_path, content)
-              results.send(extracted) if extracted
+              results.send(process_file(file_path, content))
             rescue ex
-              # Skip files that fail to parse
+              results.send([] of Item)
             ensure
               semaphore.receive
             end
@@ -74,19 +73,19 @@ module Chiasmus
         @registry.languages
       end
 
-      private def process_file(file_path : String, content : String) : Array(Item)?
+      private def process_file(file_path : String, content : String) : Array(Item)
         extractor = @registry.for_file(file_path)
-        return nil unless extractor
+        return [] of Item unless extractor
 
         lang = GrammarLoader.load_language(extractor.grammar_language)
-        return nil unless lang
+        return [] of Item unless lang
 
         parser = TreeSitter::Parser.new(language: lang)
         tree = parser.parse(nil, content)
 
         extractor.extract(tree.root_node, content, file_path)
       rescue ex
-        nil
+        [] of Item
       end
 
       private def scan_files(source_dir : String) : Array(Tuple(String, String))

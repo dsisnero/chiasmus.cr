@@ -86,7 +86,7 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
 end
 
 private def stage_python_grammar(cache_home : String)
-  source_dir = File.expand_path("../../../vendor/grammars/tree-sitter-python", __DIR__)
+  source_dir = File.expand_path("../../../grammars/tree-sitter-python", __DIR__)
   dest_dir = File.join(cache_home, "chiasmus", "grammars", "python")
 
   Dir.mkdir_p(dest_dir)
@@ -208,6 +208,50 @@ describe "async graph concurrency" do
     raise "expected non-nil result" if result.nil?
     result.success?.should be_true
     result.value.should eq(false)
+  end
+
+  it "coalesces concurrent ensure_grammar_async calls for the same language" do
+    cache_dir = File.join(Dir.tempdir, "async-grammar-manager-coalesce-#{Random.rand(1_000_000)}")
+    Dir.mkdir_p(cache_dir)
+    Chiasmus::Graph::GrammarManager.test_reset(cache_dir)
+
+    manager = Chiasmus::Graph::GrammarManager.instance
+    install_calls = Atomic(Int32).new(0)
+    release_install = Channel(Nil).new(1)
+
+    manager.set_install_hook_for_test do |_language|
+      install_calls.add(1)
+      release_install.receive
+      Chiasmus::Utils::BoolResult.success
+    end
+
+    begin
+      first = manager.ensure_grammar_async("coalesced-language", 1_000)
+      second = manager.ensure_grammar_async("coalesced-language", 1_000)
+
+      ready = Chiasmus::Utils::Timeout.with_timeout(200) do
+        until install_calls.get == 1
+          Fiber.yield
+        end
+        true
+      end
+
+      ready.should eq(true)
+      release_install.send(nil)
+
+      first_result = Chiasmus::Utils::Timeout.with_timeout_async(500, first)
+      second_result = Chiasmus::Utils::Timeout.with_timeout_async(500, second)
+
+      first_result.should_not be_nil
+      second_result.should_not be_nil
+      raise "expected non-nil first result" if first_result.nil?
+      raise "expected non-nil second result" if second_result.nil?
+      first_result.success?.should be_true
+      second_result.success?.should be_true
+      install_calls.get.should eq(1)
+    ensure
+      manager.clear_install_hook_for_test
+    end
   end
 
   it "loads an XDG-cached grammar asynchronously without repository parser directories" do

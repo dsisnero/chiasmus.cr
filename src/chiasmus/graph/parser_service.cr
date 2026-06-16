@@ -60,6 +60,7 @@ module Chiasmus
           @language_gateway : LanguageGateway,
           @tree_builder : TreeBuilder,
           @grammar_cache : Hash(String, TreeSitter::Language?),
+          @state_mutex : Mutex,
         )
         end
 
@@ -79,19 +80,19 @@ module Chiasmus
         end
 
         private def resolve_language(language : String, timeout_ms : Int32) : TreeSitter::Language?
-          cached = @grammar_cache[language]?
+          cached = @state_mutex.synchronize { @grammar_cache[language]? }
           return cached if cached
 
           lang = try_load_language(language)
           if lang
-            @grammar_cache[language] = lang
+            @state_mutex.synchronize { @grammar_cache[language] = lang }
             return lang
           end
 
           return nil unless @grammar_gateway.ensure_grammar(language, timeout_ms)
 
           lang = try_load_language(language)
-          @grammar_cache[language] = lang if lang
+          @state_mutex.synchronize { @grammar_cache[language] = lang } if lang
           lang
         end
 
@@ -150,17 +151,20 @@ module Chiasmus
           @tree_builder = TreeBuilder.new,
         )
           @initialized = false
+          @state_mutex = Mutex.new
           @grammar_cache = {} of String => TreeSitter::Language?
           @pending_requests = {} of String => Array(Channel(Utils::Result(TreeSitter::Language?)))
           @supported_languages_cache = nil.as(Array(String)?)
         end
 
         def init(cache_dir : String? = nil) : Nil
-          return if @initialized
+          @state_mutex.synchronize do
+            return if @initialized
 
-          @environment.ensure_tree_sitter_config
-          @grammar_gateway.init(cache_dir)
-          @initialized = true
+            @environment.ensure_tree_sitter_config
+            @grammar_gateway.init(cache_dir)
+            @initialized = true
+          end
         end
 
         def get_language_for_file(file_path : String) : String?
@@ -176,7 +180,7 @@ module Chiasmus
         end
 
         def parse_async(content : String, file_path : String, timeout_ms : Int32 = 30_000) : Channel(Utils::Result(ParseArtifact))
-          init unless @initialized
+          init unless initialized?
 
           result_channel = Channel(Utils::Result(ParseArtifact)).new
 
@@ -192,26 +196,37 @@ module Chiasmus
         end
 
         def get_language_async(language : String, timeout_ms : Int32 = 60_000) : Channel(Utils::Result(TreeSitter::Language?))
-          init unless @initialized
+          init unless initialized?
 
-          if cached = @grammar_cache[language]?
-            return resolved_language_channel(cached)
+          resolved = nil.as(Channel(Utils::Result(TreeSitter::Language?))?)
+          spawn_resolution = false
+
+          @state_mutex.synchronize do
+            if cached = @grammar_cache[language]?
+              resolved = resolved_language_channel(cached)
+              next
+            end
+
+            if waiters = @pending_requests[language]?
+              channel = Channel(Utils::Result(TreeSitter::Language?)).new(1)
+              waiters << channel
+              resolved = channel
+              next
+            end
+
+            result_channel = Channel(Utils::Result(TreeSitter::Language?)).new(1)
+            @pending_requests[language] = [result_channel]
+            resolved = result_channel
+            spawn_resolution = true
           end
 
-          if waiters = @pending_requests[language]?
-            channel = Channel(Utils::Result(TreeSitter::Language?)).new(1)
-            waiters << channel
-            return channel
+          if spawn_resolution
+            spawn do
+              resolve_language(language, timeout_ms)
+            end
           end
 
-          result_channel = Channel(Utils::Result(TreeSitter::Language?)).new(1)
-          @pending_requests[language] = [result_channel]
-
-          spawn do
-            resolve_language(language, timeout_ms)
-          end
-
-          result_channel
+          resolved || raise "expected language result channel"
         end
 
         def get_language(language : String, timeout_ms : Int32 = 60_000) : TreeSitter::Language?
@@ -250,14 +265,20 @@ module Chiasmus
         end
 
         def clear_cache : Nil
-          @grammar_cache.clear
-          @pending_requests.clear
-          @supported_languages_cache = nil
+          @state_mutex.synchronize do
+            @grammar_cache.clear
+            @pending_requests.clear
+            @supported_languages_cache = nil
+          end
         end
 
         def shutdown : Nil
-          clear_cache
-          @initialized = false
+          @state_mutex.synchronize do
+            @grammar_cache.clear
+            @pending_requests.clear
+            @supported_languages_cache = nil
+            @initialized = false
+          end
         end
 
         def reset_for_test : Nil
@@ -265,14 +286,14 @@ module Chiasmus
         end
 
         def seed_cache_for_test(language : String, lang : TreeSitter::Language) : Nil
-          @grammar_cache[language] = lang
+          @state_mutex.synchronize { @grammar_cache[language] = lang }
         end
 
         def seed_waiters_for_test(language : String, count : Int32) : Array(Channel(Utils::Result(TreeSitter::Language?)))
           waiters = Array(Channel(Utils::Result(TreeSitter::Language?))).new(count) do
             Channel(Utils::Result(TreeSitter::Language?)).new(1)
           end
-          @pending_requests[language] = waiters
+          @state_mutex.synchronize { @pending_requests[language] = waiters }
           waiters
         end
 
@@ -291,7 +312,7 @@ module Chiasmus
         private def resolve_language(language : String, timeout_ms : Int32) : Nil
           lang = try_load_language(language)
           if lang
-            @grammar_cache[language] = lang
+            @state_mutex.synchronize { @grammar_cache[language] = lang }
             notify_waiters(language, Utils::Result(TreeSitter::Language?).success(lang))
             return
           end
@@ -317,7 +338,7 @@ module Chiasmus
 
           final_lang = try_load_language(language)
           if final_lang
-            @grammar_cache[language] = final_lang
+            @state_mutex.synchronize { @grammar_cache[language] = final_lang }
             notify_waiters(language, Utils::Result(TreeSitter::Language?).success(final_lang))
           else
             notify_waiters(language, Utils::Result(TreeSitter::Language?).failure(
@@ -330,20 +351,18 @@ module Chiasmus
             "Unexpected error getting language: #{ex.message}",
             {"language" => language, "exception" => ex.class.to_s}
           ))
-        ensure
-          @pending_requests.delete(language)
         end
 
         private def compute_support(language : String) : Bool
           return false unless @resolver.known_language?(language)
-          return true if @grammar_cache[language]?
+          return true if @state_mutex.synchronize { @grammar_cache[language]? }
 
           result = @grammar_gateway.grammar_available_async(language).receive
           result.success? && result.value == true
         end
 
         private def compute_supported_languages : Array(String)
-          if cached = @supported_languages_cache
+          if cached = @state_mutex.synchronize { @supported_languages_cache }
             return cached
           end
 
@@ -362,7 +381,7 @@ module Chiasmus
             end
           end
 
-          @supported_languages_cache = supported
+          @state_mutex.synchronize { @supported_languages_cache = supported }
           supported
         end
 
@@ -378,7 +397,8 @@ module Chiasmus
             @grammar_gateway,
             @language_gateway,
             @tree_builder,
-            @grammar_cache
+            @grammar_cache,
+            @state_mutex
           )
         end
 
@@ -396,8 +416,13 @@ module Chiasmus
         end
 
         private def notify_waiters(language : String, result : Utils::Result(TreeSitter::Language?)) : Nil
-          return unless waiters = @pending_requests[language]?
+          waiters = @state_mutex.synchronize { @pending_requests.delete(language) }
+          return unless waiters
           waiters.each(&.send(result))
+        end
+
+        private def initialized? : Bool
+          @state_mutex.synchronize { @initialized }
         end
       end
     end

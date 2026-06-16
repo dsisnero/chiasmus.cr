@@ -110,6 +110,43 @@ describe EmbeddingCache do
         wrong_dim.size.should eq 0
       end
     end
+
+    it "keeps later writes dirty when a put races with an in-flight save" do
+      with_temp_cache do |cache, dir|
+        entered_hook = Channel(Bool).new(1)
+        release_hook = Channel(Bool).new(1)
+        save_done = Channel(Bool).new(1)
+
+        cache.set_before_dirty_clear_hook_for_test do
+          entered_hook.send(true)
+          release_hook.receive
+        end
+
+        begin
+          cache.put("early", [1.0, 2.0, 3.0])
+
+          spawn do
+            cache.save
+            save_done.send(true)
+          end
+
+          Chiasmus::Utils::Timeout.with_timeout_async(500, entered_hook).should eq(true)
+          cache.put("late", [4.0, 5.0, 6.0])
+          release_hook.send(true)
+          Chiasmus::Utils::Timeout.with_timeout_async(500, save_done).should eq(true)
+          cache.clear_before_dirty_clear_hook_for_test
+
+          cache.save
+
+          restored = EmbeddingCache.new(File.join(dir, "cache.json"), 3)
+          restored.load
+          restored.get("early").should eq [1.0, 2.0, 3.0]
+          restored.get("late").should eq [4.0, 5.0, 6.0]
+        ensure
+          cache.clear_before_dirty_clear_hook_for_test
+        end
+      end
+    end
   end
 
   describe "#size" do

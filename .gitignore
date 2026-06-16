@@ -51,6 +51,7 @@ parser
 # Reference implementations for study only
 vendor/ruby-tree-sitter/
 vendor/tree-sitter-rust/
+grammars/
 
 # Backup files
 *.backup

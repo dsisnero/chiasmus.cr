@@ -36,6 +36,7 @@ module Chiasmus
       @metadata_path : String
       @store : TemplateStore(SkillTemplate)
       @search_engine : Bm25::SearchEngine(String, UInt32, Bm25::DefaultTokenizer)
+      @mutex : Mutex
 
       # Crig-style fluent builder
       struct Builder
@@ -116,29 +117,34 @@ module Chiasmus
           Bm25::U32Embedder.new,
         )
         @search_engine = Bm25::SearchEngine(String, UInt32, Bm25::DefaultTokenizer).new(embedder)
+        @mutex = Mutex.new
         rebuild_search_index
       end
 
       def list : Array(SkillWithMetadata)
-        @template_order.compact_map do |name|
-          template = @templates[name]?
-          next unless template
+        @mutex.synchronize do
+          @template_order.compact_map do |name|
+            template = @templates[name]?
+            next unless template
 
-          SkillWithMetadata.new(
-            template: template,
-            metadata: load_metadata(name)
-          )
+            SkillWithMetadata.new(
+              template: template,
+              metadata: unsafe_load_metadata(name)
+            )
+          end
         end
       end
 
       def get(name : String) : SkillWithMetadata?
-        template = @templates[name]?
-        return nil unless template
+        @mutex.synchronize do
+          template = @templates[name]?
+          next nil unless template
 
-        SkillWithMetadata.new(
-          template: template,
-          metadata: load_metadata(name)
-        )
+          SkillWithMetadata.new(
+            template: template,
+            metadata: unsafe_load_metadata(name)
+          )
+        end
       end
 
       def get_related(name : String) : Array(RelatedTemplate)
@@ -152,93 +158,113 @@ module Chiasmus
           return list_all_filtered(options).first(limit)
         end
 
-        @search_engine.search(query, limit: nil).compact_map do |bm25_result|
-          name = bm25_result.document.id
-          template = @templates[name]?
-          next unless template
-          next if options.domain && template.domain != options.domain
-          next if options.solver && template.solver != options.solver
+        @mutex.synchronize do
+          @search_engine.search(query, limit: nil).compact_map do |bm25_result|
+            name = bm25_result.document.id
+            template = @templates[name]?
+            next unless template
+            next if options.domain && template.domain != options.domain
+            next if options.solver && template.solver != options.solver
 
-          SkillSearchResult.new(
-            template: template,
-            metadata: load_metadata(name),
-            score: bm25_result.score.to_f64
-          )
-        end.first(limit)
+            SkillSearchResult.new(
+              template: template,
+              metadata: unsafe_load_metadata(name),
+              score: bm25_result.score.to_f64
+            )
+          end.first(limit)
+        end
       end
 
       private def list_all_filtered(options : SearchOptions) : Array(SkillSearchResult)
-        @template_order.compact_map do |tpl_name|
-          template = @templates[tpl_name]?
-          next unless template
-          next if options.domain && template.domain != options.domain
-          next if options.solver && template.solver != options.solver
+        @mutex.synchronize do
+          @template_order.compact_map do |tpl_name|
+            template = @templates[tpl_name]?
+            next unless template
+            next if options.domain && template.domain != options.domain
+            next if options.solver && template.solver != options.solver
 
-          SkillSearchResult.new(
-            template: template,
-            metadata: load_metadata(tpl_name),
-            score: 0.0
-          )
+            SkillSearchResult.new(
+              template: template,
+              metadata: unsafe_load_metadata(tpl_name),
+              score: 0.0
+            )
+          end
         end
       end
 
       def record_use(name : String, success : Bool) : Nil
-        metadata = @metadata[name]?
-        return unless metadata
+        @mutex.synchronize do
+          metadata = @metadata[name]?
+          return unless metadata
 
-        @metadata[name] = SkillMetadata.new(
-          name: name,
-          reuse_count: metadata.reuse_count + 1,
-          success_count: metadata.success_count + (success ? 1 : 0),
-          last_used: Time.utc,
-          promoted: metadata.promoted
-        )
+          @metadata[name] = SkillMetadata.new(
+            name: name,
+            reuse_count: metadata.reuse_count + 1,
+            success_count: metadata.success_count + (success ? 1 : 0),
+            last_used: Time.utc,
+            promoted: metadata.promoted
+          )
+        end
         save_metadata
       end
 
       def get_metadata(name : String) : SkillMetadata?
-        @metadata[name]?
+        @mutex.synchronize { @metadata[name]? }
       end
 
       def add_learned(template : SkillTemplate) : Bool
-        return false if @templates.has_key?(template.name)
+        added = @mutex.synchronize do
+          next false if @templates.has_key?(template.name)
 
-        @templates[template.name] = template
-        @template_order << template.name
-        @search_engine.upsert(build_document(template.name, template))
-        @metadata[template.name] = SkillMetadata.new(
-          name: template.name,
-          reuse_count: 0,
-          success_count: 0,
-          last_used: nil,
-          promoted: false
-        )
+          @templates[template.name] = template
+          @template_order << template.name
+          @search_engine.upsert(build_document(template.name, template))
+          @metadata[template.name] = SkillMetadata.new(
+            name: template.name,
+            reuse_count: 0,
+            success_count: 0,
+            last_used: nil,
+            promoted: false
+          )
+          true
+        end
+
+        return false unless added
+
         save_metadata
         save_templates
         true
       end
 
       def promote(name : String) : Bool
-        metadata = @metadata[name]?
-        return false unless metadata
+        promoted = @mutex.synchronize do
+          metadata = @metadata[name]?
+          next false unless metadata
 
-        @metadata[name] = SkillMetadata.new(
-          name: name,
-          reuse_count: metadata.reuse_count,
-          success_count: metadata.success_count,
-          last_used: metadata.last_used,
-          promoted: true
-        )
+          @metadata[name] = SkillMetadata.new(
+            name: name,
+            reuse_count: metadata.reuse_count,
+            success_count: metadata.success_count,
+            last_used: metadata.last_used,
+            promoted: true
+          )
+          true
+        end
+
+        return false unless promoted
+
         save_metadata
         true
       end
 
       def remove(name : String) : Nil
-        @templates.delete(name)
-        idx = @template_order.index(name)
-        @template_order.reject! { |entry| entry == name }
-        @search_engine.remove(idx.to_s) if idx
-        @metadata.delete(name)
+        @mutex.synchronize do
+          @templates.delete(name)
+          idx = @template_order.index(name)
+          @template_order.reject! { |entry| entry == name }
+          @search_engine.remove(idx.to_s) if idx
+          @metadata.delete(name)
+        end
         save_metadata
         save_templates
       end
@@ -253,12 +279,17 @@ module Chiasmus
       end
 
       def save_metadata : Nil
-        File.write(@metadata_path, @metadata.values.to_json)
+        payload = @mutex.synchronize { @metadata.values.to_json }
+        atomic_write(@metadata_path, payload)
       rescue File::Error
       end
 
       def save_templates : Nil
-        @store.save(@templates.values.reject { |t| starter_template_names.includes?(t.name) })
+        templates = @mutex.synchronize do
+          starter_names = starter_template_names
+          @templates.values.reject { |t| starter_names.includes?(t.name) }
+        end
+        @store.save(templates)
       rescue File::Error
       end
 
@@ -286,14 +317,16 @@ module Chiasmus
       end
 
       private def rebuild_search_index : Nil
-        @template_order.each do |name|
-          template = @templates[name]?
-          next unless template
-          @search_engine.upsert(build_document(name, template))
+        @mutex.synchronize do
+          @template_order.each do |name|
+            template = @templates[name]?
+            next unless template
+            @search_engine.upsert(build_document(name, template))
+          end
         end
       end
 
-      private def load_metadata(name : String) : SkillMetadata
+      private def unsafe_load_metadata(name : String) : SkillMetadata
         @metadata[name]? || SkillMetadata.new(
           name: name,
           reuse_count: 0,
@@ -301,6 +334,15 @@ module Chiasmus
           last_used: nil,
           promoted: false
         )
+      end
+
+      private def atomic_write(path : String, payload : String) : Nil
+        dir = File.dirname(path)
+        Dir.mkdir_p(dir) unless Dir.exists?(dir)
+
+        tmp = "#{path}.tmp.#{Random::Secure.hex(8)}"
+        File.write(tmp, payload)
+        File.rename(tmp, path)
       end
     end
   end

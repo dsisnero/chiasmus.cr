@@ -32,7 +32,7 @@ PACKAGE_MAP = {
 }
 
 # Vendor directory
-VENDOR_DIR = File.expand_path("vendor/grammars", __DIR__)
+VENDOR_DIR = File.expand_path("grammars", __DIR__)
 Dir.mkdir_p(VENDOR_DIR)
 
 def download_and_compile(language : String, package : String)

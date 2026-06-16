@@ -16,7 +16,7 @@ def build_static_binary
   ]
 
   missing_grammars = [] of String
-  vendor_dir = File.expand_path("vendor/grammars", __DIR__)
+  vendor_dir = File.expand_path("grammars", __DIR__)
 
   required_grammars.each do |language|
     ext = {% if flag?(:darwin) %} "dylib" {% elsif flag?(:win32) %} "dll" {% else %} "so" {% end %}

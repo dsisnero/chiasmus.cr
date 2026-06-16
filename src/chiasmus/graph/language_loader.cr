@@ -18,7 +18,7 @@ module Chiasmus
           ts_name = "c_sharp"
           # Use repo root as base for vendor directory resolution
           repo_root = Path[__DIR__].join("../../..").expand
-          vendor_path = repo_root.join("vendor/grammars/tree-sitter-c-sharp").to_s
+          vendor_path = repo_root.join("grammars/tree-sitter-c-sharp").to_s
           vendor_dir = Path.new(vendor_path)
           if Dir.exists?(vendor_path)
             ts_language = load_dylib(ts_name, vendor_dir)
@@ -26,10 +26,10 @@ module Chiasmus
           end
         end
 
-        # C++ tree-sitter grammar at vendor/grammars/tree-sitter-cpp
+        # C++ tree-sitter grammar at grammars/tree-sitter-cpp
         if language == "cpp"
           repo_root = Path[__DIR__].join("../../..").expand
-          vendor_path = repo_root.join("vendor/grammars/tree-sitter-cpp").to_s
+          vendor_path = repo_root.join("grammars/tree-sitter-cpp").to_s
           vendor_dir = Path.new(vendor_path)
           if Dir.exists?(vendor_path)
             ts_language = load_dylib(language, vendor_dir)
@@ -41,7 +41,7 @@ module Chiasmus
         vendor_languages = ["c", "dart", "kotlin", "perl", "php", "proto", "scala"]
         if vendor_languages.includes?(language)
           repo_root = Path[__DIR__].join("../../..").expand
-          vendor_path = repo_root.join("vendor/grammars/tree-sitter-#{language}").to_s
+          vendor_path = repo_root.join("grammars/tree-sitter-#{language}").to_s
           vendor_dir = Path.new(vendor_path)
           if Dir.exists?(vendor_path)
             ts_language = load_dylib(language, vendor_dir)

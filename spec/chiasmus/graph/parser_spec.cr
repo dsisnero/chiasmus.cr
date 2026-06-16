@@ -17,6 +17,18 @@ class FakeParserEnvironment < Chiasmus::Graph::Parser::Environment
   end
 end
 
+class SleepingParserEnvironment < Chiasmus::Graph::Parser::Environment
+  getter ensure_calls = 0
+
+  def initialize(@sleep_for = 50.milliseconds)
+  end
+
+  def ensure_tree_sitter_config : Nil
+    @ensure_calls += 1
+    sleep(@sleep_for)
+  end
+end
+
 class FakeGrammarGateway < Chiasmus::Graph::Parser::GrammarGateway
   property current_path : String?
   getter? available : Bool
@@ -303,6 +315,43 @@ module Chiasmus
         end
 
         recording.extension_calls.should eq(1)
+      end
+
+      it "initializes the parser service once under concurrent callers" do
+        language = build_test_language("python")
+        resolver = FakeResolver.new("python", "python")
+        environment = SleepingParserEnvironment.new
+        grammar = FakeGrammarGateway.new("/tmp/python.so")
+        loader = FakeLanguageGateway.new
+        loader.register("python", "/tmp/python.so", language)
+        service = Parser::Service.new(
+          resolver,
+          environment,
+          grammar,
+          loader,
+          FakeTreeBuilder.new
+        )
+
+        start = Channel(Nil).new(2)
+        done = Channel(Chiasmus::Utils::Result(TreeSitter::Language?)).new(2)
+
+        2.times do
+          spawn do
+            start.receive
+            result = Chiasmus::Utils::Timeout.with_timeout_async(500, service.get_language_async("python"))
+            done.send(result || raise "expected language result")
+          end
+        end
+
+        2.times { start.send(nil) }
+        2.times do
+          result = done.receive
+          result.success?.should be_true
+          result.value.should eq(language)
+        end
+
+        environment.ensure_calls.should eq(1)
+        grammar.init_calls.should eq(1)
       end
     end
   end

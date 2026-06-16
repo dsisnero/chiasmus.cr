@@ -88,7 +88,7 @@ module Chiasmus
 
       # Find grammar in vendor directory (fallback for development)
       private def find_vendor_grammar(language : String) : String?
-        vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
+        vendor_dir = File.expand_path("../../../grammars", __DIR__)
 
         ext = Platform.shared_library_extension
         lib_name = "libtree-sitter-#{language}.#{ext}"

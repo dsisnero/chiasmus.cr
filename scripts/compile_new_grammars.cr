@@ -4,12 +4,12 @@ require "file_utils"
 require "process"
 
 PROJECT_ROOT = File.expand_path("..", __DIR__)
-VENDOR_DIR   = File.join(PROJECT_ROOT, "vendor/grammars")
+VENDOR_DIR   = File.join(PROJECT_ROOT, "grammars")
 TEMP_DIR     = File.join(PROJECT_ROOT, "tmp/grammars_new")
 
 EXT = {% if flag?(:darwin) %} "dylib" {% elsif flag?(:win32) %} "dll" {% else %} "so" {% end %}
 
-# Language → package name (directory in vendor/grammars/)
+# Language → package name (directory in grammars/)
 NEW_LANGUAGES = {
   "bash"   => "tree-sitter-bash",
   "c"      => "tree-sitter-c",

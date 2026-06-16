@@ -40,7 +40,7 @@ module CLI
     return print_help if language.nil?
     dir ||= "."
 
-    Chiasmus::Discovery.register_grammar_directory(File.join(dir, "vendor/grammars"))
+    register_grammar_directories(dir)
 
     files = scan_files(language, dir)
     abort_no_files(language, dir) if files.empty?
@@ -73,6 +73,38 @@ module CLI
     end
 
     {language, dir, force_parser == "auto" ? nil : force_parser}
+  end
+
+  private def register_grammar_directories(scan_dir : String) : Nil
+    grammar_directories(scan_dir).each do |path|
+      Chiasmus::Discovery.register_grammar_directory(path)
+    end
+  end
+
+  private def grammar_directories(scan_dir : String) : Array(String)
+    dirs = [] of String
+
+    env_dir = ENV["CHIASMUS_GRAMMAR_DIR"]?
+    dirs << env_dir if env_dir && Dir.exists?(env_dir)
+
+    bundled_dirs.each do |path|
+      dirs << path if Dir.exists?(path)
+    end
+
+    vendor_dir = File.join(scan_dir, "vendor", "grammars")
+    dirs << vendor_dir if Dir.exists?(vendor_dir)
+
+    dirs.uniq
+  end
+
+  private def bundled_dirs : Array(String)
+    executable = File.expand_path(PROGRAM_NAME)
+    executable_dir = File.dirname(executable)
+
+    [
+      File.join(executable_dir, "grammars"),
+      File.join(executable_dir, "..", "grammars"),
+    ].map { |path| File.expand_path(path) }
   end
 
   private def scan_files(language : String, dir : String) : Array(Tuple(String, String))
@@ -116,6 +148,7 @@ module CLI
     Output:
       TSV format compatible with parity inventory manifests.
       Includes parser mode in notes column.
+      Grammar lookup order: CHIASMUS_GRAMMAR_DIR, bundled ./grammars, scan-dir grammars.
     HELP
   end
 end

@@ -2,14 +2,14 @@ require "../../spec_helper"
 require "tree_sitter"
 
 # Initialize grammar paths for tree-sitter tests
-vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
+vendor_dir = File.expand_path("../../../grammars", __DIR__)
 if Dir.exists?(vendor_dir)
   Chiasmus::Discovery.register_grammar_directory(vendor_dir)
 end
 
 # Helper to load TypeScript grammar for tests
 private def typescript_language : TreeSitter::Language
-  vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
+  vendor_dir = File.expand_path("../../../grammars", __DIR__)
   ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
   lib_path = File.join(vendor_dir, "tree-sitter-typescript", "libtree-sitter-typescript.#{ext}")
   raise "TypeScript grammar not found at #{lib_path}" unless File.exists?(lib_path)

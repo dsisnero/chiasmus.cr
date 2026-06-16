@@ -1,7 +1,7 @@
 require "../../spec_helper"
 require "tree_sitter"
 
-vendor_dir = File.expand_path("../../../vendor/grammars", __DIR__)
+vendor_dir = File.expand_path("../../../grammars", __DIR__)
 if Dir.exists?(vendor_dir)
   Chiasmus::Discovery.register_grammar_directory(vendor_dir)
 end

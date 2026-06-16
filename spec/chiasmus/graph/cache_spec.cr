@@ -224,5 +224,39 @@ describe GraphCache do
         result[:misses].size.should eq 1
       end
     end
+
+    it "parallel saves produce a consistent manifest" do
+      with_temp_cache do |cache_dir|
+        ready = Atomic(Int32).new(0)
+        release = Channel(Nil).new(8)
+        done = Channel(Nil).new(8)
+
+        8.times do |i|
+          spawn do
+            ready.add(1)
+            release.receive
+            GraphCache.save_file_cache([
+              {path: "/abs/file#{i}.ts", content: "function f#{i}() {}", graph: CodeGraph.new},
+            ], cache_dir)
+            done.send(nil)
+          end
+        end
+
+        until ready.get == 8
+          Fiber.yield
+        end
+
+        8.times { release.send(nil) }
+        8.times { done.receive }
+
+        result = GraphCache.check_file_cache(
+          8.times.map { |i| {path: "/abs/file#{i}.ts", content: "function f#{i}() {}"} }.to_a,
+          cache_dir
+        )
+
+        result[:misses].should be_empty
+        result[:hits].size.should eq(8)
+      end
+    end
   end
 end

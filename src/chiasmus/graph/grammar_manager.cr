@@ -21,10 +21,21 @@ module Chiasmus
       @@cache_dir : String?
       @@initialized = false
       @@mutex = Mutex.new
+      @state_mutex : Mutex
+      @pending_ensures : Hash(String, Array(Channel(Utils::BoolResult)))
+      @install_hook : Proc(String, Utils::BoolResult)?
+
+      def initialize
+        @state_mutex = Mutex.new
+        @pending_ensures = {} of String => Array(Channel(Utils::BoolResult))
+        @install_hook = nil
+      end
 
       # Singleton instance
       def self.instance : GrammarManager
-        @@instance ||= new
+        @@mutex.synchronize do
+          @@instance ||= new
+        end
       end
 
       # Initialize with cache directory (async-safe)
@@ -154,55 +165,23 @@ module Chiasmus
       def ensure_grammar_async(language : String, timeout_ms : Int32 = 120_000) : Channel(Utils::BoolResult)
         self.class.init
 
-        channel = Channel(Utils::BoolResult).new
+        channel = Channel(Utils::BoolResult).new(1)
+        spawn_resolution = false
 
-        spawn do
-          begin
-            # Check if already available with timeout
-            available_channel = grammar_available_async(language)
-            available_result = Utils::Timeout.with_timeout_async(5_000, available_channel)
+        @state_mutex.synchronize do
+          if waiters = @pending_ensures[language]?
+            waiters << channel
+          else
+            @pending_ensures[language] = [channel]
+            spawn_resolution = true
+          end
+        end
 
-            unless available_result
-              channel.send(Utils::BoolResult.failure(
-                "Timeout checking if grammar is available",
-                {"language" => language}
-              ))
-              next
-            end
-
-            if available_result.success? && available_result.value == true
-              channel.send(Utils::BoolResult.success)
-              next
-            end
-
-            # Handle dependencies first (async, concurrent)
-            deps = LanguageRegistry.dependencies(language)
-            if !deps.empty?
-              deps_success = ensure_dependencies_async(deps)
-              unless deps_success
-                channel.send(Utils::BoolResult.failure(
-                  "Failed to ensure dependencies",
-                  {"language" => language, "dependencies" => deps.join(", ")}
-                ))
-                next
-              end
-            end
-
-            # Make the grammar available (async)
-            make_channel = make_grammar_available_async(language)
-            make_result = Utils::Timeout.with_timeout_async(timeout_ms, make_channel)
-
-            unless make_result
-              channel.send(Utils::BoolResult.failure(
-                "Timeout making grammar available",
-                {"language" => language, "timeout_ms" => timeout_ms.to_s}
-              ))
-              next
-            end
-
-            channel.send(make_result)
+        if spawn_resolution
+          spawn do
+            notify_ensure_waiters(language, perform_ensure(language, timeout_ms))
           rescue ex
-            channel.send(Utils::BoolResult.failure(
+            notify_ensure_waiters(language, Utils::BoolResult.failure(
               "Error ensuring grammar: #{ex.message}",
               {"language" => language, "exception" => ex.class.to_s}
             ))
@@ -290,6 +269,14 @@ module Chiasmus
 
       def self.grammar_available?(language : String) : Bool
         instance.grammar_available?(language)
+      end
+
+      def set_install_hook_for_test(&block : String -> Utils::BoolResult) : Nil
+        @state_mutex.synchronize { @install_hook = block }
+      end
+
+      def clear_install_hook_for_test : Nil
+        @state_mutex.synchronize { @install_hook = nil }
       end
 
       # Test helper to reset state
@@ -401,6 +388,50 @@ module Chiasmus
         success
       end
 
+      private def perform_ensure(language : String, timeout_ms : Int32) : Utils::BoolResult
+        available_channel = grammar_available_async(language)
+        available_result = Utils::Timeout.with_timeout_async(5_000, available_channel)
+
+        unless available_result
+          return Utils::BoolResult.failure(
+            "Timeout checking if grammar is available",
+            {"language" => language}
+          )
+        end
+
+        if available_result.success? && available_result.value == true
+          return Utils::BoolResult.success
+        end
+
+        deps = LanguageRegistry.dependencies(language)
+        if !deps.empty?
+          deps_success = ensure_dependencies_async(deps)
+          unless deps_success
+            return Utils::BoolResult.failure(
+              "Failed to ensure dependencies",
+              {"language" => language, "dependencies" => deps.join(", ")}
+            )
+          end
+        end
+
+        make_channel = make_grammar_available_async(language)
+        make_result = Utils::Timeout.with_timeout_async(timeout_ms, make_channel)
+
+        unless make_result
+          return Utils::BoolResult.failure(
+            "Timeout making grammar available",
+            {"language" => language, "timeout_ms" => timeout_ms.to_s}
+          )
+        end
+
+        make_result
+      end
+
+      private def notify_ensure_waiters(language : String, result : Utils::BoolResult) : Nil
+        waiters = @state_mutex.synchronize { @pending_ensures.delete(language) } || [] of Channel(Utils::BoolResult)
+        waiters.each(&.send(result))
+      end
+
       # Make a grammar available (main async logic)
       private def make_grammar_available_async(language : String) : Channel(Utils::BoolResult)
         channel = Channel(Utils::BoolResult).new
@@ -420,6 +451,10 @@ module Chiasmus
       end
 
       private def install_grammar(language : String) : Utils::BoolResult
+        if hook = @state_mutex.synchronize { @install_hook }
+          return hook.call(language)
+        end
+
         preferred_method = LanguageRegistry.preferred_method(language)
         if preferred_method && install_with_method(language, preferred_method, 90_000)
           return Utils::BoolResult.success
@@ -730,7 +765,7 @@ module Chiasmus
 
       # Auto-create metadata for existing vendor grammars
       private def self.auto_create_vendor_metadata
-        vendor_grammars_dir = File.expand_path("../../vendor/grammars", __DIR__)
+        vendor_grammars_dir = File.expand_path("../../grammars", __DIR__)
         return unless Dir.exists?(vendor_grammars_dir)
 
         created = GrammarMetadataStore.auto_create_for_existing(vendor_grammars_dir)
@@ -757,7 +792,7 @@ module Chiasmus
         end
 
         # Check vendor directory
-        vendor_grammars_dir = File.expand_path("../../vendor/grammars", __DIR__)
+        vendor_grammars_dir = File.expand_path("../../grammars", __DIR__)
         grammar_dir = find_grammar_dir_in_vendor(language, vendor_grammars_dir)
         if grammar_dir && Dir.exists?(grammar_dir)
           return GrammarMetadataStore.load(grammar_dir)

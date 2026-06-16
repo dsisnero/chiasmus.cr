@@ -39,7 +39,7 @@ module GrammarExplorer
 
     unless grammar_path && Dir.exists?(grammar_path)
       STDERR.puts "Usage: crystal run scripts/explore_grammar_nodes.cr -- --grammar PATH [--language NAME]"
-      STDERR.puts "Example: crystal run scripts/explore_grammar_nodes.cr -- --grammar vendor/grammars/tree-sitter-python --language python"
+      STDERR.puts "Example: crystal run scripts/explore_grammar_nodes.cr -- --grammar grammars/tree-sitter-python --language python"
       exit 1
     end
 
@@ -262,10 +262,10 @@ module GrammarExplorer
 
     Examples:
       crystal run scripts/explore_grammar_nodes.cr -- \\
-        --grammar vendor/grammars/tree-sitter-python --language python
+        --grammar grammars/tree-sitter-python --language python
 
       crystal run scripts/explore_grammar_nodes.cr -- \\
-        --grammar vendor/grammars/tree-sitter-rust --queries
+        --grammar grammars/tree-sitter-rust --queries
     HELP
   end
 end

@@ -11,62 +11,62 @@
 [submodule "vendor/tree-sitter-rust-grammar"]
 	path = vendor/tree-sitter-rust-grammar
 	url = https://github.com/tree-sitter/tree-sitter-rust.git
-[submodule "vendor/grammars/tree-sitter-rust"]
-	path = vendor/grammars/tree-sitter-rust
+[submodule "grammars/tree-sitter-rust"]
+	path = grammars/tree-sitter-rust
 	url = https://github.com/tree-sitter/tree-sitter-rust.git
-[submodule "vendor/grammars/tree-sitter-python"]
-	path = vendor/grammars/tree-sitter-python
+[submodule "grammars/tree-sitter-python"]
+	path = grammars/tree-sitter-python
 	url = https://github.com/tree-sitter/tree-sitter-python.git
-[submodule "vendor/grammars/tree-sitter-typescript"]
-	path = vendor/grammars/tree-sitter-typescript
+[submodule "grammars/tree-sitter-typescript"]
+	path = grammars/tree-sitter-typescript
 	url = https://github.com/tree-sitter/tree-sitter-typescript.git
-[submodule "vendor/grammars/tree-sitter-crystal"]
-	path = vendor/grammars/tree-sitter-crystal
+[submodule "grammars/tree-sitter-crystal"]
+	path = grammars/tree-sitter-crystal
 	url = https://github.com/crystal-lang-tools/tree-sitter-crystal.git
-[submodule "vendor/grammars/tree-sitter-go"]
-	path = vendor/grammars/tree-sitter-go
+[submodule "grammars/tree-sitter-go"]
+	path = grammars/tree-sitter-go
 	url = https://github.com/tree-sitter/tree-sitter-go.git
-[submodule "vendor/grammars/tree-sitter-java"]
-	path = vendor/grammars/tree-sitter-java
+[submodule "grammars/tree-sitter-java"]
+	path = grammars/tree-sitter-java
 	url = https://github.com/tree-sitter/tree-sitter-java.git
-[submodule "vendor/grammars/tree-sitter-javascript"]
-	path = vendor/grammars/tree-sitter-javascript
+[submodule "grammars/tree-sitter-javascript"]
+	path = grammars/tree-sitter-javascript
 	url = https://github.com/tree-sitter/tree-sitter-javascript.git
-[submodule "vendor/grammars/tree-sitter-ruby"]
-	path = vendor/grammars/tree-sitter-ruby
+[submodule "grammars/tree-sitter-ruby"]
+	path = grammars/tree-sitter-ruby
 	url = https://github.com/tree-sitter/tree-sitter-ruby.git
-[submodule "vendor/grammars/tree-sitter-scala"]
-	path = vendor/grammars/tree-sitter-scala
+[submodule "grammars/tree-sitter-scala"]
+	path = grammars/tree-sitter-scala
 	url = https://github.com/tree-sitter/tree-sitter-scala.git
 [submodule "vendor/codeium-parse"]
 	path = vendor/codeium-parse
 	url = https://github.com/Exafunction/codeium-parse.git
-[submodule "vendor/grammars/tree-sitter-bash"]
-	path = vendor/grammars/tree-sitter-bash
+[submodule "grammars/tree-sitter-bash"]
+	path = grammars/tree-sitter-bash
 	url = https://github.com/tree-sitter/tree-sitter-bash.git
-[submodule "vendor/grammars/tree-sitter-c"]
-	path = vendor/grammars/tree-sitter-c
+[submodule "grammars/tree-sitter-c"]
+	path = grammars/tree-sitter-c
 	url = https://github.com/tree-sitter/tree-sitter-c.git
-[submodule "vendor/grammars/tree-sitter-cpp"]
-	path = vendor/grammars/tree-sitter-cpp
+[submodule "grammars/tree-sitter-cpp"]
+	path = grammars/tree-sitter-cpp
 	url = https://github.com/tree-sitter/tree-sitter-cpp.git
-[submodule "vendor/grammars/tree-sitter-c-sharp"]
-	path = vendor/grammars/tree-sitter-c-sharp
+[submodule "grammars/tree-sitter-c-sharp"]
+	path = grammars/tree-sitter-c-sharp
 	url = https://github.com/tree-sitter/tree-sitter-c-sharp.git
-[submodule "vendor/grammars/tree-sitter-dart"]
-	path = vendor/grammars/tree-sitter-dart
+[submodule "grammars/tree-sitter-dart"]
+	path = grammars/tree-sitter-dart
 	url = https://github.com/UserNobody14/tree-sitter-dart.git
-[submodule "vendor/grammars/tree-sitter-kotlin"]
-	path = vendor/grammars/tree-sitter-kotlin
+[submodule "grammars/tree-sitter-kotlin"]
+	path = grammars/tree-sitter-kotlin
 	url = https://github.com/fwcd/tree-sitter-kotlin.git
-[submodule "vendor/grammars/tree-sitter-perl"]
-	path = vendor/grammars/tree-sitter-perl
+[submodule "grammars/tree-sitter-perl"]
+	path = grammars/tree-sitter-perl
 	url = https://github.com/tree-sitter-perl/tree-sitter-perl.git
-[submodule "vendor/grammars/tree-sitter-php"]
-	path = vendor/grammars/tree-sitter-php
+[submodule "grammars/tree-sitter-php"]
+	path = grammars/tree-sitter-php
 	url = https://github.com/tree-sitter/tree-sitter-php.git
-[submodule "vendor/grammars/tree-sitter-proto"]
-	path = vendor/grammars/tree-sitter-proto
+[submodule "grammars/tree-sitter-proto"]
+	path = grammars/tree-sitter-proto
 	url = https://github.com/mitchellh/tree-sitter-proto.git
 [submodule "vendor/merkletree"]
 	path = vendor/merkletree

@@ -18,6 +18,8 @@ module Chiasmus
     module GraphCache
       extend self
 
+      @@mutex = Mutex.new
+
       # SHA-256(content + \0 + path) → hex digest
       def file_hash(content : String, abs_path : String) : String
         OpenSSL::Digest.new("SHA256").update(content).update("\u0000").update(abs_path).final.hexstring
@@ -93,40 +95,46 @@ module Chiasmus
         max_bytes : Int32 = DEFAULT_MAX_BYTES,
       ) : Nil
         return if items.empty?
-        paths = resolve_cache_paths(cache_dir, repo_key)
-        Dir.mkdir_p(paths["files_dir"])
+        @@mutex.synchronize do
+          paths = resolve_cache_paths(cache_dir, repo_key)
+          Dir.mkdir_p(paths["files_dir"])
 
-        manifest = load_manifest(paths)
+          manifest = load_manifest(paths)
 
-        items.each do |item|
-          h = file_hash(item[:content], item[:path])
-          serialized = code_graph_to_json(item[:graph])
-          cache_path = File.join(paths["files_dir"], "#{h}.json")
-          tmp = cache_path + ".tmp"
-          File.write(tmp, serialized)
-          File.rename(tmp, cache_path)
+          items.each do |item|
+            h = file_hash(item[:content], item[:path])
+            serialized = code_graph_to_json(item[:graph])
+            cache_path = File.join(paths["files_dir"], "#{h}.json")
+            tmp = unique_tmp_path(cache_path)
+            File.write(tmp, serialized)
+            File.rename(tmp, cache_path)
 
-          entry = manifest["entries"].as_h
-          entry[item[:path]] = JSON.parse({
-            "hash"    => h,
-            "size"    => serialized.bytesize.to_s,
-            "savedAt" => Time.utc.to_unix_ms.to_s,
-          }.to_json)
+            entry = manifest["entries"].as_h
+            entry[item[:path]] = JSON.parse({
+              "hash"    => h,
+              "size"    => serialized.bytesize.to_s,
+              "savedAt" => Time.utc.to_unix_ms.to_s,
+            }.to_json)
+          end
+
+          write_manifest(paths, manifest)
+          evict_if_over_budget(paths, manifest, max_bytes)
         end
-
-        write_manifest(paths, manifest)
-        evict_if_over_budget(paths, manifest, max_bytes)
       end
 
       def evict_lru(cache_dir : String, repo_key : String = "default", max_bytes : Int32 = DEFAULT_MAX_BYTES) : Nil
-        paths = resolve_cache_paths(cache_dir, repo_key)
-        manifest = load_manifest(paths)
-        evict_if_over_budget(paths, manifest, max_bytes)
+        @@mutex.synchronize do
+          paths = resolve_cache_paths(cache_dir, repo_key)
+          manifest = load_manifest(paths)
+          evict_if_over_budget(paths, manifest, max_bytes)
+        end
       end
 
       def clear_repo_cache(cache_dir : String, repo_key : String = "default") : Nil
-        paths = resolve_cache_paths(cache_dir, repo_key)
-        FileUtils.rm_rf(paths["repo_dir"]) rescue nil
+        @@mutex.synchronize do
+          paths = resolve_cache_paths(cache_dir, repo_key)
+          FileUtils.rm_rf(paths["repo_dir"]) rescue nil
+        end
       end
 
       # --- Snapshots ---
@@ -135,14 +143,16 @@ module Chiasmus
         raise ArgumentError.new("Snapshot name cannot be empty") if name.empty?
         raise ArgumentError.new("Invalid snapshot name: #{name}") if name.includes?('/') || name.includes?('\\') || name.includes?('\0')
 
-        paths = resolve_cache_paths(cache_dir, repo_key)
-        snap_dir = File.join(paths["repo_dir"], "snapshots")
-        Dir.mkdir_p(snap_dir)
+        @@mutex.synchronize do
+          paths = resolve_cache_paths(cache_dir, repo_key)
+          snap_dir = File.join(paths["repo_dir"], "snapshots")
+          Dir.mkdir_p(snap_dir)
 
-        target = File.join(snap_dir, "#{name}.json")
-        tmp = target + ".tmp"
-        File.write(tmp, code_graph_to_json(graph))
-        File.rename(tmp, target)
+          target = File.join(snap_dir, "#{name}.json")
+          tmp = unique_tmp_path(target)
+          File.write(tmp, code_graph_to_json(graph))
+          File.rename(tmp, target)
+        end
       end
 
       def load_snapshot(name : String, cache_dir : String, repo_key : String = "default") : CodeGraph?
@@ -166,9 +176,11 @@ module Chiasmus
       end
 
       def delete_snapshot(name : String, cache_dir : String, repo_key : String = "default") : Nil
-        paths = resolve_cache_paths(cache_dir, repo_key)
-        target = File.join(paths["repo_dir"], "snapshots", "#{name}.json")
-        File.delete(target) if File.exists?(target)
+        @@mutex.synchronize do
+          paths = resolve_cache_paths(cache_dir, repo_key)
+          target = File.join(paths["repo_dir"], "snapshots", "#{name}.json")
+          File.delete(target) if File.exists?(target)
+        end
       rescue
       end
 
@@ -194,7 +206,7 @@ module Chiasmus
       end
 
       private def write_manifest(paths : Hash(String, String), manifest : Hash(String, JSON::Any)) : Nil
-        tmp = paths["manifest_path"] + ".tmp"
+        tmp = unique_tmp_path(paths["manifest_path"])
         File.write(tmp, manifest.to_json)
         File.rename(tmp, paths["manifest_path"])
       end
@@ -285,9 +297,13 @@ module Chiasmus
       end
 
       private def write_manifest(paths : Hash(String, String), manifest : JSON::Any) : Nil
-        tmp = paths["manifest_path"] + ".tmp"
+        tmp = unique_tmp_path(paths["manifest_path"])
         File.write(tmp, manifest.to_json)
         File.rename(tmp, paths["manifest_path"])
+      end
+
+      private def unique_tmp_path(path : String) : String
+        "#{path}.tmp.#{Random::Secure.hex(8)}"
       end
 
       private def evict_if_over_budget(paths : Hash(String, String), manifest : Hash(String, JSON::Any), budget : Int32) : Nil

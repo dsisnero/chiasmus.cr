@@ -1,6 +1,6 @@
 require "../src/chiasmus/discovery"
 
-Chiasmus::Discovery.register_grammar_directory("vendor/grammars")
+Chiasmus::Discovery.register_grammar_directory("grammars")
 
 LANGUAGES = {
   "javascript" => Chiasmus::Discovery::JavaScriptExtractor.new,

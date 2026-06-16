@@ -1,4 +1,4 @@
-.PHONY: install update format lint test clean build release dist setup-grammars
+.PHONY: install update format lint test clean build build-clis release dist setup-grammars
 
 install:
 	shards install
@@ -14,11 +14,17 @@ lint:
 	ameba src spec
 
 test:
-	crystal spec
+	crystal spec spec/
 
 build:
 	mkdir -p bin
 	crystal build --release -Dchiasmus_cli -o bin/chiasmus src/chiasmus.cr
+
+build-clis:
+	mkdir -p bin
+	crystal build --release -o bin/chiasmus-discover src/chiasmus_discover.cr
+	crystal build --release -o bin/chiasmus-grammar src/chiasmus_grammar.cr
+	crystal build --release -o bin/chiasmus-parity src/chiasmus_parity.cr
 
 release:
 	mkdir -p bin
@@ -30,7 +36,7 @@ release:
 	fi
 
 # Create distribution package with grammars
-dist: release
+dist: release build-clis
 	@echo "Creating distribution package..."
 	@echo "Note: Ensure grammars are installed first with 'make setup-grammars' or './scripts/setup_grammars.cr'"
 	@rm -rf dist
@@ -39,6 +45,9 @@ dist: release
 
 	# Copy binary
 	@cp bin/chiasmus-static dist/chiasmus/chiasmus
+	@cp bin/chiasmus-discover dist/chiasmus/chiasmus-discover
+	@cp bin/chiasmus-grammar dist/chiasmus/chiasmus-grammar
+	@cp bin/chiasmus-parity dist/chiasmus/chiasmus-parity
 
 	# Copy grammar libraries from cache
 	@echo "Copying grammar libraries from cache..."
@@ -55,11 +64,11 @@ dist: release
 			cp "$$cache_path" dist/chiasmus/grammars/; \
 		# Fall back to vendor directory (old system) \
 		elif [ "$$lang" = "typescript" ]; then \
-			cp vendor/grammars/tree-sitter-typescript/typescript/$$lib_name dist/chiasmus/grammars/ 2>/dev/null || echo "  Warning: $$lang not found"; \
+			cp grammars/tree-sitter-typescript/typescript/$$lib_name dist/chiasmus/grammars/ 2>/dev/null || echo "  Warning: $$lang not found"; \
 		elif [ "$$lang" = "tsx" ]; then \
-			cp vendor/grammars/tree-sitter-typescript/tsx/libtree-sitter-tsx.$$ext dist/chiasmus/grammars/ 2>/dev/null || echo "  Warning: $$lang not found"; \
+			cp grammars/tree-sitter-typescript/tsx/libtree-sitter-tsx.$$ext dist/chiasmus/grammars/ 2>/dev/null || echo "  Warning: $$lang not found"; \
 		else \
-			cp vendor/grammars/tree-sitter-$$lang/$$lib_name dist/chiasmus/grammars/ 2>/dev/null || echo "  Warning: $$lang not found"; \
+			cp grammars/tree-sitter-$$lang/$$lib_name dist/chiasmus/grammars/ 2>/dev/null || echo "  Warning: $$lang not found"; \
 		fi; \
 	done
 
@@ -82,6 +91,8 @@ dist: release
 	@echo "" >> dist/chiasmus/README.md
 	@echo "## Usage" >> dist/chiasmus/README.md
 	@echo "./chiasmus --help" >> dist/chiasmus/README.md
+	@echo "./chiasmus-discover --help" >> dist/chiasmus/README.md
+	@echo "./chiasmus-parity --help" >> dist/chiasmus/README.md
 
 	# Create tarball
 	@cd dist && tar czf chiasmus-$(shell date +%Y%m%d).tar.gz chiasmus/

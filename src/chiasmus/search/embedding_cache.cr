@@ -21,10 +21,16 @@ module Chiasmus
       @dim : Int32
       @by_hash : Hash(String, Array(Float64))
       @dirty : Bool
+      @version : Int64
+      @mutex : Mutex
+      @before_dirty_clear_hook : Proc(Nil)?
 
       def initialize(@path : String, @dim : Int32)
         @by_hash = Hash(String, Array(Float64)).new
         @dirty = false
+        @version = 0_i64
+        @mutex = Mutex.new
+        @before_dirty_clear_hook = nil
       end
 
       def self.hash(content : String) : String
@@ -32,7 +38,7 @@ module Chiasmus
       end
 
       def get(content : String) : Array(Float64)?
-        @by_hash[EmbeddingCache.hash(content)]?
+        @mutex.synchronize { @by_hash[EmbeddingCache.hash(content)]? }
       end
 
       def put(content : String, vector : Array(Float64)) : Nil
@@ -41,8 +47,11 @@ module Chiasmus
             "EmbeddingCache: dimension mismatch — expected #{@dim}, got #{vector.size}"
           )
         end
-        @by_hash[EmbeddingCache.hash(content)] = vector
-        @dirty = true
+        @mutex.synchronize do
+          @by_hash[EmbeddingCache.hash(content)] = vector
+          @dirty = true
+          @version += 1
+        end
       end
 
       def put_many(contents : Array(String), vectors : Array(Array(Float64))) : Nil
@@ -55,39 +64,52 @@ module Chiasmus
       end
 
       def partition_missing(contents : Array(String)) : PartitionResult
-        cached = Hash(Int32, Array(Float64)).new
-        missing = [] of String
-        missing_indexes = [] of Int32
+        @mutex.synchronize do
+          cached = Hash(Int32, Array(Float64)).new
+          missing = [] of String
+          missing_indexes = [] of Int32
 
-        contents.each_with_index do |content, i|
-          hit = get(content)
-          if hit
-            cached[i] = hit
-          else
-            missing << content
-            missing_indexes << i
+          contents.each_with_index do |content, i|
+            hit = @by_hash[EmbeddingCache.hash(content)]?
+            if hit
+              cached[i] = hit
+            else
+              missing << content
+              missing_indexes << i
+            end
           end
-        end
 
-        PartitionResult.new(cached: cached, missing: missing, missing_indexes: missing_indexes)
+          PartitionResult.new(cached: cached, missing: missing, missing_indexes: missing_indexes)
+        end
       end
 
       def save : Nil
-        return unless @dirty
+        payload = nil.as(String?)
+        snapshot_version = 0_i64
 
-        payload = {
-          "schemaVersion" => ECACHE_SCHEMA_VERSION,
-          "dimension"     => @dim,
-          "entries"       => @by_hash,
-        }.to_json
+        @mutex.synchronize do
+          return unless @dirty
+
+          snapshot_version = @version
+          payload = {
+            "schemaVersion" => ECACHE_SCHEMA_VERSION,
+            "dimension"     => @dim,
+            "entries"       => @by_hash,
+          }.to_json
+        end
 
         dir = File.dirname(@path)
         Dir.mkdir_p(dir) unless Dir.exists?(dir)
 
-        tmp = @path + ".tmp"
-        File.write(tmp, payload)
+        tmp = "#{@path}.tmp.#{Random::Secure.hex(8)}"
+        File.write(tmp, payload || raise "expected payload")
         File.rename(tmp, @path)
-        @dirty = false
+
+        @before_dirty_clear_hook.try(&.call)
+
+        @mutex.synchronize do
+          @dirty = false if @version == snapshot_version
+        end
       end
 
       def load : Nil
@@ -100,11 +122,17 @@ module Chiasmus
         entries = parsed["entries"]?.try(&.as_h)
         return unless entries
 
+        loaded = Hash(String, Array(Float64)).new
         entries.each do |hash, vec_json|
           vec = vec_json.as_a.map(&.as_f)
-          @by_hash[hash] = vec if vec.size == @dim
+          loaded[hash] = vec if vec.size == @dim
         end
-        @dirty = false
+
+        @mutex.synchronize do
+          @by_hash = loaded
+          @dirty = false
+          @version = 0_i64
+        end
       rescue File::NotFoundError
         # Tolerate missing cache file — first run.
       rescue JSON::ParseException
@@ -112,7 +140,15 @@ module Chiasmus
       end
 
       def size : Int32
-        @by_hash.size
+        @mutex.synchronize { @by_hash.size }
+      end
+
+      def set_before_dirty_clear_hook_for_test(&block : ->) : Nil
+        @before_dirty_clear_hook = block
+      end
+
+      def clear_before_dirty_clear_hook_for_test : Nil
+        @before_dirty_clear_hook = nil
       end
     end
   end

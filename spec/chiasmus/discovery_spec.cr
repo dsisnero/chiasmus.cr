@@ -7,7 +7,7 @@ module Chiasmus
   module Discovery
     # Initialize grammar paths for testing
     def self.init_test_grammars
-      vendor_dir = File.expand_path("../../vendor/grammars", __DIR__)
+      vendor_dir = File.expand_path("../../grammars", __DIR__)
       if Dir.exists?(vendor_dir)
         register_grammar_directory(vendor_dir)
       end

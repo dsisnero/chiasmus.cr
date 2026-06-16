@@ -4,6 +4,7 @@ require "../types"
 require "../tool_schemas"
 require "../../graph/map"
 require "../../graph/extractor"
+require "../../graph/parallel_io"
 
 module Chiasmus
   module MCPServer
@@ -14,7 +15,7 @@ module Chiasmus
 
           return Types::ErrorResponse.new("'files' (non-empty string[]) is required") if args.files.empty?
 
-          source_files = args.files.map { |p| Graph::SourceFile.new(path: p, content: File.read(p)) }
+          source_files = Graph::FileIO.read_source_files_or_raise(args.files)
           graph = Graph::Extractor.extract_graph(source_files, cache_dir: args.cache)
 
           map = case args.mode
