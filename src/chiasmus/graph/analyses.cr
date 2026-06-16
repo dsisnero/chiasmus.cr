@@ -152,15 +152,16 @@ module Chiasmus
           )
         end
 
-        files = file_paths.map do |file_path|
-          SourceFile.new(path: file_path, content: File.read(file_path))
-        end
+        files = FileIO.read_source_files_or_raise(file_paths)
 
         graph = Extractor.extract_graph(files, cache_dir: cache_dir, max_bytes: max_bytes)
 
         if save_snapshot && cache_dir
-          begin
-            GraphCache.save_snapshot(save_snapshot, graph, cache_dir, repo_key: repo_key || "default")
+          snap_name = save_snapshot
+          snap_dir = cache_dir
+          snap_repo = repo_key || "default"
+          spawn do
+            GraphCache.save_snapshot(snap_name, graph, snap_dir, repo_key: snap_repo)
           rescue ex
           end
         end
