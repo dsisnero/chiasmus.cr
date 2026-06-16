@@ -12,6 +12,41 @@ This repository is a Crystal port of [yogthos/chiasmus](https://github.com/yogth
 
 **Important**: When implementing LLM or Prolog interactions, use non-blocking patterns to maintain system responsiveness. Prefer Crystal's `spawn` for concurrent operations and `Channel` for communication between fibers.
 
+## Concurrency Design
+
+**All new methods must assume multiple fibers may call them concurrently.** The MCP server handles multiple clients; graph extraction, search, and analysis can run in overlapping fibers.
+
+### Standing Rules
+
+1. **No shared mutable state without synchronization.** Prefer `Mutex` for guarded access, `Atomic` for counters, `Channel` for communication.
+2. **Long-running operations return `Channel(T)`** — never block the calling fiber. See `discovery/pipeline.cr` for the canonical bounded-concurrency pattern.
+3. **Non-thread-safe resources get actor/worker fibers** — see `solvers/session.cr` (single Prolog worker fiber) and `parser_service.cr` (waiter coalescing for grammar loading).
+4. **Wire new code for concurrency immediately** — writing synchronous code that "we'll parallelize later" creates hidden data races when someone else spawns it.
+
+### Concurrency Primitives (in priority order)
+
+| Primitive | When to Use |
+|-----------|-------------|
+| `Channel(T)` + `spawn` | All long-running I/O or CPU work. Return a channel, receive in the caller. |
+| `Mutex` | Guard shared mutable state (singletons, caches, counters accessible from multiple fibers). |
+| `Atomic` | Lock-free counters and flags. |
+| `WaitGroup` | Coordinate N parallel fibers before proceeding. |
+| `select` / `when` | Multi-channel wait with timeout. See `utils/timeout.cr`. |
+
+### Existing Concurrent Subsystems
+
+| Subsystem | Pattern | Reusable For |
+|-----------|---------|-------------|
+| `discovery/pipeline.cr` | Bounded semaphore + per-item `spawn` + result `Channel` | Parallel file processing |
+| `solvers/session.cr` | Actor/worker queue | Isolating non-thread-safe resources |
+| `parser_service.cr` | Waiter coalescing + broadcast | Deduplicating concurrent requests |
+| `grammar_manager.cr` | Async lifecycle via `Channel(BoolResult)` | Any long-running setup/teardown |
+| `utils/timeout.cr` | `Channel` + `select` + timeout | Any operation with a deadline |
+
+### Known Bottleneck: `Graph::Extractor.extract_graph`
+
+The #1 missing concurrency opportunity. Currently processes N files **sequentially** in a single fiber despite each file being independently parseable. The `discovery/pipeline.cr` bounded-concurrency pattern is the template for parallelizing this. Target: P21 (parallel graph extraction).
+
 **Key divergence from upstream**: The upstream `src/llm/` and `src/solvers/prolog-solver.ts` constants are replaced by Crig and crolog respectively. These are marked as `intentional_divergence` in the port inventory and do not require porting.
 
 ## Source of Truth

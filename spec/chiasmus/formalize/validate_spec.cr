@@ -71,6 +71,26 @@ describe Chiasmus::Formalize do
         result.errors.first.should match(/period/i)
       end
 
+      it "catches an unterminated last clause in a multi-clause spec" do
+        result = Chiasmus::Formalize.lint_spec(
+          "parent(tom, bob).\nparent(bob, ann)",
+          Chiasmus::Solvers::SolverType::Prolog,
+        )
+
+        result.errors.should_not be_empty
+        result.errors.first.should match(/period/i)
+      end
+
+      it "catches a spec whose only period is a float decimal point" do
+        result = Chiasmus::Formalize.lint_spec(
+          "weight(item, 3.14)",
+          Chiasmus::Solvers::SolverType::Prolog,
+        )
+
+        result.errors.should_not be_empty
+        result.errors.first.should match(/period/i)
+      end
+
       it "catches unbalanced prolog parentheses" do
         result = Chiasmus::Formalize.lint_spec("parent(tom, bob.\nparent(bob, ann).", Chiasmus::Solvers::SolverType::Prolog)
 
@@ -141,6 +161,14 @@ describe Chiasmus::Formalize do
       it "accepts prolog with /* inside a quoted atom (not a block comment)" do
         result = Chiasmus::Formalize.lint_spec(
           "p('/* not a comment */').",
+          Chiasmus::Solvers::SolverType::Prolog,
+        )
+        result.errors.should be_empty
+      end
+
+      it "Prolog with a float in a terminated clause passes" do
+        result = Chiasmus::Formalize.lint_spec(
+          "weight(item, 3.14).",
           Chiasmus::Solvers::SolverType::Prolog,
         )
         result.errors.should be_empty

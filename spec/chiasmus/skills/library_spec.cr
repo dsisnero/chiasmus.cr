@@ -377,4 +377,32 @@ describe Chiasmus::Skills::Library do
       end
     end
   end
+
+  describe "#get_template_search_text" do
+    it "produces searchable text that includes signature and slots but not tips" do
+      with_skill_library do |library, _dir|
+        skill = library.get("policy-contradiction")
+        raise "Expected policy-contradiction to be present" unless skill
+        template = skill.template
+        text = library.get_template_search_text(template)
+        text.should be_a(String)
+        text.should_not be_empty
+        text.should contain(template.name)
+        text.should contain(template.domain)
+        text.should contain(template.signature)
+        template.slots.each do |slot|
+          text.should contain(slot.description)
+        end
+        template.normalizations.each do |norm|
+          text.should contain(norm.source)
+          text.should contain(norm.transform)
+        end
+        if tips = template.tips
+          tips.each do |tip|
+            text.should_not contain(tip)
+          end
+        end
+      end
+    end
+  end
 end

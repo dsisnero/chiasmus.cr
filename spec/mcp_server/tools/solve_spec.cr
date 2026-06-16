@@ -2,6 +2,15 @@ require "../../spec_helper"
 require "../../support/formalize_scripted_agent"
 
 describe Chiasmus::MCPServer::Tools::SolveTool do
+  describe ".tool_description" do
+    it "documents that `converged` is not a verdict on the property" do
+      desc = Chiasmus::MCPServer::Tools::SolveTool.tool_description
+      desc.should match(/converged/)
+      desc.should match(/result\.status/)
+      desc.should match(/not.*(proof|property holds)/i)
+    end
+  end
+
   it "falls back to formalize when no LLM-backed formalization engine is configured" do
     server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
     Chiasmus::MCPServer.current_server = server

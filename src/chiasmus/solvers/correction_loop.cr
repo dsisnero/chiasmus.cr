@@ -16,6 +16,13 @@ module Chiasmus
     # - The solver returns a non-error result (sat/unsat/unknown/success) → converged
     # - The fixer returns null (gives up) → not converged
     # - Max rounds reached → not converged
+    #
+    # NOTE: `converged` reports only that the loop reached a non-error solver
+    # result — it is deliberately agnostic about what that result *says*. A
+    # `converged: true` with `result.status: "unsat"` means the solver ran and
+    # found no counterexample in the given model; it is NOT a proof that the
+    # property holds. Callers must inspect `result.status`, never treat
+    # `converged` as "solved" / "safe".
     def self.correction_loop(
       initial_input : SolverInput,
       fixer : SpecFixer,

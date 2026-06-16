@@ -266,15 +266,19 @@ module Chiasmus
         STARTER_TEMPLATES.map(&.name).to_set
       end
 
-      private def build_search_text(template : SkillTemplate) : String
+      # Produce the searchable text for a template (BM25 and embeddings rank the same surface)
+      def get_template_search_text(template : SkillTemplate) : String
         [
           template.name,
           template.domain,
           template.signature,
           *template.slots.map(&.description),
           *template.normalizations.map { |norm| "#{norm.source} #{norm.transform}" },
-          *(template.tips || [] of String),
         ].join(" ")
+      end
+
+      private def build_search_text(template : SkillTemplate) : String
+        get_template_search_text(template)
       end
 
       private def build_document(name : String, template : SkillTemplate) : Bm25::Document(String)

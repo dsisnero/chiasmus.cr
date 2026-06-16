@@ -1,8 +1,10 @@
 # Chiasmus Crystal Parity Plan
 
-## Current Inventory State (vendor/chiasmus @ `07bbf4a`)
+## Current Inventory State (vendor/chiasmus @ `576ed38`)
 
 Full inventory refresh 2026-06-05. All 1416 upstream items classified and tracked.
+
+_(Vendor updated 07bbf4a → 576ed38 on 2026-06-15. See P20 for porting status.)_
 
 | Manifest | Tracked | Ported | Intentional divergence | Missing |
 |---|---|---:|---:|---:|---:|
@@ -67,7 +69,92 @@ All prior porting work is complete. See implementation history below for details
 | **P16** | **GraphCache + FileNode + 37x Speedup** | **Implemented** |
 | **P17** | **CLI Friendliness + Output Schemas + Search (Ollama)** | **Implemented** |
 | **P18** | **Diff/Snapshot Analysis Wiring** | **Implemented** |
-| **P19** | **Graph Walker: C++** | **In Progress** |
+| **P19** | **Graph Walker: C++** | **Implemented** |
+| **P20** | **Vendor Refresh 576ed38 (v0.1.24) — `converged` clarity, Prolog lint, embedding formalize** | **Implemented** |
+| **P21** | **Parallel Graph Extraction** | **Implemented** |
+| **P23** | **Parallel File I/O** | **Implemented** |
+| **P24** | **Async Cache & Snapshot Writes** | **Implemented** |
+
+### P21: Parallel Graph Extraction — Implemented
+
+**Goal:** parallelize `Graph::Extractor.extract_graph` using the `discovery/pipeline.cr` bounded-concurrency pattern.
+
+**Implementation:**
+- `extract_single_file` — pure method returning `CodeGraph` for one file, no shared state
+- `merge_graph_under_lock` — `Mutex`-guarded merge of per-file results
+- Semaphore `Channel(Nil)` bounded to `System.cpu_count`; spawn + result `Channel(CodeGraph)`
+- Removed `extract_per_file_graph` (was mutating shared accumulators, had no callers)
+
+**Acceptance:**
+- `[x]` `extract_graph` uses parallel fiber-per-file pattern with bounded concurrency
+- `[x]` `CodeGraph` merge is fiber-safe via `@@merge_mutex : Mutex`
+- `[x]` Existing graph specs pass identically (deterministic output)
+- `[x]` Perf: 3-file extraction 5.75s → 1.67s (~3.4x speedup)
+- `[x]` 5 new specs: multi-file correctness, 10-fiber concurrent calls, determinism
+
+### P20: Vendor Refresh 576ed38 (v0.1.21 → v0.1.24) — Implemented
+
+**Upstream changes (07bbf4a → 576ed38):** 11 files changed, 263 insertions, 42 deletions.
+
+**Git range:** `git -C vendor/chiasmus diff 07bbf4a..576ed38 --stat`
+
+| # | Upstream File | Change Description | Crystal File | Status |
+|---|--------------|-------------------|-------------|--------|
+| 1 | `src/formalize/engine.ts` | **Embedding-based template selection** — optional `EmbeddingAdapter` for cosine-similarity re-ranking; BM25 fallback. New `selectByEmbedding()` + `l2Norm` helper | `src/chiasmus/formalize/engine.cr` | **Ported** |
+| 2 | `src/formalize/engine.ts` | **System prompt update** — "SLOT format examples illustrate syntax only, never copy values" warning | `src/chiasmus/formalize/engine.cr:25` (FORMALIZE_SYSTEM) | **Ported** |
+| 3 | `src/formalize/engine.ts` | **`converged` doc comment** — explains `converged` is not a verdict on the property | `src/chiasmus/formalize/engine.cr:18` (SolveResult) | **Ported** |
+| 4 | `src/formalize/validate.ts` | **Prolog lint fix** — check last clause termination (`endsWith(".")`), detect float decimal as false positive, updated error messages | `src/chiasmus/formalize/validate.cr:220-222` | **Ported** |
+| 5 | `src/skills/library.ts` | **Extract `getTemplateSearchText`** — shared public method for BM25 + embedding re-ranking (used by #1) | `src/chiasmus/skills/library.cr:269` (`build_search_text`, currently private) | **Ported** |
+| 6 | `src/solvers/correction-loop.ts` | **Doc: `converged` clarification** — "converged reports only that the loop reached a non-error result, not a proof" | `src/chiasmus/solvers/correction_loop.cr:12-18` | **Ported** |
+| 7 | `src/solvers/prolog-solver.ts` | **Wrapper variable hygiene** — rename `Err`/`EStr` to collision-resistant names, strip internal vars from answer bindings | `src/chiasmus/solvers/prolog_solver.cr` | **N/A** (crolog FFI, not prolog-wasm) |
+| 8 | `src/mcp-server.ts` | **Solve tool description** — clarify `converged` ≠ proof; read `result.status` for actual verdict | `src/chiasmus/mcp_server/tools/solve.cr:46-53` | **Ported** |
+| 9 | `src/mcp-server.ts` | **Version from `package.json`**, embedding wiring into `FormalizationEngine` | `src/chiasmus/mcp_server/server.cr` | Already done (uses `Chiasmus::VERSION`) |
+| 10 | `tests/validate.test.ts` | 4 new Prolog lint tests (unterminated last clause, float decimal, float in terminated clause passes, error messages) | `spec/chiasmus/formalize/validate_spec.cr` | **Ported** |
+| 11 | `tests/prolog-solver.test.ts` | 3 wrapper-variable hygiene tests | `spec/chiasmus/solvers/prolog_solver_spec.cr` | **N/A** (crolog backend) |
+| 12 | `tests/mcp-server.test.ts` | 2 tests: version from package.json, `converged` tool description | `spec/chiasmus/mcp_server/server_spec.cr`, `spec/mcp_server/tools/solve_spec.cr` | **Ported** |
+
+#### Porting Plan
+
+**Priority 1 — Small/targeted changes (items 2-4, 6, 8):**
+- Update `FORMALIZE_SYSTEM` constant in `engine.cr` to include the SLOT format warning
+- Add doc comment on `SolveResult.converged` field
+- Fix Prolog lint: change `includes?('.')` to check `ends_with?('.')` for last clause, update error messages
+- Add doc comment on `correction_loop` method about `converged` semantics
+- Update `tool_description` in `solve.cr` to clarify `converged` vs `result.status`
+
+**Priority 2 — Library refactor (item 5):**
+- Make `build_search_text` a public method (or add `get_template_search_text` wrapper) on `Library`
+- Ensure it doesn't include tips (match upstream behavior for embedding consistency)
+
+**Priority 3 — Embedding formalize (item 1):**
+- Add optional `@embedding` field to `Engine(M)` — type depends on Crig embedding model
+- Add `select_by_embedding(problem)` method with cosine similarity ranking
+- Add `l2_norm` helper
+- Update `formalize()` to try embedding first, fall back to BM25
+- Wire embedding from `Server` into `Engine` constructor
+- This requires an embedding model to be resolvable at Engine construction time
+
+**Priority 4 — Tests (items 10, 12):**
+- Port 4 Prolog lint tests to `validate_spec.cr`
+- Port `converged` tool description test to `solve_spec.cr`
+- Items 7, 11 (prolog-solver wrapper vars) are N/A — Crystal uses crolog FFI which doesn't inject a `catch` wrapper
+
+#### Intentional Divergences (P20)
+
+| Subsystem | Item | Rationale |
+|-----------|------|-----------|
+| Prolog solver | Wrapper variable hygiene (items 7, 11) | Crystal uses crolog (SWI-Prolog FFI) via `PL_Q_CATCH_EXCEPTION` — no `catch`/`call_with_inference_limit` wrapper that would leak internal vars |
+| MCP version | package.json version (item 9) | Already reads from `Chiasmus::VERSION` constant set at compile time |
+
+### P19: C++ Graph Walker — Implemented (2026-06-15)
+
+Completed the Crystal-native C++ walker with:
+- **Namespace tracking** — `namespace_definition` handler pushes scope and defines `SymbolKind::Module`
+- **Enum extraction** — `enum_specifier` handler extracts enum name + enumerator members
+- **Constructor/destructor detection** — `function_definition` inside class body where name matches class → `.ctor`; `destructor_name` descendant → `.dtor`
+- **Refactored** `handle_cpp_declaration` into `handle_cpp_class`, `handle_cpp_namespace`, `handle_cpp_enum`, `handle_cpp_function`, `record_cpp_special_method` to keep cyclomatic complexity within limits
+- Added `SymbolKind::Module` to the shared enum (produces `"module"` in Prolog facts)
+- 5 new specs: namespace defines, enum+members, class enum, constructor, destructor — 12 total, 0 failures
 
 ### P13: C# Graph Walker — Crystal-Native Feature
 
@@ -647,7 +734,7 @@ Acceptance:
 
 ## Parity Plan Current State
 
-P0-P12 are complete. 1416 items tracked, 0 missing, 0 stale. The port is in stable maintenance.
+P0-P21, P23 complete. 1204 specs, 0 failures. Lint 0 failures, format clean. The port is in parity maintenance.
 
 ## MCP Tools Feature Matrix
 

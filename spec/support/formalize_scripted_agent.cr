@@ -1,3 +1,5 @@
+require "crig"
+
 class FormalizeSpecCompletionModel
   include Crig::Completion::CompletionModel
 

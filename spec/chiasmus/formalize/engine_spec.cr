@@ -1,3 +1,4 @@
+require "../../spec_helper"
 require "../../support/formalize_scripted_agent"
 require "file_utils"
 
@@ -110,6 +111,69 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
         raise "expected non-nil result" if result.nil?
         result.template.should_not be_nil
         result.instructions.should_not be_empty
+      end
+    end
+
+    it "uses embedding-based selection when an embedding adapter is provided" do
+      dir = File.join(Dir.tempdir, "chiasmus-formalize-engine-embed-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+      library = Chiasmus::Skills::Library.create(dir)
+
+      # Embedding: return matching vector for constraint-satisfaction text and
+      # the problem, orthogonal vectors for everything else.
+      embedding = ->(texts : Array(String)) : Array(Array(Float64)) do
+        texts.map do |text|
+          if text.includes?("compatible") || text.includes?("constraint-satisfaction")
+            [1.0, 0.0, 0.0]
+          else
+            [0.0, 1.0, 0.0]
+          end
+        end
+      end
+
+      engine = Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel).new(
+        library,
+        Chiasmus::LLM::MockAdapter.create_agent,
+        embedding: embedding,
+      )
+
+      begin
+        result = engine.formalize(
+          "Find compatible versions for these npm packages given their peer dependency constraints"
+        )
+        raise "expected non-nil result" if result.nil?
+        result.template.name.should eq("constraint-satisfaction")
+      ensure
+        library.close
+        FileUtils.rm_rf(dir)
+      end
+    end
+
+    it "falls back to BM25 when embedding adapter fails" do
+      dir = File.join(Dir.tempdir, "chiasmus-formalize-engine-embed-fail-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+      library = Chiasmus::Skills::Library.create(dir)
+
+      # Embedding that always raises
+      failing_embedding = ->(_texts : Array(String)) : Array(Array(Float64)) do
+        raise "embedding service unavailable"
+      end
+
+      engine = Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel).new(
+        library,
+        Chiasmus::LLM::MockAdapter.create_agent,
+        embedding: failing_embedding,
+      )
+
+      begin
+        result = engine.formalize(
+          "Check if our RBAC rules can ever allow and deny the same user accessing the same resource"
+        )
+        raise "expected non-nil result" if result.nil?
+        result.template.name.should eq("policy-contradiction")
+      ensure
+        library.close
+        FileUtils.rm_rf(dir)
       end
     end
   end

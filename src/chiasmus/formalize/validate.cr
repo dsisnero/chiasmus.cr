@@ -217,9 +217,14 @@ module Chiasmus
 
       return cleaned if stripped.empty?
 
-      # Check: at least one clause ending with a period
-      unless stripped.includes?('.')
-        errors << "No clauses ending with a period (.) — all Prolog clauses must end with a period"
+      # Check: the program is terminated by a period. First verify at least
+      # one `.` exists, then verify the last clause is terminated.
+      if stripped.includes?('.')
+        unless stripped.ends_with?('.')
+          errors << "Last clause is not terminated with a period (.) — every Prolog clause must end with a period"
+        end
+      else
+        errors << "No clause terminator (.) found — every Prolog clause must end with a period"
       end
 
       # Check: balanced parentheses

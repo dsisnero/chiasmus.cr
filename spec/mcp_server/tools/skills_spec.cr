@@ -99,6 +99,7 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
     result.status.should eq("success")
     templates = result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates
     templates.should_not be_empty
-    templates.first.name.should eq("policy-contradiction")
+    templates.size.should be >= 2
+    templates.first.domain.should eq("authorization")
   end
 end

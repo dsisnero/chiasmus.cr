@@ -15,6 +15,12 @@ module Chiasmus
     # Result of solve() — includes solver result + correction history
     record SolveResult,
       result : Solvers::SolverResult,
+      # Whether the correction loop terminated cleanly — i.e. the solver returned
+      # a non-error result (sat / unsat / unknown / success) rather than erroring
+      # out or exhausting its rounds. This is NOT a verdict on the property:
+      # `converged: true` with `result.status: "unsat"` means "the solver ran and
+      # found no counterexample in the given model", which is not a proof. Read
+      # `result.status` for the actual answer.
       converged : Bool,
       rounds : Int32,
       history : Array(Solvers::CorrectionAttempt),
@@ -22,11 +28,19 @@ module Chiasmus
       # Convenience: extracted answers for Prolog results
       answers : Array(Solvers::PrologAnswer)
 
+    # Embedding function: takes an array of texts (problem + template search texts)
+    # and returns corresponding vector embeddings.
+    alias EmbedFn = Array(String) -> Array(Array(Float64))
+
     FORMALIZE_SYSTEM = <<-TEXT
     Formalization engine. Translate natural language → formal logic.
 
     Template = starting point. Fill slots, but adapt structure if needed. Add/remove variables, assertions, rules.
     Output ONLY complete spec. No explanation, no markdown fences.
+
+    ⚠ SLOT format examples and the EXAMPLE block illustrate FORM/SYNTAX only — never copy their concrete
+    values (roles, actions, resources, predicates, etc.) into your output. Model EXACTLY AND ONLY the
+    entities, values, and rules stated in the PROBLEM. Never introduce content the problem doesn't mention.
 
     Z3: valid SMT-LIB. No (check-sat)/(get-model). Use (= flag (or ...)) not (=> ... flag).
     Prolog: valid ISO Prolog. All clauses end with period.
@@ -46,21 +60,35 @@ module Chiasmus
     class Engine(M)
       @library : Skills::Library
       @agent : Crig::Agent(M)
+      @embedding : EmbedFn?
 
-      def initialize(@library : Skills::Library, @agent : Crig::Agent(M))
+      def initialize(@library : Skills::Library, @agent : Crig::Agent(M), @embedding : EmbedFn? = nil)
       end
 
       # Formalize a problem: select a template and return it with
       # fill instructions. Does NOT execute or call the LLM for filling.
+      #
+      # When an embedding function is available, all templates are embedded
+      # and re-ranked by cosine similarity to the problem. BM25 is the
+      # fallback when no embedding is configured or embedding fails.
       def formalize(problem : String) : FormalizeResult?
-        results = @library.search(problem, Skills::SearchOptions.new(limit: 1))
-        template = if results.empty?
-                     first = @library.list.first?
-                     return nil unless first
-                     first.template # fallback to first template
-                   else
-                     results.first.template
-                   end
+        template = nil
+
+        if embedding = @embedding
+          template = select_by_embedding(problem, embedding)
+        end
+
+        # Fallback to BM25 when no embedding or embedding failed
+        unless template
+          results = @library.search(problem, Skills::SearchOptions.new(limit: 1))
+          template = if results.empty?
+                       first = @library.list.first?
+                       return nil unless first
+                       first.template
+                     else
+                       results.first.template
+                     end
+        end
 
         instructions = build_instructions(problem, template)
         FormalizeResult.new(template: template, instructions: instructions)
@@ -131,6 +159,47 @@ module Chiasmus
           template_used: template.name,
           answers: correction_result.result.is_a?(Solvers::SuccessResult) ? correction_result.result.as(Solvers::SuccessResult).answers : [] of Solvers::PrologAnswer
         )
+      end
+
+      # Use embedding-based cosine similarity to select the best template.
+      # Returns nil on any failure so the caller can fall back to BM25.
+      private def select_by_embedding(problem : String, embedding : EmbedFn) : Skills::SkillTemplate?
+        all = @library.list
+        return nil if all.empty?
+
+        texts = all.map { |s| @library.get_template_search_text(s.template) }
+        vectors = embedding.call([problem] + texts)
+
+        query_vec = vectors[0]
+        template_vecs = vectors[1..]
+
+        q_norm = l2_norm(query_vec)
+        return nil if q_norm == 0.0
+
+        best_idx = -1
+        best_score = -Float64::INFINITY
+        template_vecs.each_with_index do |t_vec, i|
+          t_norm = l2_norm(t_vec)
+          next if t_norm == 0.0
+          dot = 0.0
+          query_vec.each_with_index { |qv, j| dot += t_vec[j] * qv }
+          score = dot / (q_norm * t_norm)
+          if score > best_score
+            best_score = score
+            best_idx = i
+          end
+        end
+
+        return nil if best_idx < 0
+        all[best_idx].template
+      rescue
+        nil
+      end
+
+      private def l2_norm(v : Array(Float64)) : Float64
+        sum = 0.0
+        v.each { |x| sum += x * x }
+        Math.sqrt(sum)
       end
 
       private def build_instructions(problem : String, template : Skills::SkillTemplate) : String
@@ -309,7 +378,7 @@ module Chiasmus
 
         errors.each do |error|
           # Try to fix missing periods in Prolog
-          if error.includes?("No clauses ending with a period") && solver == Solvers::SolverType::Prolog
+          if (error.includes?("clause") && error.includes?("period")) && solver == Solvers::SolverType::Prolog
             # Add period to last line if missing
             lines = fixed.lines
             if !lines.empty? && !lines.last.strip.ends_with?('.')
