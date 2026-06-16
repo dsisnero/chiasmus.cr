@@ -12,6 +12,8 @@ targets:
     main: src/chiasmus_grammar.cr
   chiasmus-discover:
     main: src/chiasmus_discover.cr
+  chiasmus-parity:
+    main: src/chiasmus_parity.cr
 crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:
