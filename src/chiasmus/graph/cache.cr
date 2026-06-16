@@ -29,6 +29,11 @@ module Chiasmus
         OpenSSL::Digest.new("SHA256").update(cwd).final.hexstring[0, 16]
       end
 
+      # Resolve repo_key from nil → default_repo_key (SHA-256 of CWD).
+      private def self.resolve_repo_key(repo_key : String?) : String
+        repo_key || default_repo_key
+      end
+
       def default_cache_dir : String
         ENV["CHIASMUS_CACHE_DIR"]? || Utils::XDG.chiasmus_cache_dir
       end
@@ -41,7 +46,8 @@ module Chiasmus
         DEFAULT_MAX_BYTES
       end
 
-      def resolve_cache_paths(cache_dir : String, repo_key : String = "default") : Hash(String, String)
+      def resolve_cache_paths(cache_dir : String, repo_key : String? = nil) : Hash(String, String)
+        repo_key = resolve_repo_key(repo_key)
         repo_dir = File.join(cache_dir, repo_key)
         {
           "cache_dir"     => cache_dir,
@@ -56,7 +62,7 @@ module Chiasmus
       def check_file_cache(
         files : Array(NamedTuple(path: String, content: String)),
         cache_dir : String,
-        repo_key : String = "default",
+        repo_key : String? = nil,
       ) : NamedTuple(hits: Array(NamedTuple(path: String, graph: CodeGraph)), misses: Array(NamedTuple(path: String, content: String)))
         paths = resolve_cache_paths(cache_dir, repo_key)
         manifest = load_manifest(paths)
@@ -91,7 +97,7 @@ module Chiasmus
       def save_file_cache(
         items : Array(NamedTuple(path: String, content: String, graph: CodeGraph)),
         cache_dir : String,
-        repo_key : String = "default",
+        repo_key : String? = nil,
         max_bytes : Int32 = DEFAULT_MAX_BYTES,
       ) : Nil
         return if items.empty?
@@ -122,7 +128,7 @@ module Chiasmus
         end
       end
 
-      def evict_lru(cache_dir : String, repo_key : String = "default", max_bytes : Int32 = DEFAULT_MAX_BYTES) : Nil
+      def evict_lru(cache_dir : String, repo_key : String? = nil, max_bytes : Int32 = DEFAULT_MAX_BYTES) : Nil
         @@mutex.synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
           manifest = load_manifest(paths)
@@ -130,7 +136,7 @@ module Chiasmus
         end
       end
 
-      def clear_repo_cache(cache_dir : String, repo_key : String = "default") : Nil
+      def clear_repo_cache(cache_dir : String, repo_key : String? = nil) : Nil
         @@mutex.synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
           FileUtils.rm_rf(paths["repo_dir"]) rescue nil
@@ -139,7 +145,7 @@ module Chiasmus
 
       # --- Snapshots ---
 
-      def save_snapshot(name : String, graph : CodeGraph, cache_dir : String, repo_key : String = "default") : Nil
+      def save_snapshot(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil
         raise ArgumentError.new("Snapshot name cannot be empty") if name.empty?
         raise ArgumentError.new("Invalid snapshot name: #{name}") if name.includes?('/') || name.includes?('\\') || name.includes?('\0')
 
@@ -155,7 +161,7 @@ module Chiasmus
         end
       end
 
-      def load_snapshot(name : String, cache_dir : String, repo_key : String = "default") : CodeGraph?
+      def load_snapshot(name : String, cache_dir : String, repo_key : String? = nil) : CodeGraph?
         paths = resolve_cache_paths(cache_dir, repo_key)
         target = File.join(paths["repo_dir"], "snapshots", "#{name}.json")
         return nil unless File.exists?(target)
@@ -164,7 +170,7 @@ module Chiasmus
         nil
       end
 
-      def list_snapshots(cache_dir : String, repo_key : String = "default") : Array(String)
+      def list_snapshots(cache_dir : String, repo_key : String? = nil) : Array(String)
         paths = resolve_cache_paths(cache_dir, repo_key)
         snap_dir = File.join(paths["repo_dir"], "snapshots")
         return [] of String unless Dir.exists?(snap_dir)
@@ -175,7 +181,7 @@ module Chiasmus
         [] of String
       end
 
-      def delete_snapshot(name : String, cache_dir : String, repo_key : String = "default") : Nil
+      def delete_snapshot(name : String, cache_dir : String, repo_key : String? = nil) : Nil
         @@mutex.synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
           target = File.join(paths["repo_dir"], "snapshots", "#{name}.json")

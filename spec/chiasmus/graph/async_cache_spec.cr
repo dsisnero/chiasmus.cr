@@ -11,8 +11,8 @@ describe "async cache operations" do
   it "extract_graph returns result immediately, cache save completes in background" do
     tmpdir = File.join(Dir.tempdir, "async-cache-#{Random::Secure.hex(8)}")
     cache_dir = File.join(tmpdir, "cache")
+    repo_key = GraphCache.default_repo_key(Dir.current)
     Dir.mkdir_p(cache_dir)
-    Dir.mkdir_p(File.join(cache_dir, "default"))
 
     file_path = File.join(tmpdir, "test.cpp")
     File.write(file_path, "class X {};")
@@ -23,14 +23,12 @@ describe "async cache operations" do
         cache_dir: cache_dir,
       )
 
-      # Graph result should be immediately correct
       names = graph.defines.map(&.name).to_set
       names.should contain("X")
 
-      # Cache file should eventually exist (give background fiber time)
       sleep(500.milliseconds)
 
-      cache_files = Dir.glob(File.join(cache_dir, "default", "files", "*.json"))
+      cache_files = Dir.glob(File.join(cache_dir, repo_key, "files", "*.json"))
       cache_files.should_not be_empty
     ensure
       FileUtils.rm_rf(tmpdir)
@@ -40,7 +38,7 @@ describe "async cache operations" do
   it "run_analysis with save_snapshot returns correct result before snapshot is written" do
     tmpdir = File.join(Dir.tempdir, "async-snap-#{Random::Secure.hex(8)}")
     cache_dir = File.join(tmpdir, "cache")
-    snap_dir = File.join(cache_dir, "default", "snapshots")
+    repo_key = GraphCache.default_repo_key(Dir.current)
     Dir.mkdir_p(cache_dir)
 
     file_path = File.join(tmpdir, "test.cpp")
@@ -54,12 +52,11 @@ describe "async cache operations" do
         save_snapshot: "test-snap",
       )
 
-      # Result should be immediately correct
       result_json = result.result.to_s
       result_json.should_not be_empty
 
-      # Snapshot should eventually be written
       sleep(500.milliseconds)
+      snap_dir = File.join(cache_dir, repo_key, "snapshots")
       Dir.mkdir_p(snap_dir) unless Dir.exists?(snap_dir)
       snaps = Dir.glob(File.join(snap_dir, "*.json"))
       snaps.should_not be_empty

@@ -159,7 +159,7 @@ module Chiasmus
         if save_snapshot && cache_dir
           snap_name = save_snapshot
           snap_dir = cache_dir
-          snap_repo = repo_key || "default"
+          snap_repo = repo_key || GraphCache.default_repo_key
           spawn do
             GraphCache.save_snapshot(snap_name, graph, snap_dir, repo_key: snap_repo)
           rescue ex
@@ -222,7 +222,7 @@ module Chiasmus
         return {"error" => "diff requires a snapshot name"}.to_json unless against_name
         return {"error" => "diff requires a cache directory to load snapshots"}.to_json unless snapshot_cache_dir
 
-        before = GraphCache.load_snapshot(against_name, snapshot_cache_dir, repo_key: repo_key || "default")
+        before = GraphCache.load_snapshot(against_name, snapshot_cache_dir, repo_key: repo_key || GraphCache.default_repo_key)
         return {"error" => "snapshot '#{against_name}' not found in #{snapshot_cache_dir}"}.to_json unless before
 
         diff_result = GraphDiffer.diff(before, graph)

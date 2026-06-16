@@ -76,6 +76,7 @@ All prior porting work is complete. See implementation history below for details
 | **P24** | **Async Cache & Snapshot Writes** | **Implemented** |
 | **P25** | **Parallel Brandes' Algorithm (Betweenness)** | **Implemented** |
 | **P26** | **Parallel Insight Fact Generation** | **Implemented** |
+| **P27** | **Parallel Surprise Detection** | **Implemented** |
 
 ### P21: Parallel Graph Extraction — Implemented
 
