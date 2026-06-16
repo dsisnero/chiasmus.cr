@@ -65,3 +65,4 @@ spec/tmp_cr_*.cr
 /chiasmus
 ._*
 go/
+go
