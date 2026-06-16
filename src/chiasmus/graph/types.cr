@@ -2,6 +2,8 @@ require "tree_sitter"
 
 module Chiasmus
   module Graph
+    record SourceFile, path : String, content : String
+
     enum SymbolKind
       Function
       Method
@@ -9,6 +11,7 @@ module Chiasmus
       Interface
       Type
       Variable
+      Module
 
       def to_prolog_atom : String
         to_s.downcase

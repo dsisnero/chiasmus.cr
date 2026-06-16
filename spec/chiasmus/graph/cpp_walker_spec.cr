@@ -86,6 +86,73 @@ describe "C++ graph walker" do
     graph.defines.size.should be >= 2
   end
 
+  it "tracks namespace names in defines" do
+    code = <<-CPP
+      namespace app {
+        class Parser {
+          void parse();
+        };
+      }
+    CPP
+    sources = [SourceFile.new(path: "/tmp/t.cpp", content: code)]
+    graph = Extractor.extract_graph(sources)
+    names = graph.defines.map(&.name).to_set
+    names.should contain("app")
+    names.should contain("Parser")
+    names.should contain("parse")
+  end
+
+  it "extracts enum declarations and members" do
+    code = <<-CPP
+      enum Color { RED, GREEN, BLUE };
+    CPP
+    sources = [SourceFile.new(path: "/tmp/t.cpp", content: code)]
+    graph = Extractor.extract_graph(sources)
+    names = graph.defines.map(&.name).to_set
+    names.should contain("Color")
+    names.should contain("RED")
+    names.should contain("GREEN")
+    names.should contain("BLUE")
+  end
+
+  it "extracts class enum declarations and members" do
+    code = <<-CPP
+      enum class Status { OK, ERROR };
+    CPP
+    sources = [SourceFile.new(path: "/tmp/t.cpp", content: code)]
+    graph = Extractor.extract_graph(sources)
+    names = graph.defines.map(&.name).to_set
+    names.should contain("Status")
+    names.should contain("OK")
+    names.should contain("ERROR")
+  end
+
+  it "extracts constructor definitions" do
+    code = <<-CPP
+      class Widget {
+        Widget(int x) {}
+      };
+    CPP
+    sources = [SourceFile.new(path: "/tmp/t.cpp", content: code)]
+    graph = Extractor.extract_graph(sources)
+    names = graph.defines.map(&.name).to_set
+    names.should contain("Widget")
+    names.should contain(".ctor")
+  end
+
+  it "extracts destructor definitions" do
+    code = <<-CPP
+      class Resource {
+        ~Resource() {}
+      };
+    CPP
+    sources = [SourceFile.new(path: "/tmp/t.cpp", content: code)]
+    graph = Extractor.extract_graph(sources)
+    names = graph.defines.map(&.name).to_set
+    names.should contain("Resource")
+    names.should contain(".dtor")
+  end
+
   it "produces file nodes for C++ files" do
     code = <<-CPP
       int main() { return 0; }

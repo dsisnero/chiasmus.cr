@@ -34,30 +34,107 @@ module Chiasmus
       ) : Bool
         case node.type
         when "class_specifier", "struct_specifier"
-          name = cpp_declaration_name(node, source)
-          return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
-          with_scope(scope_stack, name) do
-            walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
-          end
-          true
+          handle_cpp_class(node, source, file_path, scope_stack, defines, calls, contains, call_set)
+        when "namespace_definition"
+          handle_cpp_namespace(node, source, file_path, scope_stack, defines, calls, contains, call_set)
+        when "enum_specifier"
+          handle_cpp_enum(node, source, file_path, defines)
         when "function_definition"
-          name = cpp_function_name(node, source)
-          return false unless name
-          kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
-          if enclosing = scope_stack.last?
-            contains << ContainsFact.new(parent: enclosing, child: name)
-          end
-          with_scope(scope_stack, name) do
-            walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
-          end
-          true
+          handle_cpp_function(node, source, file_path, scope_stack, defines, calls, contains, call_set)
         when "field_declaration"
-          # Class method declarations (field_declaration with function_declarator)
           cpp_handle_field_declaration(node, source, file_path, scope_stack, defines, contains)
         else
           false
+        end
+      end
+
+      private def handle_cpp_class(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        calls : Array(CallsFact),
+        contains : Array(ContainsFact),
+        call_set : Set(String),
+      ) : Bool
+        name = cpp_declaration_name(node, source)
+        return false unless name
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        with_scope(scope_stack, name) do
+          walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
+        end
+        true
+      end
+
+      private def handle_cpp_namespace(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        calls : Array(CallsFact),
+        contains : Array(ContainsFact),
+        call_set : Set(String),
+      ) : Bool
+        name = cpp_namespace_name(node, source)
+        return false unless name
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Module, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        with_scope(scope_stack, name) do
+          walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
+        end
+        true
+      end
+
+      private def handle_cpp_function(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        calls : Array(CallsFact),
+        contains : Array(ContainsFact),
+        call_set : Set(String),
+      ) : Bool
+        name = cpp_function_name(node, source)
+        return false unless name
+        if enclosing = scope_stack.last?
+          if cpp_node_has_descendant_type(node, "destructor_name")
+            record_cpp_special_method(node, source, file_path, ".dtor", enclosing, scope_stack, defines, contains, calls, call_set)
+            return true
+          end
+          if name == enclosing
+            record_cpp_special_method(node, source, file_path, ".ctor", enclosing, scope_stack, defines, contains, calls, call_set)
+            return true
+          end
+        end
+        kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        if enclosing = scope_stack.last?
+          contains << ContainsFact.new(parent: enclosing, child: name)
+        end
+        with_scope(scope_stack, name) do
+          walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
+        end
+        true
+      end
+
+      private def record_cpp_special_method(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        name : String,
+        enclosing : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
+        calls : Array(CallsFact),
+        call_set : Set(String),
+      ) : Nil
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        contains << ContainsFact.new(parent: enclosing, child: name)
+        with_scope(scope_stack, name) do
+          walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
         end
       end
 
@@ -104,6 +181,14 @@ module Chiasmus
           if child.type.in?("identifier", "field_identifier")
             return child.text(source)
           end
+          if child.type == "destructor_name"
+            # Destructor: return the class name without the ~ prefix
+            (0...child.named_child_count).each do |gc_idx|
+              gc = child.named_child(gc_idx)
+              next unless gc
+              return gc.text(source) if gc.type == "identifier"
+            end
+          end
         end
         nil
       end
@@ -112,6 +197,43 @@ module Chiasmus
         name = node.child_by_field_name("name")
         return nil unless name
         name.text(source)
+      end
+
+      private def handle_cpp_enum(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        defines : Array(DefinesFact),
+      ) : Bool
+        name = cpp_declaration_name(node, source)
+        return false unless name
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+
+        # Extract enumerator members from enumerator_list
+        (0...node.named_child_count).each do |child_idx|
+          child = node.named_child(child_idx)
+          next unless child
+          next unless child.type == "enumerator_list"
+          (0...child.named_child_count).each do |member_idx|
+            member = child.named_child(member_idx)
+            next unless member
+            next unless member.type == "enumerator"
+            member_name = member.child_by_field_name("name").try(&.text(source))
+            next unless member_name
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1, end_line: member.end_point.row.to_i + 1)
+          end
+        end
+        true
+      end
+
+      private def cpp_node_has_descendant_type(node : TreeSitter::Node, target_type : String) : Bool
+        (0...node.named_child_count).each do |i|
+          child = node.named_child(i)
+          next unless child
+          return true if child.type == target_type
+          return true if cpp_node_has_descendant_type(child, target_type)
+        end
+        false
       end
 
       private def handle_cpp_call(
