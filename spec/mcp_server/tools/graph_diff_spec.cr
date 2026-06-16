@@ -122,6 +122,9 @@ describe "chiasmus_graph diff analysis via MCP" do
 
     result.status.should eq("success")
 
+    # Snapshot save is async — wait for background fiber
+    sleep(300.milliseconds)
+
     loaded = Chiasmus::Graph::GraphCache.load_snapshot("tool-saved", cache_dir)
     loaded.should_not be_nil
     (loaded || raise("Expected snapshot")).defines.map(&.name).should contain("f")
@@ -136,7 +139,7 @@ describe "chiasmus_graph diff analysis via MCP" do
       "analysis"         => "facts",
       "include_insights" => true,
     }.to_json)
-    input.include_insights.should be_true
+    input.include_insights?.should be_true
   end
 
   it "input schema includes include_insights parameter" do
@@ -149,7 +152,7 @@ describe "chiasmus_graph diff analysis via MCP" do
       "files"    => ["/tmp/test.go"],
       "analysis" => "facts",
     }.to_json)
-    input.include_insights.should be_false
+    input.include_insights?.should be_false
   end
 
   it "GraphCacheOptions max_bytes_per_repo is parsed from JSON" do

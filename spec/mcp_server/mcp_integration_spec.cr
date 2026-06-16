@@ -228,10 +228,10 @@ describe "MCP Server initialization via transport" do
             symbols.should_not be_nil
             if syms = symbols
               # bar function should have end_line > line
-              bar = syms.find { |s| s["name"] == "bar" }
+              bar = syms.find { |sym| sym["name"] == "bar" }
               bar.should_not be_nil
               if b = bar
-                b["line_end"]?.try(&.as_i).try { |le| le.should be > b["line"].as_i }
+                b["line_end"]?.try(&.as_i).try(&.should(be > b["line"].as_i))
               end
             end
           ensure
@@ -1034,7 +1034,7 @@ func hello() {}
       end
     end
   end
-describe "chiasmus_verify batch queries through transport" do
+  describe "chiasmus_verify batch queries through transport" do
     it "runs multiple Prolog queries against the same program" do
       mcp_server, client = connect_server_and_client
       begin

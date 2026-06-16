@@ -6,6 +6,12 @@ require "../../../src/chiasmus/graph/insights"
 require "../../../src/chiasmus/graph/extractor"
 require "../../../src/chiasmus/solvers/prolog_solver"
 
+private def swipl_available? : Bool
+  Process.run("which", ["swipl"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+rescue
+  false
+end
+
 describe Chiasmus::Graph::Facts do
   it "leaves simple atoms unquoted" do
     Chiasmus::Graph::Facts.escape_atom("hello").should eq("hello")
@@ -57,6 +63,12 @@ describe Chiasmus::Graph::Facts do
   end
 
   describe "solver integration" do
+    before_all do
+      unless swipl_available?
+        pending "swipl not installed"
+      end
+    end
+
     it "generates syntactically valid Prolog accepted by solver" do
       graph = Chiasmus::Graph::Extractor.extract_graph([
         Chiasmus::Graph::SourceFile.new(path: "test.ts", content: "\n        function a() { b(); }\n        function b() { c(); }\n        function c() {}\n        export function a() {}\n      "),
@@ -265,7 +277,7 @@ describe Chiasmus::Graph::Facts do
       begin
         files = [Chiasmus::Graph::SourceFile.new(path: path, content: File.read(path))]
         graph = Chiasmus::Graph::Extractor.extract_graph(files, cache_dir: nil)
-        hello_def = graph.defines.find { |d| d.name == "hello" }
+        hello_def = graph.defines.find { |defn| defn.name == "hello" }
         hello_def.should_not be_nil
         if hello_def
           hello_def.line.should eq(2)

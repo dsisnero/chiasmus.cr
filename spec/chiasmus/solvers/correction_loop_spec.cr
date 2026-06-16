@@ -8,6 +8,12 @@ rescue
   false
 end
 
+private def swipl_available? : Bool
+  Process.run("which", ["swipl"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+rescue
+  false
+end
+
 describe Chiasmus::Solvers do
   describe ".correction_loop" do
     describe "Z3" do
@@ -156,6 +162,12 @@ describe Chiasmus::Solvers do
     end
 
     describe "Prolog" do
+      before_all do
+        unless swipl_available?
+          pending "swipl not installed"
+        end
+      end
+
       it "passes through a correct Prolog program without correction" do
         fixer = ->(_attempt : S::CorrectionAttempt, _error : String, _round : Int32, _result : S::SolverResult?, _input : S::SolverInput?) : S::SolverInput? {
           raise "Should not be called"

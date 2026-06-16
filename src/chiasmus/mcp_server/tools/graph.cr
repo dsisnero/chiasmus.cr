@@ -28,10 +28,10 @@ module Chiasmus
             to: args.to,
             entry_points: args.entry_points,
             against: args.against,
-            include_insights: args.include_insights
+            include_insights: args.include_insights?
           )
 
-          cache_dir = if (cache_opts = args.cache)
+          cache_dir = if cache_opts = args.cache
                         cache_opts.cache_dir || Graph::GraphCache.default_cache_dir
                       end
           repo_key = args.cache.try(&.repo_key)

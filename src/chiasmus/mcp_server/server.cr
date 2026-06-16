@@ -52,13 +52,11 @@ module Chiasmus
       end
 
       getter skill_library : Skills::Library
-      getter solver_session : Solvers::Session
       getter skill_learner : Skills::Learner?
 
       def initialize
         @config = Utils::Config.load
         @skill_library = Skills::Library.create(self.class.chiasmus_home)
-        @solver_session = Solvers::Session.instance
         @skill_learner = nil
         MCPServer.current_skill_learner = nil
         @formalization_engine = nil

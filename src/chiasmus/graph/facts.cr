@@ -82,10 +82,10 @@ module Chiasmus
       private def emit_insight_facts(graph : CodeGraph, lines : Array(String)) : Nil
         communities = CommunityDetection.detect(graph)
         unless communities.empty?
-          communities.each do |c|
-            lines << "cohesion(#{c.id}, #{c.cohesion})."
-            c.members.each do |m|
-              lines << "community(#{escape_atom(m)}, #{c.id})."
+          communities.each do |community|
+            lines << "cohesion(#{community.id}, #{community.cohesion})."
+            community.members.each do |member|
+              lines << "community(#{escape_atom(member)}, #{community.id})."
             end
           end
           lines << ""
@@ -93,16 +93,16 @@ module Chiasmus
 
         hubs = Insights.detect_hubs(graph)
         unless hubs.empty?
-          hubs.each do |h|
-            lines << "hub(#{escape_atom(h.name)}, #{h.degree})."
+          hubs.each do |hub|
+            lines << "hub(#{escape_atom(hub.name)}, #{hub.degree})."
           end
           lines << ""
         end
 
         bridges = Insights.detect_bridges(graph)
         unless bridges.empty?
-          bridges.each do |b|
-            lines << "bridge(#{escape_atom(b.name)}, #{b.score.to_s})."
+          bridges.each do |bridge|
+            lines << "bridge(#{escape_atom(bridge.name)}, #{bridge.score})."
           end
           lines << ""
         end

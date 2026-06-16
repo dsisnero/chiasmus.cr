@@ -437,7 +437,7 @@ module Chiasmus
         getter entry_points : Array(String)?
         getter cache : GraphCacheOptions?
         getter save_snapshot : String?
-        getter include_insights : Bool = false
+        getter? include_insights : Bool = false
         getter against : String?
       end
 

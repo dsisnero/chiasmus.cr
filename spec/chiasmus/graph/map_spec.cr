@@ -241,11 +241,11 @@ describe CodebaseMap do
       # bar has end_line 0 → should not have line_end in JSON
       parsed = JSON.parse(json)
       symbols = parsed["symbols"].as_a
-      foo_sym = symbols.find { |s| s["name"] == "foo" }
-      foo_sym.try { |fs| fs["line_end"].as_i.should eq(25) }
+      foo_sym = symbols.find { |sym| sym["name"] == "foo" }
+      foo_sym.try(&.["line_end"].as_i.should(eq(25)))
 
-      bar_sym = symbols.find { |s| s["name"] == "bar" }
-      bar_sym.try { |bs| bs.as_h.has_key?("line_end").should be_false }
+      bar_sym = symbols.find { |sym| sym["name"] == "bar" }
+      bar_sym.try(&.as_h.has_key?("line_end").should(be_false))
     end
 
     it "markdown shows line range when end_line > 0" do
