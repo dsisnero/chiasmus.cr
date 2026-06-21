@@ -1,4 +1,5 @@
 require "tree_sitter"
+require "../utils/xdg"
 
 module Chiasmus
   module Discovery
@@ -24,13 +25,7 @@ module Chiasmus
 
       def find_grammar_library(language : String) : String?
         lib_name = "libtree-sitter-#{language}"
-
-        search_paths = @@grammar_directories.dup
-        # Auto-register project grammars relative to this file
-        project_vendor = File.expand_path("../../../grammars", __DIR__)
-        if Dir.exists?(project_vendor) && !search_paths.includes?(project_vendor)
-          search_paths << project_vendor
-        end
+        search_paths = grammar_search_paths
 
         search_paths.each do |dir|
           next unless Dir.exists?(dir)
@@ -70,6 +65,21 @@ module Chiasmus
         end
 
         nil
+      end
+
+      private def grammar_search_paths : Array(String)
+        search_paths = @@grammar_directories.dup
+        cache_dir = Chiasmus::Utils::XDG.grammar_cache_dir
+        if Dir.exists?(cache_dir) && !search_paths.includes?(cache_dir)
+          search_paths << cache_dir
+        end
+
+        project_vendor = File.expand_path("../../../grammars", __DIR__)
+        if Dir.exists?(project_vendor) && !search_paths.includes?(project_vendor)
+          search_paths << project_vendor
+        end
+
+        search_paths
       end
 
       def load_language(language : String) : TreeSitter::Language?

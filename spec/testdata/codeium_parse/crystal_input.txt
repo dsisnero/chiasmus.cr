@@ -1,0 +1,82 @@
+# Crystal codeium-parse test file -- exercises all supported discovery kinds
+
+# Annotation
+annotation MyAnnotation
+end
+
+# Module (interface)
+module Chiasmus
+  VERSION = "1.0.0"
+
+  # Class with instance/class vars
+  class Server
+    @host : String = "0.0.0.0"
+    @port : Int32 = 8080
+
+    @@instances = 0
+
+    def initialize(@host : String, @port : Int32)
+      @@instances += 1
+    end
+
+    def start
+      @logger.info("Server starting on #{@host}:#{@port}")
+      self.accept_connections
+    end
+
+    private def accept_connections
+      loop do
+        handle_client
+      end
+    end
+
+    abstract def handle_client
+  end
+
+  # Struct
+  struct Point
+    @x : Float64
+    @y : Float64
+
+    def distance(other : Point) : Float64
+      Math.sqrt((@x - other.x) ** 2 + (@y - other.y) ** 2)
+    end
+  end
+
+  # Enum
+  enum Color
+    Red
+    Green
+    Blue
+  end
+
+  # Type alias
+  alias PInt32 = Pointer(Int32)
+
+  # Macro
+  macro define_getter(name)
+    def {{name}}
+      @{{name}}
+    end
+  end
+end
+
+# Include/Extend with generic
+class Container
+  include Enumerable(Int32)
+
+  def each
+    yield 1
+  end
+end
+
+# Top-level constant
+MAX_RETRIES = 3
+
+# Top-level method
+def greet(name : String) : String
+  "Hello, #{name}!"
+end
+
+# Top-level function call
+greet("world")

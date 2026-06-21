@@ -73,6 +73,10 @@ module Chiasmus
           Generate a structured code review plan. Returns a phased recipe
           with specific chiasmus tools, templates, and interpret guidance.
 
+          Dedicated walkers: Crystal, TypeScript, JavaScript, Python, Go, Rust, Java,
+          C#, C++, C, Kotlin, Scala, Dart, PHP, Perl, Bash, Protobuf, Clojure.
+          Generic tree-sitter fallback for 35+ additional languages.
+
           FOCUS MODES:
             quick         — overview + architecture (fastest)
             architecture  — overview + architecture + impact

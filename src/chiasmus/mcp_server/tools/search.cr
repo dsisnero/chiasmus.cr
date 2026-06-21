@@ -159,6 +159,10 @@ module Chiasmus
           Semantic code search over a set of files. Finds functions and methods
           whose meaning matches a natural-language query.
 
+          Dedicated walkers: Crystal, TypeScript, JavaScript, Python, Go, Rust, Java,
+          C#, C++, C, Kotlin, Scala, Dart, PHP, Perl, Bash, Protobuf, Clojure.
+          Generic tree-sitter fallback for 35+ additional languages.
+
           Uses embeddings + cosine similarity. Returns a ranked list of
           {name, file, line, score}. Ranking is by closeness of the concept,
           NOT by exact name match.

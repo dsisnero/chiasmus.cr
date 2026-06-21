@@ -63,7 +63,10 @@ module Chiasmus
           Analyze source code call graphs via tree-sitter + native O(V+E) algorithms.
 
           Parse source files → extract call graph → run formal analysis.
-          Supports: TypeScript, JavaScript, Python, Go, Clojure. Files must be absolute paths.
+          Dedicated walkers: Crystal, TypeScript, JavaScript, Python, Go, Rust, Java,
+          C#, C++, C, Kotlin, Scala, Dart, PHP, Perl, Bash, Protobuf, Clojure.
+          Generic tree-sitter fallback for 35+ additional languages.
+          Files must be absolute paths. Extraction runs concurrently across files.
 
           ANALYSES:
             summary         — overview: files, functions, call edges

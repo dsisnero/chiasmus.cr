@@ -2,15 +2,21 @@ require "../../spec_helper"
 require "golden"
 
 Golden.init
-GOLDEN_DIR = File.expand_path("../../testdata/codeium_parse", __DIR__)
+GOLDEN_DIR        = File.expand_path("../../testdata/codeium_parse", __DIR__)
+CRYSTAL_TEST_PATH = File.expand_path("../../testdata/codeium_parse/crystal_input.txt", __DIR__)
 
 private def extract_for(grammar_lang, test_ext)
   lang = Chiasmus::Discovery::GrammarLoader.load_language(grammar_lang)
   return nil unless lang
 
-  test_path = File.expand_path(
-    "../../../vendor/codeium-parse/test_files/test.#{test_ext}", __DIR__
-  )
+  test_path =
+    if test_ext == "cr"
+      CRYSTAL_TEST_PATH
+    else
+      File.expand_path(
+        "../../../vendor/codeium-parse/test_files/test.#{test_ext}", __DIR__
+      )
+    end
   source = File.read(test_path)
   parser = TreeSitter::Parser.new(language: lang)
   tree = parser.parse(nil, source)

@@ -48,6 +48,11 @@ module Chiasmus
           Build a compact codebase map from extracted call graphs. Returns an
           LLM-friendly projection to minimise redundant file reads.
 
+          Dedicated walkers: Crystal, TypeScript, JavaScript, Python, Go, Rust, Java,
+          C#, C++, C, Kotlin, Scala, Dart, PHP, Perl, Bash, Protobuf, Clojure.
+          Generic tree-sitter fallback for 35+ additional languages.
+          Extraction runs concurrently across files.
+
           MODES:
             overview (default) — repo outline: dir tree, per-file headlines, token estimates
             file              — single file: exports, imports, all symbols

@@ -13,6 +13,12 @@ module Chiasmus
       end
 
       def load_language_from_grammar_path(language : String, grammar_path : String?) : TreeSitter::Language?
+        if grammar_path && !grammar_path.empty?
+          grammar_dir = Dir.exists?(grammar_path) ? Path.new(grammar_path) : Path.new(File.dirname(grammar_path))
+          ts_language = TreeSitter::Repository.load_shared_object(language, grammar_dir)
+          return TreeSitter::Language.new(language, ts_language)
+        end
+
         # C# tree-sitter: symbol is tree_sitter_c_sharp, file is libtree-sitter-csharp
         if language == "csharp"
           ts_name = "c_sharp"
@@ -47,12 +53,6 @@ module Chiasmus
             ts_language = load_dylib(language, vendor_dir)
             return TreeSitter::Language.new(language, ts_language)
           end
-        end
-
-        if grammar_path && !grammar_path.empty?
-          grammar_dir = Dir.exists?(grammar_path) ? Path.new(grammar_path) : Path.new(File.dirname(grammar_path))
-          ts_language = TreeSitter::Repository.load_shared_object(language, grammar_dir)
-          return TreeSitter::Language.new(language, ts_language)
         end
 
         nil
