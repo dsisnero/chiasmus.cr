@@ -52,6 +52,40 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       model.has_key?("x").should be_true
     end
 
+    it "uses async solver execution before returning a z3 response" do
+      tool = Chiasmus::MCPServer::Tools::VerifyTool.new
+      entered = Channel(Bool).new(1)
+      release = Channel(Bool).new(1)
+      result_chan = Channel(Chiasmus::MCPServer::Types::Response).new(1)
+
+      Chiasmus::MCPServer::Tools::VerifyTool.set_before_async_result_send_hook_for_test do
+        entered.send(true)
+        release.receive
+      end
+
+      spawn do
+        result_chan.send(tool.invoke({
+          "solver" => JSON::Any.new("z3"),
+          "input"  => JSON::Any.new("(declare-const x Int) (assert (> x 3))"),
+        }))
+      end
+
+      Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+
+      select
+      when result_chan.receive?
+        fail("expected verify tool to wait on async solver boundary")
+      else
+      end
+
+      release.send(true)
+      result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+      result.should_not be_nil
+      result.not_nil!.status.should eq("success")
+    ensure
+      Chiasmus::MCPServer::Tools::VerifyTool.clear_before_async_result_send_hook_for_test
+    end
+
     it "verifies unsatisfiable Z3 input" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
       input = "(declare-const x Int) (assert (> x 10)) (assert (< x 5))"

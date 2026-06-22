@@ -16,7 +16,12 @@ module Chiasmus
           server = MCPServer.current_server
           return Types::ErrorResponse.new("Server not available") unless server
 
-          result = server.formalize(args.problem)
+          async_result = server.formalize_async(args.problem).receive
+          if error = async_result.error
+            return Types::ErrorResponse.new(error)
+          end
+
+          result = async_result.value
           return Types::ErrorResponse.new("Formalization engine not available") unless result
 
           suggestions = server.skill_library.get_related(result.template.name).map do |related|

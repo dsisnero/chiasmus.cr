@@ -70,4 +70,43 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     template_used = resp.template_used || raise "Expected template_used"
     template_used.should_not be_empty
   end
+
+  it "uses async solve before returning the llm-backed response" do
+    responses = [%( (declare-const x Int) (assert (> x 5)) ).strip]
+    server = Chiasmus::MCPServer::Server(FormalizeSpecCompletionModel).with_agent_builder(
+      FormalizeSpecClient.new(responses, [] of String).agent("mock")
+    )
+    Chiasmus::MCPServer.current_server = server
+    tool = Chiasmus::MCPServer::Tools::SolveTool.new
+    entered = Channel(Bool).new(1)
+    release = Channel(Bool).new(1)
+    result_chan = Channel(Chiasmus::MCPServer::Types::Response).new(1)
+
+    Chiasmus::MCPServer::Server(FormalizeSpecCompletionModel).set_before_solve_async_result_send_hook_for_test do
+      entered.send(true)
+      release.receive
+    end
+
+    spawn do
+      result_chan.send(tool.invoke({
+        "problem" => JSON::Any.new("Find an integer greater than 5"),
+      }))
+    end
+
+    Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+
+    select
+    when result_chan.receive?
+      fail("expected solve tool to wait on async response boundary")
+    else
+    end
+
+    release.send(true)
+    result = Chiasmus::Utils::Timeout.with_timeout_async(500, result_chan)
+    result.should_not be_nil
+    result.not_nil!.status.should eq("success")
+  ensure
+    Chiasmus::MCPServer::Server(FormalizeSpecCompletionModel).clear_before_solve_async_result_send_hook_for_test
+    Chiasmus::MCPServer.current_server = nil
+  end
 end

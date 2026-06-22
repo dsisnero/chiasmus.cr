@@ -11,6 +11,8 @@ module Chiasmus
     module Tools
       # Tool definition for chiasmus_verify
       class VerifyTool
+        @@before_async_result_send_hook : Proc(Nil)? = nil
+
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           args = Types::VerifyInput.from_json(arguments.to_json)
 
@@ -19,18 +21,24 @@ module Chiasmus
 
           case args.solver
           when "z3"
-            result = execute_z3(spec)
+            async_result = execute_z3_async(spec).receive
+            return Types::ErrorResponse.new(async_result.error.not_nil!) if async_result.error
+            result = async_result.value || raise "Missing solver result"
             Types::VerifyResponse.new(result: Types.solver_result_to_json(result))
           when "prolog"
             if qs = args.queries
               return Types::ErrorResponse.new("'query' or 'queries' parameter required for prolog solver") if qs.empty?
 
-              results = execute_prolog_batch(normalize_prolog_spec(spec, args.format), qs, args.explain)
+              async_result = execute_prolog_batch_async(normalize_prolog_spec(spec, args.format), qs, args.explain).receive
+              return Types::ErrorResponse.new(async_result.error.not_nil!) if async_result.error
+              results = async_result.value || raise "Missing solver results"
               return Types::VerifyResponse.new(results: results.map { |solver_result| Types.solver_result_to_json(solver_result) })
             end
 
             if query = args.query
-              result = execute_prolog(normalize_prolog_spec(spec, args.format), query, args.explain)
+              async_result = execute_prolog_async(normalize_prolog_spec(spec, args.format), query, args.explain).receive
+              return Types::ErrorResponse.new(async_result.error.not_nil!) if async_result.error
+              result = async_result.value || raise "Missing solver result"
               Types::VerifyResponse.new(result: Types.solver_result_to_json(result))
             else
               Types::ErrorResponse.new("Query parameter required for prolog solver")
@@ -116,9 +124,17 @@ DESC
           execute_solver(solver_input)
         end
 
+        private def execute_z3_async(spec : String) : Channel(MCPServer::AsyncCallResult(Solvers::SolverResult))
+          execute_solver_async(Solvers::Z3SolverInput.new(smtlib: spec))
+        end
+
         private def execute_prolog(spec : String, query : String, explain : Bool) : Solvers::SolverResult
           solver_input = Solvers::PrologSolverInput.new(program: spec, query: query, explain: explain)
           execute_solver(solver_input)
+        end
+
+        private def execute_prolog_async(spec : String, query : String, explain : Bool) : Channel(MCPServer::AsyncCallResult(Solvers::SolverResult))
+          execute_solver_async(Solvers::PrologSolverInput.new(program: spec, query: query, explain: explain))
         end
 
         private def execute_prolog_batch(spec : String, queries : Array(String), explain : Bool) : Array(Solvers::SolverResult)
@@ -136,6 +152,25 @@ DESC
           end
         end
 
+        private def execute_prolog_batch_async(spec : String, queries : Array(String), explain : Bool) : Channel(MCPServer::AsyncCallResult(Array(Solvers::SolverResult)))
+          response = Channel(MCPServer::AsyncCallResult(Array(Solvers::SolverResult))).new(1)
+
+          spawn do
+            result = begin
+              MCPServer::AsyncCallResult(Array(Solvers::SolverResult)).new(value: execute_prolog_batch(spec, queries, explain))
+            rescue ex
+              MCPServer::AsyncCallResult(Array(Solvers::SolverResult)).new(error: ex.message || ex.class.name)
+            end
+
+            @@before_async_result_send_hook.try(&.call)
+            response.send(result)
+          ensure
+            response.close
+          end
+
+          response
+        end
+
         private def execute_solver(input : Solvers::SolverInput) : Solvers::SolverResult
           solver = Solvers::Factory.build(input)
           begin
@@ -143,6 +178,33 @@ DESC
           ensure
             solver.dispose
           end
+        end
+
+        private def execute_solver_async(input : Solvers::SolverInput) : Channel(MCPServer::AsyncCallResult(Solvers::SolverResult))
+          response = Channel(MCPServer::AsyncCallResult(Solvers::SolverResult)).new(1)
+
+          spawn do
+            result = begin
+              MCPServer::AsyncCallResult(Solvers::SolverResult).new(value: execute_solver(input))
+            rescue ex
+              MCPServer::AsyncCallResult(Solvers::SolverResult).new(error: ex.message || ex.class.name)
+            end
+
+            @@before_async_result_send_hook.try(&.call)
+            response.send(result)
+          ensure
+            response.close
+          end
+
+          response
+        end
+
+        def self.set_before_async_result_send_hook_for_test(&block : ->) : Nil
+          @@before_async_result_send_hook = block
+        end
+
+        def self.clear_before_async_result_send_hook_for_test : Nil
+          @@before_async_result_send_hook = nil
         end
 
         def self.output_schema : MCP::Protocol::Tool::Input

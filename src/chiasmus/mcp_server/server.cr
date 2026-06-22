@@ -20,11 +20,46 @@ module Chiasmus
   module MCPServer
     RUNTIME_LOCK = Mutex.new
 
+    record AsyncCallResult(T),
+      value : T? = nil,
+      error : String? = nil
+
+    class ToolDispatcher
+      DEFAULT_MAX_CONCURRENT = {System.cpu_count, 1}.max
+
+      @slots : Channel(Bool)
+
+      def initialize(max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT)
+        @slots = Channel(Bool).new({max_concurrent, 1}.max)
+      end
+
+      def dispatch(&block : -> T) : Channel(T) forall T
+        response = Channel(T).new(1)
+
+        spawn do
+          @slots.send(true)
+          begin
+            response.send(block.call)
+          ensure
+            @slots.receive?
+            response.close
+          end
+        end
+
+        response
+      end
+    end
+
     abstract class BaseServer
       abstract def skill_library : Skills::Library
       abstract def skill_learner : Skills::Learner?
       abstract def formalize(problem : String) : Formalize::FormalizeResult?
+      abstract def formalize_async(problem : String) : Channel(AsyncCallResult(Formalize::FormalizeResult))
       abstract def solve(problem : String, max_rounds : Int32 = 5) : Formalize::SolveResult?
+      abstract def solve_async(problem : String, max_rounds : Int32 = 5) : Channel(AsyncCallResult(Formalize::SolveResult))
+      abstract def run
+      abstract def run_streamable(port : Int32 = 8899)
+      abstract def healthcheck : NamedTuple(success: Bool, tools: Int32?, version: String?, error: String?)
     end
 
     class_property current_server : BaseServer? = nil
@@ -33,8 +68,12 @@ module Chiasmus
     # Main server class that orchestrates all chiasmus functionality
     # Generic over model type M to support different LLM providers
     class Server(M) < BaseServer
+      @@before_formalize_async_result_send_hook : Proc(Nil)? = nil
+      @@before_solve_async_result_send_hook : Proc(Nil)? = nil
+
       @formalization_engine : Formalize::Engine(M)?
       @skill_learner : Skills::Learner?
+      @tool_dispatcher : ToolDispatcher
 
       # Create a server instance with a specific agent
       def self.with_agent(agent : Crig::Agent(M)) forall M
@@ -60,6 +99,7 @@ module Chiasmus
         @skill_learner = nil
         MCPServer.current_skill_learner = nil
         @formalization_engine = nil
+        @tool_dispatcher = ToolDispatcher.new
       end
 
       # Set the agent for formalization engine
@@ -82,8 +122,62 @@ module Chiasmus
         @formalization_engine.try(&.formalize(problem))
       end
 
+      def formalize_async(problem : String) : Channel(AsyncCallResult(Formalize::FormalizeResult))
+        response = Channel(AsyncCallResult(Formalize::FormalizeResult)).new(1)
+
+        spawn do
+          result = begin
+            AsyncCallResult(Formalize::FormalizeResult).new(value: formalize(problem))
+          rescue ex
+            AsyncCallResult(Formalize::FormalizeResult).new(error: ex.message || ex.class.name)
+          end
+
+          @@before_formalize_async_result_send_hook.try(&.call)
+          response.send(result)
+        ensure
+          response.close
+        end
+
+        response
+      end
+
       def solve(problem : String, max_rounds : Int32 = 5) : Formalize::SolveResult?
         @formalization_engine.try(&.solve(problem, max_rounds))
+      end
+
+      def solve_async(problem : String, max_rounds : Int32 = 5) : Channel(AsyncCallResult(Formalize::SolveResult))
+        response = Channel(AsyncCallResult(Formalize::SolveResult)).new(1)
+
+        spawn do
+          result = begin
+            AsyncCallResult(Formalize::SolveResult).new(value: solve(problem, max_rounds))
+          rescue ex
+            AsyncCallResult(Formalize::SolveResult).new(error: ex.message || ex.class.name)
+          end
+
+          @@before_solve_async_result_send_hook.try(&.call)
+          response.send(result)
+        ensure
+          response.close
+        end
+
+        response
+      end
+
+      def self.set_before_formalize_async_result_send_hook_for_test(&block : ->) : Nil
+        @@before_formalize_async_result_send_hook = block
+      end
+
+      def self.clear_before_formalize_async_result_send_hook_for_test : Nil
+        @@before_formalize_async_result_send_hook = nil
+      end
+
+      def self.set_before_solve_async_result_send_hook_for_test(&block : ->) : Nil
+        @@before_solve_async_result_send_hook = block
+      end
+
+      def self.clear_before_solve_async_result_send_hook_for_test : Nil
+        @@before_solve_async_result_send_hook = nil
       end
 
       # Start the MCP server on stdio
@@ -230,7 +324,13 @@ module Chiasmus
           tool_instance = tool_class.new
           mcp_server.add_tool(name, description, input_schema) do |params|
             arguments = params.arguments || {} of String => JSON::Any
-            result = tool_instance.invoke(arguments)
+            result = @tool_dispatcher.dispatch do
+              begin
+                tool_instance.invoke(arguments)
+              rescue ex
+                Types::ErrorResponse.new(ex.message || ex.class.name)
+              end
+            end.receive
             result_json = result.to_json
             content = [MCP::Protocol::TextContentBlock.new(result_json)] of MCP::Protocol::ContentBlock
             structured = begin

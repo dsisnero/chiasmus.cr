@@ -16,7 +16,12 @@ module Chiasmus
           server = MCPServer.current_server
           return Types::ErrorResponse.new("Server not available") unless server
 
-          result = server.solve(args.problem)
+          async_result = server.solve_async(args.problem).receive
+          if error = async_result.error
+            return Types::ErrorResponse.new(error)
+          end
+
+          result = async_result.value
           unless result
             return fallback_to_formalize(server.skill_library, args.problem)
           end
