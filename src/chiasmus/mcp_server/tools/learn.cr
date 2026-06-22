@@ -22,9 +22,13 @@ module Chiasmus
           learner = MCPServer.current_skill_learner
           return Types::ErrorResponse.new("LLM not available. chiasmus_learn requires an LLM for template extraction.") unless learner
 
-          template = learner.extract_template(solver_type, args.spec, args.problem)
+          async_result = learner.learn_async(solver_type, args.spec, args.problem).receive
+          if error = async_result.error
+            return Types::ErrorResponse.new(error)
+          end
+
+          template = async_result.template
           return Types::ErrorResponse.new("Template rejected or could not be extracted") unless template
-          learner.check_promotions
 
           Types::LearnResponse.new(
             template: template.name,

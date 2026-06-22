@@ -190,4 +190,31 @@ describe Chiasmus::Skills::Learner do
       end
     end
   end
+
+  describe "#learn_async" do
+    it "returns its template through an async channel" do
+      with_library do |library|
+        learner = Chiasmus::Skills::Learner.new(library, ->(_solver : Chiasmus::Solvers::SolverType, _spec : String, _problem : String) {
+          {
+            "name"           => "async-template",
+            "domain"         => "validation",
+            "signature"      => "An async learner template",
+            "slots"          => [{"name" => "input", "description" => "test", "format" => "test"}],
+            "normalizations" => [{"source" => "test", "transform" => "test"}],
+            "skeleton"       => "{{SLOT:input}}",
+          }.to_json
+        })
+
+        result = learner.learn_async(
+          Chiasmus::Solvers::SolverType::Z3,
+          "(declare-const x Int)",
+          "async test"
+        ).receive
+
+        result.error.should be_nil
+        template = result.template || raise "Expected template"
+        template.name.should eq("async-template")
+      end
+    end
+  end
 end

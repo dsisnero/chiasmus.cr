@@ -26,6 +26,7 @@ dependencies:
     branch: feat/add-missing-swipl-bindings
   crig:
     github: dsisnero/crig
+    branch: codex/prompt-request-send-async
   json-schema:
     github: spider-gazelle/json-schema
   crig-sqlite:

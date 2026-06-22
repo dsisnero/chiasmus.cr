@@ -46,7 +46,7 @@ shards:
 
   crig:
     git: https://github.com/dsisnero/crig.git
-    version: 0.38.10
+    version: 0.1.0+git.commit.e8289eb215756fe8ec49c5656d89f00c4a1ab779
 
   crig-postgres:
     git: https://github.com/dsisnero/crig-postgres.git

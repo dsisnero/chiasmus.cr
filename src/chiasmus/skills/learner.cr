@@ -4,9 +4,15 @@ require "../utils/config"
 module Chiasmus
   module Skills
     class Learner
+      record AsyncLearnResult,
+        template : SkillTemplate? = nil,
+        error : String? = nil
+
       PROMOTION_THRESHOLD        =   3
       PROMOTION_SUCCESS_RATE     = 0.6
       DEDUP_SIMILARITY_THRESHOLD = 0.7
+
+      @@before_async_result_send_hook : Proc(Nil)? = nil
 
       EXTRACT_SYSTEM = <<-TEXT
       Extract reusable template from verified spec.
@@ -39,6 +45,27 @@ module Chiasmus
         template
       end
 
+      def learn_async(solver : Solvers::SolverType, verified_spec : String, problem_description : String) : Channel(AsyncLearnResult)
+        channel = Channel(AsyncLearnResult).new(1)
+
+        spawn do
+          result = begin
+            template = extract_template(solver, verified_spec, problem_description)
+            check_promotions if template
+            AsyncLearnResult.new(template: template)
+          rescue ex
+            AsyncLearnResult.new(error: ex.message || ex.class.name)
+          end
+
+          @@before_async_result_send_hook.try(&.call)
+          channel.send(result)
+        ensure
+          channel.close
+        end
+
+        channel
+      end
+
       def check_promotions : Nil
         @library.list.each do |item|
           next if item.metadata.promoted
@@ -67,6 +94,14 @@ module Chiasmus
         raise "Template rejected or could not be extracted" unless template
 
         LearnResult.new(template_name: template.name, template: template)
+      end
+
+      def self.set_before_async_result_send_hook_for_test(&block : ->) : Nil
+        @@before_async_result_send_hook = block
+      end
+
+      def self.clear_before_async_result_send_hook_for_test : Nil
+        @@before_async_result_send_hook = nil
       end
 
       private def extractor : Extractor

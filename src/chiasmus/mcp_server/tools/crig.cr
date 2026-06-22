@@ -26,7 +26,7 @@ Crig.rig_tool("Run a direct Crig prompt using the configured LLM provider and re
     agent = client.agent(model).preamble(preamble).build
     request = agent.prompt(prompt)
     request = request.max_turns(max_turns) if max_turns > 0
-    output = request.send
+    output = request.send_async.receive.unwrap
 
     Chiasmus::MCPServer::Types::CrigResponse.new(output: output, model: model)
   end
@@ -37,12 +37,10 @@ module Chiasmus
     module Tools
       # MCP wrapper around the Crig-native rig_tool
       class CrigTool
+        @@before_async_result_send_hook : Proc(Nil)? = nil
+
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
-          args_json = arguments.to_json
-          output = CRIG_PROMPT.call(args_json)
-          Types::CrigResponse.from_json(output)
-        rescue ex
-          Types::ErrorResponse.new(ex.message || ex.class.name)
+          invoke_async(arguments).receive || Types::ErrorResponse.new("Crig request did not produce a response")
         end
 
         def self.tool_name : String
@@ -70,6 +68,43 @@ module Chiasmus
           MCP::Protocol::Tool::Input.new(
             properties: JSON.parse(%({"status":{"type":"string"},"output":{"type":"string"},"model":{"type":"string"}})).as_h
           )
+        end
+
+        def self.set_before_async_result_send_hook_for_test(&block : ->) : Nil
+          @@before_async_result_send_hook = block
+        end
+
+        def self.clear_before_async_result_send_hook_for_test : Nil
+          @@before_async_result_send_hook = nil
+        end
+
+        private def invoke_async(arguments : Hash(String, JSON::Any)) : Channel(Types::Response)
+          channel = Channel(Types::Response).new(1)
+
+          spawn do
+            result = begin
+              args_json = normalized_arguments(arguments).to_json
+              output = CRIG_PROMPT.call(args_json)
+              Types::CrigResponse.from_json(output).as(Types::Response)
+            rescue ex
+              Types::ErrorResponse.new(ex.message || ex.class.name).as(Types::Response)
+            end
+
+            @@before_async_result_send_hook.try(&.call)
+            channel.send(result)
+          ensure
+            channel.close
+          end
+
+          channel
+        end
+
+        private def normalized_arguments(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
+          normalized = arguments.dup
+          normalized["preamble"] ||= JSON::Any.new(Chiasmus::LLM::DEFAULT_PREAMBLE)
+          normalized["model"] ||= JSON::Any.new(Crig::Providers::OpenAI::GPT_4O_MINI)
+          normalized["max_turns"] ||= JSON::Any.new(0_i64)
+          normalized
         end
       end
     end
