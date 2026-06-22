@@ -68,7 +68,18 @@ module Chiasmus
       end
 
       private def grammar_search_paths : Array(String)
-        search_paths = @@grammar_directories.dup
+        search_paths = [] of String
+
+        if env_dir = ENV["CHIASMUS_GRAMMAR_DIR"]?
+          if Dir.exists?(env_dir)
+            search_paths << env_dir
+          end
+        end
+
+        @@grammar_directories.each do |dir|
+          search_paths << dir unless search_paths.includes?(dir)
+        end
+
         cache_dir = Chiasmus::Utils::XDG.grammar_cache_dir
         if Dir.exists?(cache_dir) && !search_paths.includes?(cache_dir)
           search_paths << cache_dir

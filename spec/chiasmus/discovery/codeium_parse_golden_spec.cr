@@ -30,14 +30,18 @@ end
 
 macro golden_spec(lang_key, grammar_lang, test_ext, extractor_class)
   describe "Codeium-parse golden: {{lang_key.id}}" do
-    it "matches golden output" do
-      result = extract_for({{grammar_lang}}, {{test_ext}})
-      pending "{{grammar_lang.id}} grammar not available" unless result
-      tree = result.not_nil![0]
-      source = result.not_nil![1]
-      ext = result.not_nil![2]
-      output = items_output({{extractor_class}}.new, tree, source, ext)
-      Golden.require_equal("test_{{lang_key.id}}", output, test_data_dir: GOLDEN_DIR)
+    if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?({{grammar_lang}})
+      it "matches golden output" do
+        result = extract_for({{grammar_lang}}, {{test_ext}})
+        result.should_not be_nil
+        tree = result.not_nil![0]
+        source = result.not_nil![1]
+        ext = result.not_nil![2]
+        output = items_output({{extractor_class}}.new, tree, source, ext)
+        Golden.require_equal("test_{{lang_key.id}}", output, test_data_dir: GOLDEN_DIR)
+      end
+    else
+      pending "matches golden output ({{grammar_lang.id}} grammar not available)"
     end
   end
 end

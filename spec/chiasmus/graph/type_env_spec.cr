@@ -7,6 +7,10 @@ require "../../../src/chiasmus/graph/type_env"
 
 include Chiasmus::Graph
 
+private def upstream_fixture(relative_path : String) : String
+  File.expand_path(File.join("../../testdata/upstream/chiasmus", relative_path), __DIR__)
+end
+
 describe TypeEnv do
   describe "process_method_definition" do
     it "does not crash on method with access modifier (child_count > named_child_count)" do
@@ -57,38 +61,38 @@ describe TypeEnv do
     end
   end
 
-  describe "vendor failing files" do
+  describe "upstream fixture files" do
     it "parses formalize/engine.ts without Index out of bounds" do
-      f = File.expand_path("vendor/chiasmus/src/formalize/engine.ts")
-      sources = [SourceFile.new(path: f, content: File.read(f))]
+      fixture = upstream_fixture("src/formalize/engine.ts")
+      sources = [SourceFile.new(path: fixture, content: File.read(fixture))]
       graph = Extractor.extract_graph(sources)
       graph.defines.size.should be >= 1
     end
 
     it "parses llm/anthropic.ts without Index out of bounds" do
-      f = File.expand_path("vendor/chiasmus/src/llm/anthropic.ts")
-      sources = [SourceFile.new(path: f, content: File.read(f))]
+      fixture = upstream_fixture("src/llm/anthropic.ts")
+      sources = [SourceFile.new(path: fixture, content: File.read(fixture))]
       graph = Extractor.extract_graph(sources)
       graph.defines.size.should be >= 1
     end
 
     it "parses skills/learner.ts without Index out of bounds" do
-      f = File.expand_path("vendor/chiasmus/src/skills/learner.ts")
-      sources = [SourceFile.new(path: f, content: File.read(f))]
+      fixture = upstream_fixture("src/skills/learner.ts")
+      sources = [SourceFile.new(path: fixture, content: File.read(fixture))]
       graph = Extractor.extract_graph(sources)
       graph.defines.size.should be >= 1
     end
 
     it "parses search/embedding-cache.ts without Index out of bounds" do
-      f = File.expand_path("vendor/chiasmus/src/search/embedding-cache.ts")
-      sources = [SourceFile.new(path: f, content: File.read(f))]
+      fixture = upstream_fixture("src/search/embedding-cache.ts")
+      sources = [SourceFile.new(path: fixture, content: File.read(fixture))]
       graph = Extractor.extract_graph(sources)
       graph.defines.size.should be >= 1
     end
 
     it "parses solvers/session.ts without Index out of bounds" do
-      f = File.expand_path("vendor/chiasmus/src/solvers/session.ts")
-      sources = [SourceFile.new(path: f, content: File.read(f))]
+      fixture = upstream_fixture("src/solvers/session.ts")
+      sources = [SourceFile.new(path: fixture, content: File.read(fixture))]
       graph = Extractor.extract_graph(sources)
       graph.defines.size.should be >= 1
     end

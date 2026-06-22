@@ -18,7 +18,11 @@ module Chiasmus
         end
 
         private def default_parser_directories : Array(String)
-          parser_dirs = [File.expand_path("../../../grammars", __DIR__)]
+          parser_dirs = [] of String
+          if env_dir = ENV["CHIASMUS_GRAMMAR_DIR"]?
+            parser_dirs << env_dir unless env_dir.empty?
+          end
+          parser_dirs << File.expand_path("../../../grammars", __DIR__)
           {% if flag?(:darwin) %}
             parser_dirs << "/usr/local/lib"
             parser_dirs << "#{ENV["HOME"]}/.local/lib"

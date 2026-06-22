@@ -22,11 +22,8 @@ module Chiasmus
         # C# tree-sitter: symbol is tree_sitter_c_sharp, file is libtree-sitter-csharp
         if language == "csharp"
           ts_name = "c_sharp"
-          # Use repo root as base for vendor directory resolution
-          repo_root = Path[__DIR__].join("../../..").expand
-          vendor_path = repo_root.join("grammars/tree-sitter-c-sharp").to_s
-          vendor_dir = Path.new(vendor_path)
-          if Dir.exists?(vendor_path)
+          if vendor_path = vendor_grammar_path(language)
+            vendor_dir = Path.new(vendor_path)
             ts_language = load_dylib(ts_name, vendor_dir)
             return TreeSitter::Language.new(language, ts_language)
           end
@@ -34,10 +31,8 @@ module Chiasmus
 
         # C++ tree-sitter grammar at grammars/tree-sitter-cpp
         if language == "cpp"
-          repo_root = Path[__DIR__].join("../../..").expand
-          vendor_path = repo_root.join("grammars/tree-sitter-cpp").to_s
-          vendor_dir = Path.new(vendor_path)
-          if Dir.exists?(vendor_path)
+          if vendor_path = vendor_grammar_path(language)
+            vendor_dir = Path.new(vendor_path)
             ts_language = load_dylib(language, vendor_dir)
             return TreeSitter::Language.new(language, ts_language)
           end
@@ -46,10 +41,8 @@ module Chiasmus
         # Vendor grammar fallbacks for all languages with vendor grammars
         vendor_languages = ["c", "dart", "kotlin", "perl", "php", "proto", "scala"]
         if vendor_languages.includes?(language)
-          repo_root = Path[__DIR__].join("../../..").expand
-          vendor_path = repo_root.join("grammars/tree-sitter-#{language}").to_s
-          vendor_dir = Path.new(vendor_path)
-          if Dir.exists?(vendor_path)
+          if vendor_path = vendor_grammar_path(language)
+            vendor_dir = Path.new(vendor_path)
             ts_language = load_dylib(language, vendor_dir)
             return TreeSitter::Language.new(language, ts_language)
           end
@@ -57,6 +50,21 @@ module Chiasmus
 
         nil
       rescue
+        nil
+      end
+
+      private def vendor_grammar_path(language : String) : String?
+        grammar_dir_name = language == "csharp" ? "tree-sitter-c-sharp" : "tree-sitter-#{language}"
+
+        if env_dir = ENV["CHIASMUS_GRAMMAR_DIR"]?
+          candidate = File.join(env_dir, grammar_dir_name)
+          return candidate if Dir.exists?(candidate)
+        end
+
+        repo_root = Path[__DIR__].join("../../..").expand
+        candidate = repo_root.join("grammars", grammar_dir_name).to_s
+        return candidate if Dir.exists?(candidate)
+
         nil
       end
 

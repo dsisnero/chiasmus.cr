@@ -1,23 +1,17 @@
 require "../../spec_helper"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/type_env"
+require "../../../src/chiasmus/discovery/grammar_loader"
 
 include Chiasmus::Graph
 
-private def typescript_language : TreeSitter::Language
-  vendor_dir = File.expand_path("../../../grammars", __DIR__)
-  ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-  lib_path = File.join(vendor_dir, "tree-sitter-typescript", "libtree-sitter-typescript.#{ext}")
-  raise "TypeScript grammar not found at #{lib_path}" unless File.exists?(lib_path)
-
-  handle = LibC.dlopen(lib_path.to_s, LibC::RTLD_LAZY | LibC::RTLD_LOCAL)
-  ptr = LibC.dlsym(handle, "tree_sitter_typescript")
-  lang_ptr = Proc(LibTreeSitter::TSLanguage*).new(ptr, Pointer(Void).null).call
-  TreeSitter::Language.new("typescript", lang_ptr)
+private def typescript_language : TreeSitter::Language?
+  Chiasmus::Discovery::GrammarLoader.load_language("typescript")
 end
 
-private def parse_ts(source : String) : TreeSitter::Node
+private def parse_ts(source : String) : TreeSitter::Node?
   lang = typescript_language
+  return nil unless lang
   parser = TreeSitter::Parser.new(language: lang)
   tree = parser.parse(nil, source)
   tree.root_node
@@ -28,6 +22,7 @@ describe TypeEnv, "integration" do
     it "extracts class fields from public_field_definition" do
       src = "class App { svc: Svc; }"
       root = parse_ts(src)
+      next pending "typescript grammar not available" unless root
       info = TypeEnv.collect_type_info(root, src, "test.ts")
       info.class_fields.size.should eq 1
       info.class_fields[0].class_name.should eq "App"
@@ -37,6 +32,7 @@ describe TypeEnv, "integration" do
     it "extracts class extends relationships" do
       src = "class Svc {} class App extends Svc {}"
       root = parse_ts(src)
+      next pending "typescript grammar not available" unless root
       info = TypeEnv.collect_type_info(root, src, "test.ts")
       class_extends = info.class_extends
       class_extends.should_not be_nil
@@ -50,6 +46,7 @@ describe TypeEnv, "integration" do
     it "extracts method names from classes" do
       src = "class Foo { login() {} logout() {} }"
       root = parse_ts(src)
+      next pending "typescript grammar not available" unless root
       info = TypeEnv.collect_type_info(root, src, "test.ts")
       class_methods = info.class_methods
       class_methods.should_not be_nil
@@ -64,6 +61,7 @@ describe TypeEnv, "integration" do
     it "returns nil class_methods when no methods found" do
       src = "class Empty {}"
       root = parse_ts(src)
+      next pending "typescript grammar not available" unless root
       info = TypeEnv.collect_type_info(root, src, "test.ts")
       info.class_methods.should be_nil
     end
@@ -71,6 +69,7 @@ describe TypeEnv, "integration" do
     it "handles constructor parameter properties" do
       src = "class App { constructor(private readonly auth: Auth) {} }"
       root = parse_ts(src)
+      next pending "typescript grammar not available" unless root
       info = TypeEnv.collect_type_info(root, src, "test.ts")
       info.class_fields[0].fields["auth"]?.should eq "Auth"
     end
@@ -78,6 +77,7 @@ describe TypeEnv, "integration" do
     it "extracts interface property signatures" do
       src = "interface User { name: string; age: number; }"
       root = parse_ts(src)
+      next pending "typescript grammar not available" unless root
       info = TypeEnv.collect_type_info(root, src, "test.ts")
       info.class_fields[0].fields.has_key?("name").should be_true
       info.class_fields[0].fields.has_key?("age").should be_true
@@ -86,6 +86,7 @@ describe TypeEnv, "integration" do
     it "collects info from multiple classes in one file" do
       src = "class A { x: number; } class B { y: string; }"
       root = parse_ts(src)
+      next pending "typescript grammar not available" unless root
       info = TypeEnv.collect_type_info(root, src, "test.ts")
       info.class_fields.size.should eq 2
     end

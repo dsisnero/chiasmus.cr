@@ -1,5 +1,6 @@
 require "../../spec_helper"
 require "crig"
+require "file_utils"
 
 class LearnSpecCompletionModel
   include Crig::Completion::CompletionModel
@@ -49,15 +50,19 @@ def build_learn_spec_agent_builder(response : String)
 end
 
 describe Chiasmus::MCPServer::Tools::LearnTool do
-  before_each do
-    home = Chiasmus::Utils::Config.chiasmus_home rescue nil
-    if home
-      ["skill_templates.json", "skill_metadata.json"].each do |file|
-        path = File.join(home, file)
-        File.delete(path) if File.exists?(path)
+  around_each do |test|
+    temp_home = File.join(Dir.tempdir, "chiasmus-learn-spec-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(temp_home)
+
+    begin
+      with_env({"CHIASMUS_HOME" => temp_home}) do
+        test.run
       end
+    ensure
+      FileUtils.rm_rf(temp_home)
     end
   end
+
   it "has correct tool name" do
     Chiasmus::MCPServer::Tools::LearnTool.tool_name.should eq("chiasmus_learn")
   end

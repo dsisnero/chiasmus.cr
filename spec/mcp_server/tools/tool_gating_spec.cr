@@ -33,7 +33,7 @@ private def build_and_list_tools : Array(String)
   end
 end
 
-# Port of vendor/chiasmus/tests/mcp-tool-gating.test.ts
+# Port of the upstream MCP tool gating test
 # Verifies capability gating: tools whose required backend isn't configured
 # are not advertised so the model doesn't waste turns calling a tool that
 # can only return a "not configured" error.
