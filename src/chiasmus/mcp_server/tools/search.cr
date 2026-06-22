@@ -7,12 +7,19 @@ require "../../search/engine"
 require "../../search/embedding_cache"
 require "../../graph/extractor"
 require "../../utils/config"
+require "../../utils/bounded_work"
 
 module Chiasmus
   module MCPServer
     module Tools
       class SearchTool
         MAX_FILE_SIZE = 500_000
+        DEFAULT_MAX_CONCURRENT = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
+
+        private record SearchReadResult,
+          path : String,
+          content : String? = nil,
+          warning : String? = nil
 
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           args = Types::SearchInput.from_json(arguments.to_json)
@@ -30,7 +37,7 @@ module Chiasmus
           end
 
           source_files = file_contents.map { |path, content| Graph::SourceFile.new(path: path, content: content) }
-          graph = Graph::Extractor.extract_graph(source_files)
+          graph = Graph::Extractor.extract_graph_async(source_files).receive
 
           corpus = Search::SearchEngine.build_search_corpus(graph, file_contents)
 
@@ -77,24 +84,34 @@ module Chiasmus
           Types::ErrorResponse.new("#{ex.class}: #{ex.message || "(no message)"}")
         end
 
-        private def read_search_files(files : Array(String)) : {Hash(String, String), Array(String)}
+        private def read_search_files(files : Array(String), max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT) : {Hash(String, String), Array(String)}
+          read_search_files(files, max_concurrent) { |path| File.read(path) }
+        end
+
+        private def read_search_files(files : Array(String), max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT, &reader : String -> String) : {Hash(String, String), Array(String)}
           file_contents = Hash(String, String).new
           warnings = [] of String
 
-          files.each do |path|
+          results = Utils::BoundedWork.map_ordered(files, max_concurrent) do |path|
             begin
               st = File.info(path)
-              unless st.file?
-                warnings << "skip (not a file): #{path}"
-                next
+              if !st.file?
+                SearchReadResult.new(path: path, warning: "skip (not a file): #{path}")
+              elsif st.size > MAX_FILE_SIZE
+                SearchReadResult.new(path: path, warning: "skip (over #{MAX_FILE_SIZE} bytes): #{path}")
+              else
+                SearchReadResult.new(path: path, content: reader.call(path))
               end
-              if st.size > MAX_FILE_SIZE
-                warnings << "skip (over #{MAX_FILE_SIZE} bytes): #{path}"
-                next
-              end
-              file_contents[path] = File.read(path)
             rescue ex
-              warnings << "read failed: #{path} — #{ex.message}"
+              SearchReadResult.new(path: path, warning: "read failed: #{path} — #{ex.message}")
+            end
+          end
+
+          results.compact_map(&.itself).each do |result|
+            if warning = result.warning
+              warnings << warning
+            elsif content = result.content
+              file_contents[result.path] = content
             end
           end
 

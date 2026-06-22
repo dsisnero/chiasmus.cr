@@ -185,7 +185,7 @@ module Chiasmus
 
       graph = Graph::Extractor.extract_graph(source_files)
 
-      result = Graph::Analyses.run_analysis_from_graph(
+      result = Graph::Analyses.run_analysis_from_graph_async(
         graph,
         Graph::AnalysisRequest.new(
           analysis: analysis_type,
@@ -193,7 +193,7 @@ module Chiasmus
           from: analysis_params[:from]?,
           to: analysis_params[:to]?
         )
-      )
+      ).receive
 
       build_graph_response(analysis_params, result)
     end

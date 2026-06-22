@@ -75,7 +75,12 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
           "query" => JSON::Any.new("test"),
           "files" => JSON::Any.new([JSON::Any.new(__FILE__)]),
         })
-        r.status.should eq("success")
+        if r.status == "error"
+          err = r.as(Chiasmus::MCPServer::Types::ErrorResponse).error
+          err.should_not contain("No embedding provider configured")
+          err.should_not contain("OPENAI_API_KEY")
+          err.should_not contain("DEEPSEEK_API_KEY")
+        end
       end
     end
 

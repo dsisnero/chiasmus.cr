@@ -36,7 +36,15 @@ module Chiasmus
                       end
           repo_key = args.cache.try(&.repo_key)
           max_bytes = args.cache.try(&.max_bytes_per_repo)
-          result = Graph::Analyses.run_analysis(absolute_files, request, cache_dir: cache_dir, snapshot_cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes, save_snapshot: args.save_snapshot)
+          result = Graph::Analyses.run_analysis_async(
+            absolute_files,
+            request,
+            cache_dir: cache_dir,
+            snapshot_cache_dir: cache_dir,
+            repo_key: repo_key,
+            max_bytes: max_bytes,
+            save_snapshot: args.save_snapshot
+          ).receive
 
           result_value = if args.analysis == "facts"
                            result.result.as(String)
