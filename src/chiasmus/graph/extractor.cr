@@ -6,6 +6,7 @@ require "./type_env"
 require "./resolve_calls"
 require "./cache"
 require "./parallel_io"
+require "../utils/bounded_work"
 
 module Chiasmus
   module Graph
@@ -13,8 +14,17 @@ module Chiasmus
       extend self
 
       @@merge_mutex = Mutex.new
+      @@before_async_result_send_hook = nil.as((-> Nil)?)
+      DEFAULT_MAX_CONCURRENT = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
 
-      def extract_graph(files : Array(SourceFile), parser = Parser, cache_dir : String? = nil, max_bytes : Int32? = nil) : CodeGraph
+      def extract_graph(
+        files : Array(SourceFile),
+        parser = Parser,
+        cache_dir : String? = nil,
+        max_bytes : Int32? = nil,
+        max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT,
+        parallel_cpu : Bool = parallel_cpu_enabled?
+      ) : CodeGraph
         to_extract = files
         cached = [] of NamedTuple(path: String, graph: CodeGraph)
 
@@ -37,28 +47,11 @@ module Chiasmus
         call_set = Set(String).new
         fresh_graphs = [] of {path: String, content: String, graph: CodeGraph}
 
-        # Process files with bounded concurrency
-        max_concurrent = System.cpu_count
-        semaphore = Channel(Nil).new(max_concurrent)
-        results = Channel(CodeGraph).new(to_extract.size)
-
-        to_extract.each do |file|
-          spawn do
-            semaphore.send(nil)
-            begin
-              fresh_graph = extract_single_file(file, parser)
-              results.send(fresh_graph)
-            rescue ex
-              results.send(CodeGraph.new)
-            ensure
-              semaphore.receive
-            end
-          end
+        fresh_results = Utils::BoundedWork.map_ordered(to_extract, max_concurrent, parallel: parallel_cpu) do |file|
+          extract_single_file(file, parser)
         end
 
-        # Collect results and merge under mutex
-        to_extract.size.times do
-          fresh_graph = results.receive
+        fresh_results.compact_map(&.itself).each do |fresh_graph|
           unless fresh_graph.defines.empty? &&
                  fresh_graph.calls.empty? &&
                  fresh_graph.imports.empty? &&
@@ -75,13 +68,10 @@ module Chiasmus
           end
         end
 
-        # Save fresh graphs to cache asynchronously (fire-and-forget)
         if cache_dir && !fresh_graphs.empty?
           dir = cache_dir
           limit = max_bytes || GraphCache.default_max_bytes_per_repo
-          spawn do
-            GraphCache.save_file_cache(fresh_graphs, dir, max_bytes: limit)
-          end
+          GraphCache.save_file_cache_async(fresh_graphs, dir, max_bytes: limit)
         end
 
         # Merge cached graphs
@@ -98,6 +88,48 @@ module Chiasmus
           files: file_nodes.empty? ? nil : file_nodes,
           type_info: type_info.empty? ? nil : type_info
         )
+      end
+
+      def extract_graph_async(
+        files : Array(SourceFile),
+        parser = Parser,
+        cache_dir : String? = nil,
+        max_bytes : Int32? = nil,
+        max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT,
+        parallel_cpu : Bool = parallel_cpu_enabled?
+      ) : Channel(CodeGraph)
+        channel = Channel(CodeGraph).new(1)
+
+        spawn do
+          begin
+            result = extract_graph(
+              files,
+              parser,
+              cache_dir: cache_dir,
+              max_bytes: max_bytes,
+              max_concurrent: max_concurrent,
+              parallel_cpu: parallel_cpu
+            )
+            @@before_async_result_send_hook.try(&.call)
+            channel.send(result)
+          ensure
+            channel.close
+          end
+        end
+
+        channel
+      end
+
+      def set_before_async_result_send_hook_for_test(&block : ->) : Nil
+        @@before_async_result_send_hook = block
+      end
+
+      def clear_before_async_result_send_hook_for_test : Nil
+        @@before_async_result_send_hook = nil
+      end
+
+      private def parallel_cpu_enabled? : Bool
+        ENV["CHIASMUS_GRAPH_PARALLEL"]? == "1"
       end
 
       # Pure extraction: returns a CodeGraph for a single file without touching any shared state.

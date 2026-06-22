@@ -1,6 +1,7 @@
 require "option_parser"
 require "set"
 require "./discovery"
+require "./utils/bounded_work"
 
 module Chiasmus
   module Parity
@@ -702,30 +703,9 @@ module Chiasmus
     end
 
     def self.parallel_map(items : Array(T), max_concurrency : Int32 = MAX_CONCURRENCY, &block : T -> U) : Array(U) forall T, U
-      return [] of U if items.empty?
-
-      workers = Math.max(1, Math.min(max_concurrency, items.size))
-      semaphore = Channel(Nil).new(workers)
-      results = Channel(Tuple(Int32, U)).new(items.size)
-
-      items.each_with_index do |item, index|
-        spawn do
-          semaphore.send(nil)
-          begin
-            results.send({index, block.call(item)})
-          ensure
-            semaphore.receive
-          end
-        end
+      Utils::BoundedWork.map_ordered_or_raise(items, max_concurrency) do |item|
+        block.call(item)
       end
-
-      ordered = Array(U?).new(items.size, nil)
-      items.size.times do
-        index, value = results.receive
-        ordered[index] = value
-      end
-
-      ordered.map { |value| value || raise "parallel_map lost a result" }
     end
   end
 end

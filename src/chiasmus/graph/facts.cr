@@ -80,18 +80,11 @@ module Chiasmus
       end
 
       private def emit_insight_facts(graph : CodeGraph, lines : Array(String)) : Nil
-        # Run three independent analyses concurrently via spawn + Channel
-        comm_chan = Channel(Array(Community)?).new(1)
-        hub_chan = Channel(Array(Hub)?).new(1)
-        bridge_chan = Channel(Array(Bridge)?).new(1)
-
-        spawn { comm_chan.send(CommunityDetection.detect(graph)) }
-        spawn { hub_chan.send(Insights.detect_hubs(graph)) }
-        spawn { bridge_chan.send(Insights.detect_bridges(graph)) }
-
-        communities = comm_chan.receive
-        hubs = hub_chan.receive
-        bridges = bridge_chan.receive
+        # These analyses are CPU-bound under the default runtime, so keep the
+        # code path sequential until we have a measured parallel implementation.
+        communities = CommunityDetection.detect(graph)
+        hubs = Insights.detect_hubs(graph)
+        bridges = Insights.detect_bridges(graph)
 
         if communities && !communities.empty?
           communities.each do |community|

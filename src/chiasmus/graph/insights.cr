@@ -46,7 +46,10 @@ module Chiasmus
 
       # Brandes' algorithm for undirected, unweighted graphs.
       # Returns normalized betweenness centrality scores.
-      # Outer loop over source nodes is parallelized via spawn + Channel.
+      # Under the default Crystal execution model this is CPU-bound work,
+      # so spawn-based fan-out just adds scheduling overhead without real
+      # parallelism. Keep it sequential until we add a measured
+      # ExecutionContext::Parallel path.
       def detect_bridges(graph : CodeGraph) : Array(Bridge)
         nodes = GraphUtil.collect_nodes(graph)
         return [] of Bridge if nodes.empty?
@@ -62,26 +65,9 @@ module Chiasmus
         n = nodes.size
         betweenness = Hash(String, Float64).new(0.0)
 
-        if nodes.size < 4
-          # Small graph: skip parallelism overhead
-          nodes.each do |s|
-            local_betweenness = brandes_bfs(s, nodes, adj, n)
-            local_betweenness.each { |k, v| betweenness[k] += v }
-          end
-        else
-          # Parallel BFS from each source node
-          chan = Channel({Int32, Hash(String, Float64)}).new(nodes.size)
-          nodes.each_with_index do |s, idx|
-            spawn do
-              local = brandes_bfs(s, nodes, adj, n)
-              chan.send({idx, local})
-            end
-          end
-
-          nodes.size.times do
-            _, local = chan.receive
-            local.each { |k, v| betweenness[k] += v }
-          end
+        nodes.each do |s|
+          local_betweenness = brandes_bfs(s, nodes, adj, n)
+          local_betweenness.each { |k, v| betweenness[k] += v }
         end
 
         normalize_betweenness(betweenness, n)
@@ -160,16 +146,10 @@ module Chiasmus
       ) : Array(SurprisingConnection)
         if communities
           comms = communities
-          degree = GraphUtil.undirected_degree(graph)
         else
-          # Run community detection and degree calculation concurrently
-          comm_chan = Channel(Array(Community)).new(1)
-          deg_chan = Channel(Hash(String, Int32)).new(1)
-          spawn { comm_chan.send(CommunityDetection.detect(graph)) }
-          spawn { deg_chan.send(GraphUtil.undirected_degree(graph)) }
-          comms = comm_chan.receive
-          degree = deg_chan.receive
+          comms = CommunityDetection.detect(graph)
         end
+        degree = GraphUtil.undirected_degree(graph)
 
         node_to_community = Hash(String, Int32).new
         comms.each { |c| c.members.each { |m| node_to_community[m] = c.id } }

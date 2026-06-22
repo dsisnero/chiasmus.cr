@@ -3,10 +3,13 @@ require "./registry"
 
 module Chiasmus
   module Discovery
-    # Non-blocking concurrent discovery pipeline.
+    # Discovery pipeline.
     #
-    # Processes files in parallel using Crystal fibers + channels.
-    # Bounded parallelism via semaphore to limit concurrent parses.
+    # Query/language caching made extraction itself cheap enough that
+    # spawn-based fan-out regressed throughput in the current runtime.
+    # A 40-file ExecutionContext experiment also crashed inside tree-sitter
+    # node traversal, so keep this path sequential until discovery extraction
+    # itself is proven thread-safe.
     class Pipeline
       @registry : ExtractorRegistry
       @max_concurrent : Int32
@@ -28,36 +31,9 @@ module Chiasmus
       def discover_files(files : Array(Tuple(String, String))) : Result
         return Result.new(items: [] of Item, parser_mode: "tree-sitter") if files.empty?
 
-        semaphore = Channel(Nil).new(@max_concurrent)
-        results = Channel(Array(Item)).new(files.size)
-
-        files.each do |file_path, content|
-          spawn do
-            semaphore.send(nil)
-            begin
-              results.send(process_file(file_path, content))
-            rescue ex
-              results.send([] of Item)
-            ensure
-              semaphore.receive
-            end
-          end
-        end
-
-        # Collect results with timeout
         all_items = [] of Item
-        completed = 0
-        start_time = Time.instant
-        timeout = 30.seconds
-
-        while completed < files.size
-          select
-          when items = results.receive
-            all_items.concat(items)
-            completed += 1
-          when timeout(start_time + timeout - Time.instant)
-            break
-          end
+        files.each do |file_path, content|
+          all_items.concat(process_file(file_path, content))
         end
 
         Result.new(items: deduplicate(all_items), parser_mode: "tree-sitter")
