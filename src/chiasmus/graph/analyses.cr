@@ -143,6 +143,8 @@ module Chiasmus
     module Analyses
       extend self
 
+      @@before_async_result_send_hook = nil.as((-> Nil)?)
+
       def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil, repo_key : String? = nil, max_bytes : Int32? = nil, save_snapshot : String? = nil) : AnalysisResult
         # Guard: save+diff against same snapshot would clobber baseline before diff runs
         if save_snapshot && request.analysis.diff? && request.against == save_snapshot
@@ -160,18 +162,76 @@ module Chiasmus
           snap_name = save_snapshot
           snap_dir = cache_dir
           snap_repo = repo_key || GraphCache.default_repo_key
-          spawn do
-            GraphCache.save_snapshot(snap_name, graph, snap_dir, repo_key: snap_repo)
-          rescue ex
-          end
+          GraphCache.save_snapshot_async(snap_name, graph, snap_dir, repo_key: snap_repo)
         end
 
         run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
       end
 
+      def run_analysis_async(
+        file_paths : Array(String),
+        request : AnalysisRequest,
+        cache_dir : String? = nil,
+        snapshot_cache_dir : String? = nil,
+        repo_key : String? = nil,
+        max_bytes : Int32? = nil,
+        save_snapshot : String? = nil
+      ) : Channel(AnalysisResult)
+        channel = Channel(AnalysisResult).new(1)
+
+        spawn do
+          begin
+            result = run_analysis(
+              file_paths,
+              request,
+              cache_dir: cache_dir,
+              snapshot_cache_dir: snapshot_cache_dir,
+              repo_key: repo_key,
+              max_bytes: max_bytes,
+              save_snapshot: save_snapshot
+            )
+            @@before_async_result_send_hook.try(&.call)
+            channel.send(result)
+          ensure
+            channel.close
+          end
+        end
+
+        channel
+      end
+
       def run_analysis_from_graph(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil, repo_key : String? = nil) : AnalysisResult
         result = handle_analysis_request(graph, request, snapshot_cache_dir, repo_key)
         AnalysisResult.new(analysis: request.analysis, result: result.as(AnalysisPayload))
+      end
+
+      def run_analysis_from_graph_async(
+        graph : CodeGraph,
+        request : AnalysisRequest,
+        snapshot_cache_dir : String? = nil,
+        repo_key : String? = nil
+      ) : Channel(AnalysisResult)
+        channel = Channel(AnalysisResult).new(1)
+
+        spawn do
+          begin
+            result = run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
+            @@before_async_result_send_hook.try(&.call)
+            channel.send(result)
+          ensure
+            channel.close
+          end
+        end
+
+        channel
+      end
+
+      def set_before_async_result_send_hook_for_test(&block : ->) : Nil
+        @@before_async_result_send_hook = block
+      end
+
+      def clear_before_async_result_send_hook_for_test : Nil
+        @@before_async_result_send_hook = nil
       end
 
       private def handle_analysis_request(graph : CodeGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil, repo_key : String? = nil)

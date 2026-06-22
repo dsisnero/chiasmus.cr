@@ -18,7 +18,29 @@ module Chiasmus
     module GraphCache
       extend self
 
+      private alias CacheItem = NamedTuple(path: String, content: String, graph: CodeGraph)
+      private record FileCacheWriteRequest,
+        items : Array(CacheItem),
+        cache_dir : String,
+        repo_key : String? = nil,
+        max_bytes : Int32 = DEFAULT_MAX_BYTES
+
+      private record SnapshotWriteRequest,
+        name : String,
+        graph : CodeGraph,
+        cache_dir : String,
+        repo_key : String? = nil
+
+      private record FlushRequest,
+        ack : Channel(Bool)
+
+      private alias AsyncWriteRequest = FileCacheWriteRequest | SnapshotWriteRequest | FlushRequest
+
       @@mutex = Mutex.new
+      @@writer_mutex = Mutex.new
+      @@write_channel : Channel(AsyncWriteRequest)? = nil
+      @@before_file_cache_write_hook : Proc(Nil)? = nil
+      @@before_snapshot_write_hook : Proc(Nil)? = nil
 
       # SHA-256(content + \0 + path) → hex digest
       def file_hash(content : String, abs_path : String) : String
@@ -95,12 +117,13 @@ module Chiasmus
 
       # Save extracted graphs to cache. Atomic writes (tmp + rename).
       def save_file_cache(
-        items : Array(NamedTuple(path: String, content: String, graph: CodeGraph)),
+        items : Array(CacheItem),
         cache_dir : String,
         repo_key : String? = nil,
         max_bytes : Int32 = DEFAULT_MAX_BYTES,
       ) : Nil
         return if items.empty?
+        before_file_cache_write_hook.try(&.call)
         @@mutex.synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
           Dir.mkdir_p(paths["files_dir"])
@@ -128,6 +151,16 @@ module Chiasmus
         end
       end
 
+      def save_file_cache_async(
+        items : Array(CacheItem),
+        cache_dir : String,
+        repo_key : String? = nil,
+        max_bytes : Int32 = DEFAULT_MAX_BYTES,
+      ) : Nil
+        return if items.empty?
+        async_write_channel.send(FileCacheWriteRequest.new(items: items, cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes))
+      end
+
       def evict_lru(cache_dir : String, repo_key : String? = nil, max_bytes : Int32 = DEFAULT_MAX_BYTES) : Nil
         @@mutex.synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
@@ -146,9 +179,9 @@ module Chiasmus
       # --- Snapshots ---
 
       def save_snapshot(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil
-        raise ArgumentError.new("Snapshot name cannot be empty") if name.empty?
-        raise ArgumentError.new("Invalid snapshot name: #{name}") if name.includes?('/') || name.includes?('\\') || name.includes?('\0')
+        validate_snapshot_name(name)
 
+        before_snapshot_write_hook.try(&.call)
         @@mutex.synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
           snap_dir = File.join(paths["repo_dir"], "snapshots")
@@ -159,6 +192,17 @@ module Chiasmus
           File.write(tmp, code_graph_to_json(graph))
           File.rename(tmp, target)
         end
+      end
+
+      def save_snapshot_async(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil
+        validate_snapshot_name(name)
+        async_write_channel.send(SnapshotWriteRequest.new(name: name, graph: graph, cache_dir: cache_dir, repo_key: repo_key))
+      end
+
+      def flush_async_writes : Nil
+        ack = Channel(Bool).new(1)
+        async_write_channel.send(FlushRequest.new(ack: ack))
+        ack.receive?
       end
 
       def load_snapshot(name : String, cache_dir : String, repo_key : String? = nil) : CodeGraph?
@@ -190,7 +234,62 @@ module Chiasmus
       rescue
       end
 
+      def set_before_file_cache_write_hook_for_test(&block : ->) : Nil
+        @@writer_mutex.synchronize { @@before_file_cache_write_hook = block }
+      end
+
+      def clear_before_file_cache_write_hook_for_test : Nil
+        @@writer_mutex.synchronize { @@before_file_cache_write_hook = nil }
+      end
+
+      def set_before_snapshot_write_hook_for_test(&block : ->) : Nil
+        @@writer_mutex.synchronize { @@before_snapshot_write_hook = block }
+      end
+
+      def clear_before_snapshot_write_hook_for_test : Nil
+        @@writer_mutex.synchronize { @@before_snapshot_write_hook = nil }
+      end
+
       # --- Private helpers ---
+
+      private def async_write_channel : Channel(AsyncWriteRequest)
+        @@writer_mutex.synchronize do
+          if channel = @@write_channel
+            channel
+          else
+            channel = Channel(AsyncWriteRequest).new(32)
+            spawn { process_async_writes(channel) }
+            @@write_channel = channel
+            channel
+          end
+        end
+      end
+
+      private def process_async_writes(channel : Channel(AsyncWriteRequest)) : Nil
+        while request = channel.receive?
+          case request
+          when FileCacheWriteRequest
+            save_file_cache(request.items, request.cache_dir, repo_key: request.repo_key, max_bytes: request.max_bytes)
+          when SnapshotWriteRequest
+            save_snapshot(request.name, request.graph, request.cache_dir, repo_key: request.repo_key)
+          when FlushRequest
+            request.ack.send(true)
+          end
+        end
+      end
+
+      private def before_file_cache_write_hook : Proc(Nil)?
+        @@writer_mutex.synchronize { @@before_file_cache_write_hook }
+      end
+
+      private def before_snapshot_write_hook : Proc(Nil)?
+        @@writer_mutex.synchronize { @@before_snapshot_write_hook }
+      end
+
+      private def validate_snapshot_name(name : String) : Nil
+        raise ArgumentError.new("Snapshot name cannot be empty") if name.empty?
+        raise ArgumentError.new("Invalid snapshot name: #{name}") if name.includes?('/') || name.includes?('\\') || name.includes?('\0')
+      end
 
       private def load_manifest(paths : Hash(String, String)) : Hash(String, JSON::Any)
         unless File.exists?(paths["manifest_path"])

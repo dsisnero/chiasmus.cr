@@ -7,60 +7,102 @@ require "file_utils"
 
 include Chiasmus::Graph
 
-describe "async cache operations" do
-  it "extract_graph returns result immediately, cache save completes in background" do
+describe "async cache persistence" do
+  it "extract_graph returns before cache persistence completes, then flush writes the cache" do
     tmpdir = File.join(Dir.tempdir, "async-cache-#{Random::Secure.hex(8)}")
     cache_dir = File.join(tmpdir, "cache")
     repo_key = GraphCache.default_repo_key(Dir.current)
     Dir.mkdir_p(cache_dir)
 
-    file_path = File.join(tmpdir, "test.cpp")
-    File.write(file_path, "class X {};")
+    file_path = File.join(tmpdir, "test.cr")
+    File.write(file_path, "class X\nend\n")
 
     begin
-      graph = Extractor.extract_graph(
-        [SourceFile.new(path: file_path, content: File.read(file_path))],
-        cache_dir: cache_dir,
-      )
+      entered = Channel(Bool).new(1)
+      release = Channel(Bool).new(1)
+      result_chan = Channel(CodeGraph).new(1)
 
-      names = graph.defines.map(&.name).to_set
+      GraphCache.set_before_file_cache_write_hook_for_test do
+        entered.send(true)
+        release.receive?
+      end
+
+      spawn do
+        graph = Extractor.extract_graph(
+          [SourceFile.new(path: file_path, content: File.read(file_path))],
+          cache_dir: cache_dir,
+        )
+        result_chan.send(graph)
+      end
+
+      entered.receive
+      graph = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+      graph.should_not be_nil
+
+      names = graph.not_nil!.defines.map(&.name).to_set
       names.should contain("X")
 
-      sleep(500.milliseconds)
+      cache_files = Dir.glob(File.join(cache_dir, repo_key, "files", "*.json"))
+      cache_files.should be_empty
+
+      release.send(true)
+      GraphCache.flush_async_writes
 
       cache_files = Dir.glob(File.join(cache_dir, repo_key, "files", "*.json"))
       cache_files.should_not be_empty
     ensure
+      GraphCache.clear_before_file_cache_write_hook_for_test
       FileUtils.rm_rf(tmpdir)
     end
   end
 
-  it "run_analysis with save_snapshot returns correct result before snapshot is written" do
+  it "run_analysis returns before snapshot persistence completes, then flush writes the snapshot" do
     tmpdir = File.join(Dir.tempdir, "async-snap-#{Random::Secure.hex(8)}")
     cache_dir = File.join(tmpdir, "cache")
     repo_key = GraphCache.default_repo_key(Dir.current)
     Dir.mkdir_p(cache_dir)
 
-    file_path = File.join(tmpdir, "test.cpp")
-    File.write(file_path, "class Y { void m(); };")
+    file_path = File.join(tmpdir, "test.cr")
+    File.write(file_path, "class Y\n  def m\n  end\nend\n")
 
     begin
-      result = Analyses.run_analysis(
-        [file_path],
-        AnalysisRequest.new(analysis: AnalysisType::Summary),
-        cache_dir: cache_dir,
-        save_snapshot: "test-snap",
-      )
+      entered = Channel(Bool).new(1)
+      release = Channel(Bool).new(1)
+      result_chan = Channel(AnalysisResult).new(1)
 
-      result_json = result.result.to_s
+      GraphCache.set_before_snapshot_write_hook_for_test do
+        entered.send(true)
+        release.receive?
+      end
+
+      spawn do
+        result = Analyses.run_analysis(
+          [file_path],
+          AnalysisRequest.new(analysis: AnalysisType::Summary),
+          cache_dir: cache_dir,
+          save_snapshot: "test-snap",
+        )
+        result_chan.send(result)
+      end
+
+      entered.receive
+      result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+      result.should_not be_nil
+
+      result_json = result.not_nil!.result.to_s
       result_json.should_not be_empty
 
-      sleep(500.milliseconds)
       snap_dir = File.join(cache_dir, repo_key, "snapshots")
-      Dir.mkdir_p(snap_dir) unless Dir.exists?(snap_dir)
+      snaps = Dir.glob(File.join(snap_dir, "*.json"))
+      snaps.should be_empty
+
+      release.send(true)
+      GraphCache.flush_async_writes
+
       snaps = Dir.glob(File.join(snap_dir, "*.json"))
       snaps.should_not be_empty
     ensure
+      GraphCache.clear_before_snapshot_write_hook_for_test
       FileUtils.rm_rf(tmpdir)
     end
   end

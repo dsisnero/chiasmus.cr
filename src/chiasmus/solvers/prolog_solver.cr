@@ -30,9 +30,7 @@ module Chiasmus
       end
 
       def solve_async(program : String, query : String, explain : Bool = false) : Channel(SolverResult)
-        chan = Channel(SolverResult).new(1)
-        spawn { chan.send(solve(program, query, explain)) }
-        chan
+        ensure_session.solve_async(PrologSolverInput.new(program: program, query: query, explain: explain))
       end
 
       def dispose : Nil

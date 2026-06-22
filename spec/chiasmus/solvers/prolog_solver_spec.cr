@@ -1,4 +1,5 @@
 require "../../spec_helper"
+require "../../../src/chiasmus/utils/timeout"
 
 private def swipl_available? : Bool
   # crolog requires the SWI-Prolog shared library at runtime
@@ -220,4 +221,5 @@ describe Chiasmus::Solvers::PrologSolver do
       result.as(Chiasmus::Solvers::SuccessResult).answers.size.should eq(Chiasmus::Solvers::PrologSolver::MAX_ANSWERS)
     end
   end
+
 end

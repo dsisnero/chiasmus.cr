@@ -92,5 +92,25 @@ describe Chiasmus::Solvers::SolverSession do
         s.solve(Chiasmus::Solvers::PrologSolverInput.new("edge(a,b).", "edge(a,X)."))
       end
     end
+
+    it "queues multiple async prolog requests on the session worker" do
+      unless swipl_available?
+        pending "swipl not installed"
+      end
+
+      s = Chiasmus::Solvers::SolverSession.create("prolog")
+      raise "expected non-nil session" unless s
+
+      r1 = s.solve_async(Chiasmus::Solvers::PrologSolverInput.new("parent(tom, bob).", "parent(tom, X)."))
+      r2 = s.solve_async(Chiasmus::Solvers::PrologSolverInput.new("parent(jim, ann).", "parent(jim, X)."))
+
+      result1 = r1.receive
+      result2 = r2.receive
+
+      result1.status.should eq("success")
+      result2.status.should eq("success")
+    ensure
+      s.try(&.dispose)
+    end
   end
 end

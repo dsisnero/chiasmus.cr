@@ -31,6 +31,10 @@ module Chiasmus
     # (doc, params, return_type, lineage), override `predicate_queries`
     # which returns kind→query_source mappings processed with predicate evaluation.
     abstract struct QueryExtractor < LanguageExtractor
+      @@cache_mutex = Mutex.new
+      @@language_cache = {} of String => TreeSitter::Language?
+      @@compiled_query_cache = {} of String => TreeSitter::Query
+
       abstract def queries : Hash(String, String)
 
       # Override to add codeium-parse-style queries with custom predicates.
@@ -61,6 +65,22 @@ module Chiasmus
         deduplicate(items)
       end
 
+      def clear_caches_for_test : Nil
+        @@cache_mutex.synchronize do
+          @@language_cache.clear
+          @@compiled_query_cache.clear
+        end
+      end
+
+      def cache_counts_for_test : NamedTuple(languages: Int32, queries: Int32)
+        @@cache_mutex.synchronize do
+          {
+            languages: @@language_cache.size,
+            queries:   @@compiled_query_cache.size,
+          }
+        end
+      end
+
       private def process_query(
         kind : String,
         query_src : String,
@@ -72,7 +92,8 @@ module Chiasmus
         lang = load_grammar_language
         return unless lang
 
-        query = TreeSitter::Query.new(lang, query_src)
+        query = load_compiled_query(lang, query_src)
+        return unless query
 
         if multi_capture_query?(kind)
           process_multi_capture(kind, query, root_node, source, file, items)
@@ -94,7 +115,8 @@ module Chiasmus
         lang = load_grammar_language
         return unless lang
 
-        query = TreeSitter::Query.new(lang, query_src)
+        query = load_compiled_query(lang, query_src)
+        return unless query
         cursor = TreeSitter::QueryCursor.new(query)
         cursor.exec(root_node)
 
@@ -280,7 +302,39 @@ module Chiasmus
       end
 
       private def load_grammar_language : TreeSitter::Language?
-        GrammarLoader.load_language(grammar_language)
+        grammar = grammar_language
+        @@cache_mutex.synchronize do
+          return @@language_cache[grammar]? if @@language_cache.has_key?(grammar)
+        end
+
+        lang = GrammarLoader.load_language(grammar)
+        @@cache_mutex.synchronize { @@language_cache[grammar] = lang }
+        lang
+      end
+
+      private def load_compiled_query(lang : TreeSitter::Language, query_src : String) : TreeSitter::Query?
+        return TreeSitter::Query.new(lang, query_src) if isolated_query_instance_required?
+
+        cache_key = "#{grammar_language}\u0000#{query_src}"
+        @@cache_mutex.synchronize do
+          if cached = @@compiled_query_cache[cache_key]?
+            return cached
+          end
+        end
+
+        query = TreeSitter::Query.new(lang, query_src)
+        @@cache_mutex.synchronize { @@compiled_query_cache[cache_key] = query }
+        query
+      rescue
+        nil
+      end
+
+      private def isolated_query_instance_required? : Bool
+        {% if flag?(:execution_context) %}
+          Fiber::ExecutionContext.current != Fiber::ExecutionContext.default
+        {% else %}
+          false
+        {% end %}
       end
 
       private def deduplicate(items : Array(Item)) : Array(Item)

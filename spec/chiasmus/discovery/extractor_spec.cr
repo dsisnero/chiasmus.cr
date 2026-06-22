@@ -8,16 +8,8 @@ if Dir.exists?(vendor_dir)
 end
 
 # Helper to load TypeScript grammar for tests
-private def typescript_language : TreeSitter::Language
-  vendor_dir = File.expand_path("../../../grammars", __DIR__)
-  ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-  lib_path = File.join(vendor_dir, "tree-sitter-typescript", "libtree-sitter-typescript.#{ext}")
-  raise "TypeScript grammar not found at #{lib_path}" unless File.exists?(lib_path)
-
-  handle = LibC.dlopen(lib_path.to_s, LibC::RTLD_LAZY | LibC::RTLD_LOCAL)
-  ptr = LibC.dlsym(handle, "tree_sitter_typescript")
-  lang_ptr = Proc(LibTreeSitter::TSLanguage*).new(ptr, Pointer(Void).null).call
-  TreeSitter::Language.new("typescript", lang_ptr)
+private def typescript_language : TreeSitter::Language?
+  Chiasmus::Discovery::GrammarLoader.load_language("typescript")
 end
 
 describe Chiasmus::Discovery::LanguageExtractor do
@@ -50,6 +42,7 @@ describe Chiasmus::Discovery::QueryExtractor do
     TS
 
     lang = typescript_language
+    next pending "typescript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     tree = parser.parse(nil, source)
 
@@ -66,6 +59,7 @@ describe Chiasmus::Discovery::QueryExtractor do
     TS
 
     lang = typescript_language
+    next pending "typescript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     tree = parser.parse(nil, source)
 
@@ -76,6 +70,31 @@ describe Chiasmus::Discovery::QueryExtractor do
     func.should_not be_nil
     raise "expected non-nil func" if func.nil?
     func.id.should eq("src/app.ts::function::hello")
+  end
+
+  it "reuses compiled queries and loaded language across extractions" do
+    source = <<-TS
+      class MyService {}
+      function hello() {}
+    TS
+
+    lang = typescript_language
+    next pending "typescript grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    tree = parser.parse(nil, source)
+
+    extractor = Chiasmus::Discovery::TestExtractor.new
+    extractor.clear_caches_for_test
+
+    extractor.extract(tree.root_node, source, "a.ts")
+    first_counts = extractor.cache_counts_for_test
+
+    extractor.extract(tree.root_node, source, "b.ts")
+    second_counts = extractor.cache_counts_for_test
+
+    first_counts[:languages].should be > 0
+    first_counts[:queries].should be > 0
+    second_counts.should eq(first_counts)
   end
 end
 

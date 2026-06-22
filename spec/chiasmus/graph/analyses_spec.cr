@@ -113,6 +113,49 @@ describe Chiasmus::Graph::Analyses do
     result.result.should eq({"reachable" => false})
   end
 
+  it "run_analysis_from_graph_async returns a channel before the result is released" do
+    graph = make_graph(
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),
+        Chiasmus::Graph::CallsFact.new(caller: "b", callee: "c"),
+      ]
+    )
+    entered = Channel(Bool).new(1)
+    release = Channel(Bool).new(1)
+
+    Chiasmus::Graph::Analyses.set_before_async_result_send_hook_for_test do
+      entered.send(true)
+      release.receive?
+    end
+
+    begin
+      result_channel = Chiasmus::Graph::Analyses.run_analysis_from_graph_async(
+        graph,
+        Chiasmus::Graph::AnalysisRequest.new(
+          analysis: Chiasmus::Graph::AnalysisType::Reachability,
+          from: "a",
+          to: "c"
+        )
+      )
+
+      entered.receive.should be_true
+
+      select
+      when result_channel.receive?
+        fail("expected async analysis result to remain pending until released")
+      else
+      end
+
+      release.send(true)
+      result = result_channel.receive?
+      result.should_not be_nil
+      result.not_nil!.result.should eq({"reachable" => true})
+      result_channel.receive?.should be_nil
+    ensure
+      Chiasmus::Graph::Analyses.clear_before_async_result_send_hook_for_test
+    end
+  end
+
   it "finds dead code from exported entry points" do
     graph = make_graph(
       defines: [
@@ -342,6 +385,28 @@ describe Chiasmus::Graph::Analyses do
 
       File.delete(go_file)
       FileUtils.rm_rf(cache_dir)
+    end
+
+    it "run_analysis_async returns the same result payload as run_analysis" do
+      go_file = File.join(Dir.tempdir, "async-analysis-#{Random::Secure.hex(8)}.go")
+      File.write(go_file, "package main\nfunc a() { b() }\nfunc b() {}\n")
+
+      request = Chiasmus::Graph::AnalysisRequest.new(
+        analysis: Chiasmus::Graph::AnalysisType::Summary
+      )
+
+      begin
+        sync = Chiasmus::Graph::Analyses.run_analysis([go_file], request)
+        async_channel = Chiasmus::Graph::Analyses.run_analysis_async([go_file], request)
+        async = async_channel.receive?
+
+        async.should_not be_nil
+        async.not_nil!.analysis.should eq(sync.analysis)
+        async.not_nil!.result.should eq(sync.result)
+        async_channel.receive?.should be_nil
+      ensure
+        File.delete(go_file) if File.exists?(go_file)
+      end
     end
   end
 end

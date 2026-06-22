@@ -69,6 +69,30 @@ module Chiasmus
         end
       end
 
+      def solve_async(input : SolverInput) : Channel(SolverResult)
+        response = Channel(SolverResult).new(1)
+
+        if @disposed
+          response.send(ErrorResult.new("Session disposed"))
+          return response
+        end
+
+        case input
+        when PrologSolverInput
+          solve_prolog_async(input.program, input.query, input.explain, response)
+        else
+          spawn do
+            begin
+              response.send(@solver.solve(input))
+            rescue ex
+              response.send(ErrorResult.new(ex.message || ex.class.name))
+            end
+          end
+        end
+
+        response
+      end
+
       private def solve_prolog(program : String, query : String, explain : Bool) : SolverResult
         chan = @channel || raise "Prolog worker not started"
         response = Channel(SolverResult).new(1)
@@ -80,6 +104,13 @@ module Chiasmus
         when timeout(PROLOG_QUERY_TIMEOUT)
           ErrorResult.new("Prolog query timed out after #{PROLOG_QUERY_TIMEOUT}")
         end
+      end
+
+      private def solve_prolog_async(program : String, query : String, explain : Bool, response : Channel(SolverResult)) : Nil
+        chan = @channel || raise "Prolog worker not started"
+        chan.send(PrologRequest.new(program, query, explain, response))
+      rescue ex
+        response.send(ErrorResult.new(ex.message || ex.class.name))
       end
 
       def dispose : Nil
