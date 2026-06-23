@@ -75,10 +75,16 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
       begin
         tool = Chiasmus::MCPServer::Tools::SearchTool.new
         spawn do
-          result_chan.send(tool.invoke({
-            "query" => JSON::Any.new("find function"),
-            "files" => JSON.parse([path].to_json),
-          }))
+          with_env({
+            "CHIASMUS_EMBED_PROVIDER" => "deepseek",
+            "DEEPSEEK_API_KEY"        => nil,
+            "OPENAI_API_KEY"          => nil,
+          }) do
+            result_chan.send(tool.invoke({
+              "query" => JSON::Any.new("find function"),
+              "files" => JSON.parse([path].to_json),
+            }))
+          end
         end
 
         Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)

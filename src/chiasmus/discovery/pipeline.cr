@@ -1,5 +1,6 @@
 require "./grammar_loader"
 require "./registry"
+require "../utils/bounded_work"
 
 module Chiasmus
   module Discovery
@@ -32,8 +33,11 @@ module Chiasmus
         return Result.new(items: [] of Item, parser_mode: "tree-sitter") if files.empty?
 
         all_items = [] of Item
-        files.each do |file_path, content|
-          all_items.concat(process_file(file_path, content))
+        Utils::BoundedWork.map_ordered(files, @max_concurrent) do |file|
+          process_file(file[0], file[1])
+        end.each do |items|
+          next unless file_items = items
+          all_items.concat(file_items)
         end
 
         Result.new(items: deduplicate(all_items), parser_mode: "tree-sitter")

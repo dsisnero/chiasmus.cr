@@ -46,7 +46,7 @@ module Chiasmus
 
         # Wait for either result or timeout
         select
-        when result = channel.receive
+        when result = channel.receive?
           result
         when timeout_channel.receive?
           nil
