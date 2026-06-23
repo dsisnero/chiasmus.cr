@@ -61,7 +61,7 @@ end
 
 # Sets up a connected mcp_server + client pair for integration tests.
 # Returns {mcp_server, client}.
-private def connect_server_and_client
+private def connect_server_and_client : {MCP::Server::Server, MCP::Client::Client}
   mcp_server = build_mcp_server
   register_all_tools_on(mcp_server)
 
@@ -87,6 +87,23 @@ private def call_tool(client : MCP::Client::Client, name : String, args : Hash(S
   JSON.parse(block.text)
 end
 
+private def call_tool_async(client : MCP::Client::Client, name : String, args : Hash(String, JSON::Any) = {} of String => JSON::Any) : Channel(MCP::Protocol::CallToolResult | Exception)
+  channel = Channel(MCP::Protocol::CallToolResult | Exception).new(1)
+
+  spawn do
+    begin
+      result = client.call_tool(name, args).as(MCP::Protocol::CallToolResult)
+      channel.send(result)
+    rescue ex
+      channel.send(ex)
+    ensure
+      channel.close
+    end
+  end
+
+  channel
+end
+
 # Helper: write a temp source file and return cleanup proc + path
 private def temp_source_file(ext : String, content : String) : {String, Proc(Nil)}
   dir = Dir.tempdir
@@ -99,6 +116,61 @@ end
 # =============================================================================
 # MCP Server initialization and tools/list
 # =============================================================================
+describe "MCP async tool calls through transport" do
+  it "allows one client to overlap tool calls with call_tool_async" do
+    mcp_server = nil.as(MCP::Server::Server?)
+    client = nil.as(MCP::Client::Client?)
+    mcp_server, client = connect_server_and_client
+    entered = Channel(Bool).new(2)
+    release = Channel(Bool).new(2)
+
+    Chiasmus::MCPServer::Tools::VerifyTool.set_before_async_result_send_hook_for_test do
+      entered.send(true)
+      release.receive
+    end
+
+    first = call_tool_async(client, "chiasmus_verify", {
+      "solver" => JSON::Any.new("z3"),
+      "input"  => JSON::Any.new("(declare-const x Int) (assert (> x 0))"),
+    })
+    second = call_tool_async(client, "chiasmus_verify", {
+      "solver" => JSON::Any.new("z3"),
+      "input"  => JSON::Any.new("(declare-const y Int) (assert (> y 1))"),
+    })
+
+    Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
+    Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
+
+    select
+    when first.receive?
+      fail("expected first async MCP tool call to remain blocked at verify boundary")
+    when second.receive?
+      fail("expected second async MCP tool call to remain blocked at verify boundary")
+    else
+    end
+
+    release.send(true)
+    release.send(true)
+
+    [first, second].each do |channel|
+      result = Chiasmus::Utils::Timeout.with_timeout_async(1000, channel)
+      result.should_not be_nil
+      raw = result.not_nil!
+      raw.should be_a(MCP::Protocol::CallToolResult)
+      rpc = raw.as(MCP::Protocol::CallToolResult)
+      block = rpc.content.first.as(MCP::Protocol::TextContentBlock)
+      JSON.parse(block.text)["status"].as_s.should eq("success")
+    end
+  ensure
+    Chiasmus::MCPServer::Tools::VerifyTool.clear_before_async_result_send_hook_for_test
+    if server = mcp_server
+      if current_client = client
+        disconnect(server, current_client)
+      end
+    end
+  end
+end
+
 describe "MCP Server initialization via transport" do
   describe "initialize + tools/list" do
     it "lists all 12 expected tools" do
