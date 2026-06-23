@@ -3,7 +3,8 @@ require "../spec_helper"
 describe "chiasmus CLI friendliness" do
   it "prints help when --help is passed" do
     output = IO::Memory.new
-    Process.run("./bin/chiasmus", ["--help"], output: output, error: output)
+    cmd, args = chiasmus_cli_command(["--help"])
+    Process.run(cmd, args, env: chiasmus_cli_env, output: output, error: output)
     output.to_s.should_not be_empty
     output.to_s.should contain("Usage")
     output.to_s.should contain("Chiasmus MCP server")
@@ -12,14 +13,18 @@ describe "chiasmus CLI friendliness" do
 
   it "prints version with --version" do
     output = IO::Memory.new
-    Process.run("./bin/chiasmus", ["--version"], output: output, error: output)
+    cmd, args = chiasmus_cli_command(["--version"])
+    Process.run(cmd, args, env: chiasmus_cli_env, output: output, error: output)
     output.to_s.should contain("chiasmus v")
     output.to_s.should contain("0.")
   end
 
   it "prints startup message to stderr when starting server with no args" do
+    cmd, args = chiasmus_cli_command
     proc = Process.new(
-      "./bin/chiasmus",
+      cmd,
+      args: args,
+      env: chiasmus_cli_env,
       output: Process::Redirect::Pipe,
       input: Process::Redirect::Pipe,
       error: Process::Redirect::Pipe,
@@ -29,7 +34,7 @@ describe "chiasmus CLI friendliness" do
     line1 = nil
     select
     when l = ch.receive; line1 = l
-    when timeout(3.seconds)
+    when timeout(20.seconds)
     end
     proc.terminate rescue nil
 
@@ -38,8 +43,11 @@ describe "chiasmus CLI friendliness" do
   end
 
   it "prints startup banner with version" do
+    cmd, args = chiasmus_cli_command
     proc = Process.new(
-      "./bin/chiasmus",
+      cmd,
+      args: args,
+      env: chiasmus_cli_env,
       output: Process::Redirect::Pipe,
       input: Process::Redirect::Pipe,
       error: Process::Redirect::Pipe,
@@ -53,7 +61,7 @@ describe "chiasmus CLI friendliness" do
     2.times do
       select
       when l = ch.receive; parts << (l || "")
-      when timeout(3.seconds); break
+      when timeout(20.seconds); break
       end
     end
     proc.terminate rescue nil

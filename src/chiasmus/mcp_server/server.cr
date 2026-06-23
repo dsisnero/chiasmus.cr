@@ -126,14 +126,20 @@ module Chiasmus
         response = Channel(AsyncCallResult(Formalize::FormalizeResult)).new(1)
 
         spawn do
-          result = begin
-            AsyncCallResult(Formalize::FormalizeResult).new(value: formalize(problem))
-          rescue ex
-            AsyncCallResult(Formalize::FormalizeResult).new(error: ex.message || ex.class.name)
-          end
+          result = if engine = @formalization_engine
+                     engine_result = engine.formalize_async(problem).receive
+                     AsyncCallResult(Formalize::FormalizeResult).new(
+                       value: engine_result.try(&.value),
+                       error: engine_result.try(&.error)
+                     )
+                   else
+                     AsyncCallResult(Formalize::FormalizeResult).new(value: formalize(problem))
+                   end
 
           @@before_formalize_async_result_send_hook.try(&.call)
           response.send(result)
+        rescue ex
+          response.send(AsyncCallResult(Formalize::FormalizeResult).new(error: ex.message || ex.class.name))
         ensure
           response.close
         end
@@ -149,14 +155,20 @@ module Chiasmus
         response = Channel(AsyncCallResult(Formalize::SolveResult)).new(1)
 
         spawn do
-          result = begin
-            AsyncCallResult(Formalize::SolveResult).new(value: solve(problem, max_rounds))
-          rescue ex
-            AsyncCallResult(Formalize::SolveResult).new(error: ex.message || ex.class.name)
-          end
+          result = if engine = @formalization_engine
+                     engine_result = engine.solve_async(problem, max_rounds).receive
+                     AsyncCallResult(Formalize::SolveResult).new(
+                       value: engine_result.try(&.value),
+                       error: engine_result.try(&.error)
+                     )
+                   else
+                     AsyncCallResult(Formalize::SolveResult).new(value: solve(problem, max_rounds))
+                   end
 
           @@before_solve_async_result_send_hook.try(&.call)
           response.send(result)
+        rescue ex
+          response.send(AsyncCallResult(Formalize::SolveResult).new(error: ex.message || ex.class.name))
         ensure
           response.close
         end
@@ -362,7 +374,7 @@ module Chiasmus
 
             Extract a reusable template from this verified solution.
             CONTENT
-          ).send
+          ).send_async.receive.unwrap
         end
       end
     end

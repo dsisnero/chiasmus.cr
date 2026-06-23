@@ -7,6 +7,10 @@ require "../skills/library"
 
 module Chiasmus
   module Formalize
+    record AsyncResult(T),
+      value : T? = nil,
+      error : String? = nil
+
     # Result of formalize() — template + instructions for the calling LLM
     record FormalizeResult,
       template : Skills::SkillTemplate,
@@ -58,6 +62,9 @@ module Chiasmus
     TEXT
 
     class Engine(M)
+      @@before_formalize_async_result_send_hook : Proc(Nil)? = nil
+      @@before_solve_async_result_send_hook : Proc(Nil)? = nil
+
       @library : Skills::Library
       @agent : Crig::Agent(M)
       @embedding : EmbedFn?
@@ -92,6 +99,25 @@ module Chiasmus
 
         instructions = build_instructions(problem, template)
         FormalizeResult.new(template: template, instructions: instructions)
+      end
+
+      def formalize_async(problem : String) : Channel(AsyncResult(FormalizeResult))
+        response = Channel(AsyncResult(FormalizeResult)).new(1)
+
+        spawn do
+          result = begin
+            AsyncResult(FormalizeResult).new(value: formalize(problem))
+          rescue ex
+            AsyncResult(FormalizeResult).new(error: ex.message || ex.class.name)
+          end
+
+          @@before_formalize_async_result_send_hook.try(&.call)
+          response.send(result)
+        ensure
+          response.close
+        end
+
+        response
       end
 
       # End-to-end solve: select template, ask LLM to fill slots,
@@ -159,6 +185,41 @@ module Chiasmus
           template_used: template.name,
           answers: correction_result.result.is_a?(Solvers::SuccessResult) ? correction_result.result.as(Solvers::SuccessResult).answers : [] of Solvers::PrologAnswer
         )
+      end
+
+      def solve_async(problem : String, max_rounds : Int32 = 5) : Channel(AsyncResult(SolveResult))
+        response = Channel(AsyncResult(SolveResult)).new(1)
+
+        spawn do
+          result = begin
+            AsyncResult(SolveResult).new(value: solve(problem, max_rounds))
+          rescue ex
+            AsyncResult(SolveResult).new(error: ex.message || ex.class.name)
+          end
+
+          @@before_solve_async_result_send_hook.try(&.call)
+          response.send(result)
+        ensure
+          response.close
+        end
+
+        response
+      end
+
+      def self.set_before_formalize_async_result_send_hook_for_test(&block : ->) : Nil
+        @@before_formalize_async_result_send_hook = block
+      end
+
+      def self.clear_before_formalize_async_result_send_hook_for_test : Nil
+        @@before_formalize_async_result_send_hook = nil
+      end
+
+      def self.set_before_solve_async_result_send_hook_for_test(&block : ->) : Nil
+        @@before_solve_async_result_send_hook = block
+      end
+
+      def self.clear_before_solve_async_result_send_hook_for_test : Nil
+        @@before_solve_async_result_send_hook = nil
       end
 
       # Use embedding-based cosine similarity to select the best template.
@@ -252,7 +313,7 @@ module Chiasmus
       private def llm_fill(problem : String, template : Skills::SkillTemplate) : String
         instructions = build_instructions(problem, template)
 
-        response = @agent.prompt("#{FORMALIZE_SYSTEM}\n\n#{instructions}").send
+        response = @agent.prompt("#{FORMALIZE_SYSTEM}\n\n#{instructions}").send_async.receive.unwrap
 
         clean_response(response)
       end
@@ -284,7 +345,7 @@ module Chiasmus
 
           Fix the specification and return only the corrected version.
           CONTENT
-        ).send
+        ).send_async.receive.unwrap
 
         clean_response(response)
       end
@@ -307,7 +368,7 @@ module Chiasmus
 
           Fix the specification to resolve these lint errors and return only the corrected version.
           CONTENT
-        ).send
+        ).send_async.receive.unwrap
 
         clean_response(response)
       end

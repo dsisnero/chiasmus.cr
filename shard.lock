@@ -46,7 +46,7 @@ shards:
 
   crig:
     git: https://github.com/dsisnero/crig.git
-    version: 0.1.0+git.commit.e8289eb215756fe8ec49c5656d89f00c4a1ab779
+    version: 0.39.0
 
   crig-postgres:
     git: https://github.com/dsisnero/crig-postgres.git
@@ -94,7 +94,7 @@ shards:
 
   mcp:
     git: https://github.com/dsisnero/mcp.cr.git
-    version: 0.2.3
+    version: 0.2.3+git.commit.02c27b7032bdf8f29b50ccbac7b388155e0b845b
 
   mosaic:
     git: https://github.com/dsisnero/mosaic.git

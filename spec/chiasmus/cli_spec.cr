@@ -3,9 +3,11 @@ require "../spec_helper"
 describe "chiasmus CLI" do
   it "produces help output with --help" do
     output = IO::Memory.new
+    cmd, args = chiasmus_cli_command(["--help"])
     Process.run(
-      "./bin/chiasmus",
-      ["--help"],
+      cmd,
+      args,
+      env: chiasmus_cli_env,
       output: output,
       error: output,
     )
@@ -15,9 +17,11 @@ describe "chiasmus CLI" do
 
   it "shows version with --version" do
     output = IO::Memory.new
+    cmd, args = chiasmus_cli_command(["--version"])
     Process.run(
-      "./bin/chiasmus",
-      ["--version"],
+      cmd,
+      args,
+      env: chiasmus_cli_env,
       output: output,
       error: output,
     )
@@ -26,9 +30,11 @@ describe "chiasmus CLI" do
 
   it "shows help for subcommands" do
     output = IO::Memory.new
+    cmd, args = chiasmus_cli_command(["--help"])
     Process.run(
-      "./bin/chiasmus",
-      ["--help"],
+      cmd,
+      args,
+      env: chiasmus_cli_env,
       output: output,
       error: output,
     )

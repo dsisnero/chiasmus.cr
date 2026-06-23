@@ -3,18 +3,12 @@ require "process"
 
 describe "Chiasmus Healthcheck CLI" do
   it "returns exit code 0 for a working chiasmus server via in-memory healthcheck" do
-    binary = File.join(Dir.current, "bin", "chiasmus")
-
-    unless File.file?(binary)
-      pending "Build the binary first: make build"
-    end
-
-    ENV["CHIASMUS_BIN"] = binary
+    cmd, args = chiasmus_cli_command(["--healthcheck"])
 
     output = IO::Memory.new
     error = IO::Memory.new
 
-    status = Process.run(binary, ["--healthcheck"], output: output, error: error)
+    status = Process.run(cmd, args, env: chiasmus_cli_env, output: output, error: error)
 
     status.exit_code.should eq(0)
     output.to_s.should contain("healthcheck OK")
@@ -23,43 +17,33 @@ describe "Chiasmus Healthcheck CLI" do
     output.to_s.should_not contain("FAILED")
   end
 
-  it "healthcheck completes quickly via in-memory transport (no child-process sleep)" do
-    binary = File.join(Dir.current, "bin", "chiasmus")
-
-    unless File.file?(binary)
-      pending "Build the binary first: make build"
-    end
+  it "healthcheck completes successfully via in-memory transport when launched with crystal run" do
+    cmd, args = chiasmus_cli_command(["--healthcheck"])
 
     output = IO::Memory.new
     error = IO::Memory.new
 
     elapsed = Time.measure do
-      Process.run(binary, ["--healthcheck"], output: output, error: error)
+      Process.run(cmd, args, env: chiasmus_cli_env, output: output, error: error)
     end
 
     output.to_s.should contain("healthcheck OK")
-    # In-memory healthcheck should complete in under 2 seconds
-    # (no 3-second sleep hack needed)
-    elapsed.should be < 2.seconds
+    # crystal run includes compile + launch overhead, so this is a coarse
+    # hang detector rather than a raw healthcheck latency assertion.
+    elapsed.should be < 30.seconds
   end
 
-  it "does NOT spawn a child chiasmus process for healthcheck (uses in-memory transport)" do
-    binary = File.join(Dir.current, "bin", "chiasmus")
-
-    unless File.file?(binary)
-      pending "Build the binary first: make build"
-    end
-
-    # Count chiasmus processes before
-    before = `ps aux | grep -c '[c]hiasmus'`.strip.to_i
-
+  it "does NOT depend on an external chiasmus binary for healthcheck" do
+    cmd, args = chiasmus_cli_command(["--healthcheck"])
     output = IO::Memory.new
     error = IO::Memory.new
-    Process.run(binary, ["--healthcheck"], output: output, error: error)
 
-    after = `ps aux | grep -c '[c]hiasmus'`.strip.to_i
+    with_env({"CHIASMUS_BIN" => "/definitely/missing/chiasmus"}) do
+      status = Process.run(cmd, args, env: chiasmus_cli_env, output: output, error: error)
 
-    # No extra chiasmus process should be left behind
-    after.should eq(before)
+      status.exit_code.should eq(0)
+    end
+
+    output.to_s.should contain("healthcheck OK")
   end
 end

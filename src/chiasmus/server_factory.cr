@@ -141,7 +141,7 @@ module Chiasmus
         model = ENV["CHIASMUS_LLM_MODEL"]? || Crig::Providers::DeepSeek::DEEPSEEK_CHAT
 
         unless provider_api_key_set?(provider)
-          STDERR.puts "[Chiasmus] No #{provider}_API_KEY set — starting without LLM"
+          STDERR.puts "[Chiasmus] v#{Chiasmus::VERSION} — No #{provider}_API_KEY set — Starting without LLM"
           STDERR.puts "[Chiasmus] chiasmus_learn gated; formalize/solve degrade gracefully"
           return no_llm_server
         end

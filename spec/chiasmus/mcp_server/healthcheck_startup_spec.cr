@@ -3,14 +3,12 @@ require "process"
 
 describe "Chiasmus server async startup healthcheck" do
   it "logs self-healthcheck to stderr after server starts (in-memory transport)" do
-    binary = File.join(Dir.current, "bin", "chiasmus")
-
-    unless File.file?(binary)
-      pending "Build the binary first: make build"
-    end
+    cmd, args = chiasmus_cli_command
 
     proc = Process.new(
-      binary,
+      cmd,
+      args: args,
+      env: chiasmus_cli_env,
       input: Process::Redirect::Pipe,
       output: Process::Redirect::Pipe,
       error: Process::Redirect::Pipe,
@@ -40,7 +38,7 @@ describe "Chiasmus server async startup healthcheck" do
           break unless line
           stderr_lines << line
           break if stderr_lines.size >= 20
-        when timeout(5.seconds)
+        when timeout(20.seconds)
           break
         end
       end

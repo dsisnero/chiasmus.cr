@@ -4,7 +4,9 @@
 # an MCP server that gives LLMs access to formal verification via
 # Z3 SMT solver, Tau Prolog, and tree-sitter-based source code analysis.
 module Chiasmus
-  VERSION = "0.2.0"
+  # Single source of truth: read the version from shard.yml at compile time
+  # so `--version`, the startup banner, and the shard stay in sync.
+  VERSION = {{ read_file("#{__DIR__}/../shard.yml").lines.find { |line| line.starts_with?("version:") }.split(":")[1].strip }}
 
   # Main entry point for the MCP server
   # Uses environment configuration to determine provider
@@ -92,31 +94,28 @@ struct ChiasmusCLI
   getter port : Int32 = 8899
 end
 
-at_exit do
-  exe = File.basename(PROGRAM_NAME)
-  unless exe.starts_with?("chiasmus")
-    next
-  end
+{% if flag?(:chiasmus_cli) %}
+  at_exit do
+    begin
+      cli = ChiasmusCLI.parse(ARGV)
+    rescue ex : Clip::ParsingError
+      puts ex
+      exit 1
+    end
 
-  begin
-    cli = ChiasmusCLI.parse(ARGV)
-  rescue ex : Clip::ParsingError
-    puts ex
-    exit 1
-  end
-
-  case cli
-  when Clip::Mapper::Help
-    puts cli.help
-  when ChiasmusCLI
-    if cli.version?
-      puts "chiasmus v#{Chiasmus::VERSION}"
-    elsif cli.healthcheck?
-      Chiasmus.healthcheck
-    elsif cli.streamable?
-      Chiasmus.run_streamable(cli.port)
-    else
-      Chiasmus.run
+    case cli
+    when Clip::Mapper::Help
+      puts cli.help
+    when ChiasmusCLI
+      if cli.version?
+        puts "chiasmus v#{Chiasmus::VERSION}"
+      elsif cli.healthcheck?
+        Chiasmus.healthcheck
+      elsif cli.streamable?
+        Chiasmus.run_streamable(cli.port)
+      else
+        Chiasmus.run
+      end
     end
   end
-end
+{% end %}

@@ -26,7 +26,6 @@ dependencies:
     branch: feat/add-missing-swipl-bindings
   crig:
     github: dsisnero/crig
-    branch: codex/prompt-request-send-async
   json-schema:
     github: spider-gazelle/json-schema
   crig-sqlite:
@@ -37,6 +36,9 @@ dependencies:
     github: dsisnero/bm25
   clip:
     github: erdnaxeli/clip
+  mcp:
+    github: dsisnero/mcp.cr
+    branch: codex/async-tool-handlers
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba

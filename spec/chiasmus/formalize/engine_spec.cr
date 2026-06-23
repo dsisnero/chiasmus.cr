@@ -178,6 +178,40 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
     end
   end
 
+  describe "#formalize_async" do
+    it "returns through an async channel boundary" do
+      with_formalize_engine do |engine, _library|
+        entered = Channel(Bool).new(1)
+        release = Channel(Bool).new(1)
+
+        Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel).set_before_formalize_async_result_send_hook_for_test do
+          entered.send(true)
+          release.receive
+        end
+
+        result_chan = engine.formalize_async(
+          "Check if our RBAC rules can ever allow and deny the same user accessing the same resource"
+        )
+
+        Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+
+        select
+        when result_chan.receive?
+          fail("expected formalize_async to wait on async result boundary")
+        else
+        end
+
+        release.send(true)
+        result = Chiasmus::Utils::Timeout.with_timeout_async(500, result_chan)
+        result.should_not be_nil
+        result.not_nil!.error.should be_nil
+        result.not_nil!.value.try(&.template.name).should eq("policy-contradiction")
+      ensure
+        Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel).clear_before_formalize_async_result_send_hook_for_test
+      end
+    end
+  end
+
   describe "#solve" do
     before_all do
       unless z3_available? && swipl_available?
@@ -277,6 +311,46 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
         engine.solve("Find two positive numbers that add to 10")
 
         library.list.any? { |item| item.metadata.reuse_count > 0 }.should be_true
+      end
+    end
+  end
+
+  describe "#solve_async" do
+    before_all do
+      unless z3_available? && swipl_available?
+        pending "z3 or swipl not installed"
+      end
+    end
+
+    it "returns through an async channel boundary" do
+      responses = [%( (declare-const x Int) (assert (> x 5)) ).strip]
+
+      with_scripted_formalize_engine(responses) do |engine, _library, _prompts|
+        entered = Channel(Bool).new(1)
+        release = Channel(Bool).new(1)
+
+        Chiasmus::Formalize::Engine(FormalizeSpecCompletionModel).set_before_solve_async_result_send_hook_for_test do
+          entered.send(true)
+          release.receive
+        end
+
+        result_chan = engine.solve_async("Find an integer greater than 5")
+
+        Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+
+        select
+        when result_chan.receive?
+          fail("expected solve_async to wait on async result boundary")
+        else
+        end
+
+        release.send(true)
+        result = Chiasmus::Utils::Timeout.with_timeout_async(500, result_chan)
+        result.should_not be_nil
+        result.not_nil!.error.should be_nil
+        result.not_nil!.value.try(&.converged).should be_true
+      ensure
+        Chiasmus::Formalize::Engine(FormalizeSpecCompletionModel).clear_before_solve_async_result_send_hook_for_test
       end
     end
   end
