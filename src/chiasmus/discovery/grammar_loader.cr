@@ -8,15 +8,19 @@ module Chiasmus
     module GrammarLoader
       extend self
 
+      @@grammar_directories_mutex = Mutex.new
       @@grammar_directories = [] of String
 
       def register_grammar_directory(path : String) : Nil
         return unless Dir.exists?(path)
-        @@grammar_directories << path unless @@grammar_directories.includes?(path)
+
+        @@grammar_directories_mutex.synchronize do
+          @@grammar_directories << path unless @@grammar_directories.includes?(path)
+        end
       end
 
       def grammar_directories : Array(String)
-        @@grammar_directories
+        @@grammar_directories_mutex.synchronize { @@grammar_directories.dup }
       end
 
       def tree_sitter_available?(language : String) : Bool
@@ -76,7 +80,7 @@ module Chiasmus
           end
         end
 
-        @@grammar_directories.each do |dir|
+        grammar_directories.each do |dir|
           search_paths << dir unless search_paths.includes?(dir)
         end
 
@@ -91,6 +95,10 @@ module Chiasmus
         end
 
         search_paths
+      end
+
+      def clear_registered_directories_for_test : Nil
+        @@grammar_directories_mutex.synchronize { @@grammar_directories.clear }
       end
 
       def load_language(language : String) : TreeSitter::Language?

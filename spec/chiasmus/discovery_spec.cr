@@ -2,6 +2,7 @@ require "spec"
 require "../spec_helper"
 require "tree_sitter"
 require "../../src/chiasmus/discovery"
+require "../../src/chiasmus/utils/timeout"
 
 module Chiasmus
   module Discovery
@@ -245,6 +246,46 @@ describe Chiasmus::Discovery do
 
       foo_items = result.items.select { |i| i.name == "Foo" }
       foo_items.size.should eq(1)
+    end
+  end
+
+  describe "async discovery" do
+    it "returns discover_file_async through the shared discovery pipeline" do
+      entered = Channel(Bool).new(1)
+      release = Channel(Bool).new(1)
+
+      begin
+        Chiasmus::Discovery::Pipeline.set_before_async_result_send_hook_for_test do
+          entered.send(true)
+          release.receive
+        end
+
+        result_channel = Chiasmus::Discovery.discover_file_async(
+          "typescript",
+          "function hello() {}",
+          "test.ts"
+        )
+
+        Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
+
+        select
+        when value = result_channel.receive
+          fail("expected discover_file_async to remain blocked at async result boundary, got #{value.inspect}")
+        when timeout 50.milliseconds
+        end
+
+        release.send(true)
+
+        result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+        result.should_not be_nil
+
+        async_result = result || raise "expected async discovery result"
+        async_result.error.should be_nil
+        async_result.value.should_not be_nil
+        async_result.value.not_nil!.items.map(&.name).should contain("hello")
+      ensure
+        Chiasmus::Discovery::Pipeline.clear_before_async_result_send_hook_for_test
+      end
     end
   end
 end

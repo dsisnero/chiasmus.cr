@@ -238,4 +238,44 @@ describe Chiasmus::Discovery::Pipeline do
     resolved.items.should be_empty
     resolved.parser_mode.should eq("tree-sitter")
   end
+
+  it "returns discover_files_async through a channel boundary before releasing the result" do
+    entered = Channel(Bool).new(1)
+    release = Channel(Bool).new(1)
+
+    pipeline = Chiasmus::Discovery::Pipeline.new([
+      Chiasmus::Discovery::TypeScriptExtractor.new,
+    ])
+
+    begin
+      Chiasmus::Discovery::Pipeline.set_before_async_result_send_hook_for_test do
+        entered.send(true)
+        release.receive
+      end
+
+      result_channel = pipeline.discover_files_async([
+        {"app.ts", "function main() {}\n"},
+      ])
+
+      Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
+
+      select
+      when value = result_channel.receive
+        fail("expected discover_files_async to remain blocked at async result boundary, got #{value.inspect}")
+      when timeout 50.milliseconds
+      end
+
+      release.send(true)
+
+      result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+      result.should_not be_nil
+
+      async_result = result || raise "expected async discovery result"
+      async_result.error.should be_nil
+      async_result.value.should_not be_nil
+      async_result.value.not_nil!.items.map(&.name).should contain("main")
+    ensure
+      Chiasmus::Discovery::Pipeline.clear_before_async_result_send_hook_for_test
+    end
+  end
 end

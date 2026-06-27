@@ -33,25 +33,32 @@ module Chiasmus
       items : Array(Item),
       parser_mode : String # "tree-sitter" or "regex"
 
+    record AsyncDiscoveryResult,
+      value : Result? = nil,
+      error : Exception? = nil
+
     extend self
 
     # Lazy-initialized Pipeline backed by ExtractorRegistry.
     # All `discover_file`/`discover_files` calls use this shared pipeline
     # to delegate to language-specific extractors.
     @@pipeline : Pipeline?
+    @@pipeline_mutex = Mutex.new
 
     private def pipeline : Pipeline
-      @@pipeline ||= begin
-        extractors = [
-          BashExtractor.new, CExtractor.new, CppExtractor.new,
-          CSharpExtractor.new, CrystalExtractor.new, DartExtractor.new,
-          GoExtractor.new, JavaExtractor.new, JavaScriptExtractor.new,
-          KotlinExtractor.new, PerlExtractor.new, PhpExtractor.new,
-          ProtobufExtractor.new, PythonExtractor.new, RubyExtractor.new,
-          RustExtractor.new, ScalaExtractor.new, TypeScriptExtractor.new,
-          TSXExtractor.new,
-        ] of LanguageExtractor
-        Pipeline.new(extractors)
+      @@pipeline_mutex.synchronize do
+        @@pipeline ||= begin
+          extractors = [
+            BashExtractor.new, CExtractor.new, CppExtractor.new,
+            CSharpExtractor.new, CrystalExtractor.new, DartExtractor.new,
+            GoExtractor.new, JavaExtractor.new, JavaScriptExtractor.new,
+            KotlinExtractor.new, PerlExtractor.new, PhpExtractor.new,
+            ProtobufExtractor.new, PythonExtractor.new, RubyExtractor.new,
+            RustExtractor.new, ScalaExtractor.new, TypeScriptExtractor.new,
+            TSXExtractor.new,
+          ] of LanguageExtractor
+          Pipeline.new(extractors)
+        end
       end
     end
 
@@ -95,6 +102,18 @@ module Chiasmus
       Result.new(items: deduplicate(items), parser_mode: parser_mode)
     end
 
+    def discover_file_async(
+      language : String,
+      source : String,
+      file_path : String,
+      force_parser : String? = nil,
+    ) : Channel(AsyncDiscoveryResult)
+      parser_mode = effective_parser_mode(language, force_parser)
+      return discover_with_regex_async(language, source, file_path, parser_mode) if parser_mode == "regex"
+
+      pipeline.discover_files_async([{file_path, source}])
+    end
+
     # Discover declarations across multiple files.
     def discover_files(
       language : String,
@@ -110,6 +129,17 @@ module Chiasmus
                   end
 
       Result.new(items: deduplicate(all_items), parser_mode: parser_mode)
+    end
+
+    def discover_files_async(
+      language : String,
+      files : Array(Tuple(String, String)),
+      force_parser : String? = nil,
+    ) : Channel(AsyncDiscoveryResult)
+      parser_mode = effective_parser_mode(language, force_parser)
+      return discover_with_regex_files_async(language, files, parser_mode) if parser_mode == "regex"
+
+      pipeline.discover_files_async(files)
     end
 
     # -- Private implementation --
@@ -133,6 +163,37 @@ module Chiasmus
     private def deduplicate(items : Array(Item)) : Array(Item)
       seen = Set(String).new
       items.select { |item| seen.add?(item.id) }
+    end
+
+    private def discover_with_regex_async(language : String, source : String, file_path : String, parser_mode : String) : Channel(AsyncDiscoveryResult)
+      channel = Channel(AsyncDiscoveryResult).new(1)
+
+      spawn do
+        begin
+          result = Result.new(items: deduplicate(discover_with_regex(language, source, file_path)), parser_mode: parser_mode)
+          channel.send(AsyncDiscoveryResult.new(value: result))
+        rescue ex
+          channel.send(AsyncDiscoveryResult.new(error: ex))
+        end
+      end
+
+      channel
+    end
+
+    private def discover_with_regex_files_async(language : String, files : Array(Tuple(String, String)), parser_mode : String) : Channel(AsyncDiscoveryResult)
+      channel = Channel(AsyncDiscoveryResult).new(1)
+
+      spawn do
+        begin
+          items = files.flat_map { |path, content| discover_with_regex(language, content, path) }
+          result = Result.new(items: deduplicate(items), parser_mode: parser_mode)
+          channel.send(AsyncDiscoveryResult.new(value: result))
+        rescue ex
+          channel.send(AsyncDiscoveryResult.new(error: ex))
+        end
+      end
+
+      channel
     end
 
     # -- Tree-sitter discovery --
