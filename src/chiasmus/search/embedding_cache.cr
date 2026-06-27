@@ -38,7 +38,7 @@ module Chiasmus
       end
 
       def get(content : String) : Array(Float64)?
-        @mutex.synchronize { @by_hash[EmbeddingCache.hash(content)]? }
+        @mutex.synchronize { @by_hash[EmbeddingCache.hash(content)]?.try(&.dup) }
       end
 
       def put(content : String, vector : Array(Float64)) : Nil
@@ -48,7 +48,7 @@ module Chiasmus
           )
         end
         @mutex.synchronize do
-          @by_hash[EmbeddingCache.hash(content)] = vector
+          @by_hash[EmbeddingCache.hash(content)] = vector.dup
           @dirty = true
           @version += 1
         end
@@ -72,7 +72,7 @@ module Chiasmus
           contents.each_with_index do |content, i|
             hit = @by_hash[EmbeddingCache.hash(content)]?
             if hit
-              cached[i] = hit
+              cached[i] = hit.dup
             else
               missing << content
               missing_indexes << i

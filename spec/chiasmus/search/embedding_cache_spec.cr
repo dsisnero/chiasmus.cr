@@ -38,6 +38,19 @@ describe EmbeddingCache do
         end
       end
     end
+
+    it "returns a copy so callers cannot mutate the cached vector" do
+      with_temp_cache do |cache|
+        cache.put("hello", [1.0, 2.0, 3.0])
+
+        vector = cache.get("hello")
+        vector.should_not be_nil
+        vector = vector || raise "expected cached vector"
+        vector[0] = 99.0
+
+        cache.get("hello").should eq [1.0, 2.0, 3.0]
+      end
+    end
   end
 
   describe "#put_many" do
@@ -75,6 +88,17 @@ describe EmbeddingCache do
         result = cache.partition_missing(["a", "b"])
         result.cached.should be_empty
         result.missing.should eq ["a", "b"]
+      end
+    end
+
+    it "returns cached vectors as copies so partition results cannot mutate the cache" do
+      with_temp_cache do |cache|
+        cache.put("existing", [1.0, 2.0, 3.0])
+
+        result = cache.partition_missing(["existing"])
+        result.cached[0][0] = 42.0
+
+        cache.get("existing").should eq [1.0, 2.0, 3.0]
       end
     end
   end
