@@ -154,6 +154,33 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
     server.skill_library.get("port-range-overlap").should_not be_nil
   end
 
+  it "does not use a stale learner after the current server is cleared" do
+    response = {
+      "name"      => "stale-learner-check",
+      "domain"    => "configuration",
+      "signature" => "Should not be reachable after server teardown",
+      "slots"     => [
+        {"name" => "spec", "description" => "Spec body", "format" => "(assert true)"},
+      ],
+      "normalizations" => [] of Hash(String, String),
+      "skeleton"       => "{{SLOT:spec}}",
+    }.to_json
+    _server = Chiasmus::MCPServer::Server(LearnSpecCompletionModel).with_agent_builder(
+      build_learn_spec_agent_builder(response)
+    )
+    Chiasmus::MCPServer.current_server = nil
+    tool = Chiasmus::MCPServer::Tools::LearnTool.new
+
+    result = tool.invoke({
+      "solver"  => JSON::Any.new("z3"),
+      "spec"    => JSON::Any.new("(declare-const port Int)"),
+      "problem" => JSON::Any.new("Check if stale learners leak across requests"),
+    })
+
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("LLM")
+  end
+
   it "uses the learner async boundary before returning" do
     response = {
       "name"      => "async-port-range-overlap",

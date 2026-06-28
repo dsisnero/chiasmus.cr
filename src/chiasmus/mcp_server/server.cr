@@ -62,8 +62,23 @@ module Chiasmus
       abstract def healthcheck : NamedTuple(success: Bool, tools: Int32?, version: String?, error: String?)
     end
 
-    class_property current_server : BaseServer? = nil
-    class_property current_skill_learner : Skills::Learner? = nil
+    @@current_server = nil.as(BaseServer?)
+
+    def self.current_server : BaseServer?
+      RUNTIME_LOCK.synchronize { @@current_server }
+    end
+
+    def self.current_server=(server : BaseServer?) : BaseServer?
+      RUNTIME_LOCK.synchronize do
+        @@current_server = server
+      end
+    end
+
+    def self.current_skill_learner : Skills::Learner?
+      RUNTIME_LOCK.synchronize do
+        @@current_server.try(&.skill_learner)
+      end
+    end
 
     # Main server class that orchestrates all chiasmus functionality
     # Generic over model type M to support different LLM providers
@@ -74,15 +89,14 @@ module Chiasmus
       @formalization_engine : Formalize::Engine(M)?
       @skill_learner : Skills::Learner?
       @tool_dispatcher : ToolDispatcher
+      @tool_handlers : Hash(String, Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult))
 
       # Create a server instance with a specific agent
       def self.with_agent(agent : Crig::Agent(M)) forall M
-        MCPServer::RUNTIME_LOCK.synchronize do
-          server = Server(M).new
-          server.with_agent(agent)
-          MCPServer.current_server = server
-          server
-        end
+        server = Server(M).new
+        server.with_agent(agent)
+        MCPServer.current_server = server
+        server
       end
 
       # Keep the builder-first Crig flow available for local callers and specs.
@@ -97,16 +111,15 @@ module Chiasmus
         @config = Utils::Config.load
         @skill_library = Skills::Library.create(self.class.chiasmus_home)
         @skill_learner = nil
-        MCPServer.current_skill_learner = nil
         @formalization_engine = nil
         @tool_dispatcher = ToolDispatcher.new
+        @tool_handlers = {} of String => Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult)
       end
 
       # Set the agent for formalization engine
       def with_agent(agent : Crig::Agent(M)) : self
         @formalization_engine = Formalize::Engine.new(@skill_library, agent)
         @skill_learner = Skills::Learner.new(@skill_library, build_skill_extractor(agent))
-        MCPServer.current_skill_learner = @skill_learner
         self
       end
 
@@ -334,30 +347,91 @@ module Chiasmus
 
         gated.each do |(tool_class, name, description, input_schema)|
           tool_instance = tool_class.new
+          @tool_handlers[name] = ->(arguments : Hash(String, JSON::Any)) do
+            build_call_tool_result(safely_invoke_tool(tool_instance, arguments))
+          end
+
           mcp_server.add_tool(name, description, input_schema) do |params|
             arguments = params.arguments || {} of String => JSON::Any
-            result = @tool_dispatcher.dispatch do
-              begin
-                tool_instance.invoke(arguments)
-              rescue ex
-                Types::ErrorResponse.new(ex.message || ex.class.name)
-              end
-            end.receive
-            result_json = result.to_json
-            content = [MCP::Protocol::TextContentBlock.new(result_json)] of MCP::Protocol::ContentBlock
-            structured = begin
-              JSON.parse(result_json).as_h
-            rescue
-              nil
-            end
-            MCP::Protocol::CallToolResult.new(content: content, structured_content: structured)
+            @tool_handlers[name].call(arguments)
           end
+        end
+
+        mcp_server.request_handler(MCP::Protocol::ToolsCall) do |request, extra|
+          dispatch_tool_call(request.as(MCP::Protocol::CallToolRequestParams), extra)
         end
       end
 
       # Get chiasmus home directory (delegates to Config)
       def self.chiasmus_home : String
         Utils::Config.chiasmus_home
+      end
+
+      private def dispatch_tool_call(
+        request : MCP::Protocol::CallToolRequestParams,
+        extra : MCP::Shared::RequestHandlerExtra,
+      ) : MCP::Protocol::CallToolResult
+        handler = @tool_handlers[request.name]?
+        return build_call_tool_result(Types::ErrorResponse.new("Tool not found: #{request.name}")) unless handler
+
+        result_channel = @tool_dispatcher.dispatch do
+          arguments = request.arguments || {} of String => JSON::Any
+          handler.call(arguments)
+        rescue ex
+          build_call_tool_result(Types::ErrorResponse.new(ex.message || ex.class.name))
+        end
+
+        wait_for_tool_result(result_channel, extra, request.name)
+      end
+
+      private def wait_for_tool_result(
+        result_channel : Channel(MCP::Protocol::CallToolResult),
+        extra : MCP::Shared::RequestHandlerExtra,
+        tool_name : String,
+      ) : MCP::Protocol::CallToolResult
+        if cancel_channel = extra.cancel_channel
+          cancelled = cancellation_signal(cancel_channel)
+
+          select
+          when result = result_channel.receive?
+            result || build_call_tool_result(Types::ErrorResponse.new("Tool request finished without a result: #{tool_name}"))
+          when cancelled.receive?
+            build_call_tool_result(Types::ErrorResponse.new("Tool request cancelled: #{tool_name}"))
+          end
+        else
+          result_channel.receive? || build_call_tool_result(Types::ErrorResponse.new("Tool request finished without a result: #{tool_name}"))
+        end
+      end
+
+      private def cancellation_signal(cancel_channel : Channel(Nil)) : Channel(Bool)
+        signal = Channel(Bool).new(1)
+
+        spawn do
+          cancel_channel.receive?
+          signal.send(true)
+        rescue Channel::ClosedError
+        ensure
+          signal.close
+        end
+
+        signal
+      end
+
+      private def safely_invoke_tool(tool_instance, arguments : Hash(String, JSON::Any)) : Types::Response
+        tool_instance.invoke(arguments)
+      rescue ex
+        Types::ErrorResponse.new(ex.message || ex.class.name)
+      end
+
+      private def build_call_tool_result(result : Types::Response) : MCP::Protocol::CallToolResult
+        result_json = result.to_json
+        content = [MCP::Protocol::TextContentBlock.new(result_json)] of MCP::Protocol::ContentBlock
+        structured = begin
+          JSON.parse(result_json).as_h
+        rescue
+          nil
+        end
+        MCP::Protocol::CallToolResult.new(content: content, structured_content: structured)
       end
 
       private def build_skill_extractor(agent : Crig::Agent(M)) : Skills::Learner::Extractor
