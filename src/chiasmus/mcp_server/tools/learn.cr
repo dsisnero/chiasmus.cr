@@ -19,7 +19,8 @@ module Chiasmus
                           return Types::ErrorResponse.new("Unknown solver: #{args.solver}")
                         end
 
-          learner = MCPServer.current_skill_learner
+          server = MCPServer.refresh_with_llm_if_available(MCPServer.current_server)
+          learner = server.try(&.skill_learner)
           return Types::ErrorResponse.new("LLM not available. chiasmus_learn requires an LLM for template extraction.") unless learner
 
           async_result = learner.learn_async(solver_type, args.spec, args.problem).receive

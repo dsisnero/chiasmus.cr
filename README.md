@@ -2,264 +2,273 @@
 
 [![CI](https://github.com/dsisnero/chiasmus.cr/actions/workflows/ci.yml/badge.svg)](https://github.com/dsisnero/chiasmus.cr/actions/workflows/ci.yml)
 
-**Crystal port of [yogthos/chiasmus](https://github.com/yogthos/chiasmus)** - an MCP server for formal verification with Z3 SMT solver, Tau Prolog, and tree-sitter-based source code analysis.
+Crystal port of [yogthos/chiasmus](https://github.com/yogthos/chiasmus), built as an MCP server for formal verification and source-code analysis.
 
-**Upstream source pinned at:** `vendor/chiasmus` (git submodule tracking `main` branch)
+Chiasmus.cr combines:
 
-Chiasmus.cr gives LLMs access to formal verification via Z3 (SMT solver) and SWI-Prolog, plus tree-sitter-based source code analysis. Translates natural language problems into formal logic using a template-based pipeline, verifies results with mathematical certainty, and analyzes call graphs for reachability, dead code, and impact analysis.
+- Z3 for SMT-based reasoning
+- SWI-Prolog, driven through `crolog`, for graph and rule queries
+- tree-sitter for multi-language code extraction
+- `crig` for provider-backed LLM and embedding calls
 
-## 📚 Documentation
+The upstream TypeScript project in [vendor/chiasmus](vendor/chiasmus) remains the behavioral source of truth. This repo ports that behavior into Crystal and adds native binaries for MCP serving, grammar management, discovery, parity checking, and an interactive agent CLI.
 
-### Core Documentation
+## What It Does
 
-- **[AGENTS.md](AGENTS.md)** - Agent engineering guide and porting workflow
-- **[CLAUDE.md](CLAUDE.md)** - Project overview and development guidelines
-- **[plans/inventory/](plans/inventory/)** - Porting inventory and parity tracking
-- **[vendor/chiasmus/README.md](vendor/chiasmus/README.md)** - Upstream documentation
+At a high level, Chiasmus gives an LLM a toolbelt for turning vague questions into executable checks.
 
-### Technical Documentation ([docs/](docs/))
+- `chiasmus_formalize` finds an existing formalization template and returns the skeleton, required slots, and instructions.
+- `chiasmus_verify` runs either Z3 or Prolog on a filled-in spec and returns the actual solver result.
+- `chiasmus_solve` runs the full loop: template selection, slot filling, linting, verification, and correction.
+- `chiasmus_graph` parses source files with tree-sitter, extracts a call graph, and runs analyses such as reachability, dead-code detection, cycles, impact, and facts export.
+- `chiasmus_search` builds an embedding corpus from extracted defines and performs semantic code search.
+- `chiasmus_review` generates a structured review plan that tells an LLM which graph and verification steps to run and in what order.
 
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and design decisions
-- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development setup and workflow
-- **[TESTING.md](docs/TESTING.md)** - Testing strategy and guidelines
-- **[CODING-GUIDELINES.md](docs/CODING-GUIDELINES.md)** - Code style and conventions
-- **[PR-WORKFLOW.md](docs/PR-WORKFLOW.md)** - Pull request workflow
-- **[adding_additional_language.md](docs/adding_additional_language.md)** - Guide: adding new language support
-- **[INDEX.md](docs/INDEX.md)** - Complete documentation index
+This is useful when you want answers that are grounded in either:
 
-### Reference
+- a formal proof or counterexample
+- a concrete call path in real code
+- a constrained, inspectable workflow rather than free-form speculation
 
-- **[lib_issues/](lib_issues/)** - Shard patch tracking and upstream issues
-- **[spec/](spec/)** - Test suite and examples
+## How It Works
 
-## 🚀 Quick Start
+### 1. MCP server lifecycle
 
-### Installation
+The main `chiasmus` binary starts an MCP server over stdio by default. It can also run an HTTP streamable transport for debugging.
+
+- `./bin/chiasmus`
+- `./bin/chiasmus --healthcheck`
+- `./bin/chiasmus --streamable --port 8899`
+
+The healthcheck does a real in-memory MCP `initialize` plus `tools/list`, so it verifies the server’s actual runtime wiring instead of just checking that the process starts.
+
+### 2. LLM-backed and no-LLM modes
+
+LLM configuration comes from environment variables. The default provider is `deepseek`, and the model can also imply the provider when only a model name is given.
+
+When an LLM backend is not configured, the server still starts:
+
+- `chiasmus_formalize` falls back to template search
+- `chiasmus_solve` falls back to the formalize path
+- `chiasmus_learn` is gated from the tool listing because it truly requires an LLM
+
+That design keeps the verification and graph-analysis parts useful even on machines without API keys.
+
+### 3. Formal verification flow
+
+The formal side has three layers:
+
+1. A skill/template library describing reusable solver patterns
+2. Tooling that selects and fills those templates
+3. Solver adapters for Z3 and Prolog
+
+Typical flow:
+
+1. Ask `chiasmus_formalize` for a template matching the problem
+2. Fill the returned slots with concrete declarations, rules, facts, or constraints
+3. Run `chiasmus_verify`
+4. Optionally use `chiasmus_learn` to extract a reusable template from a verified solution
+
+### 4. Code analysis flow
+
+The graph side parses files with language-specific walkers where available and a generic fallback otherwise.
+
+Typical flow:
+
+1. `chiasmus_graph` loads files and extracts defines/calls/facts
+2. Graph algorithms answer reachability, callers, callees, cycles, impact, and dead-code questions
+3. `chiasmus_map` projects a large graph into an LLM-friendly summary
+4. `chiasmus_search` embeds the extracted defines for semantic lookup
+5. `chiasmus_review` composes these pieces into a review recipe
+
+Extraction is wired for concurrent use. Long-running operations are exposed through async boundaries internally so MCP requests can overlap without blocking the server loop.
+
+## MCP Tools
+
+The server currently exposes these tool families:
+
+- `chiasmus_verify`: run Z3 or Prolog directly
+- `chiasmus_skills`: search and inspect formalization templates
+- `chiasmus_formalize`: pick a template for a natural-language problem
+- `chiasmus_solve`: run the end-to-end solve loop
+- `chiasmus_learn`: turn a verified solution into a reusable template
+- `chiasmus_lint`: clean and validate a formal spec without executing it
+- `chiasmus_graph`: extract and analyze call graphs
+- `chiasmus_map`: return a compact codebase map
+- `chiasmus_search`: semantic code search over extracted defines
+- `chiasmus_craft`: author a new template and add it to the library
+- `chiasmus_review`: generate a phased code-review plan
+- `chiasmus_crig`: run a direct prompt against the configured LLM provider
+
+## Included Binaries
+
+`shard.yml` defines multiple targets:
+
+- `chiasmus`: MCP server entrypoint
+- `chiasmus-agent`: interactive CLI for graph-aware formal solving
+- `chiasmus-discover`: tree-sitter discovery CLI for parity manifests
+- `chiasmus-grammar`: grammar manager for install, compile, update, and cache operations
+- `chiasmus-parity`: parity inventory reporter
+
+## Quick Start
+
+### Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/dsisnero/chiasmus.cr.git
+git clone --recursive https://github.com/dsisnero/chiasmus.cr.git
 cd chiasmus.cr
-
-# Install dependencies
 shards install
-
-# Initialize git submodules (upstream source)
-git submodule update --init --recursive
+make build
+make build-clis
 ```
 
-### Usage
-
-**As an MCP server:**
+### Verify the server
 
 ```bash
-# Build the binary
-make build
-
-# Verify the server works
 ./bin/chiasmus --healthcheck
+```
 
-# Run as MCP server (stdio transport)
+### Start the MCP server
+
+```bash
 ./bin/chiasmus
 ```
 
-**Adding to OpenCode:**
-
-Add to `~/.config/opencode/opencode.json`:
-
-```json
-{
-  "mcp": {
-    "chiasmus": {
-      "type": "local",
-      "command": ["/path/to/chiasmus.cr/bin/chiasmus"],
-      "enabled": true
-    }
-  }
-}
-```
-
-Then restart OpenCode. The server provides 12 tools for formal verification and code analysis. Run `./bin/chiasmus --healthcheck` first to verify the binary works.
-
-**Adding to Claude Code (Codex):**
-
-Add to `.claude.json` or `~/.claude.json`:
-
-```json
-{
-  "mcpServers": {
-    "chiasmus": {
-      "command": "/path/to/chiasmus.cr/bin/chiasmus",
-      "args": []
-    }
-  }
-}
-```
-
-**Provider configuration (optional):**
-
-Set these env vars for LLM-dependent tools (`chiasmus_solve`, `chiasmus_learn`, `chiasmus_search`):
+### Run the agent CLI
 
 ```bash
-export OPENAI_API_KEY="sk-..."     # for solve/learn
-# or
-export DEEPSEEK_API_KEY="sk-..."   # alternative provider
-# embedding-dependent:
-export OPENAI_API_KEY="sk-..."     # for chiasmus_search
+./bin/chiasmus-agent --help
 ```
 
-Without API keys, the server gracefully degrades — `chiasmus_solve` falls back to `chiasmus_formalize`, and non-LLM tools (`chiasmus_verify`, `chiasmus_graph`, `chiasmus_map`, `chiasmus_lint`, `chiasmus_skills`, `chiasmus_craft`, `chiasmus_review`) work independently.
-
-## 🏗️ Architecture & Technology Stack
-
-Chiasmus.cr is a behavior-faithful Crystal port with these key technology choices:
-
-### Core Dependencies
-
-- **[Crig](https://github.com/dsisnero/crig)** - LLM driver with multi-provider support (DeepSeek, OpenAI, etc.)
-- **[Crolog](https://github.com/dsisnero/crolog)** - SWI-Prolog integration (patched for missing bindings)
-- **[Z3](https://github.com/taw/crystal-z3)** - Z3 SMT solver bindings
-- **[Tree-sitter](https://github.com/dsisnero/crystal-tree-sitter)** - Source code parsing (patched for null safety)
-- **[MCP](https://github.com/spider-gazelle/mcp.cr)** - Model Context Protocol server implementation
-
-### Concurrency Model
-
-- **Crystal fibers** for lightweight concurrency
-- **Non-blocking I/O** with `spawn` and `Channel` patterns
-- **Go/Crystal concurrency patterns** for MCP server responsiveness
-
-### Key Design Decisions
-
-1. **Upstream behavior as source of truth** - Port behavior first, then express with Crystal idioms
-2. **Inventory-first porting** - All work tracked in `plans/inventory/` manifests
-3. **Test parity** - Upstream tests ported as Crystal specs early in process
-4. **Continuous verification** - Quality gates (`format`, `ameba`, `spec`) run frequently
-
-## 🔧 Development
-
-### Quality Gates
+### Inspect grammar tooling
 
 ```bash
-make format    # crystal tool format --check src spec
-make lint      # ameba src spec
-make test      # crystal spec
-make clean     # Clean build artifacts
+./bin/chiasmus-grammar --help
+./bin/chiasmus-discover --help
+./bin/chiasmus-parity --help
 ```
 
-### Porting Workflow
+## Configuration
 
-1. Review upstream source in `vendor/chiasmus/`
-2. Check `plans/inventory/` for existing parity tracking
-3. Use `cross-language-crystal-parity` skill to bootstrap/validate parity plan
-4. Implement against inventory items using `porting-to-crystal` workflow
+### LLM provider selection
 
-### Language Mapping (TypeScript → Crystal)
+Common environment variables:
 
-| TypeScript | Crystal |
-|------------|---------|
-| `interface` | `abstract struct` or module with methods |
-| `class` | `class` |
-| `type` | `alias` or `struct` |
-| `function` | `def` |
-| `Promise<T>` | `Future(T)` or `Channel(T)` |
-| `async/await` | `spawn` + `Channel` or `Future` |
-| `try/catch` | `begin/rescue` |
-| `export` | Make method/class public in module |
-| `import` | `require` |
+```bash
+export CHIASMUS_LLM_PROVIDER=deepseek
+export CHIASMUS_LLM_MODEL=deepseek-chat
+export DEEPSEEK_API_KEY=...
+```
 
-## ✨ Features
+Supported provider families in the server factory include:
 
-### Formal Verification
+- `deepseek`
+- `openai`
+- `anthropic`
+- `gemini`
+- `groq`
+- `ollama`
+- `mistral`
+- `cohere`
 
-- **Z3 SMT solver integration** - Mathematical proof of program properties
-- **SWI-Prolog integration** - Logic programming and rule-based reasoning
-- **Template-based problem formalization** - Natural language to formal logic translation
+### Embeddings for semantic search
 
-### Code Analysis
+`chiasmus_search` uses embeddings plus cosine similarity over extracted defines.
 
-- **Tree-sitter parsing** - Multi-language source code analysis (Crystal, Python, Go, Clojure, JavaScript/TypeScript)
-- **Call graph analysis** - Reachability, dead code detection, impact analysis
-- **Fact extraction** - AST traversal to build knowledge graphs
+Common environment variables:
 
-### LLM Integration
+```bash
+export CHIASMUS_EMBED_PROVIDER=openai
+export CHIASMUS_EMBED_MODEL=text-embedding-3-small
+export OPENAI_API_KEY=...
+```
 
-- **MCP server** - Model Context Protocol for LLM tool access
-- **Crig agent** - Multi-provider LLM support (DeepSeek, OpenAI, etc.)
-- **Interactive REPL** - Agent-driven problem solving loop
+### Grammar lookup
 
-### Example Use Cases
+Graph extraction and discovery look for grammars in this order:
 
-- **"Can our RBAC rules ever conflict?"** → Z3 finds the exact role/action/resource triple where allow and deny both fire
-- **"Find compatible package versions"** → Z3 solves dependency constraints with incompatibility rules
-- **"Can user input reach the database?"** → Prolog traces all paths through the call graph
-- **"Are our frontend and backend validations consistent?"** → Z3 finds concrete inputs that pass one but fail the other
-- **"What's the dead code in this module?"** → tree-sitter parses source files, Prolog finds unreachable functions
-- **"What breaks if I change this function?"** → call graph impact analysis shows all transitive callers
+1. `CHIASMUS_GRAMMAR_DIR`
+2. bundled `./grammars`
+3. XDG cache directories
+4. project grammar directories when available
 
-## 📁 Project Structure
+The `chiasmus-grammar` binary is the supported way to manage those parser artifacts.
+
+## Supported Analysis Surface
+
+The graph subsystem has dedicated walkers for the primary languages Chiasmus is optimized around:
+
+- Crystal
+- TypeScript and TSX
+- JavaScript
+- Python
+- Go
+- Rust
+- Java
+- C#
+- C++
+- C
+- Kotlin
+- Scala
+- Dart
+- PHP
+- Perl
+- Bash
+- Protobuf
+- Clojure
+
+The language registry also tracks additional languages and extensions for grammar management and future expansion.
+
+## Repository Layout
 
 ```text
 chiasmus.cr/
-├── src/chiasmus/           # Main source code
-│   ├── graph/             # Tree-sitter analysis (parsers, extractors, walkers)
-│   ├── solvers/           # Z3, Prolog, and hybrid solvers
-│   ├── mcp_server/        # MCP server implementation and tools
-│   ├── llm/               # Crig integration and LLM drivers
-│   └── rig_tool.cr        # Crig agent implementation
-├── spec/                  # Crystal specs (test parity)
-├── docs/                  # Technical documentation
-├── plans/inventory/       # Porting inventory and parity tracking
-├── vendor/               # Upstream source and dependencies
-│   └── chiasmus/         # TypeScript upstream (git submodule)
-└── lib_issues/           # Shard patch tracking
+├── src/
+│   ├── chiasmus_cli.cr         # MCP server executable entrypoint
+│   ├── chiasmus-agent.cr       # Interactive agent CLI entrypoint
+│   ├── chiasmus_discover.cr    # Discovery CLI entrypoint
+│   ├── chiasmus_grammar.cr     # Grammar manager entrypoint
+│   ├── chiasmus_parity.cr      # Parity CLI entrypoint
+│   └── chiasmus/
+│       ├── mcp_server/         # Server core and MCP tools
+│       ├── graph/              # tree-sitter parsing and graph analyses
+│       ├── formalize/          # Template selection and slot-filling flow
+│       ├── solvers/            # Z3 and Prolog integrations
+│       ├── llm/                # Provider config and adapters
+│       ├── search/             # Embedding-based semantic search
+│       └── skills/             # Template storage, relationships, learning
+├── spec/                       # Crystal specs
+├── docs/                       # Maintained prose docs
+├── plans/                      # Parity and design plans
+├── shards_issues/              # Notes for upstream shard/library bugs
+└── vendor/chiasmus/            # Upstream TypeScript source of truth
 ```
 
-## 🔄 Porting Status
+## Development
 
-Active Crystal port with comprehensive parity tracking:
+Core local commands:
 
-- **✅ Core architecture** - MCP server, solvers, graph analysis
-- **✅ Tree-sitter integration** - Multi-language walkers with Crystal support
-- **✅ Crolog integration** - SWI-Prolog bindings (patched)
-- **✅ Crig integration** - LLM agent with DeepSeek support
-- **🔄 Test coverage** - 57 examples, 0 failures
-- **📋 Inventory tracking** - Complete API/test parity manifests
+```bash
+make format
+make lint
+make test
+make build
+make build-clis
+```
 
-See `plans/inventory/` for detailed porting status and `AGENTS.md` for porting workflow.
+For deeper guidance, use:
 
-## 🤝 Contributing
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- [docs/TESTING.md](docs/TESTING.md)
+- [docs/INDEX.md](docs/INDEX.md)
+- [AGENTS.md](AGENTS.md)
 
-We welcome contributions! Please follow the porting workflow in `AGENTS.md`.
+## Release Notes and Issue Tracking
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feat/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: Add amazing feature'`)
-4. Push to the branch (`git push origin feat/amazing-feature`)
-5. Open a Pull Request
+- [CHANGELOG.md](CHANGELOG.md) tracks shipped changes
+- [shards_issues/](shards_issues/) tracks upstream dependency and shard issues that affect this repo
 
-### Porting Guidelines
+## License
 
-- **Upstream behavior is source of truth** - Port behavior first, then Crystal idioms
-- **Inventory-first** - Track all work in `plans/inventory/` manifests
-- **Test parity** - Port upstream tests as Crystal specs
-- **Quality gates** - Run `make format`, `make lint`, `make test` before committing
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **[yogthos/chiasmus](https://github.com/yogthos/chiasmus)** - Original TypeScript implementation
-- **[Crystal community](https://crystal-lang.org/)** - For the amazing language and ecosystem
-- **[All contributors](https://github.com/dsisnero/chiasmus.cr/graphs/contributors)** - Who help make this project better
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/dsisnero/chiasmus.cr/issues)
-- **Documentation**: [docs/](docs/) directory
-- **Agent guidance**: [AGENTS.md](AGENTS.md) for engineering workflows
-
----
-
-**Chiasmus.cr** - Formal verification meets Crystal elegance. 🎯
+MIT. See [LICENSE](LICENSE).

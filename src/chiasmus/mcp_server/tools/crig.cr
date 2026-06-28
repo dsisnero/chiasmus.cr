@@ -16,7 +16,7 @@ Crig.rig_tool("Run a direct Crig prompt using the configured LLM provider and re
   def crig_prompt(
     prompt : String,
     preamble : String = Chiasmus::LLM::DEFAULT_PREAMBLE,
-    model : String = Crig::Providers::OpenAI::GPT_4O_MINI,
+    model : String = Chiasmus::LLM::DEFAULT_MODEL,
     max_turns : Int32 = 0,
   ) : Chiasmus::MCPServer::Types::CrigResponse
     config = Chiasmus::LLM::SimpleConfig.new(model: model, preamble: preamble)
@@ -102,7 +102,7 @@ module Chiasmus
         private def normalized_arguments(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
           normalized = arguments.dup
           normalized["preamble"] ||= JSON::Any.new(Chiasmus::LLM::DEFAULT_PREAMBLE)
-          normalized["model"] ||= JSON::Any.new(Crig::Providers::OpenAI::GPT_4O_MINI)
+          normalized["model"] ||= JSON::Any.new(Chiasmus::LLM::DEFAULT_MODEL)
           normalized["max_turns"] ||= JSON::Any.new(0_i64)
           normalized
         end

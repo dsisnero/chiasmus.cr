@@ -16,7 +16,7 @@ require "./discovery/extractors/*"
 # and clearly reports which parser mode was used.
 module Chiasmus
   module Discovery
-    VERSION = "0.1.0"
+    VERSION = Chiasmus::VERSION
 
     # Represents a discovered symbol.
     record Item,

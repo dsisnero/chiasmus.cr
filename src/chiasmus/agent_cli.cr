@@ -11,7 +11,7 @@ require "./llm/types"
 
 module Chiasmus
   module AgentCLI
-    VERSION = "0.1.0"
+    VERSION = Chiasmus::VERSION
 
     struct Options
       getter mode : Symbol

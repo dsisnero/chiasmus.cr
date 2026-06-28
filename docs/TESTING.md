@@ -1,140 +1,124 @@
 # Testing Guide
 
-## Testing Strategy
+## Testing Philosophy
 
-This project uses a test-driven porting approach:
+This repo is a porting project and an MCP runtime. The tests therefore need to prove two things:
 
-1. **Port tests first** - Translate upstream TypeScript tests to Crystal specs
-2. **Preserve test logic** - Keep assertions and test cases identical
-3. **Verify behavior** - Ensure Crystal implementation matches upstream behavior
+1. Crystal behavior matches the intended upstream behavior
+2. the server still works as an actual MCP tool host
 
-## Test Structure
+That is why the suite spans both low-level unit coverage and full in-memory MCP flows.
 
-- **Unit tests**: `spec/chiasmus/` - Test individual components
-  - `spec/chiasmus/graph/` - Tree-sitter and code analysis tests
-  - `spec/chiasmus/solvers/` - Z3, Prolog, and hybrid solver tests
-  - `spec/chiasmus/mcp_server/` - MCP server and tool tests
-  - `spec/chiasmus/llm/` - LLM integration tests
-- **Integration tests**: `spec/integration/` - Test component interactions
-- **Porting tests**: Tests ported from upstream TypeScript implementation
-- **Current status**: 57 examples, 0 failures, 0 errors, 0 pending
+## What Gets Tested
 
-## Running Tests
+### CLI and entrypoints
+
+These specs check:
+
+- `--version`
+- `--healthcheck`
+- CLI help output
+- executable entrypoint behavior
+
+### MCP transport and tool registration
+
+These specs cover:
+
+- `initialize`
+- `tools/list`
+- tool gating when optional backends are missing
+- cancellation boundaries
+- end-to-end tool execution over in-memory transports
+
+### Formalization and solver flows
+
+These specs exercise:
+
+- template lookup
+- solve/fallback behavior
+- linting
+- Z3 execution
+- Prolog execution
+- learning and skill persistence behavior
+
+### Graph, discovery, and parser flows
+
+These specs cover:
+
+- discovery CLI behavior
+- parser and grammar loading
+- call-graph extraction
+- graph algorithms
+- snapshot diffing
+- concurrency-sensitive file and parser paths
+
+### Search and review
+
+These specs cover:
+
+- semantic-search corpus generation
+- embedding cache behavior
+- review-plan generation and delta-review handling
+
+### Parity tooling
+
+These specs verify the inventory and manifest helpers that keep the Crystal port aligned with upstream.
+
+## Core Commands
+
+Run the repo gates:
 
 ```bash
-# Run all tests
+make format
+make lint
 make test
-
-# Run specific test file
-crystal spec spec/unit/verification/z3_spec.cr
-
-# Run tests with verbose output
-crystal spec --verbose
-
-# Run tests with fail-fast
-crystal spec --fail-fast
 ```
 
-## Test Dependencies
+## Focused Test Runs
 
-- **Crystal spec**: Built-in testing framework
-- **SWI-Prolog**: Required for Prolog solver tests
-- **Z3**: Optional for SMT solver tests (tests skip if not available)
-- **Tree-sitter grammars**: Built parsers for language analysis tests
-- **Test fixtures**: Sample code files in `spec/fixtures/`
-
-## Porting TypeScript Tests
-
-When porting TypeScript tests to Crystal:
-
-### 1. Test File Structure
-
-TypeScript (Vitest/Jest):
-```typescript
-describe("Z3Solver", () => {
-  it("solves basic constraints", () => {
-    const solver = new Z3Solver();
-    const result = solver.solve("(declare-const x Int) (assert (> x 0))");
-    expect(result.status).toBe("sat");
-  });
-});
-```
-
-Crystal:
-```crystal
-describe Z3Solver do
-  it "solves basic constraints" do
-    solver = Z3Solver.new
-    result = solver.solve("(declare-const x Int) (assert (> x 0))")
-    result.status.should eq("sat")
-  end
-end
-```
-
-### 2. Assertion Mapping
-
-| TypeScript | Crystal |
-|------------|---------|
-| `expect(x).toBe(y)` | `x.should eq(y)` |
-| `expect(x).toBeTruthy()` | `x.should be_truthy` |
-| `expect(x).toBeFalsy()` | `x.should be_falsey` |
-| `expect(x).toThrow()` | `expect_raises(Error) { x }` |
-| `expect(x).toContain(y)` | `x.should contain(y)` |
-
-### 3. Async Test Handling
-
-TypeScript:
-```typescript
-it("handles async operations", async () => {
-  const result = await asyncOperation();
-  expect(result).toBeDefined();
-});
-```
-
-Crystal:
-```crystal
-it "handles async operations" do
-  channel = Channel(Result).new
-  spawn do
-    result = async_operation
-    channel.send(result)
-  end
-
-  result = channel.receive
-  result.should_not be_nil
-end
-```
-
-### 4. Test Fixtures
-
-Preserve upstream test fixtures exactly:
-- Copy fixture files from `vendor/chiasmus/tests/fixtures/` to `spec/fixtures/`
-- Use relative paths in tests
-- Verify fixture content matches
-
-## Test Coverage
-
-- Aim for 100% test coverage of ported functionality
-- Use `crystal tool coverage` to generate coverage reports
-- Track coverage gaps in `plans/inventory/`
-
-## Continuous Integration
-
-Tests run automatically on:
-- `make test` - Local development
-- GitHub Actions - CI pipeline
-- Pre-commit hooks - Quality gate
-
-## Debugging Tests
+Examples that are useful during development:
 
 ```bash
-# Run with debug output
-DEBUG=true crystal spec
-
-# Run specific test line
-crystal spec spec/unit/verification/z3_spec.cr:15
-
-# Use binding.pry for debugging
-require "pry"
-binding.pry
+crystal spec spec/mcp_server/tools/formalize_spec.cr
+crystal spec spec/mcp_server/tools/solve_spec.cr
+crystal spec spec/chiasmus/review_spec.cr
+crystal spec spec/mcp_server/mcp_integration_spec.cr
+crystal spec spec/chiasmus/graph/
 ```
+
+If you want the same cache behavior used in most local verification passes:
+
+```bash
+CRYSTAL_CACHE_DIR=$PWD/.crystal-cache crystal spec spec/mcp_server/tools/formalize_spec.cr
+```
+
+## Release-Oriented Verification
+
+Before tagging a release, verify at least these:
+
+```bash
+make lint
+make test
+./bin/chiasmus --healthcheck
+./bin/chiasmus-agent --help
+./bin/chiasmus-discover --help
+./bin/chiasmus-grammar --help
+./bin/chiasmus-parity --help
+```
+
+That mix validates both the library and the distributed binaries.
+
+## Reading Failures
+
+A few failure patterns are common:
+
+- MCP breakage often appears first in `initialize` or `tools/list` tests
+- no-LLM regressions usually show up in formalize/solve/learn behavior or tool gating
+- graph regressions often come from grammar lookup, parser availability, or shared-state assumptions
+- semantic-search regressions often come from embedding provider resolution or cached vector shape mismatches
+
+## Notes for Contributors
+
+- Prefer adding a focused spec before changing behavior.
+- If a bug depends on concurrency, preserve that shape in the regression test instead of rewriting it into a synchronous example.
+- If the behavior comes from upstream, keep the assertion language aligned with the upstream contract.

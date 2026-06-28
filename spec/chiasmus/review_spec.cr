@@ -60,6 +60,18 @@ describe Chiasmus::Review do
       mentions_taint.should be_true
     end
 
+    it "formalize actions use problem arguments instead of stale template arguments" do
+      plan = Chiasmus::Review.build_plan(files, "all")
+
+      formalize_actions = plan.phases.flat_map(&.actions).select { |action| action.tool == "chiasmus_formalize" }
+      formalize_actions.should_not be_empty
+
+      formalize_actions.each do |action|
+        action.args["problem"]?.try(&.as_s?).should_not be_nil
+        action.args["template"]?.should be_nil
+      end
+    end
+
     it "'architecture' focus includes dead-code, cycles, and layer-violation analyses" do
       plan = Chiasmus::Review.build_plan(files, "architecture")
       analyses = Set(String).new
@@ -156,6 +168,22 @@ describe Chiasmus::Review do
       plan = Chiasmus::Review.build_plan(files, "quick", delta_against: "main")
       phases = plan.phases
       phases.any? { |phase| phase.phase =~ /delta/i }.should be_true
+    end
+
+    it "delta phase passes the against snapshot through to graph diff" do
+      plan = Chiasmus::Review.build_plan(files, delta_against: "main")
+      diff_action = plan.phases[0].actions.find { |action| action.tool == "chiasmus_graph" && action.args["analysis"]?.try(&.as_s?) == "diff" }
+      diff_action.should_not be_nil
+      diff_action.try(&.args["against"]?.try(&.as_s?)).should eq("main")
+    end
+
+    it "impact analyses include explicit placeholder targets for follow-up calls" do
+      plan = Chiasmus::Review.build_plan(files, "architecture", delta_against: "main")
+      impact_actions = plan.phases.flat_map(&.actions).select { |action| action.tool == "chiasmus_graph" && action.args["analysis"]?.try(&.as_s?) == "impact" }
+      impact_actions.should_not be_empty
+      impact_actions.each do |action|
+        action.args["target"]?.try(&.as_s?).should_not be_nil
+      end
     end
   end
 end

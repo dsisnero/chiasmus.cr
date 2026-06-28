@@ -4,25 +4,78 @@ module Chiasmus
   module LLM
     # Default configuration
     DEFAULT_PREAMBLE = "You are Chiasmus, a formal reasoning assistant that produces concise, exact outputs."
+    DEFAULT_PROVIDER = "deepseek"
+    DEFAULT_MODEL    = Crig::Providers::DeepSeek::DEEPSEEK_CHAT
 
     # Simple configuration struct for basic usage
     struct SimpleConfig
-      getter provider : String = "openai"
+      getter provider : String = DEFAULT_PROVIDER
       getter api_key : String?
       getter base_url : String?
-      getter model : String = Crig::Providers::OpenAI::GPT_4O_MINI
+      getter model : String = DEFAULT_MODEL
       getter preamble : String = DEFAULT_PREAMBLE
 
       def initialize(
-        @provider : String = ENV["CHIASMUS_LLM_PROVIDER"]? || "openai",
+        @provider : String = ENV["CHIASMUS_LLM_PROVIDER"]? || "",
         @api_key : String? = nil,
         @base_url : String? = nil,
-        @model : String = ENV["CHIASMUS_LLM_MODEL"]? || Crig::Providers::OpenAI::GPT_4O_MINI,
+        @model : String = ENV["CHIASMUS_LLM_MODEL"]? || DEFAULT_MODEL,
         @preamble : String = DEFAULT_PREAMBLE,
       )
+        @provider = self.class.resolve_provider(@provider, @model)
         provider_name = @provider.downcase
         @api_key ||= self.class.api_key_from_env(provider_name)
         @base_url ||= self.class.base_url_from_env(provider_name)
+      end
+
+      def self.resolve_provider(provider : String, model : String) : String
+        return provider.downcase unless provider.empty?
+
+        provider_for_model(model) || DEFAULT_PROVIDER
+      end
+
+      def self.provider_for_model(model : String) : String?
+        normalized = model.downcase
+
+        provider_matchers = {
+          {"deepseek", starts_with_any?(normalized, ["deepseek"])},
+          {"anthropic", includes_any?(normalized, ["claude"])},
+          {"gemini", includes_any?(normalized, ["gemini"])},
+          {"groq", includes_any?(normalized, ["llama-3.3", "groq"])},
+          {"ollama", starts_with_any?(normalized, ["llama3", "qwen", "mistral:", "phi"])},
+          {"mistral", starts_with_any?(normalized, ["mistral"])},
+          {"cohere", starts_with_any?(normalized, ["command"])},
+          {"azure", includes_any?(normalized, ["azure"])},
+          {"openai", starts_with_any?(normalized, ["gpt-", "o1", "o3", "text-embedding-"])},
+        }
+
+        provider_matchers.each do |provider, matched|
+          return provider if matched
+        end
+
+        nil
+      end
+
+      private def self.starts_with_any?(value : String, prefixes : Array(String)) : Bool
+        prefixes.any? { |prefix| value.starts_with?(prefix) }
+      end
+
+      private def self.includes_any?(value : String, terms : Array(String)) : Bool
+        terms.any? { |term| value.includes?(term) }
+      end
+
+      def self.default_model_for(provider : String) : String
+        case provider.downcase
+        when "openai"    then Crig::Providers::OpenAI::GPT_4O_MINI
+        when "deepseek"  then Crig::Providers::DeepSeek::DEEPSEEK_CHAT
+        when "anthropic" then "claude-3-5-sonnet-20241022"
+        when "gemini"    then "gemini-2.0-flash-exp"
+        when "groq"      then "llama-3.3-70b"
+        when "ollama"    then "llama3.2"
+        when "mistral"   then "mistral-large-2411"
+        when "cohere"    then "command-r-plus-08-2024"
+        else                  DEFAULT_MODEL
+        end
       end
 
       def self.api_key_from_env(provider : String) : String?
@@ -166,22 +219,12 @@ module Chiasmus
     class_property current_config : SimpleConfig = SimpleConfig.new
 
     # Configure with simple settings
-    def self.configure(provider : String = "openai", model : String? = nil, api_key : String? = nil, base_url : String? = nil)
+    def self.configure(provider : String = DEFAULT_PROVIDER, model : String? = nil, api_key : String? = nil, base_url : String? = nil)
       @@current_config = SimpleConfig.new(
         provider: provider,
         api_key: api_key,
         base_url: base_url,
-        model: model || case provider.downcase
-        when "openai"    then Crig::Providers::OpenAI::GPT_4O_MINI
-        when "deepseek"  then Crig::Providers::DeepSeek::DEEPSEEK_CHAT
-        when "anthropic" then "claude-3-5-sonnet-20241022"
-        when "gemini"    then "gemini-2.0-flash-exp"
-        when "groq"      then "llama-3.3-70b"
-        when "ollama"    then "llama3.2"
-        when "mistral"   then "mistral-large-2411"
-        when "cohere"    then "command-r-plus-08-2024"
-        else                  Crig::Providers::OpenAI::GPT_4O_MINI
-        end
+        model: model || SimpleConfig.default_model_for(provider)
       )
     end
 

@@ -13,7 +13,7 @@ module Chiasmus
             return Types::ErrorResponse.new("The 'problem' parameter (string) is required")
           end
 
-          server = MCPServer.current_server
+          server = MCPServer.refresh_with_llm_if_available(MCPServer.current_server)
           return Types::ErrorResponse.new("Server not available") unless server
 
           async_result = server.solve_async(args.problem).receive

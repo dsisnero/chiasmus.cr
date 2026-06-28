@@ -13,7 +13,7 @@ module Chiasmus
             return Types::ErrorResponse.new("The 'problem' parameter (string) is required")
           end
 
-          server = MCPServer.current_server
+          server = MCPServer.refresh_with_llm_if_available(MCPServer.current_server)
           return Types::ErrorResponse.new("Server not available") unless server
 
           async_result = server.formalize_async(args.problem).receive
@@ -22,7 +22,7 @@ module Chiasmus
           end
 
           result = async_result.value
-          return Types::ErrorResponse.new("Formalization engine not available") unless result
+          return Types::ErrorResponse.new("No matching template found for the requested problem") unless result
 
           suggestions = server.skill_library.get_related(result.template.name).map do |related|
             JSON.parse({

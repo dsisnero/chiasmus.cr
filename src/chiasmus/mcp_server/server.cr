@@ -53,6 +53,7 @@ module Chiasmus
     abstract class BaseServer
       abstract def skill_library : Skills::Library
       abstract def skill_learner : Skills::Learner?
+      abstract def refreshable_from_env? : Bool
       abstract def formalize(problem : String) : Formalize::FormalizeResult?
       abstract def formalize_async(problem : String) : Channel(AsyncCallResult(Formalize::FormalizeResult))
       abstract def solve(problem : String, max_rounds : Int32 = 5) : Formalize::SolveResult?
@@ -80,6 +81,24 @@ module Chiasmus
       end
     end
 
+    def self.refresh_with_llm_if_available(server : BaseServer?) : BaseServer?
+      return server unless server
+      return server if server.skill_learner
+      return server unless server.refreshable_from_env?
+      return server unless llm_env_available?
+
+      Factory.from_env
+    rescue ex
+      STDERR.puts "[Chiasmus] unable to refresh runtime LLM server: #{ex.message}"
+      server
+    end
+
+    def self.llm_env_available? : Bool
+      provider = ENV["CHIASMUS_LLM_PROVIDER"]? || LLM::DEFAULT_PROVIDER
+      model = ENV["CHIASMUS_LLM_MODEL"]? || LLM::SimpleConfig.default_model_for(provider)
+      LLM.available?(LLM::SimpleConfig.new(provider: provider, model: model))
+    end
+
     # Main server class that orchestrates all chiasmus functionality
     # Generic over model type M to support different LLM providers
     class Server(M) < BaseServer
@@ -92,22 +111,23 @@ module Chiasmus
       @tool_handlers : Hash(String, Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult))
 
       # Create a server instance with a specific agent
-      def self.with_agent(agent : Crig::Agent(M)) forall M
-        server = Server(M).new
+      def self.with_agent(agent : Crig::Agent(M), env_managed : Bool = false) forall M
+        server = Server(M).new(refreshable_from_env: env_managed)
         server.with_agent(agent)
         MCPServer.current_server = server
         server
       end
 
       # Keep the builder-first Crig flow available for local callers and specs.
-      def self.with_agent_builder(builder : Crig::AgentBuilder(M)) forall M
-        with_agent(builder.build)
+      def self.with_agent_builder(builder : Crig::AgentBuilder(M), env_managed : Bool = false) forall M
+        with_agent(builder.build, env_managed: env_managed)
       end
 
       getter skill_library : Skills::Library
       getter skill_learner : Skills::Learner?
+      getter? refreshable_from_env : Bool
 
-      def initialize
+      def initialize(@refreshable_from_env : Bool = false)
         @config = Utils::Config.load
         @skill_library = Skills::Library.create(self.class.chiasmus_home)
         @skill_learner = nil
@@ -132,7 +152,11 @@ module Chiasmus
       end
 
       def formalize(problem : String) : Formalize::FormalizeResult?
-        @formalization_engine.try(&.formalize(problem))
+        if engine = @formalization_engine
+          engine.formalize(problem)
+        else
+          Formalize::Engine.new(@skill_library, LLM::MockAdapter.create_agent).formalize(problem)
+        end
       end
 
       def formalize_async(problem : String) : Channel(AsyncCallResult(Formalize::FormalizeResult))

@@ -17,11 +17,32 @@ def chiasmus_cli_binary : String
   File.join(Dir.current, ".crystal-cache", "chiasmus-cli-test")
 end
 
+def chiasmus_cli_sources : Array(String)
+  [
+    File.join(Dir.current, "src", "chiasmus.cr"),
+    File.join(Dir.current, "src", "chiasmus_cli.cr"),
+    File.join(Dir.current, "shard.yml"),
+  ]
+end
+
+def chiasmus_cli_binary_current?(binary : String) : Bool
+  return false unless File.exists?(binary)
+
+  binary_mtime = File.info(binary).modification_time
+  return false if chiasmus_cli_sources.any? { |path| File.info(path).modification_time > binary_mtime }
+
+  output = IO::Memory.new
+  result = Process.run(binary, ["--version"], env: chiasmus_cli_env, output: output, error: output)
+  result.success? && output.to_s.includes?(Chiasmus::VERSION)
+rescue
+  false
+end
+
 def build_chiasmus_cli
   binary = chiasmus_cli_binary
-  return if File.exists?(binary)
+  return if chiasmus_cli_binary_current?(binary)
   CHIASMUS_CLI_BUILD_MUTEX.synchronize do
-    return if File.exists?(binary)
+    return if chiasmus_cli_binary_current?(binary)
     result = Process.run(
       "crystal", ["build", "src/chiasmus_cli.cr", "-o", binary],
       env: chiasmus_cli_env,

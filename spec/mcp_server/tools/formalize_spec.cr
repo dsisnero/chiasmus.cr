@@ -52,6 +52,24 @@ describe Chiasmus::MCPServer::Tools::FormalizeTool do
     suggestions.first["name"]?.try(&.as_s?).should eq("policy-reachability")
   end
 
+  it "degrades gracefully to template search when no LLM-backed engine is configured" do
+    server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
+    Chiasmus::MCPServer.current_server = server
+    tool = Chiasmus::MCPServer::Tools::FormalizeTool.new
+
+    result = tool.invoke({
+      "problem" => JSON::Any.new("Check if access control rules can ever conflict"),
+    })
+
+    result.status.should eq("success")
+    formalize = result.as(Chiasmus::MCPServer::Types::FormalizeResponse)
+    formalize.template.should eq("policy-contradiction")
+    formalize.solver.should eq("z3")
+    formalize.instructions.should contain("SLOT")
+  ensure
+    Chiasmus::MCPServer.current_server = nil
+  end
+
   it "uses async formalization before building the response" do
     server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).with_agent_builder(
       Chiasmus::LLM::MockClient.new.agent("mock")

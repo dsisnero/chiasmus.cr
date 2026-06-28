@@ -22,7 +22,7 @@ module Chiasmus
         client = apply_optional_credentials(Crig::Providers::OpenAI::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
-        Server.with_agent(agent)
+        Server.with_agent(agent, env_managed: true)
       end
 
       # Create a server with DeepSeek provider
@@ -35,7 +35,7 @@ module Chiasmus
         client = apply_optional_credentials(Crig::Providers::DeepSeek::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
-        Server.with_agent(agent)
+        Server.with_agent(agent, env_managed: true)
       end
 
       # Create a server with Anthropic provider
@@ -48,7 +48,7 @@ module Chiasmus
         client = apply_optional_credentials(Crig::Providers::Anthropic::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
-        Server.with_agent(agent)
+        Server.with_agent(agent, env_managed: true)
       end
 
       # Create a server with Gemini provider
@@ -61,7 +61,7 @@ module Chiasmus
         client = apply_optional_credentials(Crig::Providers::Gemini::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
-        Server.with_agent(agent)
+        Server.with_agent(agent, env_managed: true)
       end
 
       # Create a server with Groq provider
@@ -74,7 +74,7 @@ module Chiasmus
         client = apply_optional_credentials(Crig::Providers::Groq::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
-        Server.with_agent(agent)
+        Server.with_agent(agent, env_managed: true)
       end
 
       # Create a server with Ollama provider (local, no API key needed)
@@ -89,7 +89,7 @@ module Chiasmus
         client = client.build
 
         agent = client.agent(model).preamble(preamble).build
-        Server.with_agent(agent)
+        Server.with_agent(agent, env_managed: true)
       end
 
       # Create a server with Mistral provider
@@ -102,7 +102,7 @@ module Chiasmus
         client = apply_optional_credentials(Crig::Providers::Mistral::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
-        Server.with_agent(agent)
+        Server.with_agent(agent, env_managed: true)
       end
 
       # Create a server with Cohere provider
@@ -115,7 +115,7 @@ module Chiasmus
         client = apply_optional_credentials(Crig::Providers::Cohere::Client.builder, api_key, base_url).build
 
         agent = client.agent(model).preamble(preamble).build
-        Server.with_agent(agent)
+        Server.with_agent(agent, env_managed: true)
       end
 
       # Create a server without an LLM agent — tools that need an LLM
@@ -123,7 +123,7 @@ module Chiasmus
       # chiasmus_solve falls back to formalize, chiasmus_learn returns
       # "no LLM configured", chiasmus_crig returns "no API key").
       private def self.no_llm_server : Server(LLM::MockCompletionModel)
-        server = Server(LLM::MockCompletionModel).new
+        server = Server(LLM::MockCompletionModel).new(refreshable_from_env: true)
         MCPServer.current_server = server
         server
       end
