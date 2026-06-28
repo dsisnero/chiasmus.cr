@@ -1,6 +1,7 @@
 require "spec"
 require "../../src/chiasmus/parity"
 require "file_utils"
+require "../../src/chiasmus/utils/timeout"
 
 describe Chiasmus::Parity::Naming do
   it "normalizes camelCase and snake_case to the same key" do
@@ -204,6 +205,74 @@ TSV
       )
 
       result.rows.first.crystal_name.should eq("Demo.real_symbol")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "reads Crystal files concurrently during tree-sitter parity scanning" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-tree-scan-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      Dir.mkdir_p(File.join(dir, "src"))
+      Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+      {
+        "alpha.cr" => "module Demo\n  def self.alpha\n  end\nend\n",
+        "beta.cr"  => "module Demo\n  def self.beta\n  end\nend\n",
+        "gamma.cr" => "module Demo\n  def self.gamma\n  end\nend\n",
+      }.each do |name, content|
+        File.write(File.join(dir, "src", name), content)
+      end
+
+      File.write(File.join(dir, "plans", "inventory", "port.tsv"), <<-TSV)
+# source_id\tkind\tstatus\tcrystal_refs\tnotes
+src/demo.ts::function::alpha\tfunction\tported\tsrc/alpha.cr:2\tPorted
+TSV
+
+      entered = Channel(String).new(3)
+      release = Channel(Bool).new(3)
+      result_channel = Channel(Chiasmus::Parity::AnalysisResult).new(1)
+
+      begin
+        Chiasmus::Parity::CrystalScanner.set_collect_file_max_concurrency_for_test(2)
+        Chiasmus::Parity::CrystalScanner.set_before_collect_file_read_hook_for_test do |path|
+          entered.send(File.basename(path))
+          release.receive
+        end
+
+        spawn do
+          result_channel.send(Chiasmus::Parity.analyze(
+            inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
+            root_dir: dir,
+            crystal_dirs: ["src"],
+            parser_mode: "tree-sitter"
+          ))
+        end
+
+        first = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        second = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        first.should_not be_nil
+        second.should_not be_nil
+
+        select
+        when entered.receive
+          fail("expected tree-sitter parity scan to honor the bounded read limit")
+        when timeout 50.milliseconds
+        end
+
+        release.send(true)
+        third = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        third.should_not be_nil
+        2.times { release.send(true) }
+
+        result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+        result.should_not be_nil
+        result.not_nil!.parser_mode.should contain("tree-sitter")
+      ensure
+        Chiasmus::Parity::CrystalScanner.clear_before_collect_file_read_hook_for_test
+        Chiasmus::Parity::CrystalScanner.clear_collect_file_max_concurrency_for_test
+      end
     ensure
       FileUtils.rm_rf(dir)
     end

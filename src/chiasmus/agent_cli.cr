@@ -179,9 +179,7 @@ module Chiasmus
       analysis_type = graph_analysis_type(analysis_params[:analysis])
       return graph_error_response("Unknown analysis type: #{analysis_params[:analysis]}") unless analysis_type
 
-      source_files = code_files.map do |path|
-        Graph::SourceFile.new(path: path, content: File.read(path))
-      end
+      source_files = Graph::FileIO.read_source_files_or_raise(code_files)
 
       graph = Graph::Extractor.extract_graph(source_files)
 

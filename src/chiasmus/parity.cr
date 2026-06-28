@@ -156,6 +156,11 @@ module Chiasmus
     end
 
     class CrystalScanner
+      @@before_collect_file_read_hook = nil.as((String -> Nil)?)
+      @@before_collect_file_read_hook_mutex = Mutex.new
+      @@collect_file_max_concurrency_for_test = nil.as(Int32?)
+      @@collect_file_max_concurrency_for_test_mutex = Mutex.new
+
       def self.scan(root_dir : String, dirs : Array(String), parser_mode : String? = nil) : Tuple(Array(SymbolItem), String)
         force = parser_mode.try(&.downcase)
         register_vendor_grammars(root_dir)
@@ -216,14 +221,17 @@ module Chiasmus
 
       private def self.collect_files(root_dir : String, dirs : Array(String)) : Array(Tuple(String, String))
         absolute_root = File.expand_path(root_dir)
-        crystal_file_paths(absolute_root, dirs).compact_map do |path|
+        paths = crystal_file_paths(absolute_root, dirs)
+
+        Utils::BoundedWork.map_ordered(paths, collect_file_max_concurrency) do |path|
           rel = relative_to_root(path, absolute_root)
           begin
+            run_before_collect_file_read_hook(path)
             {rel, File.read(path)}
           rescue ex
             nil
           end
-        end
+        end.compact_map(&.itself)
       end
 
       private def self.relative_to_root(path : String, absolute_root : String) : String
@@ -290,6 +298,40 @@ module Chiasmus
 
       private def self.allowed_kind?(kind : String) : Bool
         VALID_CANDIDATE_KINDS.includes?(kind)
+      end
+
+      protected def self.run_before_collect_file_read_hook(path : String) : Nil
+        hook = @@before_collect_file_read_hook_mutex.synchronize { @@before_collect_file_read_hook }
+        hook.try(&.call(path))
+      end
+
+      private def self.collect_file_max_concurrency : Int32
+        override = @@collect_file_max_concurrency_for_test_mutex.synchronize { @@collect_file_max_concurrency_for_test }
+        Math.max(1, override || MAX_CONCURRENCY)
+      end
+
+      def self.set_before_collect_file_read_hook_for_test(&block : String ->) : Nil
+        @@before_collect_file_read_hook_mutex.synchronize do
+          @@before_collect_file_read_hook = block
+        end
+      end
+
+      def self.clear_before_collect_file_read_hook_for_test : Nil
+        @@before_collect_file_read_hook_mutex.synchronize do
+          @@before_collect_file_read_hook = nil
+        end
+      end
+
+      def self.set_collect_file_max_concurrency_for_test(value : Int32) : Nil
+        @@collect_file_max_concurrency_for_test_mutex.synchronize do
+          @@collect_file_max_concurrency_for_test = value
+        end
+      end
+
+      def self.clear_collect_file_max_concurrency_for_test : Nil
+        @@collect_file_max_concurrency_for_test_mutex.synchronize do
+          @@collect_file_max_concurrency_for_test = nil
+        end
       end
 
       private def self.deduplicate(items : Array(SymbolItem)) : Array(SymbolItem)

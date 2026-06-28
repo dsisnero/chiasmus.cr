@@ -1,6 +1,7 @@
 require "spec"
 require "json"
 require "../../src/chiasmus"
+require "../../src/chiasmus/utils/timeout"
 
 private def parse(args : Array(String)) : Chiasmus::AgentCLI::Options
   Chiasmus::AgentCLI.parse(args)
@@ -209,6 +210,61 @@ describe Chiasmus::AgentCLI do
       )
 
       JSON.parse(result)["status"].as_s.should eq("error")
+    end
+
+    it "reads code files with bounded concurrency before graph analysis" do
+      dir = File.join(Dir.tempdir, "agent-cli-concurrency-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+
+      paths = {
+        "a.ts" => "function a() { b(); }\nexport function mainA() {}\n",
+        "b.ts" => "function b() { c(); }\nexport function mainB() {}\n",
+        "c.ts" => "function c() {}\nexport function mainC() {}\n",
+      }.map do |name, content|
+        path = File.join(dir, name)
+        File.write(path, content)
+        path
+      end
+
+      entered = Channel(String).new(3)
+      release = Channel(Bool).new(3)
+      result_channel = Channel(String).new(1)
+
+      begin
+        Chiasmus::Graph::FileIO.set_default_max_concurrent_for_test(2)
+        Chiasmus::Graph::FileIO.set_before_read_hook_for_test do |path|
+          entered.send(File.basename(path))
+          release.receive
+        end
+
+        spawn do
+          result_channel.send(Chiasmus::AgentCLI.run_graph_analysis(paths, "summary"))
+        end
+
+        first = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        second = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        first.should_not be_nil
+        second.should_not be_nil
+
+        select
+        when entered.receive
+          fail("expected agent CLI file loading to honor the bounded read limit")
+        when timeout 50.milliseconds
+        end
+
+        release.send(true)
+        third = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        third.should_not be_nil
+        2.times { release.send(true) }
+
+        result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+        result.should_not be_nil
+        JSON.parse(result.not_nil!)["result"]["files"].as_i.should eq(3)
+      ensure
+        Chiasmus::Graph::FileIO.clear_before_read_hook_for_test
+        Chiasmus::Graph::FileIO.clear_default_max_concurrent_for_test
+        FileUtils.rm_rf(dir)
+      end
     end
   end
 
