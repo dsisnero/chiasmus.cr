@@ -124,9 +124,7 @@ module Chiasmus
       # "no LLM configured", chiasmus_crig returns "no API key").
       private def self.no_llm_server : Server(LLM::MockCompletionModel)
         server = Server(LLM::MockCompletionModel).new
-        MCPServer::RUNTIME_LOCK.synchronize do
-          MCPServer.current_server = server
-        end
+        MCPServer.current_server = server
         server
       end
 

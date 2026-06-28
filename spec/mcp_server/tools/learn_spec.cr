@@ -56,9 +56,11 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
 
     begin
       with_env({"CHIASMUS_HOME" => temp_home}) do
+        Chiasmus::MCPServer.current_server = nil
         test.run
       end
     ensure
+      Chiasmus::MCPServer.current_server = nil
       FileUtils.rm_rf(temp_home)
     end
   end
@@ -225,7 +227,8 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
     release.send(true)
     result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
     result.should_not be_nil
-    result.not_nil!.status.should eq("success")
+    learn_result = result || raise "expected learn tool result"
+    learn_result.status.should eq("success")
   ensure
     Chiasmus::Skills::Learner.clear_before_async_result_send_hook_for_test
   end

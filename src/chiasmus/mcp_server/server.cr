@@ -403,7 +403,7 @@ module Chiasmus
         end
       end
 
-      private def cancellation_signal(cancel_channel : Channel(Nil)) : Channel(Bool)
+      private def cancellation_signal(cancel_channel : Channel(Bool)) : Channel(Bool)
         signal = Channel(Bool).new(1)
 
         spawn do
