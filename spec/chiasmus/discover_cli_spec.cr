@@ -22,7 +22,7 @@ describe Chiasmus::DiscoverCLI do
       result_channel = Channel(Array(Tuple(String, String))).new(1)
 
       begin
-        Chiasmus::DiscoverCLI.set_scan_max_concurrent_for_test(2)
+        Chiasmus::DiscoverCLI.scan_max_concurrent_for_test = 2
         Chiasmus::DiscoverCLI.set_before_scan_file_read_hook_for_test do |path|
           entered.send(File.basename(path))
           release.receive
@@ -50,7 +50,8 @@ describe Chiasmus::DiscoverCLI do
 
         result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
         result.should_not be_nil
-        result.not_nil!.map(&.[0]).to_set.should eq(Set{"a.ts", "b.ts", "c.ts"})
+        entries = result || raise "expected discovered entries"
+        entries.map(&.[0]).to_set.should eq(Set{"a.ts", "b.ts", "c.ts"})
       ensure
         Chiasmus::DiscoverCLI.clear_before_scan_file_read_hook_for_test
         Chiasmus::DiscoverCLI.clear_scan_max_concurrent_for_test

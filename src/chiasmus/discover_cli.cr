@@ -178,7 +178,7 @@ module Chiasmus
       end
     end
 
-    def set_scan_max_concurrent_for_test(value : Int32) : Nil
+    def scan_max_concurrent_for_test=(value : Int32) : Nil
       @@scan_max_concurrent_for_test_mutex.synchronize do
         @@scan_max_concurrent_for_test = value
       end

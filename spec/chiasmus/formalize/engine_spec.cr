@@ -204,8 +204,9 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
         release.send(true)
         result = Chiasmus::Utils::Timeout.with_timeout_async(500, result_chan)
         result.should_not be_nil
-        result.not_nil!.error.should be_nil
-        result.not_nil!.value.try(&.template.name).should eq("policy-contradiction")
+        async_result = result || raise "expected formalize_async result"
+        async_result.error.should be_nil
+        async_result.value.try(&.template.name).should eq("policy-contradiction")
       ensure
         Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel).clear_before_formalize_async_result_send_hook_for_test
       end
@@ -347,8 +348,9 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
         release.send(true)
         result = Chiasmus::Utils::Timeout.with_timeout_async(500, result_chan)
         result.should_not be_nil
-        result.not_nil!.error.should be_nil
-        result.not_nil!.value.try(&.converged).should be_true
+        async_result = result || raise "expected solve_async result"
+        async_result.error.should be_nil
+        async_result.value.try(&.converged).should be_true
       ensure
         Chiasmus::Formalize::Engine(FormalizeSpecCompletionModel).clear_before_solve_async_result_send_hook_for_test
       end

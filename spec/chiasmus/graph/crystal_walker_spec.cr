@@ -335,7 +335,8 @@ describe "Crystal walker MCP integration" do
       release.send(true)
       result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
       result.should_not be_nil
-      result.not_nil!.status.should eq("success")
+      graph_result = result || raise "expected async walker result"
+      graph_result.status.should eq("success")
     ensure
       Chiasmus::Graph::Extractor.clear_before_async_result_send_hook_for_test
       File.delete(file_path) if File.exists?(file_path)

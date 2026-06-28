@@ -322,7 +322,7 @@ module Chiasmus
         end
       end
 
-      def self.set_collect_file_max_concurrency_for_test(value : Int32) : Nil
+      def self.collect_file_max_concurrency_for_test=(value : Int32) : Nil
         @@collect_file_max_concurrency_for_test_mutex.synchronize do
           @@collect_file_max_concurrency_for_test = value
         end

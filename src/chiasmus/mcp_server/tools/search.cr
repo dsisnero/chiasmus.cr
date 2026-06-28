@@ -13,7 +13,7 @@ module Chiasmus
   module MCPServer
     module Tools
       class SearchTool
-        MAX_FILE_SIZE = 500_000
+        MAX_FILE_SIZE          = 500_000
         DEFAULT_MAX_CONCURRENT = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
 
         private record SearchReadResult,

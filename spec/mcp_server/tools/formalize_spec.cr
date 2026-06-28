@@ -84,7 +84,8 @@ describe Chiasmus::MCPServer::Tools::FormalizeTool do
     release.send(true)
     result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
     result.should_not be_nil
-    result.not_nil!.status.should eq("success")
+    formalize_result = result || raise "expected formalize tool result"
+    formalize_result.status.should eq("success")
   ensure
     Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).clear_before_formalize_async_result_send_hook_for_test
     Chiasmus::MCPServer.current_server = nil

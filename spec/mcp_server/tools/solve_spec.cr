@@ -104,7 +104,8 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     release.send(true)
     result = Chiasmus::Utils::Timeout.with_timeout_async(500, result_chan)
     result.should_not be_nil
-    result.not_nil!.status.should eq("success")
+    solve_result = result || raise "expected solve tool result"
+    solve_result.status.should eq("success")
   ensure
     Chiasmus::MCPServer::Server(FormalizeSpecCompletionModel).clear_before_solve_async_result_send_hook_for_test
     Chiasmus::MCPServer.current_server = nil

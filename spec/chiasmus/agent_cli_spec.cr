@@ -231,7 +231,7 @@ describe Chiasmus::AgentCLI do
       result_channel = Channel(String).new(1)
 
       begin
-        Chiasmus::Graph::FileIO.set_default_max_concurrent_for_test(2)
+        Chiasmus::Graph::FileIO.default_max_concurrent_for_test = 2
         Chiasmus::Graph::FileIO.set_before_read_hook_for_test do |path|
           entered.send(File.basename(path))
           release.receive
@@ -259,7 +259,8 @@ describe Chiasmus::AgentCLI do
 
         result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
         result.should_not be_nil
-        JSON.parse(result.not_nil!)["result"]["files"].as_i.should eq(3)
+        raw_result = result || raise "expected CLI JSON output"
+        JSON.parse(raw_result)["result"]["files"].as_i.should eq(3)
       ensure
         Chiasmus::Graph::FileIO.clear_before_read_hook_for_test
         Chiasmus::Graph::FileIO.clear_default_max_concurrent_for_test

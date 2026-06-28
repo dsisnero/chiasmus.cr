@@ -177,7 +177,8 @@ describe Chiasmus::Discovery::Pipeline do
 
         result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
         result.should_not be_nil
-        result.not_nil!.items.select { |i| i.kind == "function" }.map(&.name).to_set.should eq(Set{"a", "b", "c"})
+        discovery = result || raise "expected pipeline discovery result"
+        discovery.items.select { |i| i.kind == "function" }.map(&.name).to_set.should eq(Set{"a", "b", "c"})
       ensure
         Chiasmus::Discovery::Pipeline.clear_before_scan_file_read_hook_for_test
       end
@@ -328,7 +329,8 @@ describe Chiasmus::Discovery::Pipeline do
       async_result = result || raise "expected async discovery result"
       async_result.error.should be_nil
       async_result.value.should_not be_nil
-      async_result.value.not_nil!.items.map(&.name).should contain("main")
+      value = async_result.value || raise "expected async discovery value"
+      value.items.map(&.name).should contain("main")
     ensure
       Chiasmus::Discovery::Pipeline.clear_before_async_result_send_hook_for_test
     end

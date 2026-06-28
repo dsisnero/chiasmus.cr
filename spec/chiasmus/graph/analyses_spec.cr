@@ -149,9 +149,11 @@ describe Chiasmus::Graph::Analyses do
       release.send(true)
       result = result_channel.receive?
       result.should_not be_nil
-      result.not_nil!.error.should be_nil
-      result.not_nil!.value.should_not be_nil
-      result.not_nil!.value.not_nil!.result.should eq({"reachable" => true})
+      async_result = result || raise "expected async graph result"
+      async_result.error.should be_nil
+      async_result.value.should_not be_nil
+      value = async_result.value || raise "expected async graph value"
+      value.result.should eq({"reachable" => true})
       result_channel.receive?.should be_nil
     ensure
       Chiasmus::Graph::Analyses.clear_before_async_result_send_hook_for_test
@@ -403,10 +405,12 @@ describe Chiasmus::Graph::Analyses do
         async = async_channel.receive?
 
         async.should_not be_nil
-        async.not_nil!.error.should be_nil
-        async.not_nil!.value.should_not be_nil
-        async.not_nil!.value.not_nil!.analysis.should eq(sync.analysis)
-        async.not_nil!.value.not_nil!.result.should eq(sync.result)
+        async_result = async || raise "expected analysis async result"
+        async_result.error.should be_nil
+        async_result.value.should_not be_nil
+        value = async_result.value || raise "expected analysis async value"
+        value.analysis.should eq(sync.analysis)
+        value.result.should eq(sync.result)
         async_channel.receive?.should be_nil
       ensure
         File.delete(go_file) if File.exists?(go_file)
@@ -425,9 +429,11 @@ describe Chiasmus::Graph::Analyses do
       async = async_channel.receive?
 
       async.should_not be_nil
-      async.not_nil!.value.should be_nil
-      async.not_nil!.error.should_not be_nil
-      async.not_nil!.error.not_nil!.should contain("Failed to read")
+      async_result = async || raise "expected async failure result"
+      async_result.value.should be_nil
+      async_result.error.should_not be_nil
+      error = async_result.error || raise "expected async failure error"
+      error.should contain("Failed to read")
       async_channel.receive?.should be_nil
     end
   end

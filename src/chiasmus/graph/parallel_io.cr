@@ -71,7 +71,7 @@ module Chiasmus
         end
       end
 
-      def set_default_max_concurrent_for_test(value : Int32) : Nil
+      def default_max_concurrent_for_test=(value : Int32) : Nil
         @@default_max_concurrent_for_test_mutex.synchronize do
           @@default_max_concurrent_for_test = value
         end

@@ -38,7 +38,8 @@ describe "Chiasmus MCP tool cancellation" do
       end
       Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
 
-      client_transport.send(MCP::Protocol::CancelledNotification.new(request_id: request.id.not_nil!))
+      request_id = request.id || raise "expected cancellable request id"
+      client_transport.send(MCP::Protocol::CancelledNotification.new(request_id: request_id))
 
       message = Chiasmus::Utils::Timeout.with_timeout_async(500, responses)
       message.should be_a(MCP::Protocol::JSONRPCResponse)

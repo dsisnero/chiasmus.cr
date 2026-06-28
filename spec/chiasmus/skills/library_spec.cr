@@ -271,7 +271,8 @@ describe Chiasmus::Skills::Library do
         reopened = Chiasmus::Skills::Library.create(dir)
         meta = reopened.get_metadata("graph-reachability")
         meta.should_not be_nil
-        meta.not_nil!.reuse_count.should eq(1)
+        metadata = meta || raise "expected template metadata"
+        metadata.reuse_count.should eq(1)
         reopened.close
       ensure
         FileUtils.rm_rf(dir)

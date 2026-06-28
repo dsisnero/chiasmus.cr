@@ -282,7 +282,8 @@ describe Chiasmus::Discovery do
         async_result = result || raise "expected async discovery result"
         async_result.error.should be_nil
         async_result.value.should_not be_nil
-        async_result.value.not_nil!.items.map(&.name).should contain("hello")
+        value = async_result.value || raise "expected async discovery value"
+        value.items.map(&.name).should contain("hello")
       ensure
         Chiasmus::Discovery::Pipeline.clear_before_async_result_send_hook_for_test
       end

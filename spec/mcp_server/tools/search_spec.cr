@@ -98,7 +98,8 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         release.send(true)
         result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
         result.should_not be_nil
-        result.not_nil!.status.should eq("error")
+        search_result = result || raise "expected search tool result"
+        search_result.status.should eq("error")
       ensure
         Chiasmus::Graph::Extractor.clear_before_async_result_send_hook_for_test
         FileUtils.rm_rf(tmpdir)

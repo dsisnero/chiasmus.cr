@@ -62,7 +62,8 @@ describe "parallel graph extraction" do
       release.send(true)
       result = result_channel.receive?
       result.should_not be_nil
-      result.not_nil!.defines.map(&.name).to_set.should contain("AsyncExtract")
+      extraction = result || raise "expected async extraction result"
+      extraction.defines.map(&.name).to_set.should contain("AsyncExtract")
       result_channel.receive?.should be_nil
     ensure
       Extractor.clear_before_async_result_send_hook_for_test

@@ -63,8 +63,9 @@ describe Chiasmus::MCPServer::Tools::CrigTool do
           release.send(true)
           result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
           result.should_not be_nil
-          result.not_nil!.status.should eq("error")
-          result.not_nil!.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("API key not configured")
+          crig_result = result || raise "expected crig tool result"
+          crig_result.status.should eq("error")
+          crig_result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("API key not configured")
         ensure
           Chiasmus::MCPServer::Tools::CrigTool.clear_before_async_result_send_hook_for_test
         end

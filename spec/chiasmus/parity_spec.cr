@@ -235,7 +235,7 @@ TSV
       result_channel = Channel(Chiasmus::Parity::AnalysisResult).new(1)
 
       begin
-        Chiasmus::Parity::CrystalScanner.set_collect_file_max_concurrency_for_test(2)
+        Chiasmus::Parity::CrystalScanner.collect_file_max_concurrency_for_test = 2
         Chiasmus::Parity::CrystalScanner.set_before_collect_file_read_hook_for_test do |path|
           entered.send(File.basename(path))
           release.receive
@@ -268,7 +268,8 @@ TSV
 
         result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
         result.should_not be_nil
-        result.not_nil!.parser_mode.should contain("tree-sitter")
+        parity_result = result || raise "expected parity result"
+        parity_result.parser_mode.should contain("tree-sitter")
       ensure
         Chiasmus::Parity::CrystalScanner.clear_before_collect_file_read_hook_for_test
         Chiasmus::Parity::CrystalScanner.clear_collect_file_max_concurrency_for_test

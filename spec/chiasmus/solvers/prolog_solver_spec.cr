@@ -221,5 +221,4 @@ describe Chiasmus::Solvers::PrologSolver do
       result.as(Chiasmus::Solvers::SuccessResult).answers.size.should eq(Chiasmus::Solvers::PrologSolver::MAX_ANSWERS)
     end
   end
-
 end

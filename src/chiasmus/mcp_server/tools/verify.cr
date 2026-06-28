@@ -13,6 +13,7 @@ module Chiasmus
       class VerifyTool
         @@before_async_result_send_hook : Proc(Nil)? = nil
 
+        # ameba:disable Metrics/CyclomaticComplexity
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           args = Types::VerifyInput.from_json(arguments.to_json)
 
@@ -22,7 +23,9 @@ module Chiasmus
           case args.solver
           when "z3"
             async_result = execute_z3_async(spec).receive
-            return Types::ErrorResponse.new(async_result.error.not_nil!) if async_result.error
+            if error = async_result.error
+              return Types::ErrorResponse.new(error)
+            end
             result = async_result.value || raise "Missing solver result"
             Types::VerifyResponse.new(result: Types.solver_result_to_json(result))
           when "prolog"
@@ -30,14 +33,18 @@ module Chiasmus
               return Types::ErrorResponse.new("'query' or 'queries' parameter required for prolog solver") if qs.empty?
 
               async_result = execute_prolog_batch_async(normalize_prolog_spec(spec, args.format), qs, args.explain).receive
-              return Types::ErrorResponse.new(async_result.error.not_nil!) if async_result.error
+              if error = async_result.error
+                return Types::ErrorResponse.new(error)
+              end
               results = async_result.value || raise "Missing solver results"
               return Types::VerifyResponse.new(results: results.map { |solver_result| Types.solver_result_to_json(solver_result) })
             end
 
             if query = args.query
               async_result = execute_prolog_async(normalize_prolog_spec(spec, args.format), query, args.explain).receive
-              return Types::ErrorResponse.new(async_result.error.not_nil!) if async_result.error
+              if error = async_result.error
+                return Types::ErrorResponse.new(error)
+              end
               result = async_result.value || raise "Missing solver result"
               Types::VerifyResponse.new(result: Types.solver_result_to_json(result))
             else
@@ -51,6 +58,8 @@ module Chiasmus
         rescue ex
           Types::ErrorResponse.new(ex.message || ex.class.name)
         end
+
+        # ameba:enable Metrics/CyclomaticComplexity
 
         def self.tool_name : String
           "chiasmus_verify"

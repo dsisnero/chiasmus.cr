@@ -118,8 +118,6 @@ end
 # =============================================================================
 describe "MCP async tool calls through transport" do
   it "allows one client to overlap tool calls with call_tool_async" do
-    mcp_server = nil.as(MCP::Server::Server?)
-    client = nil.as(MCP::Client::Client?)
     mcp_server, client = connect_server_and_client
     entered = Channel(Bool).new(2)
     release = Channel(Bool).new(2)
@@ -155,7 +153,7 @@ describe "MCP async tool calls through transport" do
     [first, second].each do |channel|
       result = Chiasmus::Utils::Timeout.with_timeout_async(1000, channel)
       result.should_not be_nil
-      raw = result.not_nil!
+      raw = result || raise "expected async MCP tool result"
       raw.should be_a(MCP::Protocol::CallToolResult)
       rpc = raw.as(MCP::Protocol::CallToolResult)
       block = rpc.content.first.as(MCP::Protocol::TextContentBlock)

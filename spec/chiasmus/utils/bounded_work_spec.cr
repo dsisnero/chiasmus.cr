@@ -56,15 +56,17 @@ describe Chiasmus::Utils::BoundedWork do
 
     first = Chiasmus::Utils::Timeout.with_timeout_async(40, results)
     first.should_not be_nil
-    first.not_nil!.index.should eq(1)
-    first.not_nil!.value.should eq(10)
-    first.not_nil!.error.should be_nil
+    first_result = first || raise "expected first bounded work result"
+    first_result.index.should eq(1)
+    first_result.value.should eq(10)
+    first_result.error.should be_nil
 
     second = results.receive?
     second.should_not be_nil
-    second.not_nil!.index.should eq(0)
-    second.not_nil!.value.should eq(0)
-    second.not_nil!.error.should be_nil
+    second_result = second || raise "expected second bounded work result"
+    second_result.index.should eq(0)
+    second_result.value.should eq(0)
+    second_result.error.should be_nil
 
     results.receive?.should be_nil
   end

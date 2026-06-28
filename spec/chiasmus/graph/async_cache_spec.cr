@@ -39,7 +39,8 @@ describe "async cache persistence" do
       graph = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
       graph.should_not be_nil
 
-      names = graph.not_nil!.defines.map(&.name).to_set
+      cached_graph = graph || raise "expected cached graph"
+      names = cached_graph.defines.map(&.name).to_set
       names.should contain("X")
 
       cache_files = Dir.glob(File.join(cache_dir, repo_key, "files", "*.json"))
@@ -89,7 +90,8 @@ describe "async cache persistence" do
       result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
       result.should_not be_nil
 
-      result_json = result.not_nil!.result.to_s
+      graph_result = result || raise "expected async cache graph result"
+      result_json = graph_result.result.to_s
       result_json.should_not be_empty
 
       snap_dir = File.join(cache_dir, repo_key, "snapshots")

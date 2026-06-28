@@ -70,7 +70,7 @@ module Chiasmus
           block.call(item)
         end
 
-        raise first_error.not_nil! if first_error
+        raise first_error if first_error
 
         results.map { |value| value || raise "bounded work lost a result" }
       end
