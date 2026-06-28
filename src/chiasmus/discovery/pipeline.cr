@@ -6,14 +6,16 @@ module Chiasmus
   module Discovery
     # Discovery pipeline.
     #
-    # Query/language caching made extraction itself cheap enough that
-    # spawn-based fan-out regressed throughput in the current runtime.
-    # A 40-file ExecutionContext experiment also crashed inside tree-sitter
-    # node traversal, so keep this path sequential until discovery extraction
-    # itself is proven thread-safe.
+    # File reads and per-file extraction are bounded with the shared worker
+    # helper so directory scans can overlap without unbounded fan-out.
+    # This stays on default fibers rather than ExecutionContext::Parallel
+    # because the workload is dominated by file I/O plus tree-sitter parsing,
+    # not proven CPU-only work.
     class Pipeline
       @@before_async_result_send_hook = nil.as((-> Nil)?)
       @@before_async_result_send_hook_mutex = Mutex.new
+      @@before_scan_file_read_hook = nil.as((String -> Nil)?)
+      @@before_scan_file_read_hook_mutex = Mutex.new
 
       @registry : ExtractorRegistry
       @max_concurrent : Int32
@@ -106,19 +108,18 @@ module Chiasmus
       end
 
       private def scan_files(source_dir : String) : Array(Tuple(String, String))
-        files = [] of Tuple(String, String)
         extensions = @registry.supported_extensions.to_set
-
-        Dir.glob(File.join(source_dir, "**", "*")).each do |path|
-          next unless File.file?(path)
-          next unless extensions.any? { |ext| path.ends_with?(ext) }
-
-          rel = path.lchop?(source_dir).try(&.lchop?('/')) || path
-          content = File.read(path)
-          files << {rel, content}
+        paths = Dir.glob(File.join(source_dir, "**", "*")).select do |path|
+          File.file?(path) && extensions.any? { |ext| path.ends_with?(ext) }
         end
+        return [] of Tuple(String, String) if paths.empty?
 
-        files
+        Utils::BoundedWork.map_ordered_or_raise(paths, @max_concurrent) do |path|
+          rel = path.lchop?(source_dir).try(&.lchop?('/')) || path
+          self.class.run_before_scan_file_read_hook(path)
+          content = File.read(path)
+          {rel, content}
+        end
       end
 
       private def deduplicate(items : Array(Item)) : Array(Item)
@@ -132,6 +133,11 @@ module Chiasmus
         end
       end
 
+      protected def self.run_before_scan_file_read_hook(path : String) : Nil
+        hook = @@before_scan_file_read_hook_mutex.synchronize { @@before_scan_file_read_hook }
+        hook.try(&.call(path))
+      end
+
       def self.set_before_async_result_send_hook_for_test(&block : ->) : Nil
         @@before_async_result_send_hook_mutex.synchronize do
           @@before_async_result_send_hook = block
@@ -141,6 +147,18 @@ module Chiasmus
       def self.clear_before_async_result_send_hook_for_test : Nil
         @@before_async_result_send_hook_mutex.synchronize do
           @@before_async_result_send_hook = nil
+        end
+      end
+
+      def self.set_before_scan_file_read_hook_for_test(&block : String ->) : Nil
+        @@before_scan_file_read_hook_mutex.synchronize do
+          @@before_scan_file_read_hook = block
+        end
+      end
+
+      def self.clear_before_scan_file_read_hook_for_test : Nil
+        @@before_scan_file_read_hook_mutex.synchronize do
+          @@before_scan_file_read_hook = nil
         end
       end
     end

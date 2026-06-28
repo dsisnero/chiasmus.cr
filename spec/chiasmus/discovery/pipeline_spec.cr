@@ -131,6 +131,61 @@ describe Chiasmus::Discovery::Pipeline do
     end
   end
 
+  it "reads directory files with bounded concurrency during scan" do
+    dir = File.join(Dir.tempdir, "chiasmus-pipe-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+
+    begin
+      File.write(File.join(dir, "a.ts"), "function a() {}\n")
+      File.write(File.join(dir, "b.ts"), "function b() {}\n")
+      File.write(File.join(dir, "c.ts"), "function c() {}\n")
+
+      pipeline = Chiasmus::Discovery::Pipeline.new([
+        Chiasmus::Discovery::TypeScriptExtractor.new,
+      ], max_concurrent: 2)
+
+      entered = Channel(String).new(3)
+      release = Channel(Bool).new(3)
+      result_channel = Channel(Chiasmus::Discovery::Result).new(1)
+
+      begin
+        Chiasmus::Discovery::Pipeline.set_before_scan_file_read_hook_for_test do |path|
+          entered.send(File.basename(path))
+          release.receive
+        end
+
+        spawn do
+          result_channel.send(pipeline.discover(dir))
+        end
+
+        first = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        second = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        first.should_not be_nil
+        second.should_not be_nil
+
+        select
+        when entered.receive
+          fail("expected directory scan to honor max_concurrent before releasing a blocked read")
+        when timeout 50.milliseconds
+        end
+
+        release.send(true)
+        third = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        third.should_not be_nil
+
+        2.times { release.send(true) }
+
+        result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+        result.should_not be_nil
+        result.not_nil!.items.select { |i| i.kind == "function" }.map(&.name).to_set.should eq(Set{"a", "b", "c"})
+      ensure
+        Chiasmus::Discovery::Pipeline.clear_before_scan_file_read_hook_for_test
+      end
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "respects the bounded concurrency limit while processing files" do
     SlowTypeScriptExtractor.reset_counts_for_test
 
