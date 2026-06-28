@@ -198,6 +198,138 @@ describe Chiasmus::Skills::Library do
         end
       end
     end
+
+    it "does not block record_use on metadata persistence" do
+      with_skill_library do |library, _dir|
+        entered = Channel(Bool).new(1)
+        release = Channel(Bool).new(1)
+        returned = Channel(Bool).new(1)
+
+        begin
+          Chiasmus::Skills::Library.set_before_metadata_write_hook_for_test do
+            entered.send(true)
+            release.receive
+          end
+
+          spawn do
+            library.record_use("policy-contradiction", true)
+            returned.send(true)
+          end
+
+          entered.receive.should be_true
+
+          select
+          when value = returned.receive?
+            value.should be_true
+          when timeout 250.milliseconds
+            fail("expected record_use to return before metadata persistence finished")
+          end
+        ensure
+          release.send(true) rescue nil
+          Chiasmus::Skills::Library.clear_before_metadata_write_hook_for_test
+        end
+      end
+    end
+
+    it "flushes pending metadata persistence on close" do
+      dir = File.join(Dir.tempdir, "chiasmus-skill-library-close-flush-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+
+      entered = Channel(Bool).new(1)
+      release = Channel(Bool).new(1)
+
+      begin
+        library = Chiasmus::Skills::Library.create(dir)
+
+        begin
+          Chiasmus::Skills::Library.set_before_metadata_write_hook_for_test do
+            entered.send(true)
+            release.receive
+          end
+
+          library.record_use("graph-reachability", true)
+          entered.receive.should be_true
+
+          close_done = Channel(Bool).new(1)
+          spawn do
+            library.close
+            close_done.send(true)
+          end
+
+          select
+          when close_done.receive?
+            fail("expected close to wait for pending metadata persistence")
+          when timeout 100.milliseconds
+          end
+
+          release.send(true)
+          close_done.receive.should be_true
+        ensure
+          Chiasmus::Skills::Library.clear_before_metadata_write_hook_for_test
+        end
+
+        reopened = Chiasmus::Skills::Library.create(dir)
+        meta = reopened.get_metadata("graph-reachability")
+        meta.should_not be_nil
+        meta.not_nil!.reuse_count.should eq(1)
+        reopened.close
+      ensure
+        FileUtils.rm_rf(dir)
+      end
+    end
+
+    it "does not block promote on metadata persistence" do
+      dir = File.join(Dir.tempdir, "chiasmus-skill-library-promote-async-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(dir)
+
+      entered = Channel(Bool).new(1)
+      release = Channel(Bool).new(1)
+      returned = Channel(Bool).new(1)
+
+      begin
+        template = Chiasmus::Skills::SkillTemplate.new(
+          name: "promote-async",
+          domain: "analysis",
+          solver: Chiasmus::Solvers::SolverType::Prolog,
+          signature: "test promote async",
+          skeleton: "test.",
+          slots: [] of Chiasmus::Skills::SlotDef,
+          normalizations: [
+            Chiasmus::Skills::Normalization.new(source: "test", transform: "test"),
+          ],
+        )
+
+        library = Chiasmus::Skills::Library.create(dir)
+        library.add_learned(template).should be_true
+
+        begin
+          Chiasmus::Skills::Library.set_before_metadata_write_hook_for_test do
+            entered.send(true)
+            release.receive
+          end
+
+          spawn do
+            returned.send(library.promote("promote-async"))
+          end
+
+          entered.receive.should be_true
+
+          select
+          when value = returned.receive?
+            value.should be_true
+          when timeout 250.milliseconds
+            fail("expected promote to return before metadata persistence finished")
+          end
+        ensure
+          release.send(true) rescue nil
+          Chiasmus::Skills::Library.clear_before_metadata_write_hook_for_test
+        end
+
+        library.close
+      ensure
+        FileUtils.rm_rf(dir)
+      end
+    end
   end
 
   describe "#get" do

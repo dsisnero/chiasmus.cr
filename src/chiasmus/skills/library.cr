@@ -30,6 +30,9 @@ module Chiasmus
         "flow"       => "flow",
       }
 
+      @@before_metadata_write_hook = nil.as((-> Nil)?)
+      @@before_metadata_write_hook_mutex = Mutex.new
+
       @templates : Hash(String, SkillTemplate)
       @metadata : Hash(String, SkillMetadata)
       @template_order : Array(String)
@@ -37,6 +40,12 @@ module Chiasmus
       @store : TemplateStore(SkillTemplate)
       @search_engine : Bm25::SearchEngine(String, UInt32, Bm25::DefaultTokenizer)
       @mutex : Mutex
+      @metadata_write_mutex : Mutex
+      @metadata_persist_requests : Channel(Bool)
+      @metadata_flush_requests : Channel(Channel(Bool))
+      @metadata_stop_requests : Channel(Bool)
+      @closed : Bool
+      @close_mutex : Mutex
 
       # Crig-style fluent builder
       struct Builder
@@ -118,7 +127,14 @@ module Chiasmus
         )
         @search_engine = Bm25::SearchEngine(String, UInt32, Bm25::DefaultTokenizer).new(embedder)
         @mutex = Mutex.new
+        @metadata_write_mutex = Mutex.new
+        @metadata_persist_requests = Channel(Bool).new(1)
+        @metadata_flush_requests = Channel(Channel(Bool)).new
+        @metadata_stop_requests = Channel(Bool).new
+        @closed = false
+        @close_mutex = Mutex.new
         rebuild_search_index
+        start_metadata_persistence_worker
       end
 
       def list : Array(SkillWithMetadata)
@@ -205,7 +221,7 @@ module Chiasmus
             promoted: metadata.promoted
           )
         end
-        save_metadata
+        save_metadata_async
       end
 
       def get_metadata(name : String) : SkillMetadata?
@@ -231,7 +247,7 @@ module Chiasmus
 
         return false unless added
 
-        save_metadata
+        save_metadata_async
         save_templates
         true
       end
@@ -253,7 +269,7 @@ module Chiasmus
 
         return false unless promoted
 
-        save_metadata
+        save_metadata_async
         true
       end
 
@@ -265,7 +281,7 @@ module Chiasmus
           @search_engine.remove(idx.to_s) if idx
           @metadata.delete(name)
         end
-        save_metadata
+        save_metadata_async
         save_templates
       end
 
@@ -274,13 +290,18 @@ module Chiasmus
       end
 
       def close : Nil
-        save_metadata
+        @close_mutex.synchronize do
+          next if @closed
+          @closed = true
+          flush_metadata_persistence
+          @metadata_stop_requests.send(true)
+        end
         save_templates
       end
 
       def save_metadata : Nil
         payload = @mutex.synchronize { @metadata.values.to_json }
-        atomic_write(@metadata_path, payload)
+        persist_metadata_payload(payload)
       rescue File::Error
       end
 
@@ -316,6 +337,65 @@ module Chiasmus
         Bm25::Document(String).new(name, build_search_text(template))
       end
 
+      private def start_metadata_persistence_worker : Nil
+        spawn(name: "skill-library-metadata-persist") do
+          loop do
+            select
+            when @metadata_persist_requests.receive
+              persist_metadata_until_settled
+            when ack = @metadata_flush_requests.receive
+              persist_metadata_if_pending
+              ack.send(true)
+            when @metadata_stop_requests.receive
+              break
+            end
+          end
+        end
+      end
+
+      private def save_metadata_async : Nil
+        select
+        when @metadata_persist_requests.send(true)
+        else
+        end
+      end
+
+      private def flush_metadata_persistence : Nil
+        ack = Channel(Bool).new(1)
+        @metadata_flush_requests.send(ack)
+        ack.receive
+      end
+
+      private def persist_metadata_until_settled : Nil
+        loop do
+          save_metadata
+
+          dirty = false
+          loop do
+            select
+            when @metadata_persist_requests.receive
+              dirty = true
+            else
+              break
+            end
+          end
+
+          break unless dirty
+        end
+      end
+
+      private def persist_metadata_if_pending : Nil
+        dirty = false
+
+        select
+        when @metadata_persist_requests.receive
+          dirty = true
+        else
+        end
+
+        persist_metadata_until_settled if dirty
+      end
+
       private def rebuild_search_index : Nil
         @mutex.synchronize do
           @template_order.each do |name|
@@ -343,6 +423,30 @@ module Chiasmus
         tmp = "#{path}.tmp.#{Random::Secure.hex(8)}"
         File.write(tmp, payload)
         File.rename(tmp, path)
+      end
+
+      private def persist_metadata_payload(payload : String) : Nil
+        @metadata_write_mutex.synchronize do
+          self.class.run_before_metadata_write_hook_for_test
+          atomic_write(@metadata_path, payload)
+        end
+      end
+
+      protected def self.run_before_metadata_write_hook_for_test : Nil
+        hook = @@before_metadata_write_hook_mutex.synchronize { @@before_metadata_write_hook }
+        hook.try(&.call)
+      end
+
+      def self.set_before_metadata_write_hook_for_test(&block : ->) : Nil
+        @@before_metadata_write_hook_mutex.synchronize do
+          @@before_metadata_write_hook = block
+        end
+      end
+
+      def self.clear_before_metadata_write_hook_for_test : Nil
+        @@before_metadata_write_hook_mutex.synchronize do
+          @@before_metadata_write_hook = nil
+        end
       end
     end
   end
