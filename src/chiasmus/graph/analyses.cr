@@ -145,6 +145,10 @@ module Chiasmus
 
       @@before_async_result_send_hook = nil.as((-> Nil)?)
 
+      record AsyncAnalysisResult,
+        value : AnalysisResult? = nil,
+        error : String? = nil
+
       def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil, repo_key : String? = nil, max_bytes : Int32? = nil, save_snapshot : String? = nil) : AnalysisResult
         # Guard: save+diff against same snapshot would clobber baseline before diff runs
         if save_snapshot && request.analysis.diff? && request.against == save_snapshot
@@ -176,8 +180,8 @@ module Chiasmus
         repo_key : String? = nil,
         max_bytes : Int32? = nil,
         save_snapshot : String? = nil
-      ) : Channel(AnalysisResult)
-        channel = Channel(AnalysisResult).new(1)
+      ) : Channel(AsyncAnalysisResult)
+        channel = Channel(AsyncAnalysisResult).new(1)
 
         spawn do
           begin
@@ -191,7 +195,10 @@ module Chiasmus
               save_snapshot: save_snapshot
             )
             @@before_async_result_send_hook.try(&.call)
-            channel.send(result)
+            channel.send(AsyncAnalysisResult.new(value: result))
+          rescue ex
+            @@before_async_result_send_hook.try(&.call)
+            channel.send(AsyncAnalysisResult.new(error: ex.message || ex.class.name))
           ensure
             channel.close
           end
@@ -210,14 +217,17 @@ module Chiasmus
         request : AnalysisRequest,
         snapshot_cache_dir : String? = nil,
         repo_key : String? = nil
-      ) : Channel(AnalysisResult)
-        channel = Channel(AnalysisResult).new(1)
+      ) : Channel(AsyncAnalysisResult)
+        channel = Channel(AsyncAnalysisResult).new(1)
 
         spawn do
           begin
             result = run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
             @@before_async_result_send_hook.try(&.call)
-            channel.send(result)
+            channel.send(AsyncAnalysisResult.new(value: result))
+          rescue ex
+            @@before_async_result_send_hook.try(&.call)
+            channel.send(AsyncAnalysisResult.new(error: ex.message || ex.class.name))
           ensure
             channel.close
           end

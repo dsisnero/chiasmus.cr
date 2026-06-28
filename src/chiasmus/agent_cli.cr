@@ -193,6 +193,10 @@ module Chiasmus
         )
       ).receive
 
+      if error = result.error
+        return graph_error_response(error)
+      end
+
       build_graph_response(analysis_params, result)
     end
 
@@ -221,8 +225,10 @@ module Chiasmus
 
     private def self.build_graph_response(
       analysis_params : Hash(Symbol, String),
-      result : Graph::AnalysisResult,
+      async_result : Graph::Analyses::AsyncAnalysisResult,
     ) : String
+      result = async_result.value || return graph_error_response("Graph analysis returned no result")
+
       JSON.build do |json|
         json.object do
           json.field "status", "success"

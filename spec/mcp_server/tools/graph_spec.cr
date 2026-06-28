@@ -65,6 +65,7 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
         "analysis" => JSON::Any.new("summary"),
       })
       result.status.should eq("error")
+      result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("Failed to read")
     end
   end
 

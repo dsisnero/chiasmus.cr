@@ -46,10 +46,16 @@ module Chiasmus
             save_snapshot: args.save_snapshot
           ).receive
 
+          if error = result.error
+            return Types::ErrorResponse.new(error)
+          end
+
+          result_value_payload = result.value || return Types::ErrorResponse.new("Graph analysis returned no result")
+
           result_value = if args.analysis == "facts"
-                           result.result.as(String)
+                           result_value_payload.result.as(String)
                          else
-                           result.to_json
+                           result_value_payload.to_json
                          end
 
           Types::GraphResponse.new(

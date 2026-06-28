@@ -149,7 +149,9 @@ describe Chiasmus::Graph::Analyses do
       release.send(true)
       result = result_channel.receive?
       result.should_not be_nil
-      result.not_nil!.result.should eq({"reachable" => true})
+      result.not_nil!.error.should be_nil
+      result.not_nil!.value.should_not be_nil
+      result.not_nil!.value.not_nil!.result.should eq({"reachable" => true})
       result_channel.receive?.should be_nil
     ensure
       Chiasmus::Graph::Analyses.clear_before_async_result_send_hook_for_test
@@ -401,12 +403,32 @@ describe Chiasmus::Graph::Analyses do
         async = async_channel.receive?
 
         async.should_not be_nil
-        async.not_nil!.analysis.should eq(sync.analysis)
-        async.not_nil!.result.should eq(sync.result)
+        async.not_nil!.error.should be_nil
+        async.not_nil!.value.should_not be_nil
+        async.not_nil!.value.not_nil!.analysis.should eq(sync.analysis)
+        async.not_nil!.value.not_nil!.result.should eq(sync.result)
         async_channel.receive?.should be_nil
       ensure
         File.delete(go_file) if File.exists?(go_file)
       end
+    end
+
+    it "run_analysis_async returns file-read failures through the channel" do
+      request = Chiasmus::Graph::AnalysisRequest.new(
+        analysis: Chiasmus::Graph::AnalysisType::Summary
+      )
+
+      async_channel = Chiasmus::Graph::Analyses.run_analysis_async(
+        ["/nonexistent/run-analysis-#{Random::Secure.hex(8)}.go"],
+        request
+      )
+      async = async_channel.receive?
+
+      async.should_not be_nil
+      async.not_nil!.value.should be_nil
+      async.not_nil!.error.should_not be_nil
+      async.not_nil!.error.not_nil!.should contain("Failed to read")
+      async_channel.receive?.should be_nil
     end
   end
 end
