@@ -6,7 +6,7 @@
 module Chiasmus
   # Single source of truth: read the version from shard.yml at compile time
   # so `--version`, the startup banner, and the shard stay in sync.
-  VERSION = {{ read_file("#{__DIR__}/../shard.yml").lines.find { |line| line.starts_with?("version:") }.split(":")[1].strip }}
+  VERSION = {{ read_file("#{__DIR__}/../shard.yml").lines.find(&.starts_with?("version:")).split(":")[1].strip }}
 
   # Main entry point for the MCP server
   # Uses environment configuration to determine provider
@@ -63,44 +63,13 @@ module Chiasmus
     server = MCPServer::Factory.from_env
     server.run_streamable(port)
   end
-end
 
-# Load all submodules
-require "./chiasmus/**"
-
-# CLI entry point
-require "clip"
-
-# CLI entry point — runs when this file is the main executable.
-# The ChiasmusCLI struct must be available at compile time for Clip::Mapper,
-# so we always define it. The case block runs at runtime via at_exit
-# only when PROGRAM_NAME indicates we're a chiasmus binary, avoiding
-# interference with test suites (where require loads the module without
-# executing the CLI).
-@[Clip::Doc("Chiasmus MCP server — formal verification with Z3, Prolog, and tree-sitter analysis.")]
-struct ChiasmusCLI
-  include Clip::Mapper
-
-  @[Clip::Option("--version")]
-  getter? version : Bool = false
-
-  @[Clip::Option("--healthcheck")]
-  getter? healthcheck : Bool = false
-
-  @[Clip::Option("--streamable")]
-  getter? streamable : Bool = false
-
-  @[Clip::Option("--port")]
-  getter port : Int32 = 8899
-end
-
-{% if flag?(:chiasmus_cli) %}
-  at_exit do
+  def self.run_cli(argv : Array(String) = ARGV) : Int32
     begin
-      cli = ChiasmusCLI.parse(ARGV)
+      cli = ChiasmusCLI.parse(argv)
     rescue ex : Clip::ParsingError
-      puts ex
-      exit 1
+      STDERR.puts ex
+      return 1
     end
 
     case cli
@@ -117,5 +86,31 @@ end
         Chiasmus.run
       end
     end
+
+    0
   end
-{% end %}
+end
+
+# Load all submodules
+require "./chiasmus/**"
+
+# CLI entry point
+require "clip"
+
+# CLI options shared by the executable entrypoint and specs.
+@[Clip::Doc("Chiasmus MCP server — formal verification with Z3, Prolog, and tree-sitter analysis.")]
+struct ChiasmusCLI
+  include Clip::Mapper
+
+  @[Clip::Option("--version")]
+  getter? version : Bool = false
+
+  @[Clip::Option("--healthcheck")]
+  getter? healthcheck : Bool = false
+
+  @[Clip::Option("--streamable")]
+  getter? streamable : Bool = false
+
+  @[Clip::Option("--port")]
+  getter port : Int32 = 8899
+end

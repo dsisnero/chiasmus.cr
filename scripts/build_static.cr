@@ -54,7 +54,7 @@ def build_static_binary
     "--release",
     "--static", # Static linking
     "-o", "bin/chiasmus-static",
-    "src/chiasmus.cr",
+    "src/chiasmus_cli.cr",
   ]
 
   puts "Running: crystal #{build_args.join(" ")}"

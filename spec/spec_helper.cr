@@ -23,7 +23,8 @@ def build_chiasmus_cli
   CHIASMUS_CLI_BUILD_MUTEX.synchronize do
     return if File.exists?(binary)
     result = Process.run(
-      "crystal", ["build", "-Dchiasmus_cli", "src/chiasmus.cr", "-o", binary],
+      "crystal", ["build", "src/chiasmus_cli.cr", "-o", binary],
+      env: chiasmus_cli_env,
       error: STDERR
     )
     unless result.success?

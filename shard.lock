@@ -46,7 +46,7 @@ shards:
 
   crig:
     git: https://github.com/dsisnero/crig.git
-    version: 0.39.0
+    version: 0.40.0
 
   crig-postgres:
     git: https://github.com/dsisnero/crig-postgres.git
@@ -94,7 +94,7 @@ shards:
 
   mcp:
     git: https://github.com/dsisnero/mcp.cr.git
-    version: 0.2.3+git.commit.02c27b7032bdf8f29b50ccbac7b388155e0b845b
+    version: 0.5.7
 
   mosaic:
     git: https://github.com/dsisnero/mosaic.git
@@ -151,6 +151,10 @@ shards:
   stumpy_png:
     git: https://github.com/stumpycr/stumpy_png.git
     version: 5.0.1
+
+  sync-map:
+    git: https://github.com/dsisnero/sync-map.git
+    version: 0.1.4
 
   terminfo:
     git: https://github.com/docelic/terminfo.git
