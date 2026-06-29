@@ -1,6 +1,7 @@
 require "option_parser"
 require "set"
 require "./discovery"
+require "./graph/types"
 require "./utils/bounded_work"
 
 module Chiasmus
@@ -62,11 +63,37 @@ module Chiasmus
       crystal_kind : String,
       crystal_path : String,
       basis : String,
+      structural_status : String,
+      structural_details : String,
       notes : String
 
     record AnalysisResult,
       rows : Array(ReportRow),
       parser_mode : String
+
+    record StructuralFacts,
+      graph : Graph::CodeGraph,
+      entry_points : Array(String)
+
+    record StructuralReport,
+      source_symbol : String,
+      target_symbol : String,
+      status : String,
+      source_defined : Bool,
+      target_defined : Bool,
+      source_exported : Bool,
+      target_exported : Bool,
+      source_entry_point : Bool,
+      target_entry_point : Bool,
+      matched_imports : Array(String),
+      missing_imports : Array(String),
+      extra_imports : Array(String),
+      matched_calls : Array(String),
+      missing_calls : Array(String),
+      extra_calls : Array(String),
+      matched_contains : Array(String),
+      missing_contains : Array(String),
+      extra_contains : Array(String)
 
     class Loader
       def self.read_inventory(path : String) : Array(InventoryRow)
@@ -152,6 +179,268 @@ module Chiasmus
         return [name] if name.includes?(' ')
         return name.split(/::|\./) if name.includes?("::") || name.includes?('.')
         [name]
+      end
+    end
+
+    module Structural
+      extend self
+
+      def compare(
+        source_graph : Graph::CodeGraph,
+        source_symbol : String,
+        target_graph : Graph::CodeGraph,
+        target_symbol : String,
+        source_entry_points : Array(String)? = nil,
+        target_entry_points : Array(String)? = nil,
+      ) : StructuralReport
+        source_defined = defined?(source_graph, source_symbol)
+        target_defined = defined?(target_graph, target_symbol)
+        source_exported = exported?(source_graph, source_symbol)
+        target_exported = exported?(target_graph, target_symbol)
+        source_entry_point = entry_point?(source_symbol, source_entry_points)
+        target_entry_point = entry_point?(target_symbol, target_entry_points)
+        source_imports = normalized_imports(source_graph, source_symbol)
+        target_imports = normalized_imports(target_graph, target_symbol)
+        source_callees = normalized_callees(source_graph, source_symbol)
+        target_callees = normalized_callees(target_graph, target_symbol)
+        source_contains = normalized_contains(source_graph, source_symbol)
+        target_contains = normalized_contains(target_graph, target_symbol)
+
+        matched_imports = source_imports & target_imports
+        missing_imports = source_imports - target_imports
+        extra_imports = target_imports - source_imports
+        matched_calls = source_callees & target_callees
+        missing_calls = source_callees - target_callees
+        extra_calls = target_callees - source_callees
+        matched_contains = source_contains & target_contains
+        missing_contains = source_contains - target_contains
+        extra_contains = target_contains - source_contains
+        status = (
+          source_defined &&
+          target_defined &&
+          source_exported == target_exported &&
+          source_entry_point == target_entry_point &&
+          missing_imports.empty? &&
+          extra_imports.empty? &&
+          missing_calls.empty? &&
+          extra_calls.empty? &&
+          missing_contains.empty? &&
+          extra_contains.empty?
+        ) ? "structural_match" : "structural_drift"
+
+        StructuralReport.new(
+          source_symbol: source_symbol,
+          target_symbol: target_symbol,
+          status: status,
+          source_defined: source_defined,
+          target_defined: target_defined,
+          source_exported: source_exported,
+          target_exported: target_exported,
+          source_entry_point: source_entry_point,
+          target_entry_point: target_entry_point,
+          matched_imports: matched_imports.sort,
+          missing_imports: missing_imports.sort,
+          extra_imports: extra_imports.sort,
+          matched_calls: matched_calls.sort,
+          missing_calls: missing_calls.sort,
+          extra_calls: extra_calls.sort,
+          matched_contains: matched_contains.sort,
+          missing_contains: missing_contains.sort,
+          extra_contains: extra_contains.sort,
+        )
+      end
+
+      def load_facts(path : String) : StructuralFacts
+        defines = [] of Graph::DefinesFact
+        calls = [] of Graph::CallsFact
+        imports = [] of Graph::ImportsFact
+        exports = [] of Graph::ExportsFact
+        contains = [] of Graph::ContainsFact
+        entry_points = [] of String
+
+        File.each_line(path) do |line|
+          stripped = line.strip
+          next if stripped.empty? || stripped.starts_with?('%') || stripped.starts_with?(":-")
+          if stripped.starts_with?("defines(")
+            args = parse_args(stripped["defines(".size...-2])
+            defines << Graph::DefinesFact.new(
+              file: atom(args[0]),
+              name: atom(args[1]),
+              kind: parse_symbol_kind(atom(args[2])),
+              line: args[3].to_i,
+              end_line: args[4].to_i,
+            )
+          elsif stripped.starts_with?("calls(")
+            args = parse_args(stripped["calls(".size...-2])
+            calls << Graph::CallsFact.new(
+              caller: atom(args[0]),
+              callee: atom(args[1]),
+            )
+          elsif stripped.starts_with?("imports(")
+            args = parse_args(stripped["imports(".size...-2])
+            imports << Graph::ImportsFact.new(
+              file: atom(args[0]),
+              name: atom(args[1]),
+              source: atom(args[2]),
+            )
+          elsif stripped.starts_with?("exports(")
+            args = parse_args(stripped["exports(".size...-2])
+            exports << Graph::ExportsFact.new(
+              file: atom(args[0]),
+              name: atom(args[1]),
+            )
+          elsif stripped.starts_with?("contains(")
+            args = parse_args(stripped["contains(".size...-2])
+            contains << Graph::ContainsFact.new(
+              parent: atom(args[0]),
+              child: atom(args[1]),
+            )
+          elsif stripped.starts_with?("entry_point(")
+            args = parse_args(stripped["entry_point(".size...-2])
+            entry_points << atom(args[0])
+          end
+        end
+
+        StructuralFacts.new(
+          graph: Graph::CodeGraph.new(
+            defines: defines,
+            calls: calls,
+            imports: imports,
+            exports: exports,
+            contains: contains,
+          ),
+          entry_points: normalized_entry_points(entry_points),
+        )
+      end
+
+      def load_graph(path : String) : Graph::CodeGraph
+        load_facts(path).graph
+      end
+
+      private def defined?(graph : Graph::CodeGraph, symbol : String) : Bool
+        graph.defines.any? { |fact| fact.name == symbol }
+      end
+
+      private def exported?(graph : Graph::CodeGraph, symbol : String) : Bool
+        normalized_symbol = Naming.normalized_simple(symbol)
+        graph.exports.any? { |fact| Naming.normalized_simple(fact.name) == normalized_symbol }
+      end
+
+      private def entry_point?(symbol : String, entry_points : Array(String)?) : Bool
+        return false unless entry_points
+
+        normalized_symbol = Naming.normalized_simple(symbol)
+        entry_points.any? { |name| Naming.normalized_simple(name) == normalized_symbol }
+      end
+
+      private def normalized_imports(graph : Graph::CodeGraph, symbol : String) : Array(String)
+        file = defining_file(graph, symbol)
+        return [] of String unless file
+
+        imports = graph.imports.select { |fact| fact.file == file }
+          .map { |fact| normalized_import_target(fact) }
+          .reject(&.empty?)
+        imports.uniq!
+        imports.sort!
+        imports
+      end
+
+      private def defining_file(graph : Graph::CodeGraph, symbol : String) : String?
+        graph.defines.find { |fact| fact.name == symbol }.try(&.file)
+      end
+
+      private def normalized_import_target(fact : Graph::ImportsFact) : String
+        source = fact.source.strip
+        candidate = if source.empty?
+                      fact.name
+                    else
+                      import_basename(source)
+                    end
+        Naming.normalized_simple(candidate)
+      end
+
+      private def import_basename(source : String) : String
+        leaf = source.gsub('\\', '/').split('/').last? || source
+        leaf = leaf.sub(/\.[A-Za-z0-9]+\z/, "")
+        leaf
+      end
+
+      private def normalized_callees(graph : Graph::CodeGraph, symbol : String) : Array(String)
+        callees = graph.calls.select { |fact| fact.caller == symbol }
+          .map { |fact| Naming.normalized_simple(fact.callee) }
+          .reject(&.empty?)
+        callees.uniq!
+        callees.sort!
+        callees
+      end
+
+      private def normalized_contains(graph : Graph::CodeGraph, symbol : String) : Array(String)
+        contained = graph.contains.select { |fact| fact.parent == symbol }
+          .map { |fact| Naming.normalized_simple(fact.child) }
+          .reject(&.empty?)
+        contained.uniq!
+        contained.sort!
+        contained
+      end
+
+      private def normalized_entry_points(entry_points : Array(String)) : Array(String)
+        normalized = entry_points.dup
+        normalized.uniq!
+        normalized.sort!
+        normalized
+      end
+
+      private def atom(value : String) : String
+        stripped = value.strip
+        if stripped.starts_with?('\'') && stripped.ends_with?('\'')
+          stripped[1...-1].gsub("''", "'")
+        else
+          stripped
+        end
+      end
+
+      private def parse_symbol_kind(value : String) : Graph::SymbolKind
+        case value
+        when "module"    then Graph::SymbolKind::Module
+        when "class"     then Graph::SymbolKind::Class
+        when "function"  then Graph::SymbolKind::Function
+        when "method"    then Graph::SymbolKind::Method
+        when "interface" then Graph::SymbolKind::Interface
+        when "variable"  then Graph::SymbolKind::Variable
+        when "type"      then Graph::SymbolKind::Type
+        else
+          Graph::SymbolKind::Variable
+        end
+      end
+
+      private def parse_args(body : String) : Array(String)
+        args = [] of String
+        current = String::Builder.new
+        in_quote = false
+        i = 0
+
+        while i < body.bytesize
+          ch = body.byte_at(i).unsafe_chr
+          if ch == '\''
+            if in_quote && i + 1 < body.bytesize && body.byte_at(i + 1).unsafe_chr == '\''
+              current << '\''
+              i += 1
+            else
+              in_quote = !in_quote
+              current << ch
+            end
+          elsif ch == ',' && !in_quote
+            args << current.to_s.strip
+            current = String::Builder.new
+          else
+            current << ch
+          end
+          i += 1
+        end
+
+        final = current.to_s.strip
+        args << final unless final.empty?
+        args
       end
     end
 
@@ -319,7 +608,14 @@ module Chiasmus
     end
 
     class Matcher
-      def initialize(@symbols : Array(SymbolItem), @rules : Array(ConversionRule))
+      def initialize(
+        @symbols : Array(SymbolItem),
+        @rules : Array(ConversionRule),
+        @source_graph : Graph::CodeGraph? = nil,
+        @crystal_graph : Graph::CodeGraph? = nil,
+        @source_entry_points : Array(String)? = nil,
+        @crystal_entry_points : Array(String)? = nil,
+      )
         @symbols_by_file = Hash(String, Array(SymbolItem)).new { |hash, key| hash[key] = [] of SymbolItem }
         @rules_by_upstream = Hash(String, Array(ConversionRule)).new { |hash, key| hash[key] = [] of ConversionRule }
 
@@ -371,6 +667,8 @@ module Chiasmus
             crystal_kind: "-",
             crystal_path: "-",
             basis: "none",
+            structural_status: "-",
+            structural_details: "-",
             notes: row.notes,
           )
         end
@@ -400,6 +698,7 @@ module Chiasmus
       end
 
       private def build_report(row : InventoryRow, status : String, match : Match, notes : String) : ReportRow
+        structural_status, structural_details = structural_fields(row.source_name, match.symbol.name, row.status)
         ReportRow.new(
           source_id: row.source_id,
           kind: row.kind,
@@ -410,11 +709,14 @@ module Chiasmus
           crystal_kind: match.symbol.kind,
           crystal_path: match.symbol.file,
           basis: match.basis,
+          structural_status: structural_status,
+          structural_details: structural_details,
           notes: notes,
         )
       end
 
       private def report_from_symbol(row : InventoryRow, status : String, symbol : SymbolItem, notes : String, confidence : Int32 = 100, basis : String = "ref_path") : ReportRow
+        structural_status, structural_details = structural_fields(row.source_name, symbol.name, row.status)
         ReportRow.new(
           source_id: row.source_id,
           kind: row.kind,
@@ -425,6 +727,8 @@ module Chiasmus
           crystal_kind: symbol.kind,
           crystal_path: symbol.file,
           basis: basis,
+          structural_status: structural_status,
+          structural_details: structural_details,
           notes: notes,
         )
       end
@@ -440,6 +744,8 @@ module Chiasmus
           crystal_kind: "-",
           crystal_path: "-",
           basis: basis,
+          structural_status: "-",
+          structural_details: "-",
           notes: notes,
         )
       end
@@ -456,6 +762,8 @@ module Chiasmus
           crystal_kind: "-",
           crystal_path: "-",
           basis: "conversion_rule",
+          structural_status: "-",
+          structural_details: "-",
           notes: row.notes == "-" ? rule.notes : row.notes,
         )
       end
@@ -500,6 +808,8 @@ module Chiasmus
             crystal_kind: match.symbol.kind,
             crystal_path: match.symbol.file,
             basis: "stale_ref_path",
+            structural_status: structural_fields(row.source_name, match.symbol.name, row.status)[0],
+            structural_details: structural_fields(row.source_name, match.symbol.name, row.status)[1],
             notes: notes,
           )
         end
@@ -512,6 +822,58 @@ module Chiasmus
         return existing if existing.includes?(extra)
 
         "#{existing}; #{extra}"
+      end
+
+      private def structural_fields(source_symbol : String, crystal_symbol : String, inventory_status : String) : Tuple(String, String)
+        return {"-", "-"} if inventory_status == "intentional_divergence"
+        source_graph = @source_graph
+        crystal_graph = @crystal_graph
+        return {"-", "-"} unless source_graph && crystal_graph
+
+        report = Structural.compare(
+          source_graph,
+          source_symbol,
+          crystal_graph,
+          crystal_symbol,
+          source_entry_points: @source_entry_points,
+          target_entry_points: @crystal_entry_points,
+        )
+        details = structural_detail_lines(report)
+        {report.status, details.empty? ? "-" : details.join("; ")}
+      end
+
+      private def structural_detail_lines(report : StructuralReport) : Array(String)
+        details = [] of String
+        append_presence_details(details, report)
+        append_relation_details(details, "imports", report.matched_imports, report.missing_imports, report.extra_imports)
+        append_relation_details(details, "calls", report.matched_calls, report.missing_calls, report.extra_calls)
+        append_relation_details(details, "contains", report.matched_contains, report.missing_contains, report.extra_contains)
+        details
+      end
+
+      private def append_presence_details(details : Array(String), report : StructuralReport) : Nil
+        details << "source_defined=false" unless report.source_defined
+        details << "target_defined=false" unless report.target_defined
+        if report.source_exported != report.target_exported
+          details << "source_exported=#{report.source_exported}"
+          details << "target_exported=#{report.target_exported}"
+        end
+        if report.source_entry_point != report.target_entry_point
+          details << "source_entry_point=#{report.source_entry_point}"
+          details << "target_entry_point=#{report.target_entry_point}"
+        end
+      end
+
+      private def append_relation_details(
+        details : Array(String),
+        label : String,
+        matched : Array(String),
+        missing : Array(String),
+        extra : Array(String),
+      ) : Nil
+        details << "matched_#{label}=#{matched.join(",")}" unless matched.empty?
+        details << "missing_#{label}=#{missing.join(",")}" unless missing.empty?
+        details << "extra_#{label}=#{extra.join(",")}" unless extra.empty?
       end
 
       private def best_match(row : InventoryRow, symbols : Array(SymbolItem)) : Match?
@@ -615,12 +977,142 @@ module Chiasmus
       crystal_dirs : Array(String) = ["src"],
       rules_path : String? = nil,
       parser_mode : String? = nil,
+      source_facts_path : String? = nil,
+      crystal_facts_path : String? = nil,
     ) : AnalysisResult
       inventory = Loader.read_inventory(inventory_path)
       rules = Loader.read_rules(rules_path)
       symbols, parser = CrystalScanner.scan(root_dir, crystal_dirs, parser_mode)
-      matcher = Matcher.new(symbols, rules)
+      source_facts = source_facts_path ? Structural.load_facts(source_facts_path) : nil
+      crystal_facts = crystal_facts_path ? Structural.load_facts(crystal_facts_path) : nil
+      matcher = Matcher.new(
+        symbols,
+        rules,
+        source_graph: source_facts.try(&.graph),
+        crystal_graph: crystal_facts.try(&.graph),
+        source_entry_points: source_facts.try(&.entry_points),
+        crystal_entry_points: crystal_facts.try(&.entry_points),
+      )
       AnalysisResult.new(rows: matcher.analyze(inventory), parser_mode: parser)
+    end
+
+    module Completion
+      extend self
+
+      def render(output : IO, inventory : Array(InventoryRow), result : AnalysisResult, source_facts : StructuralFacts) : Nil
+        reachable = reachable_symbol_keys(source_facts)
+        rows_by_id = result.rows.to_h { |row| {row.source_id, row} }
+
+        output.puts "% chiasmus completion facts"
+        output.puts "% tested(Id) is inferred from curated crystal_refs that point at spec/ or test/ paths."
+        output.puts "% Example queries:"
+        output.puts "%   ?- complete(Id)."
+        output.puts "%   ?- incomplete(Id)."
+        output.puts ":- discontiguous inventory_item/5."
+        output.puts ":- discontiguous status/2."
+        output.puts ":- discontiguous missing_item/1."
+        output.puts ":- discontiguous partial_item/1."
+        output.puts ":- discontiguous ported_item/1."
+        output.puts ":- discontiguous intentional_divergence/2."
+        output.puts ":- discontiguous source_symbol_name/2."
+        output.puts ":- discontiguous reachable_from_entry/1."
+        output.puts ":- discontiguous tested/1."
+        output.puts ":- discontiguous target_match/2."
+        output.puts ":- discontiguous structural_ok/1."
+        output.puts "missing_item(_) :- fail."
+        output.puts "partial_item(_) :- fail."
+        output.puts "ported_item(_) :- fail."
+        output.puts "intentional_divergence(_, _) :- fail."
+        output.puts "reachable_from_entry(_) :- fail."
+        output.puts "tested(_) :- fail."
+        output.puts "target_match(_, _) :- fail."
+        output.puts "structural_ok(_) :- fail."
+        output.puts
+
+        inventory.each do |row|
+          emit_inventory_facts(output, row)
+          output.puts "source_symbol_name(#{quote(row.source_id)}, #{quote(row.source_name)})."
+          output.puts "reachable_from_entry(#{quote(row.source_id)})." if reachable.includes?(Naming.normalized_key(row.source_name))
+          output.puts "tested(#{quote(row.source_id)})." if tested_from_refs?(row.crystal_refs)
+
+          next unless report = rows_by_id[row.source_id]?
+
+          output.puts "target_match(#{quote(report.source_id)}, #{quote(report.crystal_name)})." unless report.crystal_name == "-"
+          if report.structural_status == "structural_match" || structural_not_applicable_but_matched?(report)
+            output.puts "structural_ok(#{quote(report.source_id)})."
+          end
+        end
+
+        render_rules(output)
+      end
+
+      private def emit_inventory_facts(output : IO, row : InventoryRow) : Nil
+        output.puts "inventory_item(#{quote(row.source_id)}, #{quote(row.kind)}, #{quote(row.status)}, #{quote(row.crystal_refs)}, #{quote(row.notes)})."
+        output.puts "status(#{quote(row.source_id)}, #{quote(row.status)})."
+        output.puts "missing_item(#{quote(row.source_id)})." if row.status == "missing"
+        output.puts "partial_item(#{quote(row.source_id)})." if row.status == "partial"
+        output.puts "ported_item(#{quote(row.source_id)})." if row.status == "ported"
+        output.puts "intentional_divergence(#{quote(row.source_id)}, #{quote(row.notes)})." if row.status == "intentional_divergence"
+      end
+
+      private def structural_not_applicable_but_matched?(report : ReportRow) : Bool
+        report.kind == "test" && report.crystal_name != "-"
+      end
+
+      private def tested_from_refs?(refs : String) : Bool
+        return false if refs == "-"
+
+        refs.split(/[,\s]+/).any? do |token|
+          path = token.split(":").first? || token
+          path.starts_with?("spec/") || path.includes?("/spec/") ||
+            path.starts_with?("test/") || path.includes?("/test/")
+        end
+      end
+
+      private def reachable_symbol_keys(source_facts : StructuralFacts) : Set(String)
+        forward = Hash(String, Set(String)).new { |hash, key| hash[key] = Set(String).new }
+        source_facts.graph.calls.each do |fact|
+          forward[fact.caller] << fact.callee
+          forward[fact.callee] = Set(String).new unless forward.has_key?(fact.callee)
+        end
+
+        roots = source_facts.entry_points.empty? ? source_facts.graph.exports.map(&.name) : source_facts.entry_points
+        visited = Set(String).new
+        queue = roots.dup
+
+        until queue.empty?
+          current = queue.shift
+          next if visited.includes?(current)
+
+          visited << current
+          forward[current]?.try(&.each do |name|
+            queue << name unless visited.includes?(name)
+          end)
+        end
+
+        visited.map { |name| Naming.normalized_key(name) }.to_set
+      end
+
+      private def render_rules(output : IO) : Nil
+        output.puts
+        output.puts "complete(Id) :-"
+        output.puts "    reachable_from_entry(Id),"
+        output.puts "    ported_item(Id),"
+        output.puts "    target_match(Id, _),"
+        output.puts "    structural_ok(Id),"
+        output.puts "    tested(Id)."
+        output.puts
+        output.puts "incomplete(Id) :-"
+        output.puts "    reachable_from_entry(Id),"
+        output.puts "    \\+ complete(Id),"
+        output.puts "    \\+ intentional_divergence(Id, _),"
+        output.puts "    \\+ status(Id, 'skipped')."
+      end
+
+      private def quote(value : String) : String
+        escaped = value.gsub("\\", "\\\\").gsub("'", "\\'")
+        "'#{escaped}'"
+      end
     end
 
     module CLI
@@ -632,6 +1124,9 @@ module Chiasmus
         crystal_dirs = [] of String
         rules_path : String? = nil
         parser_mode : String? = nil
+        source_facts_path : String? = nil
+        crystal_facts_path : String? = nil
+        format = "tsv"
         help_requested = false
 
         parser = OptionParser.new do |opts|
@@ -641,6 +1136,9 @@ module Chiasmus
           opts.on("--crystal-dir DIR", "Crystal source/spec directory (repeatable)") { |value| crystal_dirs << value }
           opts.on("--rules FILE", "Optional conversion rules TSV") { |value| rules_path = value }
           opts.on("--parser MODE", "Parser mode: auto|tree-sitter|regex") { |value| parser_mode = value }
+          opts.on("--source-facts FILE", "Optional source graph facts for structural checks") { |value| source_facts_path = value }
+          opts.on("--crystal-facts FILE", "Optional Crystal graph facts for structural checks") { |value| crystal_facts_path = value }
+          opts.on("--format FORMAT", "Output format: tsv|completion-facts") { |value| format = value }
           opts.on("--help", "Show this help") do
             help_requested = true
           end
@@ -673,9 +1171,22 @@ module Chiasmus
           crystal_dirs: crystal_dirs,
           rules_path: rules_path,
           parser_mode: parser_mode,
+          source_facts_path: source_facts_path,
+          crystal_facts_path: crystal_facts_path,
         )
 
-        render_tsv(output, result)
+        if format == "completion-facts"
+          source_path = source_facts_path
+          crystal_path = crystal_facts_path
+          if source_path.nil? || crystal_path.nil?
+            error.puts "--source-facts and --crystal-facts are required for --format completion-facts"
+            return 1
+          end
+          inventory = Loader.read_inventory(inventory_path)
+          Completion.render(output, inventory, result, Structural.load_facts(source_path))
+        else
+          render_tsv(output, result)
+        end
         0
       rescue ex
         error.puts ex.message
@@ -684,7 +1195,7 @@ module Chiasmus
 
       private def render_tsv(output : IO, result : AnalysisResult) : Nil
         output.puts "# parser_mode=#{result.parser_mode}"
-        output.puts "# source_id\tkind\tinventory_status\tmatch_status\tconfidence\tcrystal_name\tcrystal_kind\tcrystal_path\tbasis\tnotes"
+        output.puts "# source_id\tkind\tinventory_status\tmatch_status\tconfidence\tcrystal_name\tcrystal_kind\tcrystal_path\tbasis\tstructural_status\tstructural_details\tnotes"
         result.rows.each do |row|
           output.puts [
             row.source_id,
@@ -696,6 +1207,8 @@ module Chiasmus
             row.crystal_kind,
             row.crystal_path,
             row.basis,
+            row.structural_status,
+            row.structural_details,
             row.notes,
           ].join('\t')
         end
