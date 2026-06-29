@@ -16,6 +16,8 @@ targets:
     main: src/chiasmus_parity.cr
   chiasmus-plan:
     main: src/chiasmus_plan.cr
+  chiasmus-complete:
+    main: src/chiasmus_complete.cr
 crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:
