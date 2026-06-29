@@ -224,7 +224,7 @@ The two layers never meet today. The goal is to join them.
 | Track / query port state | `generate_inventory_facts.rb` → layer B | works (bookkeeping) |
 | Verify "is X ported, to what, how sure" | `chiasmus-parity` | name/kind match + confidence, **name-level only** |
 | Verify structural similarity | none | missing |
-| Run both test suites for signoff | `verify_parity_adversarial.sh` | coarse |
+| Run both test suites for signoff | `verify_parity_adversarial.sh` | now includes `check_completion_gate.sh`; still needs direct cross-language skill wiring |
 
 **Ceiling:** every tool in the loop uses only **declarations** (`defines`) and
 **names**. None use `calls/imports/contains/reaches/dead`. "Complete" today
@@ -904,7 +904,7 @@ Acceptance:
       entry-point drift, and missing-symbol drift against source/target fact
       graphs, covered by
       `spec/chiasmus/parity_spec.cr`
-- [ ] Step 4: skill wiring + unified `complete/1` gate — the completion-facts half now exists in `src/chiasmus/parity.cr` via `chiasmus-parity --format completion-facts`, with `complete/1` and `incomplete/1` query coverage in `spec/chiasmus/parity_spec.cr`; `src/chiasmus/complete.cr` and `src/chiasmus_complete.cr` now expose a first-class `chiasmus-complete` gate with `status|complete|incomplete` queries and nonzero status output while reachable incomplete work remains; `scripts/check_completion_gate.sh` now wires `chiasmus-facts` + `chiasmus-complete` into the repo workflow; cross-language skill wiring is still pending
+- [ ] Step 4: skill wiring + unified `complete/1` gate — the completion-facts half now exists in `src/chiasmus/parity.cr` via `chiasmus-parity --format completion-facts`, with `complete/1` and `incomplete/1` query coverage in `spec/chiasmus/parity_spec.cr`; `src/chiasmus/complete.cr` and `src/chiasmus_complete.cr` now expose a first-class `chiasmus-complete` gate with `status|complete|incomplete` queries and nonzero status output while reachable incomplete work remains; `scripts/check_completion_gate.sh` now wires `chiasmus-facts` + `chiasmus-complete` into the repo workflow, and `scripts/verify_parity_adversarial.sh` now invokes that gate during signoff; direct cross-language skill wiring is still pending
 - [x] P1: planner ranking CLI (`rank` / `safe`) — implemented in
       `src/chiasmus/plan.cr` with TSV/JSON output via `src/chiasmus_plan.cr`;
       covered by `spec/chiasmus/plan_spec.cr`
