@@ -14,6 +14,8 @@ targets:
     main: src/chiasmus_discover.cr
   chiasmus-parity:
     main: src/chiasmus_parity.cr
+  chiasmus-plan:
+    main: src/chiasmus_plan.cr
 crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:
@@ -38,7 +40,6 @@ dependencies:
     github: erdnaxeli/clip
   mcp:
     github: dsisnero/mcp.cr
-    branch: codex/async-tool-handlers
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba
