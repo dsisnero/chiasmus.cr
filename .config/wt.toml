@@ -1,0 +1,9 @@
+# Keep vendored git submodules materialized in freshly-created or re-entered
+# worktrees. Symlinking tracked vendor repos across worktrees is unsafe because
+# git expects each worktree/submodule checkout to own its own working tree.
+
+[post-start]
+vendor = "./scripts/wktrees_sync_vendor.sh"
+
+[post-switch]
+vendor = "./scripts/wktrees_sync_vendor.sh"
