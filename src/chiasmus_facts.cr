@@ -93,8 +93,18 @@ module Chiasmus
 
       result = Graph::Analyses.run_analysis_async(files, request).receive
 
+      if error_message = result.error
+        error.puts error_message
+        return 1
+      end
+
+      analysis_result = result.value || begin
+        error.puts "facts analysis returned no result"
+        return 1
+      end
+
       output.puts "% chiasmus-facts language=#{language} dir=#{dir} files=#{files.size}"
-      output.puts result.result.as(String)
+      output.puts analysis_result.result.as(String)
       0
     rescue ex
       error.puts ex.message || ex.class.name
