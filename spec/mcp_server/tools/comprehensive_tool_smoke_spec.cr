@@ -358,19 +358,15 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
       r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("prompt")
     end
 
-    pending "returns error when no API key configured" do
-      tool = Chiasmus::MCPServer::Tools::CrigTool.new
-      prev_openai = ENV["OPENAI_API_KEY"]?
-      prev_deepseek = ENV["DEEPSEEK_API_KEY"]?
-      ENV.delete("OPENAI_API_KEY")
-      ENV.delete("DEEPSEEK_API_KEY")
-      begin
+    it "returns error when no API key configured" do
+      with_env({
+        "OPENAI_API_KEY"   => nil,
+        "DEEPSEEK_API_KEY" => nil,
+      }) do
+        tool = Chiasmus::MCPServer::Tools::CrigTool.new
         r = tool.invoke({"prompt" => JSON::Any.new("hello")})
         r.status.should eq("error")
         r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("API key")
-      ensure
-        ENV["OPENAI_API_KEY"] = prev_openai if prev_openai
-        ENV["DEEPSEEK_API_KEY"] = prev_deepseek if prev_deepseek
       end
     end
   end

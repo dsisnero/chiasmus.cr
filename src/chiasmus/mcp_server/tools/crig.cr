@@ -3,6 +3,28 @@ require "mcp"
 require "crig"
 require "../../llm/types"
 
+module Chiasmus
+  module MCPServer
+    module Tools
+      class CrigTool
+        def self.default_model_name : String
+          provider = ENV["CHIASMUS_LLM_PROVIDER"]? || Chiasmus::LLM::DEFAULT_PROVIDER
+          ENV["CHIASMUS_LLM_MODEL"]? || Chiasmus::LLM::SimpleConfig.default_model_for(provider)
+        end
+
+        def self.resolve_config(
+          model : String,
+          preamble : String = Chiasmus::LLM::DEFAULT_PREAMBLE,
+        ) : Chiasmus::LLM::SimpleConfig
+          # Respect an explicit model choice over a stale provider env so the
+          # matching provider key is selected for the request.
+          Chiasmus::LLM::SimpleConfig.new(provider: "", model: model, preamble: preamble)
+        end
+      end
+    end
+  end
+end
+
 # Crig-native tool definition using rig_tool macro
 Crig.rig_tool("Run a direct Crig prompt using the configured LLM provider and return the model output.",
   {
@@ -16,10 +38,10 @@ Crig.rig_tool("Run a direct Crig prompt using the configured LLM provider and re
   def crig_prompt(
     prompt : String,
     preamble : String = Chiasmus::LLM::DEFAULT_PREAMBLE,
-    model : String = Chiasmus::LLM::DEFAULT_MODEL,
+    model : String = Chiasmus::MCPServer::Tools::CrigTool.default_model_name,
     max_turns : Int32 = 0,
   ) : Chiasmus::MCPServer::Types::CrigResponse
-    config = Chiasmus::LLM::SimpleConfig.new(model: model, preamble: preamble)
+    config = Chiasmus::MCPServer::Tools::CrigTool.resolve_config(model, preamble)
     raise "API key not configured for selected provider" unless Chiasmus::LLM.available?(config)
 
     client = Chiasmus::LLM.client(config)
@@ -102,7 +124,7 @@ module Chiasmus
         private def normalized_arguments(arguments : Hash(String, JSON::Any)) : Hash(String, JSON::Any)
           normalized = arguments.dup
           normalized["preamble"] ||= JSON::Any.new(Chiasmus::LLM::DEFAULT_PREAMBLE)
-          normalized["model"] ||= JSON::Any.new(Chiasmus::LLM::DEFAULT_MODEL)
+          normalized["model"] ||= JSON::Any.new(self.class.default_model_name)
           normalized["max_turns"] ||= JSON::Any.new(0_i64)
           normalized
         end

@@ -36,6 +36,12 @@ describe "Chiasmus MCP Server Transport" do
       names.should contain("chiasmus_verify")
     end
 
+    it "reports the shard version to clients, not a hardcoded value" do
+      info = (client || raise("not connected")).server_version
+      info.name.should eq("chiasmus")
+      info.version.should eq(Chiasmus::VERSION)
+    end
+
     it "lists all 11 expected tools" do
       result = (client || raise("not connected")).list_tools
       result.should_not be_nil

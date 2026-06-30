@@ -346,6 +346,10 @@ module Chiasmus
         !@formalization_engine.nil?
       end
 
+      private def embedding_configured? : Bool
+        Tools::SearchTool.embedding_configured?
+      end
+
       private def register_tools(mcp_server : MCP::Server::Server)
         tool_defs = [
           {Tools::VerifyTool, Tools::VerifyTool.tool_name, Tools::VerifyTool.tool_description, Tools::VerifyTool.input_schema},
@@ -366,7 +370,8 @@ module Chiasmus
         # chiasmus_learn requires an LLM to extract reusable templates.
         # chiasmus_search requires an embedding provider.
         gated = tool_defs.reject do |(tool_class, name, _, _)|
-          (name == "chiasmus_learn" && !llm_configured?)
+          (name == "chiasmus_learn" && !llm_configured?) ||
+            (name == "chiasmus_search" && !embedding_configured?)
         end
 
         gated.each do |(tool_class, name, description, input_schema)|

@@ -3,33 +3,43 @@ require "mcp"
 
 # Helper: create server with MockCompletionModel (no real LLM, no embedding),
 # connect via in-memory transport, and return list of tool names.
-private def build_and_list_tools : Array(String)
-  server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
-  transport = server.build_mcp_transport
+EMBED_GATE_ENV = {
+  "CHIASMUS_EMBED_PROVIDER" => nil,
+  "CHIASMUS_EMBED_MODEL"    => nil,
+  "CHIASMUS_EMBED_URL"      => nil,
+  "OPENAI_API_KEY"          => nil,
+  "DEEPSEEK_API_KEY"        => nil,
+}
 
-  st = MCP::Shared::InMemoryTransport.new
-  ct = MCP::Shared::InMemoryTransport.new
-  st.other_transport = ct
-  ct.other_transport = st
-  transport.connect(st)
+private def build_and_list_tools(env_vars : Hash(String, String?) = {} of String => String?) : Array(String)
+  with_env(EMBED_GATE_ENV.merge(env_vars)) do
+    server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
+    transport = server.build_mcp_transport
 
-  client = MCP::Client::Client.new(
-    MCP::Protocol::Implementation.new(name: "test-client", version: "0.0.1")
-  )
-  client.connect(ct)
+    st = MCP::Shared::InMemoryTransport.new
+    ct = MCP::Shared::InMemoryTransport.new
+    st.other_transport = ct
+    ct.other_transport = st
+    transport.connect(st)
 
-  begin
-    result = client.list_tools
-    result.should_not be_nil
-    if result
-      result.tools.map(&.name)
-    else
-      [] of String
+    client = MCP::Client::Client.new(
+      MCP::Protocol::Implementation.new(name: "test-client", version: "0.0.1")
+    )
+    client.connect(ct)
+
+    begin
+      result = client.list_tools
+      result.should_not be_nil
+      if result
+        result.tools.map(&.name)
+      else
+        [] of String
+      end
+    ensure
+      client.close rescue nil
+      transport.close rescue nil
+      server.skill_library.close rescue nil
     end
-  ensure
-    client.close rescue nil
-    transport.close rescue nil
-    server.skill_library.close rescue nil
   end
 end
 
@@ -55,9 +65,16 @@ describe "MCP tool gating by configured capability" do
     names.should contain("chiasmus_formalize")
   end
 
-  # RED: Currently all 12 tools are listed unconditionally.
-  # The upstream gates: chiasmus_learn hidden when no LLM,
-  # chiasmus_search hidden when no embedding provider.
+  it "hides chiasmus_search when no embedding provider is configured" do
+    names = build_and_list_tools
+    names.should_not contain("chiasmus_search")
+  end
+
+  it "lists chiasmus_search when an embedding provider is configured" do
+    names = build_and_list_tools({"CHIASMUS_EMBED_PROVIDER" => "ollama"})
+    names.should contain("chiasmus_search")
+  end
+
   it "hides chiasmus_learn when no LLM is configured" do
     names = build_and_list_tools
     names.should_not contain("chiasmus_learn")

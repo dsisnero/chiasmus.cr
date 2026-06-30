@@ -862,6 +862,40 @@ end
 # Tool gating: chiasmus_learn hidden when no LLM configured
 # =============================================================================
 describe "Tool gating by configured capability" do
+  it "chiasmus_search is hidden when no embedding provider is configured" do
+    with_env({
+      "CHIASMUS_EMBED_PROVIDER" => nil,
+      "CHIASMUS_EMBED_MODEL"    => nil,
+      "CHIASMUS_EMBED_URL"      => nil,
+      "OPENAI_API_KEY"          => nil,
+      "DEEPSEEK_API_KEY"        => nil,
+    }) do
+      server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
+      transport = server.build_mcp_transport
+
+      st, ct = linked_transports
+      transport.connect(st)
+
+      client = MCP::Client::Client.new(
+        MCP::Protocol::Implementation.new(name: "test-client", version: "0.0.1")
+      )
+      client.connect(ct)
+
+      begin
+        result = client.list_tools
+        result.should_not be_nil
+        if r = result
+          names = r.tools.map(&.name)
+          names.should_not contain("chiasmus_search")
+        end
+      ensure
+        client.close rescue nil
+        transport.close rescue nil
+        server.skill_library.close rescue nil
+      end
+    end
+  end
+
   it "chiasmus_learn is hidden when no LLM is configured" do
     server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
     transport = server.build_mcp_transport
@@ -915,6 +949,7 @@ describe "Tool gating by configured capability" do
         names.should contain("chiasmus_review")
         names.should contain("chiasmus_formalize")
         names.should contain("chiasmus_solve")
+        names.should_not contain("chiasmus_search")
       end
     ensure
       client.close rescue nil

@@ -13,6 +13,33 @@ ensure
 end
 
 describe Chiasmus::MCPServer::Tools::CrigTool do
+  describe ".default_model_name" do
+    it "defaults from CHIASMUS_LLM_PROVIDER when no model override is set" do
+      with_env({
+        "CHIASMUS_LLM_PROVIDER" => "openai",
+        "CHIASMUS_LLM_MODEL"    => nil,
+      }) do
+        Chiasmus::MCPServer::Tools::CrigTool.default_model_name.should eq(Crig::Providers::OpenAI::GPT_4O_MINI)
+      end
+    end
+  end
+
+  describe ".resolve_config" do
+    it "uses the matching provider key for an explicit deepseek model" do
+      with_env({
+        "CHIASMUS_LLM_PROVIDER" => "openai",
+        "OPENAI_API_KEY"        => nil,
+        "DEEPSEEK_API_KEY"      => "sk-deepseek-test",
+      }) do
+        config = Chiasmus::MCPServer::Tools::CrigTool.resolve_config("deepseek-chat")
+
+        config.provider.should eq("deepseek")
+        config.api_key.should eq("sk-deepseek-test")
+        Chiasmus::LLM.available?(config).should be_true
+      end
+    end
+  end
+
   describe "#invoke" do
     it "requires a prompt" do
       tool = Chiasmus::MCPServer::Tools::CrigTool.new
