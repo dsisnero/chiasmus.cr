@@ -23,7 +23,7 @@ module Chiasmus
         cache_dir : String? = nil,
         max_bytes : Int32? = nil,
         max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT,
-        parallel_cpu : Bool = parallel_cpu_enabled?
+        parallel_cpu : Bool = parallel_cpu_enabled?,
       ) : CodeGraph
         to_extract = files
         cached = [] of NamedTuple(path: String, graph: CodeGraph)
@@ -96,7 +96,7 @@ module Chiasmus
         cache_dir : String? = nil,
         max_bytes : Int32? = nil,
         max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT,
-        parallel_cpu : Bool = parallel_cpu_enabled?
+        parallel_cpu : Bool = parallel_cpu_enabled?,
       ) : Channel(CodeGraph)
         channel = Channel(CodeGraph).new(1)
 

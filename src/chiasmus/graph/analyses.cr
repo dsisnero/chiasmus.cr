@@ -175,7 +175,7 @@ module Chiasmus
         snapshot_cache_dir : String? = nil,
         repo_key : String? = nil,
         max_bytes : Int32? = nil,
-        save_snapshot : String? = nil
+        save_snapshot : String? = nil,
       ) : Channel(AnalysisResult)
         channel = Channel(AnalysisResult).new(1)
 
@@ -209,7 +209,7 @@ module Chiasmus
         graph : CodeGraph,
         request : AnalysisRequest,
         snapshot_cache_dir : String? = nil,
-        repo_key : String? = nil
+        repo_key : String? = nil,
       ) : Channel(AnalysisResult)
         channel = Channel(AnalysisResult).new(1)
 
