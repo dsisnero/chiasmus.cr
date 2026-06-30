@@ -156,7 +156,7 @@ module ParityInventory
     test_items = []
 
     entries.each do |path, rel|
-      content = File.read(path)
+      content = read_utf8_text(path)
       src, test = case language
                   when 'go' then extract_go(rel, content)
                   when 'rust' then extract_rust(rel, content)
@@ -569,7 +569,7 @@ module ParityInventory
     return {} unless path && File.file?(path)
 
     overrides = {}
-    File.readlines(path, chomp: true).each_with_index do |line, idx|
+    read_utf8_lines(path, chomp: true).each_with_index do |line, idx|
       next if line.start_with?('#') || line.strip.empty?
 
       cols = line.split("\t", -1)
@@ -588,7 +588,7 @@ module ParityInventory
 
   def load_manifest_rows(path, min_cols:)
     rows = []
-    File.readlines(path, chomp: true).each_with_index do |line, idx|
+    read_utf8_lines(path, chomp: true).each_with_index do |line, idx|
       next if line.start_with?('#') || line.strip.empty?
 
       cols = line.split("\t", -1)
@@ -597,5 +597,13 @@ module ParityInventory
       rows << cols
     end
     rows
+  end
+
+  def read_utf8_text(path)
+    File.binread(path).force_encoding(Encoding::UTF_8).scrub
+  end
+
+  def read_utf8_lines(path, chomp: false)
+    read_utf8_text(path).lines(chomp: chomp)
   end
 end

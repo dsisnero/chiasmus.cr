@@ -39,16 +39,30 @@ ruby -e '
   end
 ' "${ROOT_DIR}/plans/inventory/${LANGUAGE}_port_inventory.tsv"
 
-# Detect placeholder tests in Crystal side when applicable.
+# Detect explicitly disabled specs in Crystal side when applicable. Runtime
+# `pending` is validated from the actual spec command output below because a
+# static grep produces false positives for conditional pendings and non-spec
+# identifiers such as `pending : PendingCall`.
 if [[ -d "${ROOT_DIR}/spec" ]]; then
-  if rg --pcre2 -n "^\s*pending(?!\s*(=|<<|\+=|-=|\*=|\/=))(\s|$)|^\s*xit\(|^\s*xdescribe\(|^\s*xcontext\(" "${ROOT_DIR}/spec" "${ROOT_DIR}/src" >/dev/null 2>&1; then
-    echo "Found placeholder specs in src/spec. Resolve before parity signoff." >&2
+  if rg --pcre2 -n "^\s*xit\(|^\s*xdescribe\(|^\s*xcontext\(" "${ROOT_DIR}/spec" "${ROOT_DIR}/src" >/dev/null 2>&1; then
+    echo "Found disabled specs in src/spec. Resolve before parity signoff." >&2
     exit 1
   fi
 fi
 
 if [[ -n "${CRYSTAL_SPEC_CMD}" ]]; then
-  (cd "${ROOT_DIR}" && eval "${CRYSTAL_SPEC_CMD}")
+  SPEC_LOG="$(mktemp)"
+  set +e
+  (cd "${ROOT_DIR}" && eval "${CRYSTAL_SPEC_CMD}") | tee "${SPEC_LOG}"
+  SPEC_STATUS=${PIPESTATUS[0]}
+  set -e
+  if [[ ${SPEC_STATUS} -ne 0 ]]; then
+    exit "${SPEC_STATUS}"
+  fi
+  if rg -n "^Pending:" "${SPEC_LOG}" >/dev/null 2>&1; then
+    echo "Crystal spec command reported pending examples. Resolve before parity signoff." >&2
+    exit 1
+  fi
 fi
 
 if [[ -n "${UPSTREAM_TEST_CMD}" ]]; then
