@@ -118,10 +118,6 @@ module ParityInventory
 
     items = if parser == 'tree-sitter'
               result = discover_with_crystal_discovery(base, language)
-              unless result.empty?
-                # Merge parser mode into notes for visibility
-                result.each { |item| item[:parser_mode] = 'tree-sitter' }
-              end
               result
             else
               discover_with_regex(base, language)
@@ -132,9 +128,10 @@ module ParityInventory
 
   def effective_parser(language, parser_mode)
     mode = parser_mode.to_s
+    treesitter_available = detect_treesitter(language) || !discover_crystal_binary.nil?
     return 'regex' if mode.empty? || mode == 'regex'
-    return detect_treesitter(language) ? 'tree-sitter' : 'regex' if mode == 'tree-sitter'
-    return detect_treesitter(language) ? 'tree-sitter' : 'regex' if mode == 'auto'
+    return treesitter_available ? 'tree-sitter' : 'regex' if mode == 'tree-sitter'
+    return treesitter_available ? 'tree-sitter' : 'regex' if mode == 'auto'
 
     raise ArgumentError, "Invalid parser mode: #{parser_mode} (expected auto|regex|tree-sitter)"
   end

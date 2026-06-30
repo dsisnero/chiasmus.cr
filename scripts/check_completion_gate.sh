@@ -107,11 +107,15 @@ CRYSTAL_FACTS="${TMP_DIR}/crystal.pl"
 build_entry_point_args
 
 source_args=(--language "${SOURCE_LANGUAGE}" --dir "${SOURCE_DIR}")
-source_args+=("${ENTRY_POINT_ARGS[@]}")
+if (( ${#ENTRY_POINT_ARGS[@]} > 0 )); then
+  source_args+=("${ENTRY_POINT_ARGS[@]}")
+fi
 run_tool CHIASMUS_FACTS_BIN chiasmus-facts "${source_args[@]}" > "${SOURCE_FACTS}"
 
 crystal_facts_args=(--language crystal --dir "${CRYSTAL_DIR}")
-crystal_facts_args+=("${ENTRY_POINT_ARGS[@]}")
+if (( ${#ENTRY_POINT_ARGS[@]} > 0 )); then
+  crystal_facts_args+=("${ENTRY_POINT_ARGS[@]}")
+fi
 run_tool CHIASMUS_FACTS_BIN chiasmus-facts "${crystal_facts_args[@]}" > "${CRYSTAL_FACTS}"
 
 complete_args=(
