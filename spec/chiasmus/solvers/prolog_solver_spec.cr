@@ -130,6 +130,46 @@ describe Chiasmus::Solvers::PrologSolver do
     end
   end
 
+  describe "wrapper-variable hygiene" do
+    it "does not leak internal wrapper variables into bindings" do
+      next pending("swipl not installed") unless swipl_available?
+
+      with_prolog_solver do |solver|
+        result = solver.solve("parent(tom, bob).", "parent(tom, X).")
+
+        result.should be_a(Chiasmus::Solvers::SuccessResult)
+        bindings = result.as(Chiasmus::Solvers::SuccessResult).answers.first.bindings
+        bindings.has_key?("ChiasmusErr_3F2A1B").should be_false
+        bindings.has_key?("ChiasmusErrStr_3F2A1B").should be_false
+      end
+    end
+
+    it "renders a ground goal as clean `true` with no spurious bindings" do
+      next pending("swipl not installed") unless swipl_available?
+
+      with_prolog_solver do |solver|
+        result = solver.solve("parent(tom, bob).", "parent(tom, bob).")
+
+        result.should be_a(Chiasmus::Solvers::SuccessResult)
+        answer = result.as(Chiasmus::Solvers::SuccessResult).answers.first
+        answer.bindings.should be_empty
+        answer.formatted.should eq("true")
+      end
+    end
+
+    it "strips the leaked wrapper var while preserving a user binding of the same name" do
+      next pending("swipl not installed") unless swipl_available?
+
+      with_prolog_solver do |solver|
+        result = solver.solve("", "ChiasmusErr_3F2A1B = user_visible.")
+
+        result.should be_a(Chiasmus::Solvers::SuccessResult)
+        answer = result.as(Chiasmus::Solvers::SuccessResult).answers.first
+        answer.bindings["ChiasmusErr_3F2A1B"].should eq("user_visible")
+      end
+    end
+  end
+
   it "returns nil trace when explain is false (default)" do
     next pending("swipl not installed") unless swipl_available?
 

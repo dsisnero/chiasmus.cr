@@ -390,6 +390,10 @@ src/search/vector-store.ts::interface::VectorRecord	missing	-	baseline
 src/search/vector-store.ts::interface::VectorSearchHit	missing	-	baseline
 src/search/vector-store.ts::interface::VectorStoreConfig	missing	-	baseline
 src/search/vector-store.ts::method::VectorStore.constructor	missing	-	baseline
+src/formalize/engine.ts::function::l2Norm	ported	src/chiasmus/formalize/engine.cr:260	Ported as the private `l2_norm` helper used by embedding-based template reranking
+src/solvers/prolog-solver.ts::const::ERR_STR_VAR	intentional_divergence	src/chiasmus/solvers/prolog_solver.cr:42	Crolog/SWI runtime does not inject the JS wrapper variables used upstream; equivalent hygiene is covered by `spec/chiasmus/solvers/prolog_solver_spec.cr`
+src/solvers/prolog-solver.ts::const::ERR_VAR	intentional_divergence	src/chiasmus/solvers/prolog_solver.cr:42	Crolog/SWI runtime does not inject the JS wrapper variables used upstream; equivalent hygiene is covered by `spec/chiasmus/solvers/prolog_solver_spec.cr`
+src/solvers/prolog-solver.ts::const::INTERNAL_VARS	intentional_divergence	src/chiasmus/solvers/prolog_solver.cr:42	Crolog/SWI runtime does not need a wrapper-var strip set because the runtime does not leak those synthetic vars
 src/skills/bm25.ts::const::N	missing	-	baseline
 src/skills/bm25.ts::const::STOPWORDS	missing	-	baseline
 src/skills/bm25.ts::function::addToIndex	missing	-	baseline

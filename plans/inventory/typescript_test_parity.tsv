@@ -935,6 +935,16 @@ tests/validate.test.ts::test::strips markdown fences	missing	-	baseline
 tests/validate.test.ts::test::valid Prolog passes with no errors or fixes	missing	-	baseline
 tests/validate.test.ts::test::valid Z3 passes with no errors or fixes	missing	-	baseline
 tests/validate.test.ts::test::valid specs pass clean	missing	-	baseline
+tests/mcp-server.test.ts::test::documents that `converged` is not a verdict on the property	ported	spec/mcp_server/tools/solve_spec.cr:6	Ported via the solve tool description regression spec
+tests/mcp-server.test.ts::test::reports the package.json version to clients, not a hardcoded value	ported	spec/chiasmus/mcp_server/server_spec.cr:39	Ported via MCP client `server_version` assertion against `Chiasmus::VERSION`
+tests/mcp-server.test.ts::test::server metadata	ported	spec/chiasmus/mcp_server/server_spec.cr:31	Ported via initialize-and-tools/list transport specs, including wire-reported server version
+tests/prolog-solver.test.ts::test::does not leak internal wrapper variables into bindings	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:134	Ported as wrapper-variable hygiene coverage for the Crystal runtime
+tests/prolog-solver.test.ts::test::renders a ground goal as clean `true` with no spurious bindings	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:147	Ported as formatted-answer hygiene coverage for ground Prolog goals
+tests/prolog-solver.test.ts::test::strips the leaked wrapper var while preserving a user binding of the same name	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:160	Ported as user-binding preservation coverage for wrapper-like variable names
+tests/prolog-solver.test.ts::test::wrapper-variable hygiene	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:133	Ported as wrapper-variable hygiene spec group
+tests/validate.test.ts::test::Prolog with a float in a terminated clause passes	ported	spec/chiasmus/formalize/validate_spec.cr:169	Ported as float-terminator lint regression coverage
+tests/validate.test.ts::test::catches a spec whose only period is a float decimal point	ported	spec/chiasmus/formalize/validate_spec.cr:84	Ported as decimal-point false-positive lint regression coverage
+tests/validate.test.ts::test::catches an unterminated last clause in a multi-clause spec	ported	spec/chiasmus/formalize/validate_spec.cr:74	Ported as multi-clause unterminated-tail lint regression coverage
 tests/z3-resource-management.test.ts::test::Z3Solver resource management	missing	-	baseline
 tests/z3-resource-management.test.ts::test::dispose is idempotent — calling twice does not throw	missing	-	baseline
 tests/z3-resource-management.test.ts::test::handles multiple solve calls on the same solver instance	missing	-	baseline
