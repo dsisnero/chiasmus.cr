@@ -41,6 +41,7 @@ repro_*.cr
 patch_*.cr
 
 # Build artifacts and configuration
+.build/
 tree-sitter-config.json
 mise.toml
 # Tree-sitter build artifacts

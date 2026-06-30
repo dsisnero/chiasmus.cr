@@ -12,8 +12,14 @@ targets:
     main: src/chiasmus_grammar.cr
   chiasmus-discover:
     main: src/chiasmus_discover.cr
+  chiasmus-facts:
+    main: src/chiasmus_facts.cr
   chiasmus-parity:
     main: src/chiasmus_parity.cr
+  chiasmus-plan:
+    main: src/chiasmus_plan.cr
+  chiasmus-complete:
+    main: src/chiasmus_complete.cr
 crystal: ">= 1.19.1"
 dependencies:
   tree_sitter:
@@ -36,6 +42,8 @@ dependencies:
     github: dsisnero/bm25
   clip:
     github: erdnaxeli/clip
+  mcp:
+    github: dsisnero/mcp.cr
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba

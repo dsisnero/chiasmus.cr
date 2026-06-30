@@ -1,450 +1,607 @@
-# Cross-Platform Build & Release Plan
+# Cross-Platform Parity Maintenance Plan
+
+## Why This Exists
+
+The `cross-language-crystal-parity` skill is strong at vendor API/test drift,
+but cross-platform work in this repo cuts across three categories:
+
+- vendor-backed runtime behavior
+- Crystal-native packaging/release behavior
+- CI/signoff workflow
+
+That means platform work is easy to do sloppily: people either ignore the
+inventory entirely, or they try to force CI/release changes into fake upstream
+parity rows. This document exists to make platform work fit the parity skill
+cleanly.
+
+Use this file when the task is any of:
+
+- grammar loading breaks on one OS
+- packaging/release assets drift by platform
+- CI proves builds but not runtime behavior
+- platform abstractions diverge across scripts and runtime code
+
+Do not use this file as a substitute for `plans/parity.md`. This is a focused
+execution guide for a cross-cutting maintenance area that the main parity plan
+does not slice well on its own.
+
+## How To Use This With `cross-language-crystal-parity`
+
+### Scope rule
+
+Use the normal parity skill flow:
+
+1. read the relevant upstream/runtime code
+2. decide whether the work is vendor-backed, Crystal-native, or mixed
+3. port/fix the smallest behavior slice
+4. run drift checks and repo gates
+5. update the curated artifacts that actually correspond to the work
+
+### Inventory rule
+
+Not every cross-platform change should create or edit inventory rows.
+
+Touch `plans/inventory/typescript_port_inventory.tsv` only when the platform
+change affects behavior that maps to upstream TypeScript items, for example:
+
+- grammar loading behavior
+- MCP/runtime behavior that changes because libraries are found or not found
+- CLI/runtime behavior exposed by a tracked upstream module
+
+Do **not** invent vendor rows for purely Crystal-native maintenance work such
+as:
+
+- GitHub Actions matrix changes
+- archive naming changes
+- packaging extra binaries
+- local `Makefile dist` portability
+
+Track those as Crystal-native parity-maintenance slices in this document and, if
+needed, as feature entries in `plans/parity.md`, but not as fake TypeScript
+inventory IDs.
+
+### Signoff rule
+
+For platform work, "done" is stricter than "the code compiles":
+
+- relevant Crystal specs pass
+- repo gates pass (`format`, `lint`, `test` as applicable)
+- parity drift checks still pass for vendor-backed changes
+- the platform-specific workflow described by the feature actually works
+
+## Current Usefulness To The Skill
+
+This document should answer four questions for an agent using the parity skill:
+
+1. Is this work supposed to touch the TypeScript parity ledger?
+2. What is the smallest branch-sized slice to implement next?
+3. What commands prove the slice is done?
+4. What remains an intentional Crystal-native divergence from upstream?
 
 ## Current State
 
-| Component | macOS (dylib) | Linux (so) | Windows (dll) |
-|-----------|:---:|:---:|:---:|
-| Discovery grammar_loader.cr | Yes | Yes | Yes |
-| Graph grammar_manager.cr | Yes | Yes | **No** |
-| Grammar compilation scripts | Yes | Yes | **No** |
-| Embedded grammars loader | Yes | Yes | **No** |
-| Makefile dist target | Yes (hardcoded) | **No** | **No** |
-| CI (github actions) | — | Ubuntu only | — |
-| GitHub release workflow | — | — | — |
+### Platform abstractions
 
-## Goal
+The repo already has a central platform module:
 
-Three CLI binaries (`chiasmus`, `chiasmus-discover`, `chiasmus-grammar`) built and released as artifacts for:
+- `src/chiasmus/platform.cr`
 
-- **macOS** — ARM64 (apple silicon) + x86_64
-- **Linux** — x86_64 (static) + ARM64
-- **Windows** — x86_64 (MSVC or mingw)
+It provides:
 
-Each release includes compiled tree-sitter grammar libraries for all 10 languages.
+- shared library extension selection
+- library prefix selection
+- executable extension selection
+- artifact OS/arch naming helpers
 
----
+This means the top-level platform abstraction problem is not "create a platform
+module". The remaining problem is to make every loader, script, and packaging
+path use that module consistently.
 
-## Phase 1: Platform Code Fixes
+**Parity classification:** mixed.
 
-### 1.1 Unify platform extension detection
+- Runtime loader drift can be vendor-backed and may justify inventory updates.
+- Script and packaging drift is Crystal-native and should stay out of vendor
+  inventory.
 
-**Current problem:** Each file independently chooses `dylib` vs `so` vs `dll` via compile-time macro. `grammar_operations.cr`, `grammar_manager.cr`, `embedded_grammars.cr`, `setup_grammars.cr`, and `build_static.cr` lack Windows support.
+### CLI/build surface
 
-**Fix:** Extract `shared_library_extension` into a single location (`src/chiasmus/platform.cr`) and import everywhere.
+The repo currently builds more than the old plan assumed.
 
-```crystal
-# src/chiasmus/platform.cr
-module Chiasmus::Platform
-  def self.shared_library_extension : String
-    {% if flag?(:darwin) %}
-      "dylib"
-    {% elsif flag?(:win32) %}
-      "dll"
-    {% else %}
-      "so"
-    {% end %}
-  end
+Public or semi-public binaries present in this branch:
 
-  def self.library_prefix : String
-    {% if flag?(:win32) %}
-      ""
-    {% else %}
-      "lib"
-    {% end %}
-  end
+- `chiasmus`
+- `chiasmus-discover`
+- `chiasmus-grammar`
+- `chiasmus-parity`
+- `chiasmus-facts`
 
-  def self.executable_extension : String
-    {% if flag?(:win32) %}
-      ".exe"
-    {% else %}
-      ""
-    {% end %}
-  end
-end
-```
+Targets and build entry points currently live in:
 
-### 1.2 Fix all grammar scripts for Windows
+- `shard.yml`
+- `Makefile`
+- `.github/workflows/ci.yml`
+- `.github/workflows/release.yml`
 
-Update these files to use `Platform.shared_library_extension`:
+**Parity classification:** mostly Crystal-native.
 
-| File | Current state | Fix |
-|------|--------------|-----|
-| `setup_grammars.cr` | Only dylib/so | Add dll, dll naming conventions |
-| `setup_grammars_new.cr` | Wrapper, uses CLI | Verify CLI handles Windows |
-| `download_grammars.cr` | Only dylib/so | Add dll |
-| `grammar_operations.cr` | Only dylib/so | Add dll, mingw compiler options |
-| `grammar_manager.cr` | Only dylib/so | Add dll |
-| `embedded_grammars.cr` | Only dylib/so | Add dll |
-| `build_static.cr` | Only dylib/so | Add dll |
+### Grammar support
 
-### 1.3 DLL symbol export on Windows
+There are two different "grammar sets" in the repo today:
 
-Windows shared libraries require explicit symbol exports. The tree-sitter grammars built with `tree-sitter build` on Windows produce `tree-sitter-{lang}.dll`. Verify that `LibC.dlopen` / `dlopen` works on Windows with Crystal's FFI. Crystal on Windows uses `win_delay_load_hook` — test with a minimal grammar first.
+- Legacy/minimal wrappers and embedding helpers still assume 10 languages.
+- The main grammar setup pipeline already knows about a broader set:
+  `ruby`, `python`, `java`, `go`, `rust`, `scala`, `javascript`,
+  `typescript`, `tsx`, `crystal`, `bash`, `c`, `cpp`, `csharp`, `dart`,
+  `kotlin`, `perl`, `php`, `proto`.
 
-### 1.4 Path handling on Windows
+That mismatch is a real cross-platform problem because packaging and CI can
+appear green while leaving newer grammars out of artifacts.
 
-- `File.join` works cross-platform.
-- `Dir.glob` works cross-platform.
-- `LibC.dlopen` uses `LoadLibraryA` on Windows.
-- `find_grammar_library` in `grammar_loader.cr` already handles path separation correctly via `File.join`.
+**Parity classification:** mixed.
 
----
+- Runtime grammar availability affects vendor-backed graph/discovery behavior.
+- Which grammars get shipped in release assets is Crystal-native packaging work.
 
-## Phase 2: CI Matrix
+### CI and release coverage
 
-### 2.1 Multi-platform CI workflow
+What exists now:
 
-Replace the single `ubuntu-latest` job with a matrix:
+- `ci.yml` tests on macOS and Linux
+- `ci.yml` builds CLI artifacts on macOS, Linux, and Windows
+- `release.yml` builds release artifacts on macOS, Linux, and Windows
 
-```yaml
-name: CI
+What does not exist yet:
 
-on:
-  push: { branches: [main] }
-  pull_request: { branches: [main] }
+- Windows test execution in the main spec matrix
+- a complete release matrix for both major CPU families on both Unix platforms
+- consistent packaging of every binary the repo now builds locally
 
-jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        crystal: [latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: crystal-lang/install-crystal@v1
-        with: { crystal: ${{ matrix.crystal }} }
+**Parity classification:** Crystal-native signoff work.
 
-      # Linux: apt deps
-      - if: runner.os == 'Linux'
-        run: sudo apt-get install -y libgmp-dev libssl-dev pkg-config swi-prolog
+## Verified Gaps
 
-      # macOS: brew deps
-      - if: runner.os == 'macOS'
-        run: brew install gmp openssl pkg-config swi-prolog
+### 1. Duplicate platform logic still exists
 
-      # Windows: no extra deps needed (Crystal bundles them)
-
-      - run: shards install
-      - run: crystal tool format --check src spec
-      - run: bin/ameba src
-      - run: crystal spec
-```
-
-### 2.2 Grammar compilation in CI
-
-For discovery specs that need grammars, add a grammar compilation step:
-
-```yaml
-      # Install tree-sitter CLI (all platforms)
-      - uses: baptiste0928/cargo-install@v3
-        with: { crate: tree-sitter-cli }
-
-      # Compile all 10 grammar libraries
-      - run: crystal run scripts/setup_grammars.cr
-```
-
-### 2.3 Platform-specific considerations
-
-| Platform | System deps | Z3 | SWI-Prolog | Grammar compiler |
-|----------|------------|-----|-----------|-----------------|
-| Ubuntu | `libgmp-dev libssl-dev` | via crystal-z3 shard | `apt install swi-prolog` | `tree-sitter` CLI via cargo |
-| macOS | `gmp openssl` via brew | via crystal-z3 shard | `brew install swi-prolog` | `tree-sitter` CLI via cargo |
-| Windows | None (bundled) | Optional (skip z3 tests) | Optional (skip prolog tests) | `tree-sitter` CLI via cargo |
-
-On Windows, Z3 and SWI-Prolog may not be available. Tests that require them should be tagged and skipped:
-```crystal
-{% if flag?(:win32) %}
-  pending "Z3 not available on Windows"
-{% else %}
-  it "solves with z3" { ... }
-{% end %}
-```
-
-Or use Crystal's `tags`:
-```crystal
-it "solves with z3", tags: "z3" { ... }
-```
-```bash
-crystal spec --tag="~z3"  # skip z3 tests on Windows
-```
-
----
-
-## Phase 3: Release Artifacts
-
-### 3.1 GitHub Release workflow
-
-```yaml
-name: Release
-
-on:
-  push:
-    tags: ['v*']
-
-jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: ubuntu-latest,   arch: x86_64,  ext: "" }
-          - { os: macos-latest,    arch: x86_64,  ext: "" }
-          - { os: macos-latest,    arch: aarch64, ext: "" }
-          - { os: windows-latest,  arch: x86_64,  ext: ".exe" }
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with: { submodules: recursive }
-
-      - uses: crystal-lang/install-crystal@v1
-        with: { crystal: latest }
-
-      # Install tree-sitter CLI
-      - uses: baptiste0928/cargo-install@v3
-        with: { crate: tree-sitter-cli }
-
-      - run: shards install
-
-      # Compile grammars
-      - run: crystal run scripts/setup_grammars.cr
-
-      # Build all three binaries
-      - run: |
-          mkdir -p dist/chiasmus/grammars
-          crystal build --release --static -o dist/chiasmus/chiasmus${{ matrix.ext }} src/chiasmus.cr
-          crystal build --release --static -o dist/chiasmus/chiasmus-discover${{ matrix.ext }} src/chiasmus_discover.cr
-          crystal build --release --static -o dist/chiasmus/chiasmus-grammar${{ matrix.ext }} src/chiasmus_grammar.cr
-
-      # Copy grammar libraries
-      - run: |
-          ext=${{ runner.os == 'macOS' && 'dylib' || runner.os == 'Linux' && 'so' || 'dll' }}
-          for lang in ruby python java go rust scala javascript typescript tsx crystal; do
-            lib=libtree-sitter-$lang.$ext
-            find vendor/grammars -name "$lib" -exec cp {} dist/chiasmus/grammars/ \;
-          done
-
-      # Package
-      - run: |
-          cd dist
-          tar czf chiasmus-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref_name }}.tar.gz chiasmus/
-
-      # Upload artifact
-      - uses: actions/upload-artifact@v4
-        with:
-          name: chiasmus-${{ runner.os }}-${{ matrix.arch }}
-          path: dist/chiasmus-${{ runner.os }}-${{ matrix.arch }}-*.tar.gz
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-      - run: ls -la */
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: '**/*.tar.gz'
-          generate_release_notes: true
-```
-
-### 3.2 Artifact naming convention
-
-```
-chiasmus-{platform}-{arch}-{version}.tar.gz
+Even though `src/chiasmus/platform.cr` exists, some code still hardcodes
+platform logic or re-implements it.
 
 Examples:
-  chiasmus-linux-x86_64-v0.2.0.tar.gz
-  chiasmus-macos-aarch64-v0.2.0.tar.gz
-  chiasmus-windows-x86_64-v0.2.0.tar.gz
-```
 
-Each archive contains:
-```
-chiasmus/
-  chiasmus              (or chiasmus.exe)
-  chiasmus-discover     (or chiasmus-discover.exe)
-  chiasmus-grammar      (or chiasmus-grammar.exe)
-  grammars/
-    libtree-sitter-ruby.{dylib,so,dll}
-    libtree-sitter-python.{dylib,so,dll}
-    libtree-sitter-java.{dylib,so,dll}
-    libtree-sitter-go.{dylib,so,dll}
-    libtree-sitter-rust.{dylib,so,dll}
-    libtree-sitter-scala.{dylib,so,dll}
-    libtree-sitter-javascript.{dylib,so,dll}
-    libtree-sitter-typescript.{dylib,so,dll}
-    libtree-sitter-tsx.{dylib,so,dll}
-    libtree-sitter-crystal.{dylib,so,dll}
-```
+- `src/chiasmus/discovery/grammar_loader.cr`
+  has its own private `shared_library_extension`
+- `scripts/build_static.cr`
+  hardcodes extension selection instead of using `Chiasmus::Platform`
+- `Makefile`
+  hardcodes `dylib` in `dist`
 
----
+Impact:
 
-## Phase 4: Verification
+- behavior drift between runtime loading and packaging
+- Windows support regresses easily because the logic is not centralized in
+  practice
 
-### 4.1 Platform smoke test script
+Parity handling:
 
-Create `scripts/smoke_test.cr` that validates:
-1. All three binaries exist and are executable
-2. Grammar libraries are present and loadable
-3. Each discoverable language parses a trivial source file
-4. Output matches expected ID format
+- If a fix changes runtime loader behavior, update inventory rows for the
+  affected upstream modules.
+- If a fix only updates build/package scripts, do not touch TypeScript
+  inventory.
+
+### 2. "Embedded grammars" are not truly embedded yet
+
+`src/chiasmus/graph/embedded_grammars.cr` still falls back to runtime reads from
+the repo grammar directories. `get_compile_time_embedded_grammar` currently
+returns `nil`.
+
+Impact:
+
+- "standalone" packaging is weaker than the name suggests
+- artifact portability depends on the packaging step copying dynamic grammar
+  files correctly
+- local dev may work while release artifacts remain incomplete
+
+Parity handling:
+
+- Treat this as a Crystal-native divergence unless/until upstream introduces
+  equivalent embedded-delivery behavior.
+
+### 3. Packaging still assumes macOS conventions in places
+
+The local `Makefile dist` target is still not platform-neutral:
+
+- copies grammar libraries with `ext=dylib`
+- emits a `.tar.gz` unconditionally
+- copies binaries without applying `Platform.executable_extension`
+- assumes Unix-style names for packaged executables
+
+Impact:
+
+- local `make dist` is not a trustworthy rehearsal for Linux/Windows packaging
+- release workflow and local packaging can diverge
+
+Parity handling:
+
+- Crystal-native. No TypeScript inventory edits.
+
+### 4. Wrapper scripts lag behind the main grammar pipeline
+
+These wrapper scripts still use the older 10-language set:
+
+- `scripts/setup_grammars_new.cr`
+- `scripts/download_grammars_new.cr`
+- `scripts/build_static.cr`
+- `src/chiasmus/graph/embedded_grammars.cr`
+
+The main installer/compiler script already knows about a larger set:
+
+- `scripts/setup_grammars.cr`
+
+Impact:
+
+- different entry points build different grammar inventories
+- docs and CI can claim support that release artifacts do not actually include
+
+Parity handling:
+
+- Split runtime grammar availability from packaging grammar coverage.
+- Update inventory only if runtime behavior exposed to users changes.
+
+### 5. Windows build support exists, Windows test support does not
+
+The repo already does Windows CLI builds in CI and release workflows. That is
+meaningful progress, but it is not the same as Windows runtime confidence.
+
+Current gap:
+
+- no Windows spec job in the main test matrix
+
+Additional nuance:
+
+- solver/runtime dependencies such as Z3 and SWI-Prolog may remain optional on
+  Windows
+- grammar-dependent specs already use `pending` patterns in places when a
+  grammar is unavailable, which is useful for gradual rollout
+
+Impact:
+
+- release artifacts may build successfully without proving runtime behavior on
+  Windows
+
+Parity handling:
+
+- Crystal-native release/signoff hardening.
+- Useful for parity confidence, but not an upstream ledger item by itself.
+
+### 6. Release matrix is still incomplete
+
+`release.yml` currently builds:
+
+- Linux x86_64
+- macOS aarch64
+- Windows x86_64
+
+Missing from the old target matrix:
+
+- macOS x86_64
+- Linux aarch64
+
+Also missing from the release artifact set:
+
+- `chiasmus-facts`
+
+Impact:
+
+- release artifacts do not yet cover the intended install matrix
+- locally-built tools and shipped tools are not the same set
+
+Parity handling:
+
+- Crystal-native release/signoff hardening.
+
+## Execution Plan
+
+The slices below are written to be usable as parity-skill work items. Each is a
+branch-sized feature, not a vague theme.
+
+### Phase 1: Remove platform drift in code and scripts
+
+Goal: one source of truth for file naming and platform-specific extensions.
+
+Required changes:
+
+1. Replace local extension helpers with `Chiasmus::Platform`.
+2. Update `src/chiasmus/discovery/grammar_loader.cr` to stop duplicating
+   `shared_library_extension`.
+3. Update `scripts/build_static.cr` to use platform helpers for:
+   - library extension
+   - executable suffix
+   - artifact naming
+4. Update `Makefile dist` to derive:
+   - grammar extension
+   - packaged executable names
+   - archive format choice per platform
+
+Acceptance criteria:
+
+- no grammar or packaging code path hardcodes `dylib`, `so`, or `dll` except
+  inside `src/chiasmus/platform.cr`
+- local packaging on Windows no longer relies on Unix filename assumptions
+
+Inventory impact:
+
+- likely yes for `grammar_loader.cr`
+- no for `Makefile`/packaging-only fixes
+
+Recommended checks:
 
 ```bash
-# Quick smoke test
-./chiasmus-discover --language python --source "class Foo: pass" --inline
-# Expected: test.py::class::Foo  class  ported  -  parser=tree-sitter
+make format
+make lint
+make test
 ```
 
-### 4.2 CI verification matrix
+### Phase 2: Unify the grammar inventory
 
-Add a post-build verification job in CI:
+Goal: every supported entry point talks about the same language set.
 
-```yaml
-  verify:
-    needs: build
-    strategy:
-      matrix:
-        language: [python, go, java, rust, javascript, typescript, ruby, crystal, scala]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with: { name: chiasmus-Linux-x86_64 }
-      - run: |
-          tar xzf *.tar.gz
-          ./chiasmus/chiasmus-discover --language ${{ matrix.language }} \
-            --dir vendor/chiasmus --parser tree-sitter | head -5
+Canonical source should be the grammar inventory already represented by:
+
+- `scripts/setup_grammars.cr`
+
+Required changes:
+
+1. Define one canonical grammar list in a shared place.
+2. Make these consumers read from that shared list:
+   - `scripts/setup_grammars_new.cr`
+   - `scripts/download_grammars_new.cr`
+   - `scripts/build_static.cr`
+   - `src/chiasmus/graph/embedded_grammars.cr`
+3. Decide whether `chiasmus-facts` and packaged artifacts should ship:
+   - all supported grammars
+   - or a documented "core grammar set"
+
+Acceptance criteria:
+
+- one language inventory drives setup, packaging, and embedding
+- no wrapper script silently drops grammars supported by the main pipeline
+
+Inventory impact:
+
+- yes if runtime grammar availability changes
+- no if this is only packaging/build-script alignment
+
+Recommended checks:
+
+```bash
+make format
+make lint
+make test
 ```
 
-### 4.3 Manual verification checklist
+### Phase 3: Make "embedded grammars" honest
 
-For each platform, verify:
+Goal: either truly embed grammars at build time, or rename/document the current
+behavior as extraction from packaged shared libraries.
 
-- [ ] `chiasmus --help` prints usage
-- [ ] `chiasmus-discover --language python --dir vendor/chiasmus` returns declarations
-- [ ] `chiasmus-discover --language go --dir vendor/chiasmus` returns declarations
-- [ ] `chiasmus-discover --parser regex` falls back cleanly
-- [ ] `chiasmus-grammar list` shows available grammars
-- [ ] `chiasmus-grammar compile python` compiles grammar
-- [ ] All 10 languages discoverable via tree-sitter
-- [ ] Parser mode reported in output notes column
+Two acceptable directions:
 
----
+- **True embedding**
+  generate compile-time embedded blobs and extract them at runtime
+- **Explicit packaged-dynamic model**
+  stop implying compile-time embedding and treat grammar `.so/.dylib/.dll`
+  files as required packaged assets
 
-## Phase 5: Implementation Order
+Recommendation:
 
-| Step | Files | Effort |
-|------|-------|--------|
-| 1. Extract `Platform` module | `src/chiasmus/platform.cr` | Small |
-| 2. Update all grammar scripts to use Platform | 6 files | Small |
-| 3. Fix path/encoding issues for Windows | `grammar_loader.cr`, `grammar_manager.cr` | Medium |
-| 4. CI matrix (3 OS) | `.github/workflows/ci.yml` | Small |
-| 5. CI grammar compilation step | `.github/workflows/ci.yml` | Small |
-| 6. Tag z3/prolog tests for Windows | `spec/**/*.cr` | Medium |
-| 7. Release workflow | `.github/workflows/release.yml` | Medium |
-| 8. Smoke test script | `scripts/smoke_test.cr` | Small |
-| 9. Verify all platforms in CI | Watch CI logs | Manual |
-| 10. First tagged release | `git tag v0.2.0` | Manual |
+- pick the explicit packaged-dynamic model first, because it matches the current
+  release workflow and is lower risk
+- only add true compile-time embedding if standalone single-file delivery is a
+  real product requirement
 
----
+Acceptance criteria:
 
-## Risks & Mitigations
+- the code, docs, and release story all describe the same runtime model
 
-| Risk | Mitigation |
-|------|-----------|
-| Static linking fails on macOS | Fall back to dynamic linking with `install_name_tool` for grammar libraries |
-| Crystal Windows support is beta | Test early, skip z3/prolog on Windows, focus on discovery + grammar CLI |
-| tree-sitter CLI not available on Windows via cargo | Use pre-built tree-sitter binary from GitHub releases |
-| Grammar compilation fails on Windows (MSVC vs MinGW) | Use MinGW gcc for compatibility with Crystal's GCC-based linking |
-| `LibC.dlopen` doesn't work with `.dll` on Windows | Use `LoadLibraryW` via Win32 API if needed |
-| SWI-Prolog not available on Windows via apt/brew | Skip prolog tests on Windows, focus on discovery (Phase 6 adds native support) |
+Inventory impact:
 
----
+- usually no
+- only yes if runtime lookup/extraction semantics for tracked upstream behavior
+  change
 
-## Phase 6: Windows Z3 & Prolog Support (Bonus)
+### Phase 4: Expand CI from build confidence to runtime confidence
 
-Deferred until all other cross-platform work is complete and verified.
+Goal: test what we ship, not just compile it.
 
-### 6.1 Z3 on Windows
+Required changes:
 
-**Current state:** The `crystal-z3` shard links against `libz3`. On Windows this requires `z3.lib` or `libz3.dll`.
+1. Keep the existing macOS/Linux test matrix.
+2. Add a Windows spec job for the subset that is expected to work there now.
+3. Split Windows CI into explicit layers:
+   - core/unit tests
+   - grammar-dependent tests
+   - optional solver integration tests
+4. Use skip/tag policy for platform-limited dependencies instead of pretending
+   the full Unix matrix is portable as-is.
 
-**Approach:**
+Suggested Windows-first command split:
 
-1. **Download pre-built Z3 binaries** in CI:
-   ```yaml
-   - name: Install Z3
-     if: runner.os == 'Windows'
-     run: |
-       curl -L -o z3.zip https://github.com/Z3Prover/z3/releases/download/z3-4.13.0/z3-4.13.0-x64-win.zip
-       7z x z3.zip
-       cp z3-*/bin/libz3.dll C:/Windows/System32/
-       cp z3-*/include/z3*.h /path/to/crystal-z3/ext/
-   ```
+- `crystal spec spec/chiasmus/utils spec/scripts`
+- selected discovery/graph specs after grammar compilation succeeds
+- solver specs only where dependencies are available
 
-2. **Update crystal-z3 shard** for Windows linking:
-   - Add `@[Link("z3")]` with `ldflags: "/path/to/z3.lib"` conditional on `{% if flag?(:win32) %}`
-   - Or use DLL loading via `LibC.LoadLibraryW` + `LibC.GetProcAddress`
+Acceptance criteria:
 
-3. **Re-enable z3 specs** on Windows:
-   - Remove `{% if flag?(:win32) %}` guards from z3 specs
-   - Add tagged spec run: `crystal spec --tag="z3"`
+- Windows CI runs at least a meaningful green subset of specs
+- unsupported dependency cases are explicit and documented
 
-### 6.2 SWI-Prolog on Windows
+Inventory impact:
 
-**Current state:** `crolog` shard links against `libswipl`. SWI-Prolog provides official Windows installers.
+- no
 
-**Approach:**
+Recommended checks:
 
-1. **Download SWI-Prolog** in CI:
-   ```yaml
-   - name: Install SWI-Prolog
-     if: runner.os == 'Windows'
-     run: |
-       curl -L -o swipl.exe https://www.swi-prolog.org/download/stable/bin/swipl-9.2.7-1.x64.exe
-       ./swipl.exe /S /D=C:\swipl
-       cp C:\swipl\bin\libswipl.dll C:\Windows\System32\
-   ```
+- validate the workflow files
+- run the closest local spec subset you changed
+- keep full repo gates green on the primary dev platform
 
-2. **Update crolog shard** for Windows linking:
-   - Add `@[Link("swipl")]` with Windows library path
-   - Windows SWI-Prolog uses `libswipl.dll.a` for GCC linking
-   - May need `--static` linking of swipl or DLL-based loading
+### Phase 5: Align release artifacts with the actual product surface
 
-3. **Handle Prolog temp files on Windows:**
-   - Crystal's `File.tempfile` works cross-platform
-   - `Process.run("swipl", [...])` needs `swipl.exe` on PATH
-   - Verify path escaping for backslash paths in Prolog consult directives
+Goal: make release assets reflect what the repo builds and documents.
 
-4. **Re-enable prolog specs** on Windows:
-   - Remove `{% if flag?(:win32) %}` guards from prolog solver specs
-   - Add tagged spec run: `crystal spec --tag="prolog"`
+Required changes:
 
-### 6.3 Verification for Windows Z3/Prolog
+1. Decide the supported release binary set:
+   - minimum: `chiasmus`, `chiasmus-discover`, `chiasmus-grammar`,
+     `chiasmus-parity`
+   - optional: `chiasmus-facts`
+2. Extend the release matrix to the intended architectures:
+   - Linux x86_64
+   - Linux aarch64
+   - macOS aarch64
+   - macOS x86_64
+   - Windows x86_64
+3. Normalize archive naming using platform helpers, not raw `runner.os`.
+4. Package grammar assets using the same canonical grammar list from Phase 2.
 
-```yaml
-  verify-windows-solvers:
-    needs: build
-    if: runner.os == 'Windows'
-    runs-on: windows-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with: { name: chiasmus-Windows-x86_64 }
-      - run: |
-          tar xzf *.tar.gz
-          # Test Z3 verification
-          echo "(declare-const x Bool) (assert x) (check-sat)" | ./chiasmus/chiasmus.exe --verify --solver z3
-          # Test Prolog verification
-          ./chiasmus/chiasmus.exe --verify --solver prolog --query "member(X, [a,b,c])"
+Acceptance criteria:
+
+- release artifacts are architecture-complete for the supported matrix
+- local packaging and CI release packaging produce the same binary set
+
+Inventory impact:
+
+- no
+
+## Recommended Order
+
+Do the work in this order:
+
+1. Phase 1: remove hardcoded platform drift
+2. Phase 2: unify grammar inventory
+3. Phase 5: align release artifacts
+4. Phase 4: add Windows runtime CI
+5. Phase 3: decide whether true embedding is still worth doing
+
+Reasoning:
+
+- packaging and workflow drift is the current source of false confidence
+- Windows runtime testing is useful only after naming and packaging conventions
+  stop changing under it
+- true binary embedding is more of a product choice than a prerequisite for
+  cross-platform correctness
+
+## Feature Templates For The Skill
+
+When pulling work from this document into `plans/parity.md`, use slices shaped
+like these:
+
+- `PX Platform Runtime Loader Convergence`
+  Source of truth: `src/chiasmus/platform.cr`, `src/chiasmus/discovery/grammar_loader.cr`
+  Inventory: yes if upstream-backed runtime behavior changes.
+
+- `PX Grammar Inventory Unification`
+  Source of truth: grammar list used by setup/runtime/packaging.
+  Inventory: only for runtime-visible behavior changes.
+
+- `PX Windows Runtime Confidence`
+  Source of truth: CI workflow + spec subset.
+  Inventory: no.
+
+- `PX Release Artifact Matrix Alignment`
+  Source of truth: `Makefile`, `release.yml`, shipped binary set.
+  Inventory: no.
+
+- `PX Embedded Grammar Delivery Model`
+  Source of truth: `embedded_grammars.cr`, packaging docs, release behavior.
+  Inventory: usually no.
+
+## Concrete Follow-Up Tasks
+
+### High priority
+
+- Replace duplicated extension helpers in `grammar_loader.cr`.
+- Remove `dylib` hardcoding from `Makefile dist`.
+- Convert wrapper scripts to the same grammar inventory used by
+  `scripts/setup_grammars.cr`.
+- Decide whether `chiasmus-facts` is a release artifact or local-only tool.
+
+### Medium priority
+
+- Add Windows subset spec coverage to `ci.yml`.
+- Add missing Linux/macOS architecture targets to `release.yml`.
+- Normalize archive naming and executable suffix handling in release packaging.
+
+### Low priority
+
+- Implement true compile-time grammar embedding if single-archive delivery is
+  required.
+
+## Verification Recipes
+
+### For vendor-backed runtime changes
+
+Run:
+
+```bash
+make format
+make lint
+make test
+./scripts/check_port_inventory.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
+./scripts/check_source_parity.sh . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
+./scripts/check_test_parity.sh . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
 ```
 
-### 6.4 Phase 6 Implementation Order
+Use `check_completion_gate.sh` when the change affects fact-driven
+completeness, reachable vendor coverage, or structural signoff:
 
-| Step | Effort | Prerequisites |
-|------|--------|--------------|
-| 1. Z4 DLL loading in crystal-z3 shard | Medium | Phases 1-5 complete |
-| 2. SWI-Prolog DLL loading in crolog shard | Medium | Phases 1-5 complete |
-| 3. CI install scripts for z3 + swipl on Windows | Small | Steps 1-2 |
-| 4. Re-enable solver specs on Windows | Small | Steps 1-3 |
-| 5. Solver verification in CI | Small | Steps 1-4 |
+```bash
+./scripts/check_completion_gate.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src
+```
+
+Use `verify_parity_adversarial.sh` when the change materially affects parity
+signoff or tool exposure; it now includes the completion gate.
+
+### For Crystal-native release/CI/packaging changes
+
+Run the narrowest useful checks plus repo gates:
+
+```bash
+make format
+make lint
+make test
+```
+
+Then verify the changed workflow directly, for example:
+
+- build the affected CLI locally
+- run the relevant packaging target
+- inspect the workflow matrix and artifact set
+
+Do not claim vendor inventory movement for these changes.
+
+## Intentional Divergence Policy
+
+Cross-platform delivery in this repo includes legitimate Crystal-native behavior
+that upstream TypeScript does not model:
+
+- GitHub Actions matrix design
+- archive naming and packaging format
+- which CLIs this port ships as standalone tools
+- whether grammars are embedded vs packaged as separate shared libraries
+
+Record those as intentional Crystal-native design choices in docs and release
+notes. Do not force them into the TypeScript parity ledger just to make the
+skill "see" them.
+
+## Definition of Done
+
+Cross-platform support is "done" for this repo only when all of the following
+are true:
+
+- runtime library naming comes from one platform module
+- grammar inventory is shared across setup, compile, embed, and packaging
+- local `make dist` is platform-neutral
+- CI executes a real Windows spec subset, not just Windows builds
+- release artifacts cover the intended OS/arch matrix
+- docs describe the current delivery model honestly
+- any vendor-backed runtime changes have clean parity drift checks

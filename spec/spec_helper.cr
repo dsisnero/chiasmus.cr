@@ -8,13 +8,17 @@ def chiasmus_cli_command(cli_args : Array(String) = [] of String) : {String, Arr
 end
 
 def chiasmus_cli_env : Hash(String, String)
-  {"CRYSTAL_CACHE_DIR" => File.join(Dir.current, ".crystal-cache")}
+  {"CRYSTAL_CACHE_DIR" => chiasmus_cli_cache_dir}
 end
 
 CHIASMUS_CLI_BUILD_MUTEX = Mutex.new
 
+def chiasmus_cli_cache_dir : String
+  ENV["CRYSTAL_CACHE_DIR"]? || File.join(Dir.tempdir, "chiasmus-cli-cache")
+end
+
 def chiasmus_cli_binary : String
-  File.join(Dir.current, ".crystal-cache", "chiasmus-cli-test")
+  File.join(chiasmus_cli_cache_dir, "chiasmus-cli-test")
 end
 
 def chiasmus_cli_sources : Array(String)
@@ -43,6 +47,7 @@ def build_chiasmus_cli
   return if chiasmus_cli_binary_current?(binary)
   CHIASMUS_CLI_BUILD_MUTEX.synchronize do
     return if chiasmus_cli_binary_current?(binary)
+    Dir.mkdir_p(File.dirname(binary))
     result = Process.run(
       "crystal", ["build", "src/chiasmus_cli.cr", "-o", binary],
       env: chiasmus_cli_env,

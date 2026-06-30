@@ -1,198 +1,243 @@
 # Architecture
 
-## System Overview
-
-Chiasmus.cr is split into five cooperating layers:
-
-1. MCP serving and CLI entrypoints
-2. Formalization and solver execution
-3. Graph extraction and analysis
-4. Search and review orchestration
-5. Grammar and parity support tooling
-
-The core runtime is `src/chiasmus/`. Top-level executables in `src/` expose different workflows against that shared library.
-
-## Runtime Modes
-
-### `chiasmus`
-
-The main binary runs the MCP server.
-
-- default transport: stdio
-- debug transport: streamable HTTP
-- diagnostics: `--healthcheck`
-
-The healthcheck is not a stub. It creates an in-memory client/server pair, performs a real `initialize`, then requests `tools/list`. That catches startup breakage in server registration, transport wiring, and tool advertisement.
-
-### `chiasmus-agent`
-
-The agent CLI is a local operator tool. It can combine code graph context and formal solving without going through MCP transport.
-
-### `chiasmus-discover`
-
-The discovery CLI extracts source-level inventory data in a TSV format that parity tooling can consume.
-
-### `chiasmus-grammar`
-
-The grammar manager owns install, compile, update, status, and cleanup operations for parser assets.
-
-### `chiasmus-parity`
-
-The parity CLI reads curated inventory plus optional conversion rules and reports the current Crystal-vs-upstream status.
-
-## MCP Server Design
-
-The server core lives in `src/chiasmus/mcp_server/server.cr`.
-
-Responsibilities:
-
-- construct and register tool definitions
-- keep per-server tool handlers
-- expose healthcheck and streamable transport helpers
-- isolate cancellation-aware async execution
-- gate capability-dependent tools when a required backend is missing
-
-Current tool surface:
-
-- verification: `chiasmus_verify`
-- template discovery and authoring: `chiasmus_skills`, `chiasmus_formalize`, `chiasmus_craft`, `chiasmus_learn`
-- solver workflow: `chiasmus_solve`
-- graph and review: `chiasmus_graph`, `chiasmus_map`, `chiasmus_review`
-- retrieval: `chiasmus_search`
-- direct provider prompt: `chiasmus_crig`
-- spec cleanup: `chiasmus_lint`
-
-## LLM Configuration Model
-
-The LLM layer is centered on `src/chiasmus/llm/types.cr` and `src/chiasmus/server_factory.cr`.
-
-Key behaviors:
-
-- `shard.yml` is the version source of truth, but provider and model come from environment variables at runtime.
-- The default provider family is DeepSeek.
-- If the provider is blank and only a model name is given, the provider is inferred from the model prefix or naming pattern.
-- When no LLM backend is available, the factory returns a no-LLM server instead of aborting startup.
-
-That no-LLM mode is intentional. It keeps the graph and direct verification workflows usable on machines without API keys.
-
-## Formalization and Solvers
-
-The formal side is split across:
-
-- `src/chiasmus/formalize/`
-- `src/chiasmus/skills/`
-- `src/chiasmus/solvers/`
-
-### Formalization
-
-The formalization engine selects a reusable template from the skill library, fills it through an agent-backed workflow when available, and returns either:
-
-- a ready-to-verify spec
-- a template skeleton plus instructions for manual filling
-
-### Solver adapters
-
-The solver layer supports:
-
-- Z3 via SMT-LIB
-- SWI-Prolog via `crolog`
-
-The server keeps these responsibilities separated:
-
-- `chiasmus_lint`: structural cleanup only
-- `chiasmus_formalize`: template selection only
-- `chiasmus_verify`: actual solver execution
-- `chiasmus_solve`: orchestration across all of the above
-
-## Graph Extraction and Analysis
-
-The graph subsystem lives under `src/chiasmus/graph/`.
-
-Major components:
-
-- `parser_service.cr`: parser lifecycle and shared loading behavior
-- `extractor.cr`: graph extraction from parsed source
-- `walkers/*.cr`: language-specific AST walkers
-- `analyses.cr`: graph algorithms and analysis dispatch
-- `map.cr`: compact graph projection for LLM consumption
-- `diff.cr`: snapshot-based delta reporting
-- `parallel_io.cr`: bounded concurrent file reads
-
-Graph extraction is designed for overlapping requests. Files are read and parsed with bounded concurrency instead of serializing the whole workload through one request path.
-
-## Search and Review
-
-### Search
-
-`src/chiasmus/search/engine.cr` builds an embedding corpus from extracted defines and nearby source snippets. Search then ranks hits by cosine similarity.
-
-Supporting pieces:
-
-- `embedding_cache.cr`: avoid recomputing vectors for unchanged content
-- `vector_store.cr`: schema-aware persistence and validation
-- `code_index.cr`: higher-level indexing pipeline
-
-### Review
-
-`src/chiasmus/review.cr` does not execute a review itself. It builds a phased plan that tells an LLM which Chiasmus tools and templates to run.
-
-That plan can include:
-
-- overview and architecture passes
-- taint, authorization, and resource-safety checks
-- correctness and boundary-condition checks
-- delta-aware review against saved graph snapshots
-
-## Concurrency Model
-
-The codebase assumes overlapping MCP requests.
-
-Common patterns:
-
-- `spawn` + `Channel(T)` for long-running work
-- `Mutex` for shared mutable caches and registries
-- actor-style isolation for resources that are not fiber-safe
-- bounded concurrency helpers for file and extraction workloads
-
-Important subsystems already built around this model:
-
-- graph discovery and extraction pipelines
-- parser service loading and waiter coalescing
-- MCP tool execution boundaries
-- solver and learner async wrappers
-
-## Grammar and Language Support
-
-Language metadata is centralized in `src/chiasmus/graph/language_registry.cr`.
-
-The registry tracks:
-
-- grammar package name
-- preferred install method
-- file extensions
-- grammar dependencies
-- special wasm-backed cases
-
-That registry feeds grammar-management workflows and discovery/parser selection.
-
-## Repository Map
-
-```text
-src/
-├── chiasmus_cli.cr
-├── chiasmus-agent.cr
-├── chiasmus_discover.cr
-├── chiasmus_grammar.cr
-├── chiasmus_parity.cr
-└── chiasmus/
-    ├── formalize/
-    ├── graph/
-    ├── llm/
-    ├── mcp_server/
-    ├── search/
-    ├── skills/
-    ├── solvers/
-    └── utils/
+## Overview
+
+Chiasmus.cr is an MCP server for formal verification with Z3 SMT solver, SWI-Prolog,
+and tree-sitter-based source code analysis. It exposes 12 tools to LLM clients via
+JSON-RPC over stdio.
+
+```
+opencode / MCP client
+  │
+  ▼  stdio JSON-RPC
+┌──────────────────────────────────────────────────┐
+│  MCP::Server::Server                             │
+│    ├─ ToolDispatcher (bounded semaphore)          │
+│    ├─ verify / formalize / solve / learn          │
+│    ├─ graph / map / search / craft / review       │
+│    └─ lint / skills / crig                        │
+├──────────────────────────────────────────────────┤
+│  Graph::Analyses         Formalize::Engine        │
+│    ├─ Extractor            ├─ Solver factory      │
+│    │   ├─ BoundedWork      │   ├─ Z3              │
+│    │   ├─ Parser::Service  │   └─ SWI-Prolog      │
+│    │   └─ Sync::Map cache  └─ Correction loop     │
+│    ├─ GraphCache                                  │
+│    └─ Graph algorithms    Skills::Library          │
+├──────────────────────────────────────────────────┤
+│  Shards: tree_sitter, z3, crolog, crig, sync-map │
+│  Cache:  ~/.cache/chiasmus/                       │
+└──────────────────────────────────────────────────┘
 ```
 
-For development and release workflows, see [DEVELOPMENT.md](DEVELOPMENT.md).
+## Concurrency is the central design concern
+
+The server handles multiple LLM clients; extraction, search, and analysis can run in
+overlapping fibers. Every long-running path uses non-blocking patterns.
+
+### 1. ToolDispatcher — bounded semaphore
+
+Limits concurrent tool invocations to `System.cpu_count`. Prevents unbounded fiber
+spawn from saturating the CPU when an LLM fires many tools in rapid succession.
+
+```
+┌────────────┐  acquire slot  ┌──────────────┐
+│  incoming  │───────────────▶│  @slots       │──▶ invoke → response
+│  request   │                │  (Channel)    │
+└────────────┘                └──────────────┘
+    capacity = CPU count
+```
+
+Source: `src/chiasmus/mcp_server/server.cr:27-51`
+
+### 2. BoundedWork — parallel file extraction
+
+Extracts call graphs from N files concurrently with a configurable worker pool.
+Two execution modes, chosen at compile time:
+
+| Mode | Mechanism | When |
+|------|-----------|------|
+| Fibers (default) | `spawn { }` | Standard `-Dchiasmus_cli` |
+| True threads | `Fiber::ExecutionContext::Parallel` | `-Dpreview_mt -Dexecution_context` |
+
+The thread mode requires the MT runtime. With `-Dexecution_context`, parallel is
+on by default (opt-out via `CHIASMUS_GRAPH_PARALLEL=0`).
+
+```
+┌─────┐  ┌─────┐  ┌─────┐
+│file1│  │file2│  │file3│ ...
+└──┬──┘  └──┬──┘  └──┬──┘
+   │ spawn  │ spawn  │ spawn
+   ▼        ▼        ▼
+┌─────┐  ┌─────┐  ┌─────┐
+│ w1  │  │ w2  │  │ w3  │  ← bounded by max_concurrent slots
+└──┬──┘  └──┬──┘  └──┬──┘
+   │        │        │
+   ▼        ▼        ▼
+  ordered results array (preserves input index)
+```
+
+Source: `src/chiasmus/utils/bounded_work.cr`
+
+### 3. Sync::Map — lock-free grammar cache
+
+Loaded `TreeSitter::Language` objects are cached in a concurrent map. Multiple
+fibers can read/write without external locking, avoiding contention on the
+hot path (every file parse checks the cache).
+
+```crystal
+# Before: Hash + Mutex (serialized access)
+@state_mutex.synchronize { @grammar_cache[lang]? }
+
+# After: Sync::Map (concurrent access, no lock contention)
+@grammar_cache[lang]?
+```
+
+Source: `src/chiasmus/graph/parser_service.cr:155` (uses `DSisnero/sync-map`)
+
+### 4. Waiter coalescing — dedup concurrent requests
+
+When multiple fibers request the same grammar or language simultaneously, only one
+initiates the download/build/load. The others attach to a `pending_requests` list
+and are notified when the leader completes.
+
+```
+fiber A ──▶ pending_requests["python"] = [chA] ──▶ spawn resolve("python")
+fiber B ──▶ pending_requests["python"] << chB      │
+fiber C ──▶ pending_requests["python"] << chC      │
+                                                    ▼
+                                            load grammar → notify all
+```
+
+Used in: `GrammarManager.ensure_grammar_async`, `Parser::Service.get_language_async`
+
+### 5. Channel-based async — caller controls blocking
+
+All long-running operations return `Channel(T)`. The caller decides whether to
+block, pipeline, or select with timeout:
+
+```crystal
+# Block
+result = extract_graph_async(files).receive
+
+# Pipeline
+ch1 = extract_graph_async(files1)
+ch2 = extract_graph_async(files2)
+combined = merge(ch1.receive, ch2.receive)
+
+# Timeout
+select
+when result = ch.receive
+  process(result)
+when timeout(60.seconds)
+  raise "extraction timed out"
+end
+```
+
+Pattern used in: `Extractor`, `Analyses`, `GrammarManager`, `Parser::Service`
+
+### 6. GraphCache — extraction result cache
+
+Two-tier persistent cache keyed by SHA-256 of `content + "\0" + abs_path`:
+
+```
+~/.cache/chiasmus/<repo_sha256>/
+  manifest.json        ← hash → path mapping, sorted by mtime
+  files/
+    <sha256>.json      ← serialized CodeGraph per file
+  snapshots/
+    <name>.json        ← named full-graph snapshots (diff baseline)
+```
+
+- **Async writes**: `save_file_cache_async` enqueues via bounded channel (capacity 32),
+  processed by a single background fiber. Non-blocking for the extraction hot path.
+- **LRU eviction**: when total repo size exceeds `DEFAULT_MAX_BYTES` (64 MB), oldest
+  entries by mtime are evicted.
+- **Schema versioning**: `SCHEMA_VERSION = "3"` auto-upgrades and invalidates old caches.
+- **Flush on shutdown**: `GraphCache.flush_async_writes` is called in `on_close` to
+  drain the async write queue before process exit.
+
+Source: `src/chiasmus/graph/cache.cr`
+
+### 7. Grammar cache — two-tier
+
+| Tier | Location | Lifetime |
+|------|----------|----------|
+| Disk (compiled `.dylib`/`.so`) | `~/.cache/chiasmus/grammars/<lang>/` | Persists across restarts |
+| Memory (`Sync::Map`) | `Parser::Service.@grammar_cache` | Process lifetime |
+
+16 languages pre-compiled and cached. Grammar re-compilation only happens on version
+updates. Cold start (first process) pays the cost once; warm starts hit disk cache.
+
+### 8. MCP request lifecycle — graceful shutdown
+
+The transport tracks inflight requests so shutdown waits for completion:
+
+```
+begin_request      inflight++   ← request arrives
+  spawn do
+    handler.call                ← tool dispatch + invoke
+    end_request     inflight--  ← response sent
+  end
+
+close
+  drain_requests    ← blocks until inflight == 0
+  flush_async_writes ← persist pending cache writes
+  @_on_close.call   ← cleanup (close grammars, etc.)
+```
+
+Source: `src/chiasmus/mcp_server/server.cr:216-228`
+
+## Throughput path: chiasmus_graph
+
+The fastest path through the system for a graph analysis request:
+
+```
+1. MCP request arrives
+2. register_tools lambda fires
+3. ToolDispatcher acquires semaphore slot
+4. GraphTool.invoke → Analyses.run_analysis_async.receive
+   │
+5. GraphCache.check_file_cache   ← SHA-256 hash; separates hits/misses
+   │
+6. BoundedWork.map_ordered       ← parallel extraction of misses only
+   │  ├─ Parser.parse            ← tree-sitter parse
+   │  │   └─ Sync::Map cache hit ← instant if language already loaded
+   │  ├─ AdapterRegistry.get     ← language walker
+   │  └─ merge_graph_under_lock  ← Mutex-guarded merge
+   │
+7. run_analysis_from_graph       ← O(V+E) native algorithm
+8. GraphCache.save_file_cache    ← async, non-blocking
+9. Result → JSON → MCP response
+```
+
+**With warm file cache:** steps 5-8 complete in ~0ms (all files are cache hits).
+**With warm grammar cache:** step 6 per-file parse is ~100-500ms (tree-sitter + walker).
+**Cold everything:** step 6 per-file is ~5-20s (grammar compile/load dominates).
+
+The `warm_cache.cr` script populates the extraction cache in one request, letting
+`BoundedWork.map_ordered` parallelize internally. Subsequent `chiasmus_graph` calls
+are all cache hits.
+
+## Compile-time flags
+
+| Flag | Effect |
+|------|--------|
+| `-Dchiasmus_cli` | Enables CLI entry point (required for binary, excluded for tests) |
+| `-Dpreview_mt -Dexecution_context` | Enables true thread-parallel extraction via `Fiber::ExecutionContext::Parallel` |
+
+Build with threads:
+```bash
+make build_release    # release + MT + parallel extraction by default
+```
+
+## Key invariants
+
+1. **No shared mutable state without synchronization.** Prefer `Mutex` for guarded
+   access, `Atomic` for counters, `Channel` for communication, `Sync::Map` for
+   concurrent key-value stores.
+2. **Long-running operations return `Channel(T)`** — never block the calling fiber.
+3. **Non-thread-safe resources get actor/worker fibers** — see Prolog session
+   (`solvers/session.cr`) and grammar loading (`parser_service.cr` waiter coalescing).
+4. **The extraction cache is the primary throughput multiplier.** ~800x speedup
+   on repeated requests for unchanged files.

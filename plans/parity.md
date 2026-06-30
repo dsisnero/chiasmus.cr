@@ -899,7 +899,10 @@ Per-language AST walkers for the `extract_graph` pipeline:
 ./scripts/check_source_parity.sh . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
 ./scripts/check_test_parity.sh . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
 
-# 2. Regenerate Prolog facts if inventory changed
+# 2. Run the fact-driven completion gate
+./scripts/check_completion_gate.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src
+
+# 3. Regenerate Prolog facts only if you still need ledger-only queries
 ruby scripts/generate_inventory_facts.rb \
   --inventory plans/inventory/typescript_port_inventory.tsv \
   --source plans/inventory/typescript_source_parity.tsv \
@@ -907,8 +910,10 @@ ruby scripts/generate_inventory_facts.rb \
   --rules plans/inventory/conversion_rules.tsv \
   > plans/inventory/parity_facts.pl
 
-# 3. Run quality gates
+# 4. Run quality gates and adversarial signoff
 make format && make test
+./scripts/verify_parity_adversarial.sh . vendor/chiasmus typescript 'make test' '<upstream test command>'
+./scripts/verify_parity_adversarial.sh . vendor/chiasmus typescript 'make test' '<upstream test command>'
 ```
 
 ### Drift Response

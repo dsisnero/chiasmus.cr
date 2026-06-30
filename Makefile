@@ -1,4 +1,27 @@
-.PHONY: install update format lint test clean build build-clis release dist setup-grammars
+.PHONY: help install update format lint test clean build build_release build-clis release dist setup-grammars warm-cache
+
+# Default: show help.
+help:
+	@echo "Usage: make <target>"
+	@echo ""
+	@echo "Build targets:"
+	@echo "  build              standard release binary (bin/chiasmus)"
+	@echo "  build_release      release + -Dpreview_mt -Dexecution_context (parallel extraction)"
+	@echo "  warm-cache         build release + warm extraction cache for src/"
+	@echo ""
+	@echo "QA targets:"
+	@echo "  test               run specs"
+	@echo "  lint               format check + ameba"
+	@echo "  format             auto-format src/ and spec/"
+	@echo ""
+	@echo "Dependencies:"
+	@echo "  install            shards install"
+	@echo "  update             shards update"
+	@echo "  setup-grammars     install tree-sitter grammars"
+	@echo ""
+	@echo "Other:"
+	@echo "  clean              remove bin/, .build/, .crystal-cache/, dist/"
+	@echo "  dist               create distribution tarball"
 
 install:
 	shards install
@@ -16,15 +39,33 @@ lint:
 test:
 	crystal spec spec/
 
-build:
-	mkdir -p bin
+SRC := $(shell find src -name "*.cr" -not -name "._*")
+SHARD_FILES := shard.yml shard.lock $(shell find lib -name "shard.yml" 2>/dev/null)
+BUILD_DIR := .build
+
+build: $(BUILD_DIR)/chiasmus
+$(BUILD_DIR)/chiasmus: $(SRC) $(SHARD_FILES)
+	@mkdir -p bin $(BUILD_DIR)
 	crystal build --release -o bin/chiasmus src/chiasmus_cli.cr
+	@touch $@
+
+build_release: $(BUILD_DIR)/chiasmus_release
+$(BUILD_DIR)/chiasmus_release: $(SRC) $(SHARD_FILES)
+	@mkdir -p bin $(BUILD_DIR)
+	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus src/chiasmus_cli.cr
+	@touch $@
 
 build-clis:
 	mkdir -p bin
 	crystal build --release -o bin/chiasmus-discover src/chiasmus_discover.cr
 	crystal build --release -o bin/chiasmus-grammar src/chiasmus_grammar.cr
 	crystal build --release -o bin/chiasmus-parity src/chiasmus_parity.cr
+	crystal build --release -o bin/chiasmus-plan src/chiasmus_plan.cr
+	crystal build --release -o bin/chiasmus-complete src/chiasmus_complete.cr
+	# chiasmus-facts is the graph engine headless; build it like the server
+	# (-Dpreview_mt -Dexecution_context) so extraction uses true-thread
+	# parallelism (parallel_cpu_enabled?) instead of fiber-only.
+	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-facts src/chiasmus_facts.cr
 
 release:
 	mkdir -p bin
@@ -48,6 +89,9 @@ dist: release build-clis
 	@cp bin/chiasmus-discover dist/chiasmus/chiasmus-discover
 	@cp bin/chiasmus-grammar dist/chiasmus/chiasmus-grammar
 	@cp bin/chiasmus-parity dist/chiasmus/chiasmus-parity
+	@cp bin/chiasmus-plan dist/chiasmus/chiasmus-plan
+	@cp bin/chiasmus-complete dist/chiasmus/chiasmus-complete
+	@cp bin/chiasmus-facts dist/chiasmus/chiasmus-facts
 
 	# Copy grammar libraries from cache
 	@echo "Copying grammar libraries from cache..."
@@ -93,6 +137,8 @@ dist: release build-clis
 	@echo "./chiasmus --help" >> dist/chiasmus/README.md
 	@echo "./chiasmus-discover --help" >> dist/chiasmus/README.md
 	@echo "./chiasmus-parity --help" >> dist/chiasmus/README.md
+	@echo "./chiasmus-plan --help" >> dist/chiasmus/README.md
+	@echo "./chiasmus-complete --help" >> dist/chiasmus/README.md
 
 	# Create tarball
 	@cd dist && tar czf chiasmus-$(shell date +%Y%m%d).tar.gz chiasmus/
@@ -103,7 +149,14 @@ setup-grammars: build
 	@echo "Setting up grammars using chiasmus-grammar CLI..."
 	@./scripts/setup_grammars_new.cr
 
+# Warm the extraction cache so subsequent reviews are instant.
+warm-cache: $(BUILD_DIR)/chiasmus_warmed
+$(BUILD_DIR)/chiasmus_warmed: $(BUILD_DIR)/chiasmus_release
+	@./scripts/warm_cache.cr
+	@touch $@
+
 clean:
 	rm -rf .crystal-cache
 	rm -rf bin
 	rm -rf dist
+	rm -rf .build
