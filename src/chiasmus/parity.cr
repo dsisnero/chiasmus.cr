@@ -389,9 +389,9 @@ module Chiasmus
         file = defining_file(graph, symbol)
         return false unless file
 
-        normalized_symbol = Naming.normalized_simple(symbol)
+        normalized_symbol = Naming.normalized_key(symbol)
         graph.exports.any? do |fact|
-          fact.file == file && Naming.normalized_simple(fact.name) == normalized_symbol
+          fact.file == file && Naming.normalized_key(fact.name) == normalized_symbol
         end
       end
 
