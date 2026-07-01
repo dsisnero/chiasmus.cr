@@ -400,5 +400,103 @@ describe Chiasmus::Graph::IR do
         Chiasmus::Graph::IR::ContainsEdge.new("Service.Config", "Service.Config.load"),
       ])
     end
+
+    it "rewrites repeated contained call edges independently per file" do
+      graph = Chiasmus::Graph::IR::SemanticGraph.new(
+        symbols: [
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo",
+            name: "Demo",
+            qualified_name: "Demo",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Module,
+            file: "src/demo_config.cr",
+            line: 1
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo-config",
+            name: "Config",
+            qualified_name: "Config",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Class,
+            file: "src/demo_config.cr",
+            line: 2
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo-load",
+            name: "load",
+            qualified_name: "load",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/demo_config.cr",
+            line: 4
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo-helper",
+            name: "helper",
+            qualified_name: "helper",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/demo_config.cr",
+            line: 6
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "service",
+            name: "Service",
+            qualified_name: "Service",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Module,
+            file: "src/service_config.cr",
+            line: 1
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "service-config",
+            name: "Config",
+            qualified_name: "Config",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Class,
+            file: "src/service_config.cr",
+            line: 2
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "service-load",
+            name: "load",
+            qualified_name: "load",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/service_config.cr",
+            line: 4
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "service-helper",
+            name: "helper",
+            qualified_name: "helper",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/service_config.cr",
+            line: 6
+          ),
+        ],
+        calls: [
+          Chiasmus::Graph::IR::CallEdge.new("load", "helper"),
+          Chiasmus::Graph::IR::CallEdge.new("load", "helper"),
+        ],
+        contains: [
+          Chiasmus::Graph::IR::ContainsEdge.new("Demo", "Config"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Config", "load"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Config", "helper"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Service", "Config"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Config", "load"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Config", "helper"),
+        ]
+      )
+
+      normalized = Chiasmus::Graph::IR.normalize(graph)
+
+      normalized.calls.should eq([
+        Chiasmus::Graph::IR::CallEdge.new("Demo.Config.load", "Demo.Config.helper"),
+        Chiasmus::Graph::IR::CallEdge.new("Service.Config.load", "Service.Config.helper"),
+      ])
+    end
   end
 end

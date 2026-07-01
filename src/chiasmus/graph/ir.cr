@@ -48,6 +48,12 @@ module Chiasmus
         parent : String,
         child : String
 
+      record ScopedCallEdge,
+        file : String,
+        caller : String,
+        callee : String,
+        callee_qn : String? = nil
+
       record SemanticGraph,
         files : Array(FileNode) = [] of FileNode,
         symbols : Array(SymbolNode) = [] of SymbolNode,
@@ -72,6 +78,8 @@ module Chiasmus
       class CommonNormalizationRefiner < Refiner
         def refine(graph : SemanticGraph) : SemanticGraph
           normalized_symbols = graph.symbols.map { |symbol| normalize_symbol(symbol) }
+          scoped_calls = scope_calls(normalized_symbols, graph.calls)
+          unresolved_calls = unresolved_calls(normalized_symbols, graph.calls)
           scoped_contains = scope_contains(normalized_symbols, graph.contains)
           unresolved_contains = unresolved_contains(normalized_symbols, graph.contains)
           qualified_symbols, qualified_scoped_contains = qualify_contained_symbols(normalized_symbols, scoped_contains)
@@ -80,9 +88,13 @@ module Chiasmus
             symbol.id
           end
           normalized_files = deduplicate(graph.files, &.path)
-          normalized_calls = deduplicate(rewrite_calls(graph.calls, rename_by_file, rename_global)) do |edge|
+          normalized_calls = deduplicate(
+            lift_scoped_calls(rewrite_scoped_calls(scoped_calls, rename_by_file)) +
+            rewrite_calls(unresolved_calls, rename_by_file, rename_global)
+          ) do |edge|
             "#{edge.caller}\u0000#{edge.callee}\u0000#{edge.callee_qn || ""}"
           end
+          normalized_calls.sort_by! { |edge| {edge.caller, edge.callee, edge.callee_qn || ""} }
           normalized_imports = deduplicate(graph.imports) { |edge| "#{edge.file}\u0000#{edge.name}\u0000#{edge.source}" }
           normalized_exports = deduplicate(rewrite_exports(graph.exports, rename_by_file, rename_global)) { |edge| "#{edge.file}\u0000#{edge.name}" }
           normalized_contains = deduplicate(
@@ -248,6 +260,24 @@ module Chiasmus
           contains.map { |edge| ContainsEdge.new(edge.parent, edge.child) }
         end
 
+        private def rewrite_scoped_calls(
+          calls : Array(ScopedCallEdge),
+          renames : Hash(Tuple(String, String), String),
+        ) : Array(ScopedCallEdge)
+          calls.map do |edge|
+            ScopedCallEdge.new(
+              edge.file,
+              renames[{edge.file, edge.caller}]? || edge.caller,
+              renames[{edge.file, edge.callee}]? || edge.callee,
+              edge.callee_qn.try { |name| renames[{edge.file, name}]? || name },
+            )
+          end
+        end
+
+        private def lift_scoped_calls(calls : Array(ScopedCallEdge)) : Array(CallEdge)
+          calls.map { |edge| CallEdge.new(edge.caller, edge.callee, edge.callee_qn) }
+        end
+
         private def rewrite_calls(
           calls : Array(CallEdge),
           rename_by_file : Hash(Tuple(String, String), String),
@@ -324,6 +354,37 @@ module Chiasmus
 
           deduplicate(candidates) do |candidate|
             "#{candidate.file}\u0000#{candidate.parent}\u0000#{candidate.child}"
+          end
+        end
+
+        private def scope_calls(symbols : Array(SymbolNode), calls : Array(CallEdge)) : Array(ScopedCallEdge)
+          calls.flat_map { |edge| scoped_call_candidates(symbols, edge) }
+        end
+
+        private def unresolved_calls(symbols : Array(SymbolNode), calls : Array(CallEdge)) : Array(CallEdge)
+          calls.select { |edge| scoped_call_candidates(symbols, edge).empty? }
+        end
+
+        private def scoped_call_candidates(symbols : Array(SymbolNode), edge : CallEdge) : Array(ScopedCallEdge)
+          callers = symbols.select { |symbol| symbol.qualified_name == edge.caller }
+
+          candidates = [] of ScopedCallEdge
+          callers.each do |caller|
+            callees = symbols.select do |symbol|
+              symbol.file == caller.file && symbol.qualified_name == edge.callee
+            end
+            next unless callees.size == 1
+
+            callee_qn = edge.callee_qn
+            if callee_qn
+              next unless callees.first.qualified_name == callee_qn
+            end
+
+            candidates << ScopedCallEdge.new(caller.file, caller.qualified_name, callees.first.qualified_name, callee_qn)
+          end
+
+          deduplicate(candidates) do |candidate|
+            "#{candidate.file}\u0000#{candidate.caller}\u0000#{candidate.callee}\u0000#{candidate.callee_qn || ""}"
           end
         end
 
