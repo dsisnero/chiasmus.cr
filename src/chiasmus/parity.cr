@@ -1,6 +1,7 @@
 require "option_parser"
 require "set"
 require "./discovery"
+require "./graph/ir"
 require "./graph/types"
 require "./utils/bounded_work"
 
@@ -27,7 +28,9 @@ module Chiasmus
       kind : String,
       status : String,
       crystal_refs : String,
-      notes : String do
+      notes : String,
+      target_symbol : String = "-",
+      test_refs : String = "-" do
       def source_name : String
         source_id.split("::").last
       end
@@ -97,15 +100,37 @@ module Chiasmus
 
     class Loader
       def self.read_inventory(path : String) : Array(InventoryRow)
-        rows(path, 5).map do |cols|
-          InventoryRow.new(
-            source_id: cols[0],
-            kind: cols[1],
-            status: cols[2],
-            crystal_refs: empty_to_dash(cols[3]),
-            notes: empty_to_dash(cols[4]),
-          )
+        rows = [] of InventoryRow
+        header = nil.as(Hash(String, Int32)?)
+
+        File.each_line(path) do |line|
+          stripped = line.strip
+          next if stripped.empty?
+
+          if header.nil? && inventory_header?(stripped)
+            header = inventory_header_map(stripped)
+            next
+          end
+
+          next if stripped.starts_with?('#')
+
+          cols = line.rstrip("\n").split('\t', remove_empty: false)
+          if current_header = header
+            rows << inventory_row_from_header(path, cols, current_header)
+          else
+            raise "Malformed row in #{path}: #{line}" if cols.size < 5
+
+            rows << InventoryRow.new(
+              source_id: cols[0],
+              kind: cols[1],
+              status: cols[2],
+              crystal_refs: empty_to_dash(cols[3]),
+              notes: empty_to_dash(cols[4]),
+            )
+          end
         end
+
+        rows
       end
 
       def self.read_rules(path : String?) : Array(ConversionRule)
@@ -133,6 +158,49 @@ module Chiasmus
           data << cols
         end
         data
+      end
+
+      private def self.inventory_header?(line : String) : Bool
+        cols = normalized_header_columns(line)
+        cols.includes?("source_id") && cols.includes?("kind") && cols.includes?("status")
+      end
+
+      private def self.inventory_header_map(line : String) : Hash(String, Int32)
+        normalized_header_columns(line).each_with_index.to_h do |name, index|
+          {name, index}
+        end
+      end
+
+      private def self.normalized_header_columns(line : String) : Array(String)
+        normalized = line.starts_with?('#') ? line[1..].strip : line.strip
+        normalized.split('\t', remove_empty: false).map(&.strip.downcase)
+      end
+
+      private def self.inventory_row_from_header(path : String, cols : Array(String), header : Hash(String, Int32)) : InventoryRow
+        InventoryRow.new(
+          source_id: inventory_required(path, cols, header, "source_id"),
+          kind: inventory_required(path, cols, header, "kind"),
+          status: inventory_required(path, cols, header, "status"),
+          crystal_refs: inventory_optional(cols, header, "crystal_refs"),
+          notes: inventory_optional(cols, header, "notes"),
+          target_symbol: inventory_optional(cols, header, "target_symbol"),
+          test_refs: inventory_optional(cols, header, "test_refs"),
+        )
+      end
+
+      private def self.inventory_required(path : String, cols : Array(String), header : Hash(String, Int32), name : String) : String
+        index = header[name]? || raise "Inventory header missing required column #{name} in #{path}"
+        value = cols[index]? || ""
+        stripped = value.strip
+        raise "Inventory row missing #{name} in #{path}: #{cols.join('\t')}" if stripped.empty?
+        stripped
+      end
+
+      private def self.inventory_optional(cols : Array(String), header : Hash(String, Int32), name : String) : String
+        index = header[name]?
+        return "-" unless index
+
+        empty_to_dash(cols[index]? || "")
       end
 
       private def self.empty_to_dash(value : String) : String
@@ -683,9 +751,31 @@ module Chiasmus
           return intentional_divergence_report(row, referenced, missing_refs)
         end
 
+        resolve_standard_row(row, referenced, missing_refs)
+      end
+
+      private def resolve_standard_row(
+        row : InventoryRow,
+        referenced : Array(SymbolItem),
+        missing_refs : Array(String),
+      ) : ReportRow
+        hinted_target = hinted_target(row)
+
         if match = best_match(row, referenced)
           status = match.basis == "exact" ? "curated_exact" : "curated_alias"
           return build_report(row, status, match, row.notes)
+        end
+
+        if hinted_target
+          name = hinted_target[0]
+          basis = hinted_target[1]
+          if match = best_noted_match(name, referenced)
+            return report_from_symbol(row, "curated_alias", match, row.notes, 100, basis)
+          end
+
+          if match = best_noted_match(name, @symbols)
+            return report_from_symbol(row, "curated_alias", match, row.notes, 100, basis)
+          end
         end
 
         unless referenced.empty?
@@ -697,6 +787,10 @@ module Chiasmus
           return stale_ref_report(row, missing_refs, global_match)
         end
 
+        fallback_match_report(row)
+      end
+
+      private def fallback_match_report(row : InventoryRow) : ReportRow
         matches = ranked_matches(row, @symbols)
         if matches.empty?
           return ReportRow.new(
@@ -722,6 +816,86 @@ module Chiasmus
 
         status = best.score >= 96 ? "candidate_exact" : "candidate_alias"
         build_report(row, status, best, row.notes)
+      end
+
+      private def hinted_target(row : InventoryRow) : Tuple(String, String)?
+        return {row.target_symbol, "target_symbol"} unless row.target_symbol == "-"
+
+        if noted_name = noted_target_name(row.notes)
+          return {noted_name, "notes_alias"}
+        end
+
+        nil
+      end
+
+      private def noted_target_name(notes : String) : String?
+        return nil if notes == "-"
+
+        if match = notes.match(/ported as\s+([A-Za-z0-9_:.#?!=+\-]+)/i)
+          name = match[1].strip
+          return nil if name.empty?
+          return name
+        end
+
+        nil
+      end
+
+      private def best_noted_match(noted_name : String, symbols : Array(SymbolItem)) : SymbolItem?
+        return nil if symbols.empty?
+
+        noted_key = Naming.normalized_key(noted_name)
+        noted_simple = Naming.normalized_simple(noted_name)
+        noted_owner = Naming.normalized_owner(noted_name)
+
+        exact = symbols.find do |symbol|
+          symbol.name == noted_name
+        end
+        return exact if exact
+
+        normalized = symbols.find do |symbol|
+          Naming.normalized_key(symbol.name) == noted_key
+        end
+        return normalized if normalized
+
+        owner_exact = symbols.find do |symbol|
+          Naming.normalized_simple(symbol.name) == noted_simple &&
+            (noted_owner.empty? || Naming.normalized_owner(symbol.name) == noted_owner)
+        end
+        return owner_exact if owner_exact
+
+        owner_suffix = best_owner_suffix_match(symbols, noted_simple, noted_owner)
+        return owner_suffix if owner_suffix
+
+        unique_simple_match(symbols, noted_simple)
+      end
+
+      private def best_owner_suffix_match(symbols : Array(SymbolItem), noted_simple : String, noted_owner : String) : SymbolItem?
+        return nil if noted_simple.empty? || noted_owner.empty?
+
+        matches = symbols.select do |symbol|
+          Naming.normalized_simple(symbol.name) == noted_simple &&
+            owner_suffix_match?(Naming.normalized_owner(symbol.name), noted_owner)
+        end
+        return nil if matches.empty?
+
+        matches.max_by { |symbol| Naming.normalized_owner(symbol.name).size }
+      end
+
+      private def owner_suffix_match?(symbol_owner : String, noted_owner : String) : Bool
+        return false if symbol_owner.empty? || noted_owner.empty?
+
+        noted_owner == symbol_owner ||
+          noted_owner.ends_with?(".#{symbol_owner}") ||
+          symbol_owner.ends_with?(".#{noted_owner}")
+      end
+
+      private def unique_simple_match(symbols : Array(SymbolItem), noted_simple : String) : SymbolItem?
+        return nil if noted_simple.empty?
+
+        matches = symbols.select { |symbol| Naming.normalized_simple(symbol.name) == noted_simple }
+        return nil unless matches.size == 1
+
+        matches.first
       end
 
       private def intentional_divergence_report(row : InventoryRow, referenced : Array(SymbolItem), missing_refs : Array(String)) : ReportRow
@@ -1027,6 +1201,7 @@ module Chiasmus
       symbols, parser = CrystalScanner.scan(root_dir, crystal_dirs, parser_mode)
       source_facts = source_facts_path ? Structural.load_facts(source_facts_path) : nil
       crystal_facts = crystal_facts_path ? Structural.load_facts(crystal_facts_path) : nil
+      symbols = merge_fact_symbols(symbols, crystal_facts)
       matcher = Matcher.new(
         symbols,
         rules,
@@ -1036,6 +1211,37 @@ module Chiasmus
         crystal_entry_points: crystal_facts.try(&.entry_points),
       )
       AnalysisResult.new(rows: matcher.analyze(inventory), parser_mode: parser)
+    end
+
+    private def self.merge_fact_symbols(symbols : Array(SymbolItem), crystal_facts : StructuralFacts?) : Array(SymbolItem)
+      return symbols unless crystal_facts
+
+      combined = symbols.dup
+      Graph::IR.normalize(crystal_facts.graph).symbols.each do |symbol|
+        kind = symbol.kind.to_s.downcase
+        next unless VALID_CANDIDATE_KINDS.includes?(kind)
+
+        file = normalize_symbol_file_path(symbol.file)
+        combined << SymbolItem.new(
+          id: "#{file}::#{kind}::#{symbol.qualified_name}",
+          name: symbol.qualified_name,
+          kind: kind,
+          file: file,
+          scope: "source",
+          parser_mode: "facts",
+        )
+      end
+
+      deduplicate_symbols(combined)
+    end
+
+    private def self.normalize_symbol_file_path(path : String) : String
+      path.starts_with?("./") ? path[2..] : path
+    end
+
+    private def self.deduplicate_symbols(symbols : Array(SymbolItem)) : Array(SymbolItem)
+      seen = Set(String).new
+      symbols.select { |symbol| seen.add?(symbol.id) }
     end
 
     module Completion
@@ -1075,7 +1281,7 @@ module Chiasmus
           emit_inventory_facts(output, row)
           output.puts "source_symbol_name(#{quote(row.source_id)}, #{quote(row.source_name)})."
           output.puts "reachable_from_entry(#{quote(row.source_id)})." if reachable.includes?(Naming.normalized_key(row.source_name))
-          output.puts "tested(#{quote(row.source_id)})." if tested_from_refs?(row.crystal_refs)
+          output.puts "tested(#{quote(row.source_id)})." if tested_from_row?(row)
 
           next unless report = rows_by_id[row.source_id]?
 
@@ -1101,7 +1307,8 @@ module Chiasmus
         report.kind == "test" && report.crystal_name != "-"
       end
 
-      private def tested_from_refs?(refs : String) : Bool
+      private def tested_from_row?(row : InventoryRow) : Bool
+        refs = row.test_refs == "-" ? row.crystal_refs : "#{row.crystal_refs},#{row.test_refs}"
         return false if refs == "-"
 
         refs.split(/[,\s]+/).any? do |token|

@@ -1,5 +1,6 @@
 require "spec"
 require "../../../src/chiasmus/graph/types"
+require "../../../src/chiasmus/graph/ir"
 require "../../../src/chiasmus/graph/facts"
 require "../../../src/chiasmus/graph/community"
 require "../../../src/chiasmus/graph/insights"
@@ -60,6 +61,24 @@ describe Chiasmus::Graph::Facts do
     program.should contain("entry_point(main).")
     program.should contain("reaches(A, B)")
     program.should contain("dead(Name)")
+  end
+
+  it "normalizes duplicate and self-referential contains edges before emitting facts" do
+    graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "UserService.fetch", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+      ],
+      contains: [
+        Chiasmus::Graph::ContainsFact.new(parent: "UserService", child: "UserService"),
+        Chiasmus::Graph::ContainsFact.new(parent: "UserService", child: "UserService.fetch"),
+        Chiasmus::Graph::ContainsFact.new(parent: "UserService", child: "UserService.fetch"),
+      ]
+    )
+
+    program = Chiasmus::Graph::Facts.graph_to_prolog(graph)
+
+    program.should_not contain("contains('UserService', 'UserService').")
+    program.scan(/contains\('UserService', 'UserService\.fetch'\)\./).size.should eq(1)
   end
 
   describe "solver integration" do
@@ -316,6 +335,25 @@ describe Chiasmus::Graph::Facts do
       program.should contain("community(")
       program.should contain("cohesion(")
       program.should contain("hub(")
+    end
+
+    it "emits the same program from semantic ir as from a code graph" do
+      graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "demo.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+        ],
+        exports: [
+          Chiasmus::Graph::ExportsFact.new(file: "demo.ts", name: "main"),
+        ]
+      )
+      semantic = Chiasmus::Graph::IR::Lowering.from_code_graph(graph)
+
+      Chiasmus::Graph::Facts.graph_to_prolog(semantic).should eq(
+        Chiasmus::Graph::Facts.graph_to_prolog(graph)
+      )
     end
   end
 end

@@ -1,5 +1,6 @@
 require "spec"
 require "../../../src/chiasmus/graph/types"
+require "../../../src/chiasmus/graph/ir"
 require "../../../src/chiasmus/graph/facts"
 require "../../../src/chiasmus/graph/extractor"
 require "../../../src/chiasmus/graph/analyses"
@@ -269,6 +270,76 @@ describe Chiasmus::Graph::Analyses do
     result.result.as(String).should contain("defines(")
     result.result.as(String).should contain("calls(")
     result.result.as(String).should contain("reaches(")
+  end
+
+  it "normalizes structural noise before returning facts analysis" do
+    graph = make_graph(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "UserService.fetch", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+      ],
+      contains: [
+        Chiasmus::Graph::ContainsFact.new(parent: "UserService", child: "UserService"),
+        Chiasmus::Graph::ContainsFact.new(parent: "UserService", child: "UserService.fetch"),
+        Chiasmus::Graph::ContainsFact.new(parent: "UserService", child: "UserService.fetch"),
+      ]
+    )
+
+    result = Chiasmus::Graph::Analyses.run_analysis_from_graph(
+      graph,
+      Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Facts)
+    )
+
+    facts = result.result.as(String)
+    facts.should_not contain("contains('UserService', 'UserService').")
+    facts.scan(/contains\('UserService', 'UserService\.fetch'\)\./).size.should eq(1)
+  end
+
+  it "returns the same facts when analysis runs from semantic ir" do
+    graph = make_graph(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+      ],
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),
+      ],
+      exports: [
+        Chiasmus::Graph::ExportsFact.new(file: "t.ts", name: "a"),
+      ]
+    )
+    semantic = Chiasmus::Graph::IR::Lowering.from_code_graph(graph)
+    request = Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Facts)
+
+    from_graph = Chiasmus::Graph::Analyses.run_analysis_from_graph(graph, request)
+    from_semantic = Chiasmus::Graph::Analyses.run_analysis_from_graph(semantic, request)
+
+    from_semantic.analysis.should eq(from_graph.analysis)
+    from_semantic.result.should eq(from_graph.result)
+  end
+
+  it "returns the same summary when analysis runs from semantic ir asynchronously" do
+    graph = make_graph(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+      ],
+      exports: [
+        Chiasmus::Graph::ExportsFact.new(file: "a.ts", name: "foo"),
+      ]
+    )
+    semantic = Chiasmus::Graph::IR::Lowering.from_code_graph(graph)
+    request = Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Summary)
+    sync = Chiasmus::Graph::Analyses.run_analysis_from_graph(semantic, request)
+
+    async_channel = Chiasmus::Graph::Analyses.run_analysis_from_graph_async(semantic, request)
+    async = async_channel.receive?
+
+    async.should_not be_nil
+    async_result = async || raise "expected async semantic result"
+    async_result.error.should be_nil
+    async_result.value.should_not be_nil
+    value = async_result.value || raise "expected async semantic value"
+    value.analysis.should eq(sync.analysis)
+    value.result.should eq(sync.result)
+    async_channel.receive?.should be_nil
   end
 
   it "returns summary counts" do

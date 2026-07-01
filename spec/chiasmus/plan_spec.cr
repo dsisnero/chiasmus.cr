@@ -2,6 +2,7 @@ require "spec"
 require "file_utils"
 require "../../src/chiasmus/plan"
 require "../../src/chiasmus/graph/facts"
+require "../../src/chiasmus/graph/ir"
 
 include Chiasmus::Graph
 
@@ -40,6 +41,51 @@ private def previous_plan_graph : CodeGraph
     ],
     contains: [] of ContainsFact,
     imports: [] of ImportsFact,
+  )
+end
+
+private def sample_semantic_plan_graph : Chiasmus::Graph::IR::SemanticGraph
+  Chiasmus::Graph::IR::SemanticGraph.new(
+    symbols: [
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/app.ts::function::main",
+        name: "main",
+        qualified_name: "main",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/app.ts",
+        line: 1
+      ),
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/auth.ts::method::Auth.login",
+        name: "login",
+        qualified_name: "Auth.login",
+        owner_name: "Auth",
+        kind: SymbolKind::Method,
+        file: "src/auth.ts",
+        line: 10
+      ),
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/auth.ts::method::Auth.logout",
+        name: "logout",
+        qualified_name: "Auth.logout",
+        owner_name: "Auth",
+        kind: SymbolKind::Method,
+        file: "src/auth.ts",
+        line: 20
+      ),
+    ],
+    calls: [
+      Chiasmus::Graph::IR::CallEdge.new(caller: "main", callee: "Auth.login"),
+      Chiasmus::Graph::IR::CallEdge.new(caller: "main", callee: "Auth.logout"),
+    ],
+    exports: [
+      Chiasmus::Graph::IR::ExportEdge.new(file: "src/app.ts", name: "main"),
+    ],
+    contains: [
+      Chiasmus::Graph::IR::ContainsEdge.new(parent: "Auth", child: "Auth.login"),
+      Chiasmus::Graph::IR::ContainsEdge.new(parent: "Auth", child: "Auth.logout"),
+    ]
   )
 end
 
@@ -162,6 +208,18 @@ describe Chiasmus::Plan do
     new_slice = refreshed.find { |slice| slice.slice_id == "foundational:hub" } || raise "missing refresh for hub"
     new_slice.change_kind.should eq("new_slice")
     new_slice.accepted_status.should eq("proposed")
+  end
+
+  it "groups semantic-ir feature work by owner when related methods share the same container" do
+    slices = Chiasmus::Plan.slice(sample_semantic_plan_graph, entry_points: ["main"])
+
+    owner_slice = slices.find { |slice| slice.slice_id == "owner:Auth" } || raise "missing owner feature slice"
+    owner_slice.slice_kind.should eq("feature")
+    owner_slice.members.map(&.name).should eq(["Auth.login", "Auth.logout"])
+
+    seed = Chiasmus::Plan.seed_parity(sample_semantic_plan_graph, entry_points: ["main"])
+    seed.should contain("owner:Auth")
+    seed.should contain("Members: `Auth.login`, `Auth.logout`")
   end
 end
 

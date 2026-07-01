@@ -8,6 +8,29 @@ require "file_utils"
 require "../../src/chiasmus/utils/timeout"
 require "../../src/chiasmus/solvers/prolog_solver"
 
+describe Chiasmus::Parity::Loader do
+  it "parses header-driven inventory rows with explicit target_symbol and test_refs" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-loader-#{Random::Secure.hex(8)}")
+    path = File.join(dir, "inventory.tsv")
+
+    begin
+      Dir.mkdir_p(dir)
+      File.write(path, <<-TSV)
+# source_id	kind	status	crystal_refs	target_symbol	test_refs	notes
+src/config.ts::function::loadConfig	function	ported	src/chiasmus/utils/config.cr:43	Chiasmus::Utils::Config.load	spec/chiasmus/utils/config_spec.cr:11	Config load is covered explicitly
+TSV
+
+      rows = Chiasmus::Parity::Loader.read_inventory(path)
+      rows.size.should eq(1)
+      rows.first.target_symbol.should eq("Chiasmus::Utils::Config.load")
+      rows.first.test_refs.should eq("spec/chiasmus/utils/config_spec.cr:11")
+      rows.first.notes.should eq("Config load is covered explicitly")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+end
+
 describe Chiasmus::Parity::Naming do
   it "normalizes camelCase and snake_case to the same key" do
     Chiasmus::Parity::Naming.normalized_key("buildGapCheck").should eq("build_gap_check")
@@ -124,6 +147,163 @@ describe Chiasmus::Parity::Matcher do
     result.match_status.should eq("stale_ref_path")
     result.crystal_path.should eq("spec/chiasmus/review_spec.cr")
     result.notes.should contain("stale crystal_refs: spec/chiasmus/mcp_server/review_spec.cr")
+  end
+
+  it "uses explicit Ported as notes to choose the right referenced Crystal symbol" do
+    row = Chiasmus::Parity::InventoryRow.new(
+      source_id: "src/config.ts::function::loadConfig",
+      kind: "function",
+      status: "ported",
+      crystal_refs: "src/chiasmus/utils/config.cr:43",
+      notes: "Ported as Chiasmus::Utils::Config.load with upstream adapterDiscovery compatibility"
+    )
+    referenced_symbols = [
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::class::Chiasmus::Utils::Config",
+        name: "Chiasmus::Utils::Config",
+        kind: "class",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "regex"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::Chiasmus::Utils::Config.load",
+        name: "Chiasmus::Utils::Config.load",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "regex"
+      ),
+    ]
+
+    matcher = Chiasmus::Parity::Matcher.new(referenced_symbols, [] of Chiasmus::Parity::ConversionRule)
+    result = matcher.analyze([row]).first
+
+    result.match_status.should eq("curated_alias")
+    result.crystal_name.should eq("Chiasmus::Utils::Config.load")
+    result.basis.should eq("notes_alias")
+  end
+
+  it "prefers an owner-suffix method candidate over a bare simple-name fallback" do
+    row = Chiasmus::Parity::InventoryRow.new(
+      source_id: "src/config.ts::function::loadConfig",
+      kind: "function",
+      status: "ported",
+      crystal_refs: "src/chiasmus/utils/config.cr:43",
+      notes: "Ported as Chiasmus::Utils::Config.load with upstream adapterDiscovery compatibility"
+    )
+    referenced_symbols = [
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::class::Config",
+        name: "Config",
+        kind: "class",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::Config.load",
+        name: "Config.load",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::load",
+        name: "load",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "regex"
+      ),
+    ]
+
+    matcher = Chiasmus::Parity::Matcher.new(referenced_symbols, [] of Chiasmus::Parity::ConversionRule)
+    result = matcher.analyze([row]).first
+
+    result.match_status.should eq("curated_alias")
+    result.crystal_name.should eq("Config.load")
+    result.basis.should eq("notes_alias")
+  end
+
+  it "prefers explicit target_symbol metadata over file-level fallback" do
+    row = Chiasmus::Parity::InventoryRow.new(
+      source_id: "src/config.ts::function::loadConfig",
+      kind: "function",
+      status: "ported",
+      crystal_refs: "src/chiasmus/utils/config.cr:43",
+      notes: "Config load is covered explicitly",
+      target_symbol: "Chiasmus::Utils::Config.load"
+    )
+    referenced_symbols = [
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::class::Chiasmus::Utils::Config",
+        name: "Chiasmus::Utils::Config",
+        kind: "class",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "regex"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::Chiasmus::Utils::Config.load",
+        name: "Chiasmus::Utils::Config.load",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "regex"
+      ),
+    ]
+
+    matcher = Chiasmus::Parity::Matcher.new(referenced_symbols, [] of Chiasmus::Parity::ConversionRule)
+    result = matcher.analyze([row]).first
+
+    result.match_status.should eq("curated_alias")
+    result.crystal_name.should eq("Chiasmus::Utils::Config.load")
+    result.basis.should eq("target_symbol")
+  end
+
+  it "uses target hints to select an unqualified referenced method when the file match is otherwise ambiguous" do
+    row = Chiasmus::Parity::InventoryRow.new(
+      source_id: "src/config.ts::function::loadConfig",
+      kind: "function",
+      status: "ported",
+      crystal_refs: "src/chiasmus/utils/config.cr:43",
+      notes: "Ported as Chiasmus::Utils::Config.load with upstream adapterDiscovery compatibility"
+    )
+    referenced_symbols = [
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::class::Config",
+        name: "Config",
+        kind: "class",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::load",
+        name: "load",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::save",
+        name: "save",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+    ]
+
+    matcher = Chiasmus::Parity::Matcher.new(referenced_symbols, [] of Chiasmus::Parity::ConversionRule)
+    result = matcher.analyze([row]).first
+
+    result.match_status.should eq("curated_alias")
+    result.crystal_name.should eq("load")
+    result.basis.should eq("notes_alias")
   end
 end
 
@@ -845,6 +1025,109 @@ TSV
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "uses crystal fact symbols when scanner candidates miss a referenced method" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-facts-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      Dir.mkdir_p(File.join(dir, "src"))
+      Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+      File.write(File.join(dir, "src", "config.cr"), <<-CR)
+module Demo
+  class Config
+  end
+end
+CR
+
+      File.write(File.join(dir, "plans", "inventory", "port.tsv"), <<-TSV)
+# source_id\tkind\tstatus\tcrystal_refs\tnotes
+src/config.ts::function::loadConfig\tfunction\tported\tsrc/config.cr:2\tPorted as Demo::Config.load
+TSV
+
+      crystal_graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "./src/config.cr", name: "Config", kind: Chiasmus::Graph::SymbolKind::Class, line: 2, end_line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/config.cr", name: "load", kind: Chiasmus::Graph::SymbolKind::Method, line: 4, end_line: 5),
+        ],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+
+      crystal_facts_path = File.join(dir, "crystal.pl")
+      File.write(crystal_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(crystal_graph))
+
+      result = Chiasmus::Parity.analyze(
+        inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
+        root_dir: dir,
+        crystal_dirs: ["src"],
+        parser_mode: "regex",
+        crystal_facts_path: crystal_facts_path,
+      )
+
+      row = result.rows.first
+      row.match_status.should eq("curated_alias")
+      row.crystal_name.should eq("load")
+      row.basis.should eq("notes_alias")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "qualifies crystal fact methods from containment before parity matching" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-contained-facts-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      Dir.mkdir_p(File.join(dir, "src"))
+      Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+      File.write(File.join(dir, "src", "config.cr"), <<-CR)
+module Demo
+  class Config
+  end
+end
+CR
+
+      File.write(File.join(dir, "plans", "inventory", "port.tsv"), <<-TSV)
+# source_id\tkind\tstatus\tcrystal_refs\tnotes
+src/config.ts::function::loadConfig\tfunction\tported\tsrc/config.cr:2\tPorted as Demo::Config.load
+TSV
+
+      crystal_graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "./src/config.cr", name: "Config", kind: Chiasmus::Graph::SymbolKind::Class, line: 2, end_line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/config.cr", name: "load", kind: Chiasmus::Graph::SymbolKind::Method, line: 4, end_line: 5),
+        ],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [
+          Chiasmus::Graph::ContainsFact.new(parent: "Config", child: "load"),
+        ],
+      )
+
+      crystal_facts_path = File.join(dir, "crystal.pl")
+      File.write(crystal_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(crystal_graph))
+
+      result = Chiasmus::Parity.analyze(
+        inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
+        root_dir: dir,
+        crystal_dirs: ["src"],
+        parser_mode: "regex",
+        crystal_facts_path: crystal_facts_path,
+      )
+
+      row = result.rows.first
+      row.match_status.should eq("curated_alias")
+      row.crystal_name.should eq("Config.load")
+      row.basis.should eq("notes_alias")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "emits completion facts that identify reachable untested rows" do
     dir = File.join(Dir.tempdir, "chiasmus-parity-complete-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(File.join(dir, "src"))

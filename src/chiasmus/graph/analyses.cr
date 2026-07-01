@@ -1,5 +1,6 @@
 require "./extractor"
 require "./facts"
+require "./ir"
 require "./types"
 require "./layer_violation"
 require "./insights"
@@ -212,6 +213,10 @@ module Chiasmus
         AnalysisResult.new(analysis: request.analysis, result: result.as(AnalysisPayload))
       end
 
+      def run_analysis_from_graph(graph : IR::SemanticGraph, request : AnalysisRequest, snapshot_cache_dir : String? = nil, repo_key : String? = nil) : AnalysisResult
+        run_analysis_from_graph(IR::Lowering.to_code_graph(graph), request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
+      end
+
       def run_analysis_from_graph_async(
         graph : CodeGraph,
         request : AnalysisRequest,
@@ -234,6 +239,20 @@ module Chiasmus
         end
 
         channel
+      end
+
+      def run_analysis_from_graph_async(
+        graph : IR::SemanticGraph,
+        request : AnalysisRequest,
+        snapshot_cache_dir : String? = nil,
+        repo_key : String? = nil,
+      ) : Channel(AsyncAnalysisResult)
+        run_analysis_from_graph_async(
+          IR::Lowering.to_code_graph(graph),
+          request,
+          snapshot_cache_dir: snapshot_cache_dir,
+          repo_key: repo_key
+        )
       end
 
       def set_before_async_result_send_hook_for_test(&block : ->) : Nil

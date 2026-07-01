@@ -33,6 +33,14 @@ module Chiasmus
       end
 
       def graph_to_prolog(graph : CodeGraph, entry_points : Array(String)? = nil, include_insights : Bool = false) : String
+        render_prolog(IR::Lowering.to_code_graph(IR.normalize(graph)), entry_points, include_insights)
+      end
+
+      def graph_to_prolog(graph : IR::SemanticGraph, entry_points : Array(String)? = nil, include_insights : Bool = false) : String
+        render_prolog(IR::Lowering.to_code_graph(IR.normalize(graph)), entry_points, include_insights)
+      end
+
+      private def render_prolog(graph : CodeGraph, entry_points : Array(String)? = nil, include_insights : Bool = false) : String
         lines = [] of String
 
         lines << ":- dynamic(defines/5)."

@@ -1,5 +1,6 @@
 require "json"
 require "option_parser"
+require "./graph/ir"
 require "./graph/types"
 require "./graph/graph_util"
 require "./graph/insights"
@@ -43,7 +44,8 @@ module Chiasmus
       priority_score : Int32,
       safety_score : Int32,
       reasons : Array(String),
-      recommendation : String
+      recommendation : String,
+      owner_name : String? = nil
 
     record Slice,
       slice_id : String,
@@ -96,7 +98,25 @@ module Chiasmus
       top_n ? ranked.first(top_n) : ranked
     end
 
+    def rank(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
+      reports = analyze(graph, entry_points)
+      ranked = reports.sort do |a, b|
+        cmp = b.priority_score <=> a.priority_score
+        cmp == 0 ? a.name <=> b.name : cmp
+      end
+      top_n ? ranked.first(top_n) : ranked
+    end
+
     def safe(graph : Graph::CodeGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
+      reports = analyze(graph, entry_points)
+      ranked = reports.sort do |a, b|
+        cmp = b.safety_score <=> a.safety_score
+        cmp == 0 ? a.name <=> b.name : cmp
+      end
+      top_n ? ranked.first(top_n) : ranked
+    end
+
+    def safe(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
       reports = analyze(graph, entry_points)
       ranked = reports.sort do |a, b|
         cmp = b.safety_score <=> a.safety_score
@@ -111,13 +131,46 @@ module Chiasmus
       top_n ? ordered_slices.first(top_n) : ordered_slices
     end
 
+    def slice(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Slice)
+      reports = analyze(graph, entry_points)
+      ordered_slices = order_slices_by_priority!(build_slices(reports))
+      top_n ? ordered_slices.first(top_n) : ordered_slices
+    end
+
     def seed_parity(graph : Graph::CodeGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : String
       slices = slice(graph, entry_points: entry_points, top_n: top_n)
       render_seed_markdown(slices, entry_points || graph.exports.map(&.name))
     end
 
+    def seed_parity(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : String
+      normalized = Graph::IR.normalize(graph)
+      slices = slice(normalized, entry_points: entry_points, top_n: top_n)
+      effective_entry_points = entry_points || normalized.exports.map(&.name)
+      render_seed_markdown(slices, effective_entry_points)
+    end
+
     def track(
       graph : Graph::CodeGraph,
+      parity_plan_path : String? = nil,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+    ) : Array(TrackedSlice)
+      statuses = parse_parity_plan_statuses(parity_plan_path)
+      slice(graph, entry_points: entry_points, top_n: top_n).map do |work_slice|
+        TrackedSlice.new(
+          slice_id: work_slice.slice_id,
+          slice_kind: work_slice.slice_kind,
+          accepted_status: statuses[work_slice.slice_id]? || "proposed",
+          priority_score: work_slice.priority_score,
+          parallel_safe: work_slice.parallel_safe,
+          members: work_slice.members,
+          reasons: work_slice.reasons,
+        )
+      end
+    end
+
+    def track(
+      graph : Graph::IR::SemanticGraph,
       parity_plan_path : String? = nil,
       entry_points : Array(String)? = nil,
       top_n : Int32? = nil,
@@ -141,9 +194,49 @@ module Chiasmus
         raise "Unknown symbol: #{symbol}"
     end
 
+    def audit(graph : Graph::IR::SemanticGraph, symbol : String, entry_points : Array(String)? = nil) : Report
+      analyze(graph, entry_points).find { |report| report.name == symbol } ||
+        raise "Unknown symbol: #{symbol}"
+    end
+
     def refresh(
       graph : Graph::CodeGraph,
       previous_graph : Graph::CodeGraph,
+      parity_plan_path : String? = nil,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+    ) : Array(RefreshedSlice)
+      current = track(
+        graph,
+        parity_plan_path: parity_plan_path,
+        entry_points: entry_points,
+        top_n: top_n,
+      )
+      previous = slice(previous_graph, entry_points: entry_points, top_n: top_n)
+      previous_by_id = previous.to_h { |slice| {slice.slice_id, slice} }
+
+      current.compact_map do |current_slice|
+        previous_slice = previous_by_id[current_slice.slice_id]?
+        change_kind = detect_refresh_change(previous_slice, current_slice)
+        next unless change_kind
+
+        RefreshedSlice.new(
+          slice_id: current_slice.slice_id,
+          slice_kind: current_slice.slice_kind,
+          change_kind: change_kind,
+          accepted_status: current_slice.accepted_status,
+          priority_score: current_slice.priority_score,
+          previous_priority_score: previous_slice.try(&.priority_score),
+          parallel_safe: current_slice.parallel_safe,
+          members: current_slice.members,
+          reasons: current_slice.reasons,
+        )
+      end
+    end
+
+    def refresh(
+      graph : Graph::IR::SemanticGraph,
+      previous_graph : Graph::IR::SemanticGraph,
       parity_plan_path : String? = nil,
       entry_points : Array(String)? = nil,
       top_n : Int32? = nil,
@@ -242,10 +335,26 @@ module Chiasmus
 
     private def feature_groups(reports : Array(Report)) : Hash(String, Array(Report))
       groups = Hash(String, Array(Report)).new { |hash, key| hash[key] = [] of Report }
-      reports.each do |report|
-        next unless report.recommendation == "feature"
+      feature_reports = reports.select { |report| report.recommendation == "feature" }
+      owner_counts = Hash(String, Int32).new(0)
 
-        key = report.community_id ? "community:#{report.community_id}" : "file:#{report.file}"
+      feature_reports.each do |report|
+        owner = report.owner_name
+        next if owner.nil? || owner.blank?
+
+        owner_counts[owner] += 1
+      end
+
+      feature_reports.each do |report|
+        owner = report.owner_name
+        key = if owner && !owner.blank? && owner_counts[owner] > 1
+                "owner:#{owner}"
+              elsif report.community_id
+                "community:#{report.community_id}"
+              else
+                "file:#{report.file}"
+              end
+
         groups[key] << report
       end
       groups
@@ -336,6 +445,13 @@ module Chiasmus
       graph.defines.map { |fact| analyze_fact(fact, context) }
     end
 
+    private def analyze(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil) : Array(Report)
+      normalized = Graph::IR.normalize(graph)
+      lowered = Graph::IR::Lowering.to_code_graph(normalized)
+      context = build_analysis_context(lowered, entry_points)
+      normalized.symbols.map { |symbol| analyze_symbol(symbol, context) }
+    end
+
     private def build_analysis_context(graph : Graph::CodeGraph, entry_points : Array(String)?) : AnalysisContext
       forward = adjacency(graph.calls, forward: true)
       reverse = adjacency(graph.calls, forward: false)
@@ -404,6 +520,46 @@ module Chiasmus
         name: fact.name,
         file: fact.file,
         kind: fact.kind.to_s.downcase,
+        owner_name: Graph::IR::Lowering.owner_name(fact.name),
+        reachable_from_entry: reachable_from_entry,
+        dead_code: dead_code,
+        caller_count: caller_count,
+        callee_count: callee_count,
+        impact_count: impact_count,
+        hub_degree: hub_degree,
+        bridge_score: bridge_score,
+        community_id: community.try(&.id),
+        community_size: community_size,
+        contains_count: contains_count,
+        priority_score: priority_score,
+        safety_score: safety_score,
+        reasons: reasons,
+        recommendation: recommendation,
+      )
+    end
+
+    private def analyze_symbol(symbol : Graph::IR::SymbolNode, context : AnalysisContext) : Report
+      reachable_from_entry = context.reachable.includes?(symbol.qualified_name)
+      caller_count = context.reverse[symbol.qualified_name]?.try(&.size) || 0
+      callee_count = context.forward[symbol.qualified_name]?.try(&.size) || 0
+      impact_count = reverse_reach_count(context.reverse, symbol.qualified_name)
+      hub_degree = context.degree[symbol.qualified_name]? || 0
+      bridge_score = context.bridge_scores[symbol.qualified_name]? || 0.0
+      community = context.community_by_node[symbol.qualified_name]?
+      community_size = community.try(&.members.size) || 1
+      contains_count = context.children_by_parent[symbol.qualified_name]? || 0
+      exported = context.exported.includes?(symbol.qualified_name)
+      dead_code = !reachable_from_entry && caller_count == 0
+      priority_score = priority_score_for(reachable_from_entry, exported, impact_count, caller_count, hub_degree, bridge_score, contains_count, community_size)
+      safety_score = safety_score_for(reachable_from_entry, dead_code, impact_count, caller_count, hub_degree, bridge_score, community_size, callee_count)
+      reasons = report_reasons(reachable_from_entry, exported, impact_count, hub_degree, bridge_score, dead_code, community_size)
+      recommendation = recommendation_for(dead_code, reachable_from_entry, callee_count, hub_degree, bridge_score, contains_count, safety_score)
+
+      Report.new(
+        name: symbol.qualified_name,
+        file: symbol.file,
+        kind: symbol.kind.to_s.downcase,
+        owner_name: symbol.owner_name,
         reachable_from_entry: reachable_from_entry,
         dead_code: dead_code,
         caller_count: caller_count,
