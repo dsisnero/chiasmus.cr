@@ -76,6 +76,46 @@ module Chiasmus
         abstract def refine(graph : SemanticGraph) : SemanticGraph
       end
 
+      class ScopedSymbolIndex
+        def initialize(symbols : Array(SymbolNode))
+          @by_name = Hash(String, Array(SymbolNode)).new { |hash, key| hash[key] = [] of SymbolNode }
+          @by_file_and_name = Hash(Tuple(String, String), Array(SymbolNode)).new { |hash, key| hash[key] = [] of SymbolNode }
+
+          symbols.each do |symbol|
+            @by_name[symbol.qualified_name] << symbol
+            @by_file_and_name[{symbol.file, symbol.qualified_name}] << symbol
+          end
+        end
+
+        def symbols_named(qualified_name : String) : Array(SymbolNode)
+          @by_name[qualified_name]? || [] of SymbolNode
+        end
+
+        def symbols_in_file(file : String, qualified_name : String) : Array(SymbolNode)
+          @by_file_and_name[{file, qualified_name}]? || [] of SymbolNode
+        end
+
+        def unique_symbol_in_file(
+          qualified_name : String,
+          file : String,
+          container_only : Bool = false,
+          ownerless_only : Bool = false,
+        ) : SymbolNode?
+          matches = symbols_in_file(file, qualified_name).select do |symbol|
+            next false if container_only && !container_kind?(symbol.kind)
+            next false if ownerless_only && symbol.owner_name
+            true
+          end
+
+          return nil unless matches.size == 1
+          matches.first
+        end
+
+        private def container_kind?(kind : SymbolKind) : Bool
+          kind.in?(SymbolKind::Class, SymbolKind::Interface, SymbolKind::Module, SymbolKind::Type)
+        end
+      end
+
       module NormalizationSupport
         private def normalize_symbol(symbol : SymbolNode) : SymbolNode
           qualified_name = symbol.qualified_name
@@ -118,13 +158,14 @@ module Chiasmus
           symbols : Array(SymbolNode),
           contains : Array(ScopedContainsEdge),
         ) : Hash(Tuple(String, String), String)
+          index = ScopedSymbolIndex.new(symbols)
           renames = Hash(Tuple(String, String), String).new
 
           contains.each do |edge|
-            parent = unique_symbol_in_file(symbols, edge.parent, file: edge.file, container_only: true)
+            parent = index.unique_symbol_in_file(edge.parent, file: edge.file, container_only: true)
             next unless parent
 
-            child = unique_symbol_in_file(symbols, edge.child, file: edge.file)
+            child = index.unique_symbol_in_file(edge.child, file: edge.file)
             next unless child
 
             qualified_name = Names.merge_containment_names(parent.qualified_name, child.qualified_name)
@@ -155,25 +196,6 @@ module Chiasmus
               signature: symbol.signature,
             )
           end
-        end
-
-        private def unique_symbol_in_file(
-          symbols : Array(SymbolNode),
-          qualified_name : String,
-          file : String? = nil,
-          container_only : Bool = false,
-          ownerless_only : Bool = false,
-        ) : SymbolNode?
-          matches = symbols.select do |symbol|
-            next false unless symbol.qualified_name == qualified_name
-            next false if file && symbol.file != file
-            next false if container_only && !container_kind?(symbol.kind)
-            next false if ownerless_only && symbol.owner_name
-            true
-          end
-
-          return nil unless matches.size == 1
-          matches.first
         end
 
         private def container_kind?(kind : SymbolKind) : Bool
@@ -291,23 +313,21 @@ module Chiasmus
         end
 
         private def scope_contains(symbols : Array(SymbolNode), contains : Array(ContainsEdge)) : Array(ScopedContainsEdge)
-          contains.flat_map { |edge| scoped_contains_candidates(symbols, edge) }
+          index = ScopedSymbolIndex.new(symbols)
+          contains.flat_map { |edge| scoped_contains_candidates(index, edge) }
         end
 
         private def unresolved_contains(symbols : Array(SymbolNode), contains : Array(ContainsEdge)) : Array(ContainsEdge)
-          contains.select { |edge| scoped_contains_candidates(symbols, edge).empty? }
+          index = ScopedSymbolIndex.new(symbols)
+          contains.select { |edge| scoped_contains_candidates(index, edge).empty? }
         end
 
-        private def scoped_contains_candidates(symbols : Array(SymbolNode), edge : ContainsEdge) : Array(ScopedContainsEdge)
-          parents = symbols.select do |symbol|
-            symbol.qualified_name == edge.parent && container_kind?(symbol.kind)
-          end
+        private def scoped_contains_candidates(index : ScopedSymbolIndex, edge : ContainsEdge) : Array(ScopedContainsEdge)
+          parents = index.symbols_named(edge.parent).select { |symbol| container_kind?(symbol.kind) }
 
           candidates = [] of ScopedContainsEdge
           parents.each do |parent|
-            children = symbols.select do |symbol|
-              symbol.file == parent.file && symbol.qualified_name == edge.child
-            end
+            children = index.symbols_in_file(parent.file, edge.child)
             next unless children.size == 1
 
             candidates << ScopedContainsEdge.new(parent.file, parent.qualified_name, children.first.qualified_name)
@@ -319,21 +339,21 @@ module Chiasmus
         end
 
         private def scope_calls(symbols : Array(SymbolNode), calls : Array(CallEdge)) : Array(ScopedCallEdge)
-          calls.flat_map { |edge| scoped_call_candidates(symbols, edge) }
+          index = ScopedSymbolIndex.new(symbols)
+          calls.flat_map { |edge| scoped_call_candidates(index, edge) }
         end
 
         private def unresolved_calls(symbols : Array(SymbolNode), calls : Array(CallEdge)) : Array(CallEdge)
-          calls.select { |edge| scoped_call_candidates(symbols, edge).empty? }
+          index = ScopedSymbolIndex.new(symbols)
+          calls.select { |edge| scoped_call_candidates(index, edge).empty? }
         end
 
-        private def scoped_call_candidates(symbols : Array(SymbolNode), edge : CallEdge) : Array(ScopedCallEdge)
-          callers = symbols.select { |symbol| symbol.qualified_name == edge.caller }
+        private def scoped_call_candidates(index : ScopedSymbolIndex, edge : CallEdge) : Array(ScopedCallEdge)
+          callers = index.symbols_named(edge.caller)
 
           candidates = [] of ScopedCallEdge
           callers.each do |caller|
-            callees = symbols.select do |symbol|
-              symbol.file == caller.file && symbol.qualified_name == edge.callee
-            end
+            callees = index.symbols_in_file(caller.file, edge.callee)
             next unless callees.size == 1
 
             callee_qn = edge.callee_qn

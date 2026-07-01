@@ -166,6 +166,80 @@ describe Chiasmus::Graph::IR do
     end
   end
 
+  describe Chiasmus::Graph::IR::ScopedSymbolIndex do
+    it "resolves symbols by file and qualified name without cross-file bleed" do
+      symbols = [
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "demo-module",
+          name: "Demo",
+          qualified_name: "Demo",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Module,
+          file: "src/demo_config.cr",
+          line: 1
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "demo-config",
+          name: "Config",
+          qualified_name: "Config",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Class,
+          file: "src/demo_config.cr",
+          line: 2
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "demo-load",
+          name: "load",
+          qualified_name: "load",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Method,
+          file: "src/demo_config.cr",
+          line: 4
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "service-module",
+          name: "Service",
+          qualified_name: "Service",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Module,
+          file: "src/service_config.cr",
+          line: 1
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "service-config",
+          name: "Config",
+          qualified_name: "Config",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Class,
+          file: "src/service_config.cr",
+          line: 2
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "service-load",
+          name: "load",
+          qualified_name: "load",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Method,
+          file: "src/service_config.cr",
+          line: 4
+        ),
+      ]
+
+      index = Chiasmus::Graph::IR::ScopedSymbolIndex.new(symbols)
+
+      index.symbols_named("Config").map(&.file).should eq([
+        "src/demo_config.cr",
+        "src/service_config.cr",
+      ])
+      index.symbols_in_file("src/demo_config.cr", "load").map(&.id).should eq(["demo-load"])
+      index.unique_symbol_in_file("Config", file: "src/demo_config.cr", container_only: true)
+        .try(&.id).should eq("demo-config")
+      index.unique_symbol_in_file("Config", file: "src/service_config.cr", container_only: true)
+        .try(&.id).should eq("service-config")
+      index.unique_symbol_in_file("load", file: "src/missing.cr").should be_nil
+    end
+  end
+
   describe ".normalize" do
     it "matches the explicit staged normalization pipeline" do
       graph = Chiasmus::Graph::IR::SemanticGraph.new(
