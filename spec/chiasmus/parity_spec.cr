@@ -1182,6 +1182,76 @@ TSV
     end
   end
 
+  it "qualifies repeated nested crystal fact containment independently per file" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-repeated-nested-contained-facts-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      Dir.mkdir_p(File.join(dir, "src"))
+      Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+      File.write(File.join(dir, "src", "demo_config.cr"), <<-CR)
+module Demo
+  class Config
+  end
+end
+CR
+
+      File.write(File.join(dir, "src", "service_config.cr"), <<-CR)
+module Service
+  class Config
+  end
+end
+CR
+
+      File.write(File.join(dir, "plans", "inventory", "port.tsv"), <<-TSV)
+# source_id\tkind\tstatus\tcrystal_refs\tnotes
+src/config.ts::function::loadConfig\tfunction\tported\tsrc/demo_config.cr:2\tPorted as Demo::Config.load
+src/service.ts::function::loadConfig\tfunction\tported\tsrc/service_config.cr:2\tPorted as Service::Config.load
+TSV
+
+      crystal_graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "./src/demo_config.cr", name: "Demo", kind: Chiasmus::Graph::SymbolKind::Module, line: 1, end_line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/demo_config.cr", name: "Config", kind: Chiasmus::Graph::SymbolKind::Class, line: 2, end_line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/demo_config.cr", name: "load", kind: Chiasmus::Graph::SymbolKind::Method, line: 4, end_line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/service_config.cr", name: "Service", kind: Chiasmus::Graph::SymbolKind::Module, line: 1, end_line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/service_config.cr", name: "Config", kind: Chiasmus::Graph::SymbolKind::Class, line: 2, end_line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/service_config.cr", name: "load", kind: Chiasmus::Graph::SymbolKind::Method, line: 4, end_line: 5),
+        ],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [
+          Chiasmus::Graph::ContainsFact.new(parent: "Demo", child: "Config"),
+          Chiasmus::Graph::ContainsFact.new(parent: "Config", child: "load"),
+          Chiasmus::Graph::ContainsFact.new(parent: "Service", child: "Config"),
+          Chiasmus::Graph::ContainsFact.new(parent: "Config", child: "load"),
+        ],
+      )
+
+      crystal_facts_path = File.join(dir, "crystal.pl")
+      File.write(crystal_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(crystal_graph))
+
+      result = Chiasmus::Parity.analyze(
+        inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
+        root_dir: dir,
+        crystal_dirs: ["src"],
+        parser_mode: "regex",
+        crystal_facts_path: crystal_facts_path,
+      )
+
+      first = result.rows[0]
+      first.match_status.should eq("curated_alias")
+      first.crystal_name.should eq("Demo.Config.load")
+
+      second = result.rows[1]
+      second.match_status.should eq("curated_alias")
+      second.crystal_name.should eq("Service.Config.load")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "emits completion facts that identify reachable untested rows" do
     dir = File.join(Dir.tempdir, "chiasmus-parity-complete-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(File.join(dir, "src"))

@@ -43,6 +43,11 @@ module Chiasmus
         parent : String,
         child : String
 
+      record ScopedContainsEdge,
+        file : String,
+        parent : String,
+        child : String
+
       record SemanticGraph,
         files : Array(FileNode) = [] of FileNode,
         symbols : Array(SymbolNode) = [] of SymbolNode,
@@ -67,7 +72,9 @@ module Chiasmus
       class CommonNormalizationRefiner < Refiner
         def refine(graph : SemanticGraph) : SemanticGraph
           normalized_symbols = graph.symbols.map { |symbol| normalize_symbol(symbol) }
-          qualified_symbols = qualify_contained_symbols(normalized_symbols, graph.contains)
+          scoped_contains = scope_contains(normalized_symbols, graph.contains)
+          unresolved_contains = unresolved_contains(normalized_symbols, graph.contains)
+          qualified_symbols, qualified_scoped_contains = qualify_contained_symbols(normalized_symbols, scoped_contains)
           rename_by_file, rename_global = rename_maps(normalized_symbols, qualified_symbols)
           deduplicated_symbols = deduplicate(qualified_symbols) do |symbol|
             symbol.id
@@ -78,9 +85,13 @@ module Chiasmus
           end
           normalized_imports = deduplicate(graph.imports) { |edge| "#{edge.file}\u0000#{edge.name}\u0000#{edge.source}" }
           normalized_exports = deduplicate(rewrite_exports(graph.exports, rename_by_file, rename_global)) { |edge| "#{edge.file}\u0000#{edge.name}" }
-          normalized_contains = deduplicate(rewrite_contains(graph.contains, rename_by_file, rename_global).reject { |edge| edge.parent == edge.child }) do |edge|
+          normalized_contains = deduplicate(
+            lift_scoped_contains(qualified_scoped_contains) + rewrite_contains(unresolved_contains, rename_by_file, rename_global)
+              .reject { |edge| edge.parent == edge.child }
+          ) do |edge|
             "#{edge.parent}\u0000#{edge.child}"
           end
+          normalized_contains.sort_by! { |edge| {edge.parent, edge.child} }
 
           SemanticGraph.new(
             files: normalized_files,
@@ -109,7 +120,10 @@ module Chiasmus
           )
         end
 
-        private def qualify_contained_symbols(symbols : Array(SymbolNode), contains : Array(ContainsEdge)) : Array(SymbolNode)
+        private def qualify_contained_symbols(
+          symbols : Array(SymbolNode),
+          contains : Array(ScopedContainsEdge),
+        ) : {Array(SymbolNode), Array(ScopedContainsEdge)}
           current_symbols = symbols
           current_contains = contains
 
@@ -121,23 +135,23 @@ module Chiasmus
             break if updated_symbols == current_symbols
 
             current_symbols = updated_symbols
-            current_contains = rewrite_contains(current_contains, renames)
+            current_contains = rewrite_scoped_contains(current_contains, renames)
           end
 
-          current_symbols
+          {current_symbols, current_contains}
         end
 
         private def direct_containment_renames(
           symbols : Array(SymbolNode),
-          contains : Array(ContainsEdge),
+          contains : Array(ScopedContainsEdge),
         ) : Hash(Tuple(String, String), String)
           renames = Hash(Tuple(String, String), String).new
 
           contains.each do |edge|
-            parent = unique_symbol_in_file(symbols, edge.parent, container_only: true)
+            parent = unique_symbol_in_file(symbols, edge.parent, file: edge.file, container_only: true)
             next unless parent
 
-            child = unique_symbol_in_file(symbols, edge.child, file: parent.file)
+            child = unique_symbol_in_file(symbols, edge.child, file: edge.file)
             next unless child
 
             qualified_name = "#{parent.qualified_name}.#{child.simple_name}"
@@ -217,28 +231,21 @@ module Chiasmus
           {by_file, global}
         end
 
-        private def rewrite_contains(
-          contains : Array(ContainsEdge),
+        private def rewrite_scoped_contains(
+          contains : Array(ScopedContainsEdge),
           renames : Hash(Tuple(String, String), String),
-        ) : Array(ContainsEdge)
-          global = Hash(String, String).new
-          candidates = Hash(String, Set(String)).new { |hash, key| hash[key] = Set(String).new }
-
-          renames.each do |key, new_name|
-            candidates[key[1]] << new_name
-          end
-
-          candidates.each do |old_name, new_names|
-            next unless new_names.size == 1
-            global[old_name] = new_names.first
-          end
-
+        ) : Array(ScopedContainsEdge)
           contains.map do |edge|
-            ContainsEdge.new(
-              global[edge.parent]? || edge.parent,
-              global[edge.child]? || edge.child,
+            ScopedContainsEdge.new(
+              edge.file,
+              renames[{edge.file, edge.parent}]? || edge.parent,
+              renames[{edge.file, edge.child}]? || edge.child,
             )
           end
+        end
+
+        private def lift_scoped_contains(contains : Array(ScopedContainsEdge)) : Array(ContainsEdge)
+          contains.map { |edge| ContainsEdge.new(edge.parent, edge.child) }
         end
 
         private def rewrite_calls(
@@ -290,6 +297,34 @@ module Chiasmus
           end
 
           rename_global[name]? || name
+        end
+
+        private def scope_contains(symbols : Array(SymbolNode), contains : Array(ContainsEdge)) : Array(ScopedContainsEdge)
+          contains.flat_map { |edge| scoped_contains_candidates(symbols, edge) }
+        end
+
+        private def unresolved_contains(symbols : Array(SymbolNode), contains : Array(ContainsEdge)) : Array(ContainsEdge)
+          contains.select { |edge| scoped_contains_candidates(symbols, edge).empty? }
+        end
+
+        private def scoped_contains_candidates(symbols : Array(SymbolNode), edge : ContainsEdge) : Array(ScopedContainsEdge)
+          parents = symbols.select do |symbol|
+            symbol.qualified_name == edge.parent && container_kind?(symbol.kind)
+          end
+
+          candidates = [] of ScopedContainsEdge
+          parents.each do |parent|
+            children = symbols.select do |symbol|
+              symbol.file == parent.file && symbol.qualified_name == edge.child
+            end
+            next unless children.size == 1
+
+            candidates << ScopedContainsEdge.new(parent.file, parent.qualified_name, children.first.qualified_name)
+          end
+
+          deduplicate(candidates) do |candidate|
+            "#{candidate.file}\u0000#{candidate.parent}\u0000#{candidate.child}"
+          end
         end
 
         private def deduplicate(items : Array(T), & : T -> String) : Array(T) forall T
