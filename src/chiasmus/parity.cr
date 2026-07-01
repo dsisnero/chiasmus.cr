@@ -390,8 +390,13 @@ module Chiasmus
       end
 
       private def exported?(graph : Graph::CodeGraph, symbol : String) : Bool
+        file = defining_file(graph, symbol)
+        return false unless file
+
         normalized_symbol = Naming.normalized_simple(symbol)
-        graph.exports.any? { |fact| Naming.normalized_simple(fact.name) == normalized_symbol }
+        graph.exports.any? do |fact|
+          fact.file == file && Naming.normalized_simple(fact.name) == normalized_symbol
+        end
       end
 
       private def entry_point?(symbol : String, entry_points : Array(String)?) : Bool
