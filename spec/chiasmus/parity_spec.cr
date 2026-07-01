@@ -572,6 +572,50 @@ describe Chiasmus::Parity::Structural do
     report.extra_imports.should eq([] of String)
     report.matched_imports.should eq([] of String)
   end
+
+  it "normalizes contained semantic symbols before structural comparison" do
+    source_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+      ],
+      calls: [] of Chiasmus::Graph::CallsFact,
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [
+        Chiasmus::Graph::ExportsFact.new(file: "src/config.ts", name: "loadConfig"),
+      ],
+      contains: [] of Chiasmus::Graph::ContainsFact,
+    )
+
+    target_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "Demo", kind: Chiasmus::Graph::SymbolKind::Module, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "Config", kind: Chiasmus::Graph::SymbolKind::Class, line: 2),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "load", kind: Chiasmus::Graph::SymbolKind::Method, line: 3),
+      ],
+      calls: [] of Chiasmus::Graph::CallsFact,
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [
+        Chiasmus::Graph::ExportsFact.new(file: "src/config.cr", name: "load"),
+      ],
+      contains: [
+        Chiasmus::Graph::ContainsFact.new(parent: "Demo", child: "Config"),
+        Chiasmus::Graph::ContainsFact.new(parent: "Config", child: "load"),
+      ],
+    )
+
+    report = Chiasmus::Parity::Structural.compare(
+      source_graph,
+      "loadConfig",
+      target_graph,
+      "Demo.Config.load",
+    )
+
+    report.status.should eq("structural_match")
+    report.source_defined.should be_true
+    report.target_defined.should be_true
+    report.source_exported.should be_true
+    report.target_exported.should be_true
+  end
 end
 
 describe Chiasmus::Parity::CLI do

@@ -261,6 +261,8 @@ module Chiasmus
         source_entry_points : Array(String)? = nil,
         target_entry_points : Array(String)? = nil,
       ) : StructuralReport
+        source_graph = normalized_graph(source_graph)
+        target_graph = normalized_graph(target_graph)
         source_defined = defined?(source_graph, source_symbol)
         target_defined = defined?(target_graph, target_symbol)
         source_exported = exported?(source_graph, source_symbol)
@@ -466,6 +468,10 @@ module Chiasmus
         normalized.uniq!
         normalized.sort!
         normalized
+      end
+
+      private def normalized_graph(graph : Graph::CodeGraph) : Graph::CodeGraph
+        Graph::IR::Lowering.to_code_graph(Graph::IR.normalize(graph))
       end
 
       private def atom(value : String) : String

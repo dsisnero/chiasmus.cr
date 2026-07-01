@@ -166,12 +166,34 @@ module Chiasmus
             child = unique_symbol_in_file(symbols, edge.child, file: edge.file)
             next unless child
 
-            qualified_name = "#{parent.qualified_name}.#{child.simple_name}"
+            qualified_name = merge_containment_names(parent.qualified_name, child.qualified_name)
             next if qualified_name == child.qualified_name
             renames[{child.file, child.qualified_name}] = qualified_name
           end
 
           renames
+        end
+
+        private def merge_containment_names(parent_name : String, child_name : String) : String
+          return child_name if child_name == parent_name
+
+          parent_segments = parent_name.split('.')
+          child_segments = child_name.split('.')
+          overlap = overlap_size(parent_segments, child_segments)
+          merged_segments = parent_segments + child_segments[overlap..]
+          merged_segments.join(".")
+        end
+
+        private def overlap_size(parent_segments : Array(String), child_segments : Array(String)) : Int32
+          max_overlap = Math.min(parent_segments.size, child_segments.size)
+
+          max_overlap.downto(1) do |count|
+            parent_suffix = parent_segments[(parent_segments.size - count)..]
+            child_prefix = child_segments[0, count]
+            return count if parent_suffix == child_prefix
+          end
+
+          0
         end
 
         private def rewrite_symbols(

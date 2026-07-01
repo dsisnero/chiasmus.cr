@@ -499,6 +499,56 @@ describe Chiasmus::Graph::IR do
       ])
     end
 
+    it "preserves already qualified contained children when normalizing raw nested graphs" do
+      graph = Chiasmus::Graph::IR::SemanticGraph.new(
+        symbols: [
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo",
+            name: "Demo",
+            qualified_name: "Demo",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Module,
+            file: "src/app.cr",
+            line: 1
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "config-helper",
+            name: "helper",
+            qualified_name: "Demo.Config.helper",
+            owner_name: "Demo.Config",
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/app.cr",
+            line: 2
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "service-helper",
+            name: "helper",
+            qualified_name: "Demo.Service.helper",
+            owner_name: "Demo.Service",
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/app.cr",
+            line: 3
+          ),
+        ],
+        contains: [
+          Chiasmus::Graph::IR::ContainsEdge.new("Demo", "Demo.Config.helper"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Demo", "Demo.Service.helper"),
+        ]
+      )
+
+      normalized = Chiasmus::Graph::IR.normalize(graph)
+
+      normalized.symbols.map(&.qualified_name).should eq([
+        "Demo",
+        "Demo.Config.helper",
+        "Demo.Service.helper",
+      ])
+      normalized.contains.should eq([
+        Chiasmus::Graph::IR::ContainsEdge.new("Demo", "Demo.Config.helper"),
+        Chiasmus::Graph::IR::ContainsEdge.new("Demo", "Demo.Service.helper"),
+      ])
+    end
+
     it "rewrites repeated contained export edges independently per file" do
       graph = Chiasmus::Graph::IR::SemanticGraph.new(
         symbols: [
