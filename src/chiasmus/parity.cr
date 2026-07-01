@@ -277,12 +277,8 @@ module Chiasmus
         matched_imports = source_imports & target_imports
         missing_imports = source_imports - target_imports
         extra_imports = target_imports - source_imports
-        matched_calls = source_callees & target_callees
-        missing_calls = source_callees - target_callees
-        extra_calls = target_callees - source_callees
-        matched_contains = source_contains & target_contains
-        missing_contains = source_contains - target_contains
-        extra_contains = target_contains - source_contains
+        matched_calls, missing_calls, extra_calls = multiset_compare(source_callees, target_callees)
+        matched_contains, missing_contains, extra_contains = multiset_compare(source_contains, target_contains)
         status = (
           source_defined &&
           target_defined &&
@@ -439,19 +435,28 @@ module Chiasmus
       end
 
       private def normalized_callees(graph : Graph::CodeGraph, symbol : String) : Array(String)
-        callees = graph.calls.select { |fact| fact.caller == symbol }
-          .map { |fact| Naming.normalized_simple(fact.callee) }
+        unique_callees = Set(String).new
+        callees = graph.calls.compact_map do |fact|
+          next unless fact.caller == symbol
+
+          name = fact.callee_qn || fact.callee
+          next unless unique_callees.add?(name)
+          Naming.normalized_simple(name)
+        end
           .reject(&.empty?)
-        callees.uniq!
         callees.sort!
         callees
       end
 
       private def normalized_contains(graph : Graph::CodeGraph, symbol : String) : Array(String)
-        contained = graph.contains.select { |fact| fact.parent == symbol }
-          .map { |fact| Naming.normalized_simple(fact.child) }
+        unique_children = Set(String).new
+        contained = graph.contains.compact_map do |fact|
+          next unless fact.parent == symbol
+
+          next unless unique_children.add?(fact.child)
+          Naming.normalized_simple(fact.child)
+        end
           .reject(&.empty?)
-        contained.uniq!
         contained.sort!
         contained
       end
@@ -514,6 +519,38 @@ module Chiasmus
         final = current.to_s.strip
         args << final unless final.empty?
         args
+      end
+
+      private def multiset_compare(source : Array(String), target : Array(String)) : Tuple(Array(String), Array(String), Array(String))
+        source_counts = counts(source)
+        target_counts = counts(target)
+        keys = source_counts.keys + target_counts.keys
+        keys.uniq!
+        keys.sort!
+
+        matched = [] of String
+        missing = [] of String
+        extra = [] of String
+
+        keys.each do |key|
+          source_count = source_counts[key]? || 0
+          target_count = target_counts[key]? || 0
+          match_count = Math.min(source_count, target_count)
+          missing_count = source_count - match_count
+          extra_count = target_count - match_count
+
+          match_count.times { matched << key }
+          missing_count.times { missing << key }
+          extra_count.times { extra << key }
+        end
+
+        {matched, missing, extra}
+      end
+
+      private def counts(values : Array(String)) : Hash(String, Int32)
+        values.each_with_object(Hash(String, Int32).new(0)) do |value, memo|
+          memo[value] += 1
+        end
       end
     end
 

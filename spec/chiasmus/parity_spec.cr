@@ -1434,6 +1434,90 @@ TSV
     report.target_entry_point.should be_false
   end
 
+  it "reports structural drift when distinct qualified callees collapse to the same simple name" do
+    source_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/helpers.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 2),
+      ],
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+      ],
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [] of Chiasmus::Graph::ExportsFact,
+      contains: [] of Chiasmus::Graph::ContainsFact,
+    )
+
+    target_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo.main", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo.Config.helper", kind: Chiasmus::Graph::SymbolKind::Method, line: 2),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo.Service.helper", kind: Chiasmus::Graph::SymbolKind::Method, line: 3),
+      ],
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "Demo.main", callee: "Demo.Config.helper"),
+        Chiasmus::Graph::CallsFact.new(caller: "Demo.main", callee: "Demo.Service.helper"),
+      ],
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [] of Chiasmus::Graph::ExportsFact,
+      contains: [] of Chiasmus::Graph::ContainsFact,
+    )
+
+    report = Chiasmus::Parity::Structural.compare(
+      source_graph,
+      "main",
+      target_graph,
+      "Demo.main",
+    )
+
+    report.status.should eq("structural_drift")
+    report.matched_calls.should eq(["helper"])
+    report.missing_calls.should eq([] of String)
+    report.extra_calls.should eq(["helper"])
+  end
+
+  it "reports structural drift when distinct qualified contained children collapse to the same simple name" do
+    source_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "Demo", kind: Chiasmus::Graph::SymbolKind::Module, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/helpers.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 2),
+      ],
+      calls: [] of Chiasmus::Graph::CallsFact,
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [] of Chiasmus::Graph::ExportsFact,
+      contains: [
+        Chiasmus::Graph::ContainsFact.new(parent: "Demo", child: "helper"),
+      ],
+    )
+
+    target_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo", kind: Chiasmus::Graph::SymbolKind::Module, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo.Config.helper", kind: Chiasmus::Graph::SymbolKind::Method, line: 2),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo.Service.helper", kind: Chiasmus::Graph::SymbolKind::Method, line: 3),
+      ],
+      calls: [] of Chiasmus::Graph::CallsFact,
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [] of Chiasmus::Graph::ExportsFact,
+      contains: [
+        Chiasmus::Graph::ContainsFact.new(parent: "Demo", child: "Demo.Config.helper"),
+        Chiasmus::Graph::ContainsFact.new(parent: "Demo", child: "Demo.Service.helper"),
+      ],
+    )
+
+    report = Chiasmus::Parity::Structural.compare(
+      source_graph,
+      "Demo",
+      target_graph,
+      "Demo",
+    )
+
+    report.status.should eq("structural_drift")
+    report.matched_contains.should eq(["helper"])
+    report.missing_contains.should eq([] of String)
+    report.extra_contains.should eq(["helper"])
+  end
+
   it "emits completion facts that identify reachable untested rows" do
     dir = File.join(Dir.tempdir, "chiasmus-parity-complete-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(File.join(dir, "src"))
