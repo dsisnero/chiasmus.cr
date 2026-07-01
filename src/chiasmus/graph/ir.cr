@@ -110,19 +110,48 @@ module Chiasmus
         end
 
         private def qualify_contained_symbols(symbols : Array(SymbolNode), contains : Array(ContainsEdge)) : Array(SymbolNode)
+          current_symbols = symbols
+          current_contains = contains
+
+          loop do
+            renames = direct_containment_renames(current_symbols, current_contains)
+            break if renames.empty?
+
+            updated_symbols = rewrite_symbols(current_symbols, renames)
+            break if updated_symbols == current_symbols
+
+            current_symbols = updated_symbols
+            current_contains = rewrite_contains(current_contains, renames)
+          end
+
+          current_symbols
+        end
+
+        private def direct_containment_renames(
+          symbols : Array(SymbolNode),
+          contains : Array(ContainsEdge),
+        ) : Hash(Tuple(String, String), String)
           renames = Hash(Tuple(String, String), String).new
 
           contains.each do |edge|
             parent = unique_symbol_in_file(symbols, edge.parent, container_only: true)
             next unless parent
 
-            child = unique_symbol_in_file(symbols, edge.child, file: parent.file, ownerless_only: true)
+            child = unique_symbol_in_file(symbols, edge.child, file: parent.file)
             next unless child
 
             qualified_name = "#{parent.qualified_name}.#{child.simple_name}"
+            next if qualified_name == child.qualified_name
             renames[{child.file, child.qualified_name}] = qualified_name
           end
 
+          renames
+        end
+
+        private def rewrite_symbols(
+          symbols : Array(SymbolNode),
+          renames : Hash(Tuple(String, String), String),
+        ) : Array(SymbolNode)
           symbols.map do |symbol|
             qualified_name = renames[{symbol.file, symbol.qualified_name}]? || symbol.qualified_name
             next symbol if qualified_name == symbol.qualified_name
@@ -186,6 +215,30 @@ module Chiasmus
           end
 
           {by_file, global}
+        end
+
+        private def rewrite_contains(
+          contains : Array(ContainsEdge),
+          renames : Hash(Tuple(String, String), String),
+        ) : Array(ContainsEdge)
+          global = Hash(String, String).new
+          candidates = Hash(String, Set(String)).new { |hash, key| hash[key] = Set(String).new }
+
+          renames.each do |key, new_name|
+            candidates[key[1]] << new_name
+          end
+
+          candidates.each do |old_name, new_names|
+            next unless new_names.size == 1
+            global[old_name] = new_names.first
+          end
+
+          contains.map do |edge|
+            ContainsEdge.new(
+              global[edge.parent]? || edge.parent,
+              global[edge.child]? || edge.child,
+            )
+          end
         end
 
         private def rewrite_calls(

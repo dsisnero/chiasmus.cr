@@ -1128,6 +1128,60 @@ TSV
     end
   end
 
+  it "qualifies nested crystal fact containment before parity matching" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-nested-contained-facts-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      Dir.mkdir_p(File.join(dir, "src"))
+      Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+      File.write(File.join(dir, "src", "config.cr"), <<-CR)
+module Demo
+  class Config
+  end
+end
+CR
+
+      File.write(File.join(dir, "plans", "inventory", "port.tsv"), <<-TSV)
+# source_id\tkind\tstatus\tcrystal_refs\tnotes
+src/config.ts::function::loadConfig\tfunction\tported\tsrc/config.cr:2\tPorted as Demo::Config.load
+TSV
+
+      crystal_graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "./src/config.cr", name: "Demo", kind: Chiasmus::Graph::SymbolKind::Module, line: 1, end_line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/config.cr", name: "Config", kind: Chiasmus::Graph::SymbolKind::Class, line: 2, end_line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "./src/config.cr", name: "load", kind: Chiasmus::Graph::SymbolKind::Method, line: 4, end_line: 5),
+        ],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [
+          Chiasmus::Graph::ContainsFact.new(parent: "Demo", child: "Config"),
+          Chiasmus::Graph::ContainsFact.new(parent: "Config", child: "load"),
+        ],
+      )
+
+      crystal_facts_path = File.join(dir, "crystal.pl")
+      File.write(crystal_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(crystal_graph))
+
+      result = Chiasmus::Parity.analyze(
+        inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
+        root_dir: dir,
+        crystal_dirs: ["src"],
+        parser_mode: "regex",
+        crystal_facts_path: crystal_facts_path,
+      )
+
+      row = result.rows.first
+      row.match_status.should eq("curated_alias")
+      row.crystal_name.should eq("Demo.Config.load")
+      row.basis.should eq("notes_alias")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "emits completion facts that identify reachable untested rows" do
     dir = File.join(Dir.tempdir, "chiasmus-parity-complete-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(File.join(dir, "src"))

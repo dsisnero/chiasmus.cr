@@ -266,5 +266,55 @@ describe Chiasmus::Graph::IR do
         Chiasmus::Graph::IR::ContainsEdge.new("Config", "Config.load"),
       ])
     end
+
+    it "qualifies nested containment transitively" do
+      graph = Chiasmus::Graph::IR::SemanticGraph.new(
+        symbols: [
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo",
+            name: "Demo",
+            qualified_name: "Demo",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Module,
+            file: "src/config.cr",
+            line: 1
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "config",
+            name: "Config",
+            qualified_name: "Config",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Class,
+            file: "src/config.cr",
+            line: 2
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "load",
+            name: "load",
+            qualified_name: "load",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/config.cr",
+            line: 4
+          ),
+        ],
+        contains: [
+          Chiasmus::Graph::IR::ContainsEdge.new("Demo", "Config"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Config", "load"),
+        ]
+      )
+
+      normalized = Chiasmus::Graph::IR.normalize(graph)
+
+      normalized.symbols.map(&.qualified_name).should eq([
+        "Demo",
+        "Demo.Config",
+        "Demo.Config.load",
+      ])
+      normalized.contains.should eq([
+        Chiasmus::Graph::IR::ContainsEdge.new("Demo", "Demo.Config"),
+        Chiasmus::Graph::IR::ContainsEdge.new("Demo.Config", "Demo.Config.load"),
+      ])
+    end
   end
 end
