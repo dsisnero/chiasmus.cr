@@ -167,6 +167,95 @@ describe Chiasmus::Graph::IR do
   end
 
   describe ".normalize" do
+    it "matches the explicit staged normalization pipeline" do
+      graph = Chiasmus::Graph::IR::SemanticGraph.new(
+        files: [
+          Chiasmus::Graph::IR::FileNode.new("src/demo_config.cr", "crystal"),
+          Chiasmus::Graph::IR::FileNode.new("src/demo_config.cr", "crystal"),
+          Chiasmus::Graph::IR::FileNode.new("src/service_config.cr", "crystal"),
+        ],
+        symbols: [
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo",
+            name: "Demo",
+            qualified_name: "Demo",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Module,
+            file: "src/demo_config.cr",
+            line: 1
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo-config",
+            name: "Config",
+            qualified_name: "Config",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Class,
+            file: "src/demo_config.cr",
+            line: 2
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "demo-load",
+            name: "load",
+            qualified_name: "load",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/demo_config.cr",
+            line: 4
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "service",
+            name: "Service",
+            qualified_name: "Service",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Module,
+            file: "src/service_config.cr",
+            line: 1
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "service-config",
+            name: "Config",
+            qualified_name: "Config",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Class,
+            file: "src/service_config.cr",
+            line: 2
+          ),
+          Chiasmus::Graph::IR::SymbolNode.new(
+            id: "service-load",
+            name: "load",
+            qualified_name: "load",
+            owner_name: nil,
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            file: "src/service_config.cr",
+            line: 4
+          ),
+        ],
+        calls: [
+          Chiasmus::Graph::IR::CallEdge.new("load", "load", "load"),
+          Chiasmus::Graph::IR::CallEdge.new("load", "load", "load"),
+        ],
+        exports: [
+          Chiasmus::Graph::IR::ExportEdge.new("src/demo_config.cr", "load"),
+          Chiasmus::Graph::IR::ExportEdge.new("src/service_config.cr", "load"),
+        ],
+        contains: [
+          Chiasmus::Graph::IR::ContainsEdge.new("Demo", "Config"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Config", "load"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Service", "Config"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Config", "load"),
+          Chiasmus::Graph::IR::ContainsEdge.new("Service", "Service"),
+        ]
+      )
+
+      staged = Chiasmus::Graph::IR::Pipeline.new([
+        Chiasmus::Graph::IR::SymbolCanonicalizationRefiner.new,
+        Chiasmus::Graph::IR::ContainedSymbolQualificationRefiner.new,
+        Chiasmus::Graph::IR::StructuralCleanupRefiner.new,
+      ] of Chiasmus::Graph::IR::Refiner).refine(graph)
+
+      staged.should eq(Chiasmus::Graph::IR.normalize(graph))
+    end
+
     it "repairs symbol identity and removes duplicate structural edges" do
       graph = Chiasmus::Graph::IR::SemanticGraph.new(
         files: [

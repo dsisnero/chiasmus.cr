@@ -76,47 +76,7 @@ module Chiasmus
         abstract def refine(graph : SemanticGraph) : SemanticGraph
       end
 
-      class CommonNormalizationRefiner < Refiner
-        def refine(graph : SemanticGraph) : SemanticGraph
-          normalized_symbols = graph.symbols.map { |symbol| normalize_symbol(symbol) }
-          scoped_calls = scope_calls(normalized_symbols, graph.calls)
-          unresolved_calls = unresolved_calls(normalized_symbols, graph.calls)
-          scoped_contains = scope_contains(normalized_symbols, graph.contains)
-          unresolved_contains = unresolved_contains(normalized_symbols, graph.contains)
-          qualified_symbols, qualified_scoped_contains = qualify_contained_symbols(normalized_symbols, scoped_contains)
-          rename_by_file, rename_global = rename_maps(normalized_symbols, qualified_symbols)
-          deduplicated_symbols = deduplicate(qualified_symbols) do |symbol|
-            symbol.id
-          end
-          normalized_files = deduplicate(graph.files, &.path)
-          normalized_calls = deduplicate(
-            lift_scoped_calls(rewrite_scoped_calls(scoped_calls, rename_by_file)) +
-            rewrite_calls(unresolved_calls, rename_by_file, rename_global)
-          ) do |edge|
-            "#{edge.caller}\u0000#{edge.callee}\u0000#{edge.callee_qn || ""}"
-          end
-          normalized_calls.sort_by! { |edge| {edge.caller, edge.callee, edge.callee_qn || ""} }
-          normalized_imports = deduplicate(graph.imports) { |edge| "#{edge.file}\u0000#{edge.name}\u0000#{edge.source}" }
-          normalized_exports = deduplicate(rewrite_exports(graph.exports, rename_by_file, rename_global)) { |edge| "#{edge.file}\u0000#{edge.name}" }
-          normalized_contains = deduplicate(
-            lift_scoped_contains(qualified_scoped_contains) + rewrite_contains(unresolved_contains, rename_by_file, rename_global)
-              .reject { |edge| edge.parent == edge.child }
-          ) do |edge|
-            "#{edge.parent}\u0000#{edge.child}"
-          end
-          normalized_contains.sort_by! { |edge| {edge.parent, edge.child} }
-
-          SemanticGraph.new(
-            files: normalized_files,
-            symbols: deduplicated_symbols,
-            calls: normalized_calls,
-            imports: normalized_imports,
-            exports: normalized_exports,
-            contains: normalized_contains,
-            type_info: graph.type_info,
-          )
-        end
-
+      module NormalizationSupport
         private def normalize_symbol(symbol : SymbolNode) : SymbolNode
           qualified_name = symbol.qualified_name
 
@@ -395,6 +355,85 @@ module Chiasmus
         end
       end
 
+      class SymbolCanonicalizationRefiner < Refiner
+        include NormalizationSupport
+
+        def refine(graph : SemanticGraph) : SemanticGraph
+          SemanticGraph.new(
+            files: graph.files,
+            symbols: graph.symbols.map { |symbol| normalize_symbol(symbol) },
+            calls: graph.calls,
+            imports: graph.imports,
+            exports: graph.exports,
+            contains: graph.contains,
+            type_info: graph.type_info,
+          )
+        end
+      end
+
+      class ContainedSymbolQualificationRefiner < Refiner
+        include NormalizationSupport
+
+        def refine(graph : SemanticGraph) : SemanticGraph
+          scoped_calls = scope_calls(graph.symbols, graph.calls)
+          unresolved_call_edges = unresolved_calls(graph.symbols, graph.calls)
+          scoped_contains = scope_contains(graph.symbols, graph.contains)
+          unresolved_containment = unresolved_contains(graph.symbols, graph.contains)
+          qualified_symbols, qualified_scoped_contains = qualify_contained_symbols(graph.symbols, scoped_contains)
+          rename_by_file, rename_global = rename_maps(graph.symbols, qualified_symbols)
+
+          SemanticGraph.new(
+            files: graph.files,
+            symbols: qualified_symbols,
+            calls: lift_scoped_calls(rewrite_scoped_calls(scoped_calls, rename_by_file)) +
+                   rewrite_calls(unresolved_call_edges, rename_by_file, rename_global),
+            imports: graph.imports,
+            exports: rewrite_exports(graph.exports, rename_by_file, rename_global),
+            contains: lift_scoped_contains(qualified_scoped_contains) +
+                      rewrite_contains(unresolved_containment, rename_by_file, rename_global)
+                        .reject { |edge| edge.parent == edge.child },
+            type_info: graph.type_info,
+          )
+        end
+      end
+
+      class StructuralCleanupRefiner < Refiner
+        include NormalizationSupport
+
+        def refine(graph : SemanticGraph) : SemanticGraph
+          deduplicated_symbols = deduplicate(graph.symbols, &.id)
+          normalized_files = deduplicate(graph.files, &.path)
+          normalized_calls = deduplicate(graph.calls) do |edge|
+            "#{edge.caller}\u0000#{edge.callee}\u0000#{edge.callee_qn || ""}"
+          end
+          normalized_calls.sort_by! { |edge| {edge.caller, edge.callee, edge.callee_qn || ""} }
+          normalized_imports = deduplicate(graph.imports) { |edge| "#{edge.file}\u0000#{edge.name}\u0000#{edge.source}" }
+          normalized_exports = deduplicate(graph.exports) { |edge| "#{edge.file}\u0000#{edge.name}" }
+          normalized_contains = deduplicate(graph.contains.reject { |edge| edge.parent == edge.child }) do |edge|
+            "#{edge.parent}\u0000#{edge.child}"
+          end
+          normalized_contains.sort_by! { |edge| {edge.parent, edge.child} }
+
+          SemanticGraph.new(
+            files: normalized_files,
+            symbols: deduplicated_symbols,
+            calls: normalized_calls,
+            imports: normalized_imports,
+            exports: normalized_exports,
+            contains: normalized_contains,
+            type_info: graph.type_info,
+          )
+        end
+      end
+
+      class CommonNormalizationRefiner < Refiner
+        def refine(graph : SemanticGraph) : SemanticGraph
+          graph = SymbolCanonicalizationRefiner.new.refine(graph)
+          graph = ContainedSymbolQualificationRefiner.new.refine(graph)
+          StructuralCleanupRefiner.new.refine(graph)
+        end
+      end
+
       class Pipeline
         def initialize(@refiners : Array(Refiner))
         end
@@ -422,7 +461,9 @@ module Chiasmus
 
       def default_pipeline : Pipeline
         Pipeline.new([
-          CommonNormalizationRefiner.new,
+          SymbolCanonicalizationRefiner.new,
+          ContainedSymbolQualificationRefiner.new,
+          StructuralCleanupRefiner.new,
         ] of Refiner)
       end
 
