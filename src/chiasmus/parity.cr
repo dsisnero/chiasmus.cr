@@ -402,8 +402,8 @@ module Chiasmus
       private def entry_point?(symbol : String, entry_points : Array(String)?) : Bool
         return false unless entry_points
 
-        normalized_symbol = Naming.normalized_simple(symbol)
-        entry_points.any? { |name| Naming.normalized_simple(name) == normalized_symbol }
+        normalized_symbol = Naming.normalized_key(symbol)
+        entry_points.any? { |name| Naming.normalized_key(name) == normalized_symbol }
       end
 
       private def normalized_imports(graph : Graph::CodeGraph, symbol : String) : Array(String)
