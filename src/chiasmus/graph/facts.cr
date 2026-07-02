@@ -33,18 +33,26 @@ module Chiasmus
       end
 
       def graph_to_prolog(graph : CodeGraph, entry_points : Array(String)? = nil, include_insights : Bool = false) : String
-        render_prolog(IR::Lowering.to_code_graph(IR.normalize(graph)), entry_points, include_insights)
+        normalized = IR.normalize(graph)
+        render_prolog(IR::Lowering.to_code_graph(normalized), entry_points, include_insights, normalized)
       end
 
       def graph_to_prolog(graph : IR::SemanticGraph, entry_points : Array(String)? = nil, include_insights : Bool = false) : String
-        render_prolog(IR::Lowering.to_code_graph(IR.normalize(graph)), entry_points, include_insights)
+        normalized = IR.normalize(graph)
+        render_prolog(IR::Lowering.to_code_graph(normalized), entry_points, include_insights, normalized)
       end
 
-      private def render_prolog(graph : CodeGraph, entry_points : Array(String)? = nil, include_insights : Bool = false) : String
+      private def render_prolog(
+        graph : CodeGraph,
+        entry_points : Array(String)? = nil,
+        include_insights : Bool = false,
+        semantic_graph : IR::SemanticGraph? = nil,
+      ) : String
         lines = [] of String
 
         lines << ":- dynamic(defines/5)."
         lines << ":- dynamic(calls/2)."
+        lines << ":- dynamic(calls_in/3)."
         lines << ":- dynamic(imports/3)."
         lines << ":- dynamic(exports/2)."
         lines << ":- dynamic(contains/2)."
@@ -59,6 +67,11 @@ module Chiasmus
 
         graph.calls.each do |fact|
           lines << "calls(#{escape_atom(fact.caller)}, #{escape_atom(fact.callee)})."
+        end
+        semantic_graph.try do |semantic|
+          resolve_scoped_calls(semantic).each do |file, caller, callee|
+            lines << "calls_in(#{escape_atom(file)}, #{escape_atom(caller)}, #{escape_atom(callee)})."
+          end
         end
         lines << "" unless graph.calls.empty?
 
@@ -110,6 +123,44 @@ module Chiasmus
         end
 
         resolved.uniq
+      end
+
+      private def resolve_scoped_calls(graph : IR::SemanticGraph) : Array(Tuple(String, String, String))
+        index = IR::ScopedSymbolIndex.new(graph.symbols)
+        resolved = [] of Tuple(String, String, String)
+
+        graph.calls.each do |edge|
+          callers = index.symbols_named(edge.caller)
+          caller_is_unique = callers.size == 1
+
+          callers.each do |caller|
+            callee = resolve_scoped_callee(index, edge.callee, caller.file, edge.callee_qn, caller_is_unique)
+            next unless callee
+
+            resolved << {caller.file, edge.caller, edge.callee}
+          end
+        end
+
+        resolved.uniq
+      end
+
+      private def resolve_scoped_callee(
+        index : IR::ScopedSymbolIndex,
+        qualified_name : String,
+        file : String,
+        expected_qn : String?,
+        caller_is_unique : Bool,
+      ) : IR::SymbolNode?
+        local_matches = index.symbols_in_file(file, qualified_name)
+        local_matches = local_matches.select { |symbol| symbol.qualified_name == expected_qn } if expected_qn
+        return local_matches.first if local_matches.size == 1
+        return nil unless caller_is_unique
+
+        global_matches = index.symbols_named(qualified_name)
+        global_matches = global_matches.select { |symbol| symbol.qualified_name == expected_qn } if expected_qn
+        return global_matches.first if global_matches.size == 1
+
+        nil
       end
 
       private def emit_insight_facts(graph : CodeGraph, lines : Array(String)) : Nil

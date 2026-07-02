@@ -833,4 +833,44 @@ describe Chiasmus::Plan::CLI do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "uses file-scoped call facts to avoid cross-file duplicate caller drift" do
+    dir = File.join(Dir.tempdir, "chiasmus-plan-calls-in-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+
+    begin
+      facts_path = File.join(dir, "vendor.pl")
+      File.write(facts_path, <<-PROLOG)
+        defines('src/app.ts', main, function, 1, 0).
+        defines('src/app.ts', helper, function, 10, 0).
+        defines('src/app.ts', leaf, function, 20, 0).
+        defines('src/util.ts', helper, function, 3, 0).
+
+        calls(main, helper).
+        calls(helper, leaf).
+        calls_in('src/app.ts', main, helper).
+        calls_in('src/app.ts', helper, leaf).
+
+        entry_point(main).
+        entry_point_file('src/app.ts', main).
+      PROLOG
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Plan::CLI.run(["rank", "--facts", facts_path, "--format", "json"], output, error)
+
+      exit_code.should eq(0), error.to_s
+
+      reports = JSON.parse(output.to_s).as_h["reports"].as_a
+      app_helper = reports.find { |report| report.as_h["name"].as_s == "helper" && report.as_h["file"].as_s == "src/app.ts" } || raise "missing app helper report"
+      util_helper = reports.find { |report| report.as_h["name"].as_s == "helper" && report.as_h["file"].as_s == "src/util.ts" } || raise "missing util helper report"
+      leaf = reports.find { |report| report.as_h["name"].as_s == "leaf" && report.as_h["file"].as_s == "src/app.ts" } || raise "missing leaf report"
+
+      app_helper.as_h["callee_count"].as_i.should eq(1)
+      util_helper.as_h["callee_count"].as_i.should eq(0)
+      leaf.as_h["caller_count"].as_i.should eq(1)
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
 end
