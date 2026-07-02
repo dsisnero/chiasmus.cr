@@ -521,7 +521,17 @@ module Chiasmus
 
       index = Graph::IR::ScopedSymbolIndex.new(graph.symbols)
       entry_ids = entry_points.flat_map do |name|
-        index.symbols_named(name).map(&.id)
+        export_matches = graph.exports.compact_map do |edge|
+          next unless edge.name == name
+
+          resolve_semantic_symbol(index, edge.name, edge.file).try(&.id)
+        end
+
+        if export_matches.empty?
+          index.symbols_named(name).map(&.id)
+        else
+          export_matches
+        end
       end
       entry_ids.uniq!
       entry_ids

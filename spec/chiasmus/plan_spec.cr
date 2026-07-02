@@ -194,6 +194,56 @@ private def sample_semantic_duplicate_caller_plan_graph : Chiasmus::Graph::IR::S
   )
 end
 
+private def sample_semantic_duplicate_entry_point_plan_graph : Chiasmus::Graph::IR::SemanticGraph
+  Chiasmus::Graph::IR::SemanticGraph.new(
+    symbols: [
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/app.ts::function::main",
+        name: "main",
+        qualified_name: "main",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/app.ts",
+        line: 1
+      ),
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/app.ts::function::helper",
+        name: "helper",
+        qualified_name: "helper",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/app.ts",
+        line: 10
+      ),
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/util.ts::function::main",
+        name: "main",
+        qualified_name: "main",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/util.ts",
+        line: 3
+      ),
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/util.ts::function::orphan",
+        name: "orphan",
+        qualified_name: "orphan",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/util.ts",
+        line: 12
+      ),
+    ],
+    calls: [
+      Chiasmus::Graph::IR::CallEdge.new(caller: "main", callee: "helper"),
+      Chiasmus::Graph::IR::CallEdge.new(caller: "main", callee: "orphan"),
+    ],
+    exports: [
+      Chiasmus::Graph::IR::ExportEdge.new(file: "src/app.ts", name: "main"),
+    ]
+  )
+end
+
 describe Chiasmus::Plan do
   describe Chiasmus::Plan::FeatureGroupIndex do
     it "prefers owner groups only when multiple reports share the owner, otherwise falls back to community then file" do
@@ -560,6 +610,20 @@ describe Chiasmus::Plan do
     util_helper.reachable_from_entry.should be_false
     util_helper.callee_count.should eq(0)
     leaf.caller_count.should eq(1)
+  end
+
+  it "resolves duplicate explicit semantic entry points through export ownership before name fallback" do
+    reports = Chiasmus::Plan.rank(sample_semantic_duplicate_entry_point_plan_graph, entry_points: ["main"])
+
+    app_main = reports.find { |report| report.name == "main" && report.file == "src/app.ts" } || raise "missing app main report"
+    util_main = reports.find { |report| report.name == "main" && report.file == "src/util.ts" } || raise "missing util main report"
+    helper = reports.find { |report| report.name == "helper" && report.file == "src/app.ts" } || raise "missing helper report"
+    orphan = reports.find { |report| report.name == "orphan" && report.file == "src/util.ts" } || raise "missing orphan report"
+
+    app_main.reachable_from_entry.should be_true
+    util_main.reachable_from_entry.should be_false
+    helper.reachable_from_entry.should be_true
+    orphan.reachable_from_entry.should be_false
   end
 end
 
