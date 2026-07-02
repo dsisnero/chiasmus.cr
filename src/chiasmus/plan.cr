@@ -534,8 +534,11 @@ module Chiasmus
       resolved = [] of Graph::CallsFact
 
       graph.calls.each do |edge|
-        index.symbols_named(edge.caller).each do |caller|
-          callee = resolve_semantic_symbol(index, edge.callee, caller.file, edge.callee_qn)
+        callers = index.symbols_named(edge.caller)
+        caller_is_unique = callers.size == 1
+
+        callers.each do |caller|
+          callee = resolve_semantic_call_callee(index, edge.callee, caller.file, edge.callee_qn, caller_is_unique)
           next unless callee
 
           resolved << Graph::CallsFact.new(caller: caller.id, callee: callee.id)
@@ -543,6 +546,25 @@ module Chiasmus
       end
 
       deduplicate_semantic_calls(resolved)
+    end
+
+    private def resolve_semantic_call_callee(
+      index : Graph::IR::ScopedSymbolIndex,
+      qualified_name : String,
+      file : String,
+      expected_qn : String?,
+      caller_is_unique : Bool,
+    ) : Graph::IR::SymbolNode?
+      local_matches = index.symbols_in_file(file, qualified_name)
+      local_matches = local_matches.select { |symbol| symbol.qualified_name == expected_qn } if expected_qn
+      return local_matches.first if local_matches.size == 1
+      return nil unless caller_is_unique
+
+      global_matches = index.symbols_named(qualified_name)
+      global_matches = global_matches.select { |symbol| symbol.qualified_name == expected_qn } if expected_qn
+      return global_matches.first if global_matches.size == 1
+
+      nil
     end
 
     private def resolve_semantic_exports(
