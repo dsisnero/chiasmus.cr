@@ -459,9 +459,127 @@ module Chiasmus
 
     private def analyze(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil) : Array(Report)
       normalized = Graph::IR.normalize(graph)
-      lowered = Graph::IR::Lowering.to_code_graph(normalized)
-      context = build_analysis_context(lowered, entry_points)
-      normalized.symbols.map { |symbol| analyze_symbol(symbol, context) }
+      analysis_graph = build_semantic_analysis_graph(normalized)
+      context = build_analysis_context(analysis_graph, resolve_semantic_entry_points(normalized, entry_points))
+      normalized.symbols.map { |symbol| analyze_symbol(symbol, context, symbol.id) }
+    end
+
+    private def build_semantic_analysis_graph(graph : Graph::IR::SemanticGraph) : Graph::CodeGraph
+      index = Graph::IR::ScopedSymbolIndex.new(graph.symbols)
+
+      Graph::CodeGraph.new(
+        defines: graph.symbols.map do |symbol|
+          Graph::DefinesFact.new(
+            file: symbol.file,
+            name: symbol.id,
+            kind: symbol.kind,
+            line: symbol.line,
+            end_line: symbol.end_line,
+            signature: symbol.signature,
+          )
+        end,
+        calls: resolve_semantic_calls(graph, index),
+        imports: graph.imports.map { |edge| Graph::ImportsFact.new(edge.file, edge.name, edge.source) },
+        exports: resolve_semantic_exports(graph, index),
+        contains: resolve_semantic_contains(graph, index),
+        files: graph.files.map { |file| Graph::FileNode.new(file.path, file.language, file.line_count, file.token_estimate, file.file_doc) },
+        type_info: graph.type_info,
+      )
+    end
+
+    private def resolve_semantic_entry_points(
+      graph : Graph::IR::SemanticGraph,
+      entry_points : Array(String)?,
+    ) : Array(String)?
+      return nil if entry_points.nil?
+
+      index = Graph::IR::ScopedSymbolIndex.new(graph.symbols)
+      entry_ids = entry_points.flat_map do |name|
+        index.symbols_named(name).map(&.id)
+      end
+      entry_ids.uniq!
+      entry_ids
+    end
+
+    private def resolve_semantic_calls(
+      graph : Graph::IR::SemanticGraph,
+      index : Graph::IR::ScopedSymbolIndex,
+    ) : Array(Graph::CallsFact)
+      resolved = [] of Graph::CallsFact
+
+      graph.calls.each do |edge|
+        index.symbols_named(edge.caller).each do |caller|
+          callee = resolve_semantic_symbol(index, edge.callee, caller.file, edge.callee_qn)
+          next unless callee
+
+          resolved << Graph::CallsFact.new(caller: caller.id, callee: callee.id)
+        end
+      end
+
+      deduplicate_semantic_calls(resolved)
+    end
+
+    private def resolve_semantic_exports(
+      graph : Graph::IR::SemanticGraph,
+      index : Graph::IR::ScopedSymbolIndex,
+    ) : Array(Graph::ExportsFact)
+      graph.exports.compact_map do |edge|
+        symbol = resolve_semantic_symbol(index, edge.name, edge.file)
+        next unless symbol
+
+        Graph::ExportsFact.new(edge.file, symbol.id)
+      end
+    end
+
+    private def resolve_semantic_contains(
+      graph : Graph::IR::SemanticGraph,
+      index : Graph::IR::ScopedSymbolIndex,
+    ) : Array(Graph::ContainsFact)
+      resolved = [] of Graph::ContainsFact
+
+      graph.contains.each do |edge|
+        index.symbols_named(edge.parent).each do |parent|
+          next unless semantic_container_kind?(parent.kind)
+
+          child = resolve_semantic_symbol(index, edge.child, parent.file)
+          next unless child
+
+          resolved << Graph::ContainsFact.new(parent.id, child.id)
+        end
+      end
+
+      deduplicate_semantic_contains(resolved)
+    end
+
+    private def resolve_semantic_symbol(
+      index : Graph::IR::ScopedSymbolIndex,
+      qualified_name : String,
+      file : String,
+      expected_qn : String? = nil,
+    ) : Graph::IR::SymbolNode?
+      local_matches = index.symbols_in_file(file, qualified_name)
+      local_matches = local_matches.select { |symbol| symbol.qualified_name == expected_qn } if expected_qn
+      return local_matches.first if local_matches.size == 1
+
+      global_matches = index.symbols_named(qualified_name)
+      global_matches = global_matches.select { |symbol| symbol.qualified_name == expected_qn } if expected_qn
+      return global_matches.first if global_matches.size == 1
+
+      nil
+    end
+
+    private def semantic_container_kind?(kind : Graph::SymbolKind) : Bool
+      kind.in?(Graph::SymbolKind::Class, Graph::SymbolKind::Interface, Graph::SymbolKind::Module, Graph::SymbolKind::Type)
+    end
+
+    private def deduplicate_semantic_calls(calls : Array(Graph::CallsFact)) : Array(Graph::CallsFact)
+      seen = Set(String).new
+      calls.select { |edge| seen.add?("#{edge.caller}\u0000#{edge.callee}") }
+    end
+
+    private def deduplicate_semantic_contains(contains : Array(Graph::ContainsFact)) : Array(Graph::ContainsFact)
+      seen = Set(String).new
+      contains.select { |edge| seen.add?("#{edge.parent}\u0000#{edge.child}") }
     end
 
     private def build_analysis_context(graph : Graph::CodeGraph, entry_points : Array(String)?) : AnalysisContext
@@ -550,17 +668,21 @@ module Chiasmus
       )
     end
 
-    private def analyze_symbol(symbol : Graph::IR::SymbolNode, context : AnalysisContext) : Report
-      reachable_from_entry = context.reachable.includes?(symbol.qualified_name)
-      caller_count = context.reverse[symbol.qualified_name]?.try(&.size) || 0
-      callee_count = context.forward[symbol.qualified_name]?.try(&.size) || 0
-      impact_count = reverse_reach_count(context.reverse, symbol.qualified_name)
-      hub_degree = context.degree[symbol.qualified_name]? || 0
-      bridge_score = context.bridge_scores[symbol.qualified_name]? || 0.0
-      community = context.community_by_node[symbol.qualified_name]?
+    private def analyze_symbol(
+      symbol : Graph::IR::SymbolNode,
+      context : AnalysisContext,
+      analysis_key : String = symbol.qualified_name,
+    ) : Report
+      reachable_from_entry = context.reachable.includes?(analysis_key)
+      caller_count = context.reverse[analysis_key]?.try(&.size) || 0
+      callee_count = context.forward[analysis_key]?.try(&.size) || 0
+      impact_count = reverse_reach_count(context.reverse, analysis_key)
+      hub_degree = context.degree[analysis_key]? || 0
+      bridge_score = context.bridge_scores[analysis_key]? || 0.0
+      community = context.community_by_node[analysis_key]?
       community_size = community.try(&.members.size) || 1
-      contains_count = context.children_by_parent[symbol.qualified_name]? || 0
-      exported = context.exported.includes?(symbol.qualified_name)
+      contains_count = context.children_by_parent[analysis_key]? || 0
+      exported = context.exported.includes?(analysis_key)
       dead_code = !reachable_from_entry && caller_count == 0
       priority_score = priority_score_for(reachable_from_entry, exported, impact_count, caller_count, hub_degree, bridge_score, contains_count, community_size)
       safety_score = safety_score_for(reachable_from_entry, dead_code, impact_count, caller_count, hub_degree, bridge_score, community_size, callee_count)

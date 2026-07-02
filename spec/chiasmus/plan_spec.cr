@@ -89,6 +89,46 @@ private def sample_semantic_plan_graph : Chiasmus::Graph::IR::SemanticGraph
   )
 end
 
+private def sample_semantic_duplicate_name_plan_graph : Chiasmus::Graph::IR::SemanticGraph
+  Chiasmus::Graph::IR::SemanticGraph.new(
+    symbols: [
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/app.ts::function::main",
+        name: "main",
+        qualified_name: "main",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/app.ts",
+        line: 1
+      ),
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/app.ts::function::helper",
+        name: "helper",
+        qualified_name: "helper",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/app.ts",
+        line: 10
+      ),
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/util.ts::function::helper",
+        name: "helper",
+        qualified_name: "helper",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/util.ts",
+        line: 3
+      ),
+    ],
+    calls: [
+      Chiasmus::Graph::IR::CallEdge.new(caller: "main", callee: "helper"),
+    ],
+    exports: [
+      Chiasmus::Graph::IR::ExportEdge.new(file: "src/app.ts", name: "main"),
+    ]
+  )
+end
+
 describe Chiasmus::Plan do
   describe Chiasmus::Plan::FeatureGroupIndex do
     it "prefers owner groups only when multiple reports share the owner, otherwise falls back to community then file" do
@@ -409,6 +449,21 @@ describe Chiasmus::Plan do
     seed = Chiasmus::Plan.seed_parity(sample_semantic_plan_graph, entry_points: ["main"])
     seed.should contain("owner:Auth")
     seed.should contain("Members: `Auth.login`, `Auth.logout`")
+  end
+
+  it "keeps duplicate semantic-ir names file-scoped when ranking reachability" do
+    reports = Chiasmus::Plan.rank(sample_semantic_duplicate_name_plan_graph, entry_points: ["main"])
+    helper_reports = reports.select { |report| report.name == "helper" }
+
+    helper_reports.size.should eq(2)
+
+    app_helper = helper_reports.find { |report| report.file == "src/app.ts" } || raise "missing app helper report"
+    util_helper = helper_reports.find { |report| report.file == "src/util.ts" } || raise "missing util helper report"
+
+    app_helper.reachable_from_entry.should be_true
+    app_helper.dead_code.should be_false
+    util_helper.reachable_from_entry.should be_false
+    util_helper.dead_code.should be_true
   end
 end
 
