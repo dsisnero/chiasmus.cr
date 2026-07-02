@@ -87,6 +87,39 @@ module Chiasmus
       entry_points : Array(String),
       help_requested : Bool
 
+    class FeatureGroupIndex
+      def initialize(@reports : Array(Report))
+      end
+
+      def groups : Hash(String, Array(Report))
+        groups = Hash(String, Array(Report)).new { |hash, key| hash[key] = [] of Report }
+        feature_reports = @reports.select { |report| report.recommendation == "feature" }
+        owner_counts = Hash(String, Int32).new(0)
+
+        feature_reports.each do |report|
+          owner = report.owner_name
+          next if owner.nil? || owner.blank?
+
+          owner_counts[owner] += 1
+        end
+
+        feature_reports.each do |report|
+          owner = report.owner_name
+          key = if owner && !owner.blank? && owner_counts[owner] > 1
+                  "owner:#{owner}"
+                elsif report.community_id
+                  "community:#{report.community_id}"
+                else
+                  "file:#{report.file}"
+                end
+
+          groups[key] << report
+        end
+
+        groups
+      end
+    end
+
     extend self
 
     def rank(graph : Graph::CodeGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
@@ -320,7 +353,7 @@ module Chiasmus
     end
 
     private def append_feature_slices(slices : Array(Slice), reports : Array(Report)) : Nil
-      feature_groups(reports).each do |key, members|
+      FeatureGroupIndex.new(reports).groups.each do |key, members|
         ordered = ordered_reports_by_name(members)
         slices << Slice.new(
           slice_id: key,
@@ -331,33 +364,6 @@ module Chiasmus
           reasons: ["cohesive reachable workset grouped for branch-sized progress"],
         )
       end
-    end
-
-    private def feature_groups(reports : Array(Report)) : Hash(String, Array(Report))
-      groups = Hash(String, Array(Report)).new { |hash, key| hash[key] = [] of Report }
-      feature_reports = reports.select { |report| report.recommendation == "feature" }
-      owner_counts = Hash(String, Int32).new(0)
-
-      feature_reports.each do |report|
-        owner = report.owner_name
-        next if owner.nil? || owner.blank?
-
-        owner_counts[owner] += 1
-      end
-
-      feature_reports.each do |report|
-        owner = report.owner_name
-        key = if owner && !owner.blank? && owner_counts[owner] > 1
-                "owner:#{owner}"
-              elsif report.community_id
-                "community:#{report.community_id}"
-              else
-                "file:#{report.file}"
-              end
-
-        groups[key] << report
-      end
-      groups
     end
 
     private def ordered_reports_by_priority(reports : Array(Report)) : Array(Report)

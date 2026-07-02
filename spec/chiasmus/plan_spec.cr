@@ -90,6 +90,102 @@ private def sample_semantic_plan_graph : Chiasmus::Graph::IR::SemanticGraph
 end
 
 describe Chiasmus::Plan do
+  describe Chiasmus::Plan::FeatureGroupIndex do
+    it "prefers owner groups only when multiple reports share the owner, otherwise falls back to community then file" do
+      reports = [
+        Chiasmus::Plan::Report.new(
+          name: "Auth.login",
+          file: "src/auth.ts",
+          kind: "method",
+          reachable_from_entry: true,
+          dead_code: false,
+          caller_count: 1,
+          callee_count: 0,
+          impact_count: 1,
+          hub_degree: 1,
+          bridge_score: 0.0,
+          community_id: 4,
+          community_size: 2,
+          contains_count: 0,
+          priority_score: 10,
+          safety_score: 1,
+          reasons: ["reachable"],
+          recommendation: "feature",
+          owner_name: "Auth"
+        ),
+        Chiasmus::Plan::Report.new(
+          name: "Auth.logout",
+          file: "src/auth.ts",
+          kind: "method",
+          reachable_from_entry: true,
+          dead_code: false,
+          caller_count: 1,
+          callee_count: 0,
+          impact_count: 1,
+          hub_degree: 1,
+          bridge_score: 0.0,
+          community_id: 4,
+          community_size: 2,
+          contains_count: 0,
+          priority_score: 9,
+          safety_score: 1,
+          reasons: ["reachable"],
+          recommendation: "feature",
+          owner_name: "Auth"
+        ),
+        Chiasmus::Plan::Report.new(
+          name: "Solo.run",
+          file: "src/solo.ts",
+          kind: "method",
+          reachable_from_entry: true,
+          dead_code: false,
+          caller_count: 1,
+          callee_count: 0,
+          impact_count: 1,
+          hub_degree: 1,
+          bridge_score: 0.0,
+          community_id: 7,
+          community_size: 1,
+          contains_count: 0,
+          priority_score: 8,
+          safety_score: 1,
+          reasons: ["reachable"],
+          recommendation: "feature",
+          owner_name: "Solo"
+        ),
+        Chiasmus::Plan::Report.new(
+          name: "orphan",
+          file: "src/orphan.ts",
+          kind: "function",
+          reachable_from_entry: true,
+          dead_code: false,
+          caller_count: 0,
+          callee_count: 0,
+          impact_count: 0,
+          hub_degree: 0,
+          bridge_score: 0.0,
+          community_id: nil,
+          community_size: 1,
+          contains_count: 0,
+          priority_score: 1,
+          safety_score: 5,
+          reasons: ["reachable"],
+          recommendation: "feature",
+          owner_name: nil
+        ),
+      ]
+
+      groups = Chiasmus::Plan::FeatureGroupIndex.new(reports).groups
+
+      keys = groups.keys
+      keys.sort!
+      keys.should eq(["community:7", "file:src/orphan.ts", "owner:Auth"])
+      groups["owner:Auth"].map(&.name).should eq(["Auth.login", "Auth.logout"])
+      groups["community:7"].map(&.name).should eq(["Solo.run"])
+      groups["file:src/orphan.ts"].map(&.name).should eq(["orphan"])
+    end
+  end
+
   it "ranks entry-point-reachable hub code ahead of leaves and dead code" do
     reports = Chiasmus::Plan.rank(sample_plan_graph, entry_points: ["main"])
 
