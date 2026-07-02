@@ -83,6 +83,7 @@ module Chiasmus
       parity_plan_path : String,
       previous_facts_path : String,
       symbol : String,
+      file : String,
       top_n : Int32?,
       entry_points : Array(String),
       help_requested : Bool
@@ -228,14 +229,22 @@ module Chiasmus
       end
     end
 
-    def audit(graph : Graph::CodeGraph, symbol : String, entry_points : Array(String)? = nil) : Report
-      analyze(graph, entry_points).find { |report| report.name == symbol } ||
-        raise "Unknown symbol: #{symbol}"
+    def audit(
+      graph : Graph::CodeGraph,
+      symbol : String,
+      file : String? = nil,
+      entry_points : Array(String)? = nil,
+    ) : Report
+      resolve_audit_report(analyze(graph, entry_points), symbol, file)
     end
 
-    def audit(graph : Graph::IR::SemanticGraph, symbol : String, entry_points : Array(String)? = nil) : Report
-      analyze(graph, entry_points).find { |report| report.name == symbol } ||
-        raise "Unknown symbol: #{symbol}"
+    def audit(
+      graph : Graph::IR::SemanticGraph,
+      symbol : String,
+      file : String? = nil,
+      entry_points : Array(String)? = nil,
+    ) : Report
+      resolve_audit_report(analyze(graph, entry_points), symbol, file)
     end
 
     def refresh(
@@ -315,6 +324,23 @@ module Chiasmus
       append_safe_parallel_slice(slices, reports)
       append_feature_slices(slices, reports)
       slices
+    end
+
+    private def resolve_audit_report(reports : Array(Report), symbol : String, file : String?) : Report
+      matches = reports.select { |report| report.name == symbol }
+      matches = matches.select { |report| report.file == file } if file
+
+      return matches.first if matches.size == 1
+
+      if file
+        raise "Unknown symbol: #{symbol} in #{file}" if matches.empty?
+      else
+        raise "Unknown symbol: #{symbol}" if matches.empty?
+      end
+
+      candidate_files = matches.map(&.file)
+      candidate_files.sort!
+      raise "Ambiguous symbol: #{symbol} (matches: #{candidate_files.join(", ")})"
     end
 
     private def append_foundational_slices(slices : Array(Slice), reports : Array(Report)) : Nil
@@ -1045,6 +1071,7 @@ module Chiasmus
         parity_plan_path = ""
         previous_facts_path = ""
         symbol = ""
+        file = ""
         top_n : Int32? = nil
         entry_points = [] of String
         help_requested = false
@@ -1058,6 +1085,7 @@ module Chiasmus
           opts.on("--parity-plan FILE", "Path to curated parity Markdown plan") { |value| parity_plan_path = value }
           opts.on("--previous-facts FILE", "Path to previous layer-A Prolog facts for refresh") { |value| previous_facts_path = value }
           opts.on("--symbol NAME", "Symbol to audit") { |value| symbol = value }
+          opts.on("--file PATH", "Disambiguate audit symbol by source file") { |value| file = value }
           opts.on("--top N", "Limit output rows") { |value| top_n = value.to_i }
           opts.on("--entry-point NAME", "Override entry points from the facts file (repeatable)") { |value| entry_points << value }
           opts.on("--help", "Show this help") { help_requested = true }
@@ -1080,6 +1108,7 @@ module Chiasmus
             parity_plan_path: parity_plan_path,
             previous_facts_path: previous_facts_path,
             symbol: symbol,
+            file: file,
             top_n: top_n,
             entry_points: entry_points,
             help_requested: help_requested,
@@ -1189,7 +1218,12 @@ module Chiasmus
           return 1
         end
 
-        report = Plan.audit(parsed.graph, symbol: options.symbol, entry_points: effective_entry_points)
+        report = Plan.audit(
+          parsed.graph,
+          symbol: options.symbol,
+          file: options.file.empty? ? nil : options.file,
+          entry_points: effective_entry_points
+        )
         if options.format == "json"
           render_audit_json(output, mode, report)
         else

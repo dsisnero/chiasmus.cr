@@ -44,6 +44,21 @@ private def previous_plan_graph : CodeGraph
   )
 end
 
+private def duplicate_audit_plan_graph : CodeGraph
+  CodeGraph.new(
+    defines: [
+      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, line: 1),
+      DefinesFact.new(file: "src/app.ts", name: "helper", kind: SymbolKind::Function, line: 10),
+      DefinesFact.new(file: "src/util.ts", name: "helper", kind: SymbolKind::Function, line: 3),
+    ],
+    exports: [
+      ExportsFact.new(file: "src/app.ts", name: "main"),
+    ],
+    contains: [] of ContainsFact,
+    imports: [] of ImportsFact,
+  )
+end
+
 private def sample_semantic_plan_graph : Chiasmus::Graph::IR::SemanticGraph
   Chiasmus::Graph::IR::SemanticGraph.new(
     symbols: [
@@ -428,6 +443,23 @@ describe Chiasmus::Plan do
     report.reasons.join(" ").should contain("reachable from entry point")
   end
 
+  it "requires a file hint when auditing duplicate semantic-ir names" do
+    expect_raises(Exception, /Ambiguous symbol: helper/) do
+      Chiasmus::Plan.audit(sample_semantic_duplicate_name_plan_graph, symbol: "helper", entry_points: ["main"])
+    end
+
+    report = Chiasmus::Plan.audit(
+      sample_semantic_duplicate_name_plan_graph,
+      symbol: "helper",
+      file: "src/util.ts",
+      entry_points: ["main"]
+    )
+
+    report.file.should eq("src/util.ts")
+    report.reachable_from_entry.should be_false
+    report.dead_code.should be_true
+  end
+
   it "refreshes only changed or newly risky slices from a previous facts snapshot" do
     refreshed = Chiasmus::Plan.refresh(sample_plan_graph, previous_graph: previous_plan_graph, entry_points: ["main"])
 
@@ -568,6 +600,37 @@ describe Chiasmus::Plan::CLI do
       refresh_text.should contain("foundational:hub")
       refresh_text.should contain("new_slice")
       refresh_text.should_not contain("cleanup:dead-code")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "disambiguates audit symbols by file when duplicate names exist" do
+    dir = File.join(Dir.tempdir, "chiasmus-plan-audit-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+
+    begin
+      facts_path = File.join(dir, "vendor.pl")
+      File.write(facts_path, Chiasmus::Graph::Facts.graph_to_prolog(duplicate_audit_plan_graph, ["main"], include_insights: true))
+
+      ambiguous_output = IO::Memory.new
+      ambiguous_error = IO::Memory.new
+      ambiguous_exit = Chiasmus::Plan::CLI.run(["audit", "--facts", facts_path, "--symbol", "helper"], ambiguous_output, ambiguous_error)
+
+      ambiguous_exit.should eq(1)
+      ambiguous_error.to_s.should contain("Ambiguous symbol: helper")
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Plan::CLI.run(
+        ["audit", "--facts", facts_path, "--symbol", "helper", "--file", "src/util.ts"],
+        output,
+        error
+      )
+
+      exit_code.should eq(0), error.to_s
+      output.to_s.should contain("File: `src/util.ts`")
+      output.to_s.should contain("Audit: `helper`")
     ensure
       FileUtils.rm_rf(dir)
     end
