@@ -49,6 +49,67 @@ describe Chiasmus::Parity::Naming do
   end
 end
 
+describe Chiasmus::Parity::SymbolIndex do
+  it "prefers owner-suffix matches and rejects ambiguous simple-name fallbacks" do
+    symbols = [
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::class::Config",
+        name: "Config",
+        kind: "class",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::Config.load",
+        name: "Config.load",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::Demo.load",
+        name: "Demo.load",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::load",
+        name: "load",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "regex"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::Demo.Config.helper",
+        name: "Demo.Config.helper",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+      Chiasmus::Parity::SymbolItem.new(
+        id: "src/chiasmus/utils/config.cr::method::Demo.Service.helper",
+        name: "Demo.Service.helper",
+        kind: "method",
+        file: "src/chiasmus/utils/config.cr",
+        scope: "source",
+        parser_mode: "tree-sitter"
+      ),
+    ]
+
+    index = Chiasmus::Parity::SymbolIndex.new(symbols)
+
+    index.best_noted_match("Chiasmus::Utils::Config.load").try(&.name).should eq("Config.load")
+    index.best_noted_match("Config.load").try(&.name).should eq("Config.load")
+    index.best_noted_match("helper").should be_nil
+  end
+end
+
 describe Chiasmus::Parity::Matcher do
   it "classifies snake_case Crystal methods as curated aliases for camelCase upstream functions" do
     row = Chiasmus::Parity::InventoryRow.new(

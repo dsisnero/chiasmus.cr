@@ -725,6 +725,81 @@ module Chiasmus
       end
     end
 
+    class SymbolIndex
+      def initialize(@symbols : Array(SymbolItem))
+        @symbols_by_file = Hash(String, Array(SymbolItem)).new { |hash, key| hash[key] = [] of SymbolItem }
+        @symbols_by_name = Hash(String, Array(SymbolItem)).new { |hash, key| hash[key] = [] of SymbolItem }
+        @symbols_by_key = Hash(String, Array(SymbolItem)).new { |hash, key| hash[key] = [] of SymbolItem }
+        @symbols_by_simple = Hash(String, Array(SymbolItem)).new { |hash, key| hash[key] = [] of SymbolItem }
+
+        @symbols.each do |symbol|
+          @symbols_by_file[symbol.file] << symbol
+          @symbols_by_name[symbol.name] << symbol
+          @symbols_by_key[Naming.normalized_key(symbol.name)] << symbol
+          @symbols_by_simple[Naming.normalized_simple(symbol.name)] << symbol
+        end
+      end
+
+      def symbols_for_paths(paths : Array(String)) : Array(SymbolItem)
+        symbols = paths.flat_map { |path| @symbols_by_file[path]? || [] of SymbolItem }
+        symbols.uniq!
+        symbols
+      end
+
+      def missing_ref_paths(paths : Array(String)) : Array(String)
+        paths.reject { |path| @symbols_by_file.has_key?(path) }
+      end
+
+      def best_noted_match(noted_name : String) : SymbolItem?
+        return nil if @symbols.empty?
+
+        noted_key = Naming.normalized_key(noted_name)
+        noted_simple = Naming.normalized_simple(noted_name)
+        noted_owner = Naming.normalized_owner(noted_name)
+
+        exact = @symbols_by_name[noted_name]?.try(&.first?)
+        return exact if exact
+
+        normalized = @symbols_by_key[noted_key]?.try(&.first?)
+        return normalized if normalized
+
+        matches = @symbols_by_simple[noted_simple]?
+        return nil unless matches
+
+        unless noted_owner.empty?
+          owner_exact = matches.find do |symbol|
+            Naming.normalized_owner(symbol.name) == noted_owner
+          end
+          return owner_exact if owner_exact
+
+          owner_suffix = best_owner_suffix_match(matches, noted_owner)
+          return owner_suffix if owner_suffix
+        end
+
+        return nil unless matches.size == 1
+        matches.first
+      end
+
+      private def best_owner_suffix_match(symbols : Array(SymbolItem), noted_owner : String) : SymbolItem?
+        return nil if noted_owner.empty?
+
+        matches = symbols.select do |symbol|
+          owner_suffix_match?(Naming.normalized_owner(symbol.name), noted_owner)
+        end
+        return nil if matches.empty?
+
+        matches.max_by { |symbol| Naming.normalized_owner(symbol.name).size }
+      end
+
+      private def owner_suffix_match?(symbol_owner : String, noted_owner : String) : Bool
+        return false if symbol_owner.empty? || noted_owner.empty?
+
+        noted_owner == symbol_owner ||
+          noted_owner.ends_with?(".#{symbol_owner}") ||
+          symbol_owner.ends_with?(".#{noted_owner}")
+      end
+    end
+
     class Matcher
       def initialize(
         @symbols : Array(SymbolItem),
@@ -734,12 +809,8 @@ module Chiasmus
         @source_entry_points : Array(String)? = nil,
         @crystal_entry_points : Array(String)? = nil,
       )
-        @symbols_by_file = Hash(String, Array(SymbolItem)).new { |hash, key| hash[key] = [] of SymbolItem }
+        @symbol_index = SymbolIndex.new(@symbols)
         @rules_by_upstream = Hash(String, Array(ConversionRule)).new { |hash, key| hash[key] = [] of ConversionRule }
-
-        @symbols.each do |symbol|
-          @symbols_by_file[symbol.file] << symbol
-        end
 
         @rules.each do |rule|
           @rules_by_upstream[Naming.normalized_simple(rule.upstream_kind)] << rule
@@ -752,8 +823,8 @@ module Chiasmus
 
       private def analyze_row(row : InventoryRow) : ReportRow
         ref_paths = crystal_ref_paths(row.crystal_refs)
-        referenced = symbols_for_paths(ref_paths)
-        missing_refs = missing_ref_paths(ref_paths)
+        referenced = @symbol_index.symbols_for_paths(ref_paths)
+        missing_refs = @symbol_index.missing_ref_paths(ref_paths)
 
         if row.status == "intentional_divergence"
           return intentional_divergence_report(row, referenced, missing_refs)
@@ -768,6 +839,7 @@ module Chiasmus
         missing_refs : Array(String),
       ) : ReportRow
         hinted_target = hinted_target(row)
+        referenced_index = SymbolIndex.new(referenced)
 
         if match = best_match(row, referenced)
           status = match.basis == "exact" ? "curated_exact" : "curated_alias"
@@ -777,11 +849,11 @@ module Chiasmus
         if hinted_target
           name = hinted_target[0]
           basis = hinted_target[1]
-          if match = best_noted_match(name, referenced)
+          if match = referenced_index.best_noted_match(name)
             return report_from_symbol(row, "curated_alias", match, row.notes, 100, basis)
           end
 
-          if match = best_noted_match(name, @symbols)
+          if match = @symbol_index.best_noted_match(name)
             return report_from_symbol(row, "curated_alias", match, row.notes, 100, basis)
           end
         end
@@ -846,64 +918,6 @@ module Chiasmus
         end
 
         nil
-      end
-
-      private def best_noted_match(noted_name : String, symbols : Array(SymbolItem)) : SymbolItem?
-        return nil if symbols.empty?
-
-        noted_key = Naming.normalized_key(noted_name)
-        noted_simple = Naming.normalized_simple(noted_name)
-        noted_owner = Naming.normalized_owner(noted_name)
-
-        exact = symbols.find do |symbol|
-          symbol.name == noted_name
-        end
-        return exact if exact
-
-        normalized = symbols.find do |symbol|
-          Naming.normalized_key(symbol.name) == noted_key
-        end
-        return normalized if normalized
-
-        owner_exact = symbols.find do |symbol|
-          Naming.normalized_simple(symbol.name) == noted_simple &&
-            (noted_owner.empty? || Naming.normalized_owner(symbol.name) == noted_owner)
-        end
-        return owner_exact if owner_exact
-
-        owner_suffix = best_owner_suffix_match(symbols, noted_simple, noted_owner)
-        return owner_suffix if owner_suffix
-
-        unique_simple_match(symbols, noted_simple)
-      end
-
-      private def best_owner_suffix_match(symbols : Array(SymbolItem), noted_simple : String, noted_owner : String) : SymbolItem?
-        return nil if noted_simple.empty? || noted_owner.empty?
-
-        matches = symbols.select do |symbol|
-          Naming.normalized_simple(symbol.name) == noted_simple &&
-            owner_suffix_match?(Naming.normalized_owner(symbol.name), noted_owner)
-        end
-        return nil if matches.empty?
-
-        matches.max_by { |symbol| Naming.normalized_owner(symbol.name).size }
-      end
-
-      private def owner_suffix_match?(symbol_owner : String, noted_owner : String) : Bool
-        return false if symbol_owner.empty? || noted_owner.empty?
-
-        noted_owner == symbol_owner ||
-          noted_owner.ends_with?(".#{symbol_owner}") ||
-          symbol_owner.ends_with?(".#{noted_owner}")
-      end
-
-      private def unique_simple_match(symbols : Array(SymbolItem), noted_simple : String) : SymbolItem?
-        return nil if noted_simple.empty?
-
-        matches = symbols.select { |symbol| Naming.normalized_simple(symbol.name) == noted_simple }
-        return nil unless matches.size == 1
-
-        matches.first
       end
 
       private def intentional_divergence_report(row : InventoryRow, referenced : Array(SymbolItem), missing_refs : Array(String)) : ReportRow
@@ -1006,16 +1020,6 @@ module Chiasmus
           next unless path.ends_with?(".cr")
           path
         end
-      end
-
-      private def symbols_for_paths(paths : Array(String)) : Array(SymbolItem)
-        symbols = paths.flat_map { |path| @symbols_by_file[path]? || [] of SymbolItem }
-        symbols.uniq!
-        symbols
-      end
-
-      private def missing_ref_paths(paths : Array(String)) : Array(String)
-        paths.reject { |path| @symbols_by_file.has_key?(path) }
       end
 
       private def stale_ref_report(row : InventoryRow, missing_refs : Array(String), match : Match? = nil) : ReportRow
