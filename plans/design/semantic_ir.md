@@ -30,6 +30,61 @@ tree-sitter / walkers / adapters
 The point is not to replace `CodeGraph` or facts. The point is to delay the
 loss of structure until after we have normalized it.
 
+## Branch Scope And Exit Criteria
+
+This branch is only justified if semantic IR changes one of these observable
+outcomes:
+
+1. parity correctness for repeated or qualified symbols
+2. planner slice quality for "what should we port next?"
+3. completion-gate fidelity for "what vendor work is still missing?"
+
+That means branch-local work should stay focused on:
+
+- preserving symbol identity longer than raw `CodeGraph` names allow
+- moving planner/parity heuristics to semantic identity instead of string-only
+  matching
+- reducing TS/JS-specific ad hoc resolution that lives outside the IR/refiner
+  layer
+
+Work that does **not** count as success on this branch:
+
+- generic refactors with no parity/planning/completion behavior change
+- new IR surface area that has no downstream consumer yet
+- abstraction added only because it looks cleaner
+
+Stop this branch when the next semantic-IR change would not materially improve
+at least one of the three outcomes above.
+
+## Current Workstreams
+
+The current implementation work should be evaluated in this order:
+
+1. Planner identity correctness
+   - feature grouping must not collapse unrelated symbols just because their
+     owner text matches
+   - slice ids should remain readable, but become more specific when semantic
+     identity requires disambiguation
+2. Parity identity correctness
+   - repeated names in different files or containers must resolve to the right
+     symbol before fact generation and parity matching
+   - semantic normalization should be the place where this is repaired
+3. Completion-gate fidelity
+   - completion rows should reflect semantically distinct reachable work, not
+     flattened name collisions
+   - new ledger/report formats are acceptable when they make this clearer for
+     new repos
+
+## Branch-Level Done Definition
+
+For this branch, "done" means:
+
+- planner output stops mis-grouping repeated qualified symbols
+- parity/completion checks consume the refined identity without extra side
+  channels
+- the remaining semantic-IR TODOs can be argued from measurable downstream
+  gaps, not from architecture taste
+
 ## What The IR Should Model
 
 The IR should be richer than `CodeGraph`, but still much smaller than a full

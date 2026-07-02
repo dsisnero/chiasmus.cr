@@ -94,19 +94,25 @@ module Chiasmus
       def groups : Hash(String, Array(Report))
         groups = Hash(String, Array(Report)).new { |hash, key| hash[key] = [] of Report }
         feature_reports = @reports.select { |report| report.recommendation == "feature" }
-        owner_counts = Hash(String, Int32).new(0)
+        owner_counts_by_file = Hash(Tuple(String, String), Int32).new(0)
+        owner_files = Hash(String, Set(String)).new { |hash, key| hash[key] = Set(String).new }
 
         feature_reports.each do |report|
           owner = report.owner_name
           next if owner.nil? || owner.blank?
 
-          owner_counts[owner] += 1
+          owner_counts_by_file[{owner, report.file}] += 1
+          owner_files[owner] << report.file
         end
 
         feature_reports.each do |report|
           owner = report.owner_name
-          key = if owner && !owner.blank? && owner_counts[owner] > 1
-                  "owner:#{owner}"
+          key = if owner && !owner.blank? && owner_counts_by_file[{owner, report.file}] > 1
+                  if owner_files[owner].size > 1
+                    "owner:#{owner}@#{report.file}"
+                  else
+                    "owner:#{owner}"
+                  end
                 elsif report.community_id
                   "community:#{report.community_id}"
                 else

@@ -184,6 +184,99 @@ describe Chiasmus::Plan do
       groups["community:7"].map(&.name).should eq(["Solo.run"])
       groups["file:src/orphan.ts"].map(&.name).should eq(["orphan"])
     end
+
+    it "disambiguates owner groups when the same owner name appears in multiple files" do
+      reports = [
+        Chiasmus::Plan::Report.new(
+          name: "Auth.login",
+          file: "src/auth.ts",
+          kind: "method",
+          reachable_from_entry: true,
+          dead_code: false,
+          caller_count: 1,
+          callee_count: 0,
+          impact_count: 1,
+          hub_degree: 1,
+          bridge_score: 0.0,
+          community_id: 4,
+          community_size: 2,
+          contains_count: 0,
+          priority_score: 10,
+          safety_score: 1,
+          reasons: ["reachable"],
+          recommendation: "feature",
+          owner_name: "Auth"
+        ),
+        Chiasmus::Plan::Report.new(
+          name: "Auth.logout",
+          file: "src/auth.ts",
+          kind: "method",
+          reachable_from_entry: true,
+          dead_code: false,
+          caller_count: 1,
+          callee_count: 0,
+          impact_count: 1,
+          hub_degree: 1,
+          bridge_score: 0.0,
+          community_id: 4,
+          community_size: 2,
+          contains_count: 0,
+          priority_score: 9,
+          safety_score: 1,
+          reasons: ["reachable"],
+          recommendation: "feature",
+          owner_name: "Auth"
+        ),
+        Chiasmus::Plan::Report.new(
+          name: "Auth.issue_token",
+          file: "src/admin_auth.ts",
+          kind: "method",
+          reachable_from_entry: true,
+          dead_code: false,
+          caller_count: 1,
+          callee_count: 0,
+          impact_count: 1,
+          hub_degree: 1,
+          bridge_score: 0.0,
+          community_id: 9,
+          community_size: 2,
+          contains_count: 0,
+          priority_score: 8,
+          safety_score: 1,
+          reasons: ["reachable"],
+          recommendation: "feature",
+          owner_name: "Auth"
+        ),
+        Chiasmus::Plan::Report.new(
+          name: "Auth.revoke_token",
+          file: "src/admin_auth.ts",
+          kind: "method",
+          reachable_from_entry: true,
+          dead_code: false,
+          caller_count: 1,
+          callee_count: 0,
+          impact_count: 1,
+          hub_degree: 1,
+          bridge_score: 0.0,
+          community_id: 9,
+          community_size: 2,
+          contains_count: 0,
+          priority_score: 7,
+          safety_score: 1,
+          reasons: ["reachable"],
+          recommendation: "feature",
+          owner_name: "Auth"
+        ),
+      ]
+
+      groups = Chiasmus::Plan::FeatureGroupIndex.new(reports).groups
+
+      keys = groups.keys
+      keys.sort!
+      keys.should eq(["owner:Auth@src/admin_auth.ts", "owner:Auth@src/auth.ts"])
+      groups["owner:Auth@src/auth.ts"].map(&.name).should eq(["Auth.login", "Auth.logout"])
+      groups["owner:Auth@src/admin_auth.ts"].map(&.name).should eq(["Auth.issue_token", "Auth.revoke_token"])
+    end
   end
 
   it "ranks entry-point-reachable hub code ahead of leaves and dead code" do
