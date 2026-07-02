@@ -793,4 +793,44 @@ describe Chiasmus::Plan::CLI do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "honors file-scoped entry-point facts when duplicate roots exist" do
+    dir = File.join(Dir.tempdir, "chiasmus-plan-entry-point-file-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+
+    begin
+      facts_path = File.join(dir, "vendor.pl")
+      File.write(facts_path, <<-PROLOG)
+        defines('src/app.ts', main, function, 1, 0).
+        defines('src/app.ts', helper, function, 10, 0).
+        defines('src/util.ts', main, function, 3, 0).
+        defines('src/util.ts', orphan, function, 12, 0).
+
+        calls(main, helper).
+        calls(main, orphan).
+
+        entry_point(main).
+        entry_point_file('src/app.ts', main).
+      PROLOG
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Plan::CLI.run(["rank", "--facts", facts_path, "--format", "json"], output, error)
+
+      exit_code.should eq(0), error.to_s
+
+      reports = JSON.parse(output.to_s).as_h["reports"].as_a
+      app_main = reports.find { |report| report.as_h["name"].as_s == "main" && report.as_h["file"].as_s == "src/app.ts" } || raise "missing app main report"
+      util_main = reports.find { |report| report.as_h["name"].as_s == "main" && report.as_h["file"].as_s == "src/util.ts" } || raise "missing util main report"
+      helper = reports.find { |report| report.as_h["name"].as_s == "helper" && report.as_h["file"].as_s == "src/app.ts" } || raise "missing helper report"
+      orphan = reports.find { |report| report.as_h["name"].as_s == "orphan" && report.as_h["file"].as_s == "src/util.ts" } || raise "missing orphan report"
+
+      app_main.as_h["reachable_from_entry"].as_bool.should be_true
+      util_main.as_h["reachable_from_entry"].as_bool.should be_false
+      helper.as_h["reachable_from_entry"].as_bool.should be_true
+      orphan.as_h["reachable_from_entry"].as_bool.should be_false
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
 end

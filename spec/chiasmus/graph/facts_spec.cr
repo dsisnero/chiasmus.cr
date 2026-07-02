@@ -59,6 +59,7 @@ describe Chiasmus::Graph::Facts do
     program.should contain("calls(main, helper).")
     program.should contain("exports('test.ts', main).")
     program.should contain("entry_point(main).")
+    program.should contain("entry_point_file('test.ts', main).")
     program.should contain("reaches(A, B)")
     program.should contain("dead(Name)")
   end

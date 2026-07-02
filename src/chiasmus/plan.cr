@@ -16,7 +16,8 @@ module Chiasmus
     record ParsedFacts,
       graph : Graph::CodeGraph,
       entry_points : Array(String),
-      semantic_graph : Graph::IR::SemanticGraph? = nil
+      semantic_graph : Graph::IR::SemanticGraph? = nil,
+      semantic_entry_points : Array(String)? = nil
 
     record AnalysisContext,
       forward : Hash(String, Set(String)),
@@ -428,6 +429,7 @@ module Chiasmus
       exports = [] of Graph::ExportsFact
       contains = [] of Graph::ContainsFact
       entry_points = [] of String
+      entry_point_files = [] of Tuple(String, String)
 
       File.each_line(path) do |line|
         stripped = line.strip
@@ -464,6 +466,9 @@ module Chiasmus
         elsif stripped.starts_with?("entry_point(")
           args = parse_args(stripped["entry_point(".size...-2])
           entry_points << atom(args[0])
+        elsif stripped.starts_with?("entry_point_file(")
+          args = parse_args(stripped["entry_point_file(".size...-2])
+          entry_point_files << {atom(args[0]), atom(args[1])}
         end
       end
 
@@ -479,7 +484,28 @@ module Chiasmus
         graph: graph,
         entry_points: entry_points,
         semantic_graph: Graph::IR::Lowering.from_code_graph(graph),
+        semantic_entry_points: resolve_loaded_semantic_entry_points(graph, entry_point_files),
       )
+    end
+
+    private def resolve_loaded_semantic_entry_points(
+      graph : Graph::CodeGraph,
+      entry_point_files : Array(Tuple(String, String)),
+    ) : Array(String)?
+      return nil if entry_point_files.empty?
+
+      semantic = Graph::IR::Lowering.from_code_graph(graph)
+      index = Graph::IR::ScopedSymbolIndex.new(semantic.symbols)
+      resolved = [] of String
+
+      entry_point_files.each do |file, name|
+        index.symbols_in_file(file, name).each do |symbol|
+          resolved << symbol.id
+        end
+      end
+
+      resolved.uniq!
+      resolved
     end
 
     private def analyze(graph : Graph::CodeGraph, entry_points : Array(String)? = nil) : Array(Report)
@@ -525,6 +551,9 @@ module Chiasmus
 
       index = Graph::IR::ScopedSymbolIndex.new(graph.symbols)
       entry_ids = entry_points.flat_map do |name|
+        direct_ids = graph.symbols.select { |symbol| symbol.id == name }.map(&.id)
+        next direct_ids unless direct_ids.empty?
+
         export_matches = graph.exports.compact_map do |edge|
           next unless edge.name == name
 
@@ -1161,7 +1190,11 @@ module Chiasmus
         output : IO,
         error : IO,
       ) : Int32
-        effective_entry_points = options.entry_points.empty? ? parsed.entry_points : options.entry_points
+        effective_entry_points = if options.entry_points.empty?
+                                   parsed.semantic_entry_points || parsed.entry_points
+                                 else
+                                   options.entry_points
+                                 end
 
         case mode
         when "rank"

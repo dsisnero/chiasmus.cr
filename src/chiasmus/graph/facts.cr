@@ -49,6 +49,7 @@ module Chiasmus
         lines << ":- dynamic(exports/2)."
         lines << ":- dynamic(contains/2)."
         lines << ":- dynamic(entry_point/1)."
+        lines << ":- dynamic(entry_point_file/2)."
         lines << ""
 
         graph.defines.each do |fact|
@@ -80,11 +81,35 @@ module Chiasmus
         effective_entry_points.each do |entry_point|
           lines << "entry_point(#{escape_atom(entry_point)})."
         end
+        resolve_entry_point_files(graph, effective_entry_points).each do |file, entry_point|
+          lines << "entry_point_file(#{escape_atom(file)}, #{escape_atom(entry_point)})."
+        end
 
         lines << ""
         emit_insight_facts(graph, lines) if include_insights
         lines << BUILTIN_RULES
         lines.join("\n")
+      end
+
+      private def resolve_entry_point_files(graph : CodeGraph, entry_points : Array(String)) : Array(Tuple(String, String))
+        resolved = [] of Tuple(String, String)
+
+        entry_points.each do |entry_point|
+          export_matches = graph.exports.select { |fact| fact.name == entry_point }
+          if export_matches.empty?
+            define_matches = graph.defines.select { |fact| fact.name == entry_point }
+            if define_matches.size == 1
+              resolved << {define_matches.first.file, entry_point}
+            end
+            next
+          end
+
+          export_matches.each do |fact|
+            resolved << {fact.file, entry_point}
+          end
+        end
+
+        resolved.uniq
       end
 
       private def emit_insight_facts(graph : CodeGraph, lines : Array(String)) : Nil
