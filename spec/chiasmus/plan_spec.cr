@@ -763,4 +763,34 @@ describe Chiasmus::Plan::CLI do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "uses reconstructed semantic facts to keep duplicate entry points file-scoped" do
+    dir = File.join(Dir.tempdir, "chiasmus-plan-semantic-facts-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+
+    begin
+      facts_path = File.join(dir, "vendor.pl")
+      File.write(
+        facts_path,
+        Chiasmus::Graph::Facts.graph_to_prolog(sample_semantic_duplicate_entry_point_plan_graph, ["main"], include_insights: true)
+      )
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Plan::CLI.run(["rank", "--facts", facts_path, "--format", "json"], output, error)
+
+      exit_code.should eq(0), error.to_s
+
+      reports = JSON.parse(output.to_s).as_h["reports"].as_a
+      app_main = reports.find { |report| report.as_h["name"].as_s == "main" && report.as_h["file"].as_s == "src/app.ts" } || raise "missing app main report"
+      util_main = reports.find { |report| report.as_h["name"].as_s == "main" && report.as_h["file"].as_s == "src/util.ts" } || raise "missing util main report"
+      orphan = reports.find { |report| report.as_h["name"].as_s == "orphan" && report.as_h["file"].as_s == "src/util.ts" } || raise "missing orphan report"
+
+      app_main.as_h["reachable_from_entry"].as_bool.should be_true
+      util_main.as_h["reachable_from_entry"].as_bool.should be_false
+      orphan.as_h["reachable_from_entry"].as_bool.should be_false
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
 end

@@ -15,7 +15,8 @@ module Chiasmus
 
     record ParsedFacts,
       graph : Graph::CodeGraph,
-      entry_points : Array(String)
+      entry_points : Array(String),
+      semantic_graph : Graph::IR::SemanticGraph? = nil
 
     record AnalysisContext,
       forward : Hash(String, Set(String)),
@@ -466,15 +467,18 @@ module Chiasmus
         end
       end
 
+      graph = Graph::CodeGraph.new(
+        defines: defines,
+        calls: calls,
+        exports: exports,
+        contains: contains,
+        imports: [] of Graph::ImportsFact,
+      )
+
       ParsedFacts.new(
-        graph: Graph::CodeGraph.new(
-          defines: defines,
-          calls: calls,
-          exports: exports,
-          contains: contains,
-          imports: [] of Graph::ImportsFact,
-        ),
+        graph: graph,
         entry_points: entry_points,
+        semantic_graph: Graph::IR::Lowering.from_code_graph(graph),
       )
     end
 
@@ -1184,7 +1188,11 @@ module Chiasmus
         effective_entry_points : Array(String),
         output : IO,
       ) : Int32
-        reports = Plan.rank(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+        reports = if semantic_graph = parsed.semantic_graph
+                    Plan.rank(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n)
+                  else
+                    Plan.rank(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+                  end
         render_report_output(output, mode, options.format, reports)
       end
 
@@ -1195,7 +1203,11 @@ module Chiasmus
         effective_entry_points : Array(String),
         output : IO,
       ) : Int32
-        reports = Plan.safe(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+        reports = if semantic_graph = parsed.semantic_graph
+                    Plan.safe(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n)
+                  else
+                    Plan.safe(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+                  end
         render_report_output(output, mode, options.format, reports)
       end
 
@@ -1205,7 +1217,11 @@ module Chiasmus
         effective_entry_points : Array(String),
         output : IO,
       ) : Int32
-        seed = Plan.seed_parity(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+        seed = if semantic_graph = parsed.semantic_graph
+                 Plan.seed_parity(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n)
+               else
+                 Plan.seed_parity(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+               end
         if options.out_path.empty?
           output.print seed
         else
@@ -1221,12 +1237,21 @@ module Chiasmus
         effective_entry_points : Array(String),
         output : IO,
       ) : Int32
-        tracked = Plan.track(
-          parsed.graph,
-          parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
-          entry_points: effective_entry_points,
-          top_n: options.top_n,
-        )
+        tracked = if semantic_graph = parsed.semantic_graph
+                    Plan.track(
+                      semantic_graph,
+                      parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
+                      entry_points: effective_entry_points,
+                      top_n: options.top_n,
+                    )
+                  else
+                    Plan.track(
+                      parsed.graph,
+                      parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
+                      entry_points: effective_entry_points,
+                      top_n: options.top_n,
+                    )
+                  end
         if options.format == "json"
           render_track_json(output, mode, tracked, options.inventory_path)
         else
@@ -1250,12 +1275,21 @@ module Chiasmus
           return 1
         end
 
-        report = Plan.audit(
-          parsed.graph,
-          symbol: options.symbol,
-          file: options.file.empty? ? nil : options.file,
-          entry_points: effective_entry_points
-        )
+        report = if semantic_graph = parsed.semantic_graph
+                   Plan.audit(
+                     semantic_graph,
+                     symbol: options.symbol,
+                     file: options.file.empty? ? nil : options.file,
+                     entry_points: effective_entry_points
+                   )
+                 else
+                   Plan.audit(
+                     parsed.graph,
+                     symbol: options.symbol,
+                     file: options.file.empty? ? nil : options.file,
+                     entry_points: effective_entry_points
+                   )
+                 end
         if options.format == "json"
           render_audit_json(output, mode, report)
         else
@@ -1280,13 +1314,24 @@ module Chiasmus
         end
 
         previous = Plan.load_facts(options.previous_facts_path)
-        refreshed = Plan.refresh(
-          parsed.graph,
-          previous_graph: previous.graph,
-          parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
-          entry_points: effective_entry_points,
-          top_n: options.top_n,
-        )
+        refreshed = if semantic_graph = parsed.semantic_graph
+                      previous_semantic = previous.semantic_graph || Graph::IR::Lowering.from_code_graph(previous.graph)
+                      Plan.refresh(
+                        semantic_graph,
+                        previous_graph: previous_semantic,
+                        parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
+                        entry_points: effective_entry_points,
+                        top_n: options.top_n,
+                      )
+                    else
+                      Plan.refresh(
+                        parsed.graph,
+                        previous_graph: previous.graph,
+                        parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
+                        entry_points: effective_entry_points,
+                        top_n: options.top_n,
+                      )
+                    end
         if options.format == "json"
           render_refresh_json(output, mode, refreshed, options.previous_facts_path)
         else
@@ -1302,7 +1347,11 @@ module Chiasmus
         effective_entry_points : Array(String),
         output : IO,
       ) : Int32
-        slices = Plan.slice(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+        slices = if semantic_graph = parsed.semantic_graph
+                   Plan.slice(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n)
+                 else
+                   Plan.slice(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+                 end
         if options.format == "json"
           render_slice_json(output, mode, slices)
         else
