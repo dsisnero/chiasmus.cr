@@ -213,6 +213,88 @@ module Chiasmus
     module Structural
       extend self
 
+      class StructuralIndex
+        def initialize(@graph : Graph::CodeGraph)
+          @defines_by_name = Hash(String, Array(Graph::DefinesFact)).new { |hash, key| hash[key] = [] of Graph::DefinesFact }
+          @exports_by_file = Hash(String, Array(Graph::ExportsFact)).new { |hash, key| hash[key] = [] of Graph::ExportsFact }
+          @imports_by_file = Hash(String, Array(Graph::ImportsFact)).new { |hash, key| hash[key] = [] of Graph::ImportsFact }
+          @calls_by_caller = Hash(String, Array(Graph::CallsFact)).new { |hash, key| hash[key] = [] of Graph::CallsFact }
+          @contains_by_parent = Hash(String, Array(Graph::ContainsFact)).new { |hash, key| hash[key] = [] of Graph::ContainsFact }
+
+          @graph.defines.each { |fact| @defines_by_name[fact.name] << fact }
+          @graph.exports.each { |fact| @exports_by_file[fact.file] << fact }
+          @graph.imports.each { |fact| @imports_by_file[fact.file] << fact }
+          @graph.calls.each { |fact| @calls_by_caller[fact.caller] << fact }
+          @graph.contains.each { |fact| @contains_by_parent[fact.parent] << fact }
+        end
+
+        def defined?(symbol : String) : Bool
+          @defines_by_name.has_key?(symbol)
+        end
+
+        def exported?(symbol : String) : Bool
+          file = defining_file(symbol)
+          return false unless file
+
+          normalized_symbol = Naming.normalized_key(symbol)
+          (@exports_by_file[file]? || [] of Graph::ExportsFact).any? do |fact|
+            Naming.normalized_key(fact.name) == normalized_symbol
+          end
+        end
+
+        def normalized_imports(symbol : String) : Array(String)
+          file = defining_file(symbol)
+          return [] of String unless file
+
+          imports = (@imports_by_file[file]? || [] of Graph::ImportsFact)
+            .map { |fact| normalized_import_target(fact) }
+            .reject(&.empty?)
+          imports.uniq!
+          imports.sort!
+          imports
+        end
+
+        def normalized_callees(symbol : String) : Array(String)
+          unique_callees = Set(String).new
+          callees = (@calls_by_caller[symbol]? || [] of Graph::CallsFact).compact_map do |fact|
+            name = fact.callee_qn || fact.callee
+            next unless unique_callees.add?(name)
+            Naming.normalized_simple(name)
+          end.reject(&.empty?)
+          callees.sort!
+          callees
+        end
+
+        def normalized_contains(symbol : String) : Array(String)
+          unique_children = Set(String).new
+          contained = (@contains_by_parent[symbol]? || [] of Graph::ContainsFact).compact_map do |fact|
+            next unless unique_children.add?(fact.child)
+            Naming.normalized_simple(fact.child)
+          end.reject(&.empty?)
+          contained.sort!
+          contained
+        end
+
+        private def defining_file(symbol : String) : String?
+          @defines_by_name[symbol]?.try(&.first?.try(&.file))
+        end
+
+        private def normalized_import_target(fact : Graph::ImportsFact) : String
+          source = fact.source.strip
+          candidate = if source.empty?
+                        fact.name
+                      else
+                        import_basename(source)
+                      end
+          Naming.normalized_simple(candidate)
+        end
+
+        private def import_basename(source : String) : String
+          leaf = source.gsub('\\', '/').split('/').last? || source
+          leaf.sub(/\.[A-Za-z0-9]+\z/, "")
+        end
+      end
+
       def compare(
         source_graph : Graph::CodeGraph,
         source_symbol : String,
@@ -223,18 +305,20 @@ module Chiasmus
       ) : StructuralReport
         source_graph = normalized_graph(source_graph)
         target_graph = normalized_graph(target_graph)
-        source_defined = defined?(source_graph, source_symbol)
-        target_defined = defined?(target_graph, target_symbol)
-        source_exported = exported?(source_graph, source_symbol)
-        target_exported = exported?(target_graph, target_symbol)
+        source_index = StructuralIndex.new(source_graph)
+        target_index = StructuralIndex.new(target_graph)
+        source_defined = source_index.defined?(source_symbol)
+        target_defined = target_index.defined?(target_symbol)
+        source_exported = source_index.exported?(source_symbol)
+        target_exported = target_index.exported?(target_symbol)
         source_entry_point = entry_point?(source_symbol, source_entry_points)
         target_entry_point = entry_point?(target_symbol, target_entry_points)
-        source_imports = normalized_imports(source_graph, source_symbol)
-        target_imports = normalized_imports(target_graph, target_symbol)
-        source_callees = normalized_callees(source_graph, source_symbol)
-        target_callees = normalized_callees(target_graph, target_symbol)
-        source_contains = normalized_contains(source_graph, source_symbol)
-        target_contains = normalized_contains(target_graph, target_symbol)
+        source_imports = source_index.normalized_imports(source_symbol)
+        target_imports = target_index.normalized_imports(target_symbol)
+        source_callees = source_index.normalized_callees(source_symbol)
+        target_callees = target_index.normalized_callees(target_symbol)
+        source_contains = source_index.normalized_contains(source_symbol)
+        target_contains = target_index.normalized_contains(target_symbol)
 
         matched_imports = source_imports & target_imports
         missing_imports = source_imports - target_imports
@@ -343,84 +427,11 @@ module Chiasmus
         load_facts(path).graph
       end
 
-      private def defined?(graph : Graph::CodeGraph, symbol : String) : Bool
-        graph.defines.any? { |fact| fact.name == symbol }
-      end
-
-      private def exported?(graph : Graph::CodeGraph, symbol : String) : Bool
-        file = defining_file(graph, symbol)
-        return false unless file
-
-        normalized_symbol = Naming.normalized_key(symbol)
-        graph.exports.any? do |fact|
-          fact.file == file && Naming.normalized_key(fact.name) == normalized_symbol
-        end
-      end
-
       private def entry_point?(symbol : String, entry_points : Array(String)?) : Bool
         return false unless entry_points
 
         normalized_symbol = Naming.normalized_key(symbol)
         entry_points.any? { |name| Naming.normalized_key(name) == normalized_symbol }
-      end
-
-      private def normalized_imports(graph : Graph::CodeGraph, symbol : String) : Array(String)
-        file = defining_file(graph, symbol)
-        return [] of String unless file
-
-        imports = graph.imports.select { |fact| fact.file == file }
-          .map { |fact| normalized_import_target(fact) }
-          .reject(&.empty?)
-        imports.uniq!
-        imports.sort!
-        imports
-      end
-
-      private def defining_file(graph : Graph::CodeGraph, symbol : String) : String?
-        graph.defines.find { |fact| fact.name == symbol }.try(&.file)
-      end
-
-      private def normalized_import_target(fact : Graph::ImportsFact) : String
-        source = fact.source.strip
-        candidate = if source.empty?
-                      fact.name
-                    else
-                      import_basename(source)
-                    end
-        Naming.normalized_simple(candidate)
-      end
-
-      private def import_basename(source : String) : String
-        leaf = source.gsub('\\', '/').split('/').last? || source
-        leaf = leaf.sub(/\.[A-Za-z0-9]+\z/, "")
-        leaf
-      end
-
-      private def normalized_callees(graph : Graph::CodeGraph, symbol : String) : Array(String)
-        unique_callees = Set(String).new
-        callees = graph.calls.compact_map do |fact|
-          next unless fact.caller == symbol
-
-          name = fact.callee_qn || fact.callee
-          next unless unique_callees.add?(name)
-          Naming.normalized_simple(name)
-        end
-          .reject(&.empty?)
-        callees.sort!
-        callees
-      end
-
-      private def normalized_contains(graph : Graph::CodeGraph, symbol : String) : Array(String)
-        unique_children = Set(String).new
-        contained = graph.contains.compact_map do |fact|
-          next unless fact.parent == symbol
-
-          next unless unique_children.add?(fact.child)
-          Naming.normalized_simple(fact.child)
-        end
-          .reject(&.empty?)
-        contained.sort!
-        contained
       end
 
       private def normalized_entry_points(entry_points : Array(String)) : Array(String)

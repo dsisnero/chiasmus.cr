@@ -369,6 +369,47 @@ describe Chiasmus::Parity::Matcher do
 end
 
 describe Chiasmus::Parity::Structural do
+  describe Chiasmus::Parity::Structural::StructuralIndex do
+    it "scopes exports, imports, calls, and contains to the defining symbol" do
+      graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo.main", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo.Config.helper", kind: Chiasmus::Graph::SymbolKind::Method, line: 2),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "Demo.Service.helper", kind: Chiasmus::Graph::SymbolKind::Method, line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "src/demo_config.cr", name: "Demo", kind: Chiasmus::Graph::SymbolKind::Module, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/demo_config.cr", name: "Demo.Config.load", kind: Chiasmus::Graph::SymbolKind::Method, line: 2),
+          Chiasmus::Graph::DefinesFact.new(file: "src/service_config.cr", name: "Service", kind: Chiasmus::Graph::SymbolKind::Module, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/service_config.cr", name: "Service.Config.load", kind: Chiasmus::Graph::SymbolKind::Method, line: 2),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "Demo.main", callee: "Demo.Config.helper"),
+          Chiasmus::Graph::CallsFact.new(caller: "Demo.main", callee: "Demo.Service.helper"),
+        ],
+        imports: [
+          Chiasmus::Graph::ImportsFact.new(file: "src/app.cr", name: "Config", source: "./demo_config"),
+          Chiasmus::Graph::ImportsFact.new(file: "src/app.cr", name: "Service", source: "./service_config"),
+        ],
+        exports: [
+          Chiasmus::Graph::ExportsFact.new(file: "src/service_config.cr", name: "Service.Config.load"),
+        ],
+        contains: [
+          Chiasmus::Graph::ContainsFact.new(parent: "Demo", child: "Demo.Config.load"),
+          Chiasmus::Graph::ContainsFact.new(parent: "Demo.main", child: "Demo.Config.helper"),
+          Chiasmus::Graph::ContainsFact.new(parent: "Demo.main", child: "Demo.Service.helper"),
+        ],
+      )
+
+      index = Chiasmus::Parity::Structural::StructuralIndex.new(graph)
+
+      index.defined?("Demo.main").should be_true
+      index.exported?("Demo.Config.load").should be_false
+      index.exported?("Service.Config.load").should be_true
+      index.normalized_imports("Demo.main").should eq(["demo_config", "service_config"])
+      index.normalized_callees("Demo.main").should eq(["helper", "helper"])
+      index.normalized_contains("Demo.main").should eq(["helper", "helper"])
+    end
+  end
+
   it "reports structural_match when normalized direct callees align" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
