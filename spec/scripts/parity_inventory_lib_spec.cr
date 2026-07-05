@@ -86,4 +86,119 @@ SH
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "filters discovered items to the kinds already tracked by a manifest" do
+    dir = File.join(Dir.tempdir, "parity-inventory-lib-#{Random::Secure.hex(8)}")
+    scripts_dir = File.join(dir, "scripts")
+    bin_dir = File.join(dir, "bin")
+    source_dir = File.join(dir, "vendor", "upstream")
+    plans_dir = File.join(dir, "plans", "inventory")
+    Dir.mkdir_p(scripts_dir)
+    Dir.mkdir_p(bin_dir)
+    Dir.mkdir_p(source_dir)
+    Dir.mkdir_p(plans_dir)
+
+    begin
+      source_lib = File.expand_path("../../scripts/parity_inventory_lib.rb", __DIR__)
+      FileUtils.cp(source_lib, File.join(scripts_dir, "parity_inventory_lib.rb"))
+
+      discover_bin = File.join(bin_dir, "chiasmus-discover")
+      File.write(discover_bin, <<-SH)
+#!/usr/bin/env bash
+printf 'src/app.ts::function::main\tfunction\n'
+printf 'src/app.ts::definition.import::dep\tdefinition.import\n'
+printf 'src/app.ts::field_prop::value\tfield_prop\n'
+printf 'tests/app.test.ts::test::works\ttest\n'
+SH
+      File.chmod(discover_bin, 0o755_i32)
+
+      manifest_path = File.join(plans_dir, "typescript_port_inventory.tsv")
+      File.write(manifest_path, <<-TSV)
+# source_id	kind	status	crystal_refs	target_symbol	test_refs	notes
+src/app.ts::function::main	function	ported	src/app.cr:1	-	-	covered
+tests/app.test.ts::test::works	test	ported	spec/app_spec.cr:1	-	spec/app_spec.cr:1	covered
+TSV
+
+      output_io = IO::Memory.new
+      error_io = IO::Memory.new
+      status = Process.run(
+        "ruby",
+        [
+          "-e",
+          <<-RUBY,
+          require './scripts/parity_inventory_lib'
+          _, items = ParityInventory.discover_items(root_dir: '.', source_path: 'vendor/upstream', language: 'typescript', parser_mode: 'tree-sitter')
+          filtered = ParityInventory.filter_items_for_manifest(items, manifest_path: #{manifest_path.inspect}, language: 'typescript')
+          puts filtered.map(&:id).sort
+          RUBY
+        ],
+        chdir: dir,
+        output: output_io,
+        error: error_io
+      )
+
+      status.success?.should be_true, error_io.to_s
+      output = output_io.to_s
+      output.should contain("src/app.ts::function::main")
+      output.should contain("tests/app.test.ts::test::works")
+      output.should_not contain("definition.import")
+      output.should_not contain("field_prop")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "uses curated inventory kinds for new typescript ledgers" do
+    dir = File.join(Dir.tempdir, "parity-inventory-lib-#{Random::Secure.hex(8)}")
+    scripts_dir = File.join(dir, "scripts")
+    bin_dir = File.join(dir, "bin")
+    source_dir = File.join(dir, "vendor", "upstream")
+    Dir.mkdir_p(scripts_dir)
+    Dir.mkdir_p(bin_dir)
+    Dir.mkdir_p(source_dir)
+
+    begin
+      source_lib = File.expand_path("../../scripts/parity_inventory_lib.rb", __DIR__)
+      FileUtils.cp(source_lib, File.join(scripts_dir, "parity_inventory_lib.rb"))
+
+      discover_bin = File.join(bin_dir, "chiasmus-discover")
+      File.write(discover_bin, <<-SH)
+#!/usr/bin/env bash
+printf 'src/app.ts::function::main\tfunction\n'
+printf 'src/app.ts::definition.import::dep\tdefinition.import\n'
+printf 'src/app.ts::reference.call::run\treference.call\n'
+printf 'src/app.ts::field_prop::value\tfield_prop\n'
+printf 'tests/app.test.ts::test::works\ttest\n'
+SH
+      File.chmod(discover_bin, 0o755_i32)
+
+      output_io = IO::Memory.new
+      error_io = IO::Memory.new
+      status = Process.run(
+        "ruby",
+        [
+          "-e",
+          <<-RUBY,
+          require './scripts/parity_inventory_lib'
+          _, items = ParityInventory.discover_items(root_dir: '.', source_path: 'vendor/upstream', language: 'typescript', parser_mode: 'tree-sitter')
+          curated = ParityInventory.curated_inventory_items(items, language: 'typescript')
+          puts curated.map(&:id).sort
+          RUBY
+        ],
+        chdir: dir,
+        output: output_io,
+        error: error_io
+      )
+
+      status.success?.should be_true, error_io.to_s
+      output = output_io.to_s
+      output.should contain("src/app.ts::function::main")
+      output.should contain("tests/app.test.ts::test::works")
+      output.should_not contain("definition.import")
+      output.should_not contain("reference.call")
+      output.should_not contain("field_prop")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
 end

@@ -7,6 +7,14 @@ require 'set'
 
 module ParityInventory
   SUPPORTED_LANGUAGES = %w[go rust crystal java ruby typescript].freeze
+  CURATED_KINDS = {
+    'go' => Set.new(%w[const struct type func method test]),
+    'rust' => Set.new(%w[const struct enum trait type func method test]),
+    'crystal' => Set.new(%w[class module struct enum const func method test]),
+    'java' => Set.new(%w[class interface enum record const ctor func method test]),
+    'ruby' => Set.new(%w[class module const func method test]),
+    'typescript' => Set.new(%w[class const function interface method test type])
+  }.freeze
 
   Item = Struct.new(:id, :kind, :scope, :file, :name, keyword_init: true)
 
@@ -145,6 +153,36 @@ module ParityInventory
       seen << key
       true
     end.sort_by(&:id)
+  end
+
+  def kind_from_id(id)
+    parts = id.to_s.split('::', 3)
+    return nil unless parts.length >= 3
+
+    parts[1]
+  end
+
+  def curated_inventory_items(items, language:)
+    allowed = CURATED_KINDS.fetch(language) do
+      raise ArgumentError, "Unsupported language for curated inventory: #{language}"
+    end
+
+    dedupe_items(items.select { |item| allowed.include?(item.kind) })
+  end
+
+  def manifest_kinds(path)
+    kinds = Set.new
+    load_manifest_rows(path, min_cols: 1).each do |cols|
+      kind = kind_from_id(cols[0])
+      kinds << kind if kind
+    end
+    kinds
+  end
+
+  def filter_items_for_manifest(items, manifest_path:, language:)
+    tracked_kinds = manifest_kinds(manifest_path)
+    tracked_kinds = CURATED_KINDS.fetch(language) if tracked_kinds.empty?
+    dedupe_items(items.select { |item| tracked_kinds.include?(item.kind) })
   end
 
   def discover_with_regex(base, language)
