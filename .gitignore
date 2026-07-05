@@ -1,6 +1,8 @@
 /.crystal-cache/
+/.lattice-cache/
 /bin/
 /.shards/
+/plans/generated/
 *.dwarf
 
 # macOS metadata sidecars commonly created on exFAT/removable volumes

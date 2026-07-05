@@ -71,3 +71,6 @@
 [submodule "vendor/merkletree"]
 	path = vendor/merkletree
 	url = https://github.com/pratikpandey21/merkletree.git
+[submodule "vendor/openapi_cr"]
+	path = vendor/openapi_cr
+	url = https://github.com/dsisnero/openapi_cr.git
