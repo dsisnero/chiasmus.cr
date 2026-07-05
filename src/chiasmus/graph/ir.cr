@@ -62,6 +62,7 @@ module Chiasmus
         imports : Array(ImportEdge) = [] of ImportEdge,
         exports : Array(ExportEdge) = [] of ExportEdge,
         contains : Array(ContainsEdge) = [] of ContainsEdge,
+        scoped_calls : Array(ScopedCallEdge) = [] of ScopedCallEdge,
         type_info : Array(FileTypeInfo)? = nil do
         def symbol_ids : Array(String)
           symbols.map(&.id)
@@ -386,6 +387,7 @@ module Chiasmus
             imports: graph.imports,
             exports: graph.exports,
             contains: graph.contains,
+            scoped_calls: graph.scoped_calls,
             type_info: graph.type_info,
           )
         end
@@ -412,6 +414,7 @@ module Chiasmus
             contains: lift_scoped_contains(qualified_scoped_contains) +
                       rewrite_contains(unresolved_containment, rename_by_file, rename_global)
                         .reject { |edge| edge.parent == edge.child },
+            scoped_calls: graph.scoped_calls,
             type_info: graph.type_info,
           )
         end
@@ -433,6 +436,10 @@ module Chiasmus
             "#{edge.parent}\u0000#{edge.child}"
           end
           normalized_contains.sort_by! { |edge| {edge.parent, edge.child} }
+          normalized_scoped_calls = deduplicate(graph.scoped_calls) do |edge|
+            "#{edge.file}\u0000#{edge.caller}\u0000#{edge.callee}\u0000#{edge.callee_qn || ""}"
+          end
+          normalized_scoped_calls.sort_by! { |edge| {edge.file, edge.caller, edge.callee, edge.callee_qn || ""} }
 
           SemanticGraph.new(
             files: normalized_files,
@@ -441,6 +448,7 @@ module Chiasmus
             imports: normalized_imports,
             exports: normalized_exports,
             contains: normalized_contains,
+            scoped_calls: normalized_scoped_calls,
             type_info: graph.type_info,
           )
         end
@@ -506,6 +514,7 @@ module Chiasmus
             imports: graph.imports.map { |fact| ImportEdge.new(fact.file, fact.name, fact.source) },
             exports: graph.exports.map { |fact| ExportEdge.new(fact.file, fact.name) },
             contains: graph.contains.map { |fact| ContainsEdge.new(fact.parent, fact.child) },
+            scoped_calls: [] of ScopedCallEdge,
             type_info: graph.type_info,
           )
         end

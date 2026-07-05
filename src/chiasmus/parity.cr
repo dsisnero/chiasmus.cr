@@ -27,7 +27,9 @@ module Chiasmus
       kind : String,
       status : String,
       crystal_refs : String,
-      notes : String do
+      notes : String,
+      target_symbol : String = "",
+      test_refs : String = "" do
       def source_name : String
         source_id.split("::").last
       end
@@ -98,12 +100,17 @@ module Chiasmus
     class Loader
       def self.read_inventory(path : String) : Array(InventoryRow)
         rows(path, 5).map do |cols|
+          target_symbol = cols.size >= 6 ? cols[4].strip : ""
+          test_refs = cols.size >= 7 ? cols[5].strip : ""
+          notes = cols.size >= 8 ? cols[6].strip : cols[4].strip
           InventoryRow.new(
             source_id: cols[0],
             kind: cols[1],
             status: cols[2],
             crystal_refs: empty_to_dash(cols[3]),
-            notes: empty_to_dash(cols[4]),
+            notes: empty_to_dash(notes),
+            target_symbol: target_symbol,
+            test_refs: test_refs,
           )
         end
       end
@@ -1075,7 +1082,7 @@ module Chiasmus
           emit_inventory_facts(output, row)
           output.puts "source_symbol_name(#{quote(row.source_id)}, #{quote(row.source_name)})."
           output.puts "reachable_from_entry(#{quote(row.source_id)})." if reachable.includes?(Naming.normalized_key(row.source_name))
-          output.puts "tested(#{quote(row.source_id)})." if tested_from_refs?(row.crystal_refs)
+          output.puts "tested(#{quote(row.source_id)})." if tested_from_refs?(row.crystal_refs) || tested_from_refs?(row.test_refs)
 
           next unless report = rows_by_id[row.source_id]?
 

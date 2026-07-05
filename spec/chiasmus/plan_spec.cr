@@ -873,4 +873,44 @@ describe Chiasmus::Plan::CLI do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "respects calls_in/3 to avoid over-assigning when callee name collides across files" do
+    dir = File.join(Dir.tempdir, "chiasmus-plan-calls-in-collide-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+
+    begin
+      facts_path = File.join(dir, "vendor.pl")
+      File.write(facts_path, <<-PROLOG)
+        defines('src/app.ts', helper, function, 10, 0).
+        defines('src/app.ts', leaf, function, 20, 0).
+        defines('src/util.ts', helper, function, 3, 0).
+        defines('src/util.ts', leaf, function, 5, 0).
+
+        calls(helper, leaf).
+        calls_in('src/app.ts', helper, leaf).
+
+        entry_point(helper).
+        entry_point_file('src/app.ts', helper).
+      PROLOG
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Plan::CLI.run(["rank", "--facts", facts_path, "--format", "json"], output, error)
+
+      exit_code.should eq(0), error.to_s
+
+      reports = JSON.parse(output.to_s).as_h["reports"].as_a
+      app_helper = reports.find { |report| report.as_h["name"].as_s == "helper" && report.as_h["file"].as_s == "src/app.ts" } || raise "missing app helper"
+      util_helper = reports.find { |report| report.as_h["name"].as_s == "helper" && report.as_h["file"].as_s == "src/util.ts" } || raise "missing util helper"
+      app_leaf = reports.find { |report| report.as_h["name"].as_s == "leaf" && report.as_h["file"].as_s == "src/app.ts" } || raise "missing app leaf"
+      util_leaf = reports.find { |report| report.as_h["name"].as_s == "leaf" && report.as_h["file"].as_s == "src/util.ts" } || raise "missing util leaf"
+
+      app_helper.as_h["callee_count"].as_i.should eq(1)
+      util_helper.as_h["callee_count"].as_i.should eq(0)
+      app_leaf.as_h["caller_count"].as_i.should eq(1)
+      util_leaf.as_h["caller_count"].as_i.should eq(0)
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
 end

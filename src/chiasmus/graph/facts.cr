@@ -1,3 +1,5 @@
+require "./ir"
+
 module Chiasmus
   module Graph
     module Facts

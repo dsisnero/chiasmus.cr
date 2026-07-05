@@ -423,18 +423,22 @@ module Chiasmus
       slices
     end
 
+    private def skip_line?(stripped : String) : Bool
+      stripped.empty? || stripped.starts_with?('%') || stripped.starts_with?(":-") || stripped.includes?(":-")
+    end
+
     def load_facts(path : String) : ParsedFacts
       defines = [] of Graph::DefinesFact
       calls = [] of Graph::CallsFact
       exports = [] of Graph::ExportsFact
       contains = [] of Graph::ContainsFact
+      scoped_calls = [] of Graph::IR::ScopedCallEdge
       entry_points = [] of String
       entry_point_files = [] of Tuple(String, String)
 
       File.each_line(path) do |line|
         stripped = line.strip
-        next if stripped.empty? || stripped.starts_with?('%') || stripped.starts_with?(":-")
-        next if stripped.includes?(":-")
+        next if skip_line?(stripped)
 
         if stripped.starts_with?("defines(")
           args = parse_args(stripped["defines(".size...-2])
@@ -444,6 +448,13 @@ module Chiasmus
             kind: parse_symbol_kind(atom(args[2])),
             line: args[3].to_i,
             end_line: args[4].to_i,
+          )
+        elsif stripped.starts_with?("calls_in(")
+          args = parse_args(stripped["calls_in(".size...-2])
+          scoped_calls << Graph::IR::ScopedCallEdge.new(
+            file: atom(args[0]),
+            caller: atom(args[1]),
+            callee: atom(args[2]),
           )
         elsif stripped.starts_with?("calls(")
           args = parse_args(stripped["calls(".size...-2])
@@ -480,10 +491,13 @@ module Chiasmus
         imports: [] of Graph::ImportsFact,
       )
 
+      semantic = Graph::IR::Lowering.from_code_graph(graph)
+      semantic = semantic.copy_with(scoped_calls: scoped_calls) unless scoped_calls.empty?
+
       ParsedFacts.new(
         graph: graph,
         entry_points: entry_points,
-        semantic_graph: Graph::IR::Lowering.from_code_graph(graph),
+        semantic_graph: semantic,
         semantic_entry_points: resolve_loaded_semantic_entry_points(graph, entry_point_files),
       )
     end
@@ -576,11 +590,17 @@ module Chiasmus
     ) : Array(Graph::CallsFact)
       resolved = [] of Graph::CallsFact
 
+      scoped_constraint = build_scoped_constraint(graph.scoped_calls)
+
       graph.calls.each do |edge|
         callers = index.symbols_named(edge.caller)
         caller_is_unique = callers.size == 1
 
         callers.each do |caller|
+          if constraint = scoped_constraint
+            next unless constraint.includes?({caller.file, edge.caller, edge.callee})
+          end
+
           callee = resolve_semantic_call_callee(index, edge.callee, caller.file, edge.callee_qn, caller_is_unique)
           next unless callee
 
@@ -589,6 +609,16 @@ module Chiasmus
       end
 
       deduplicate_semantic_calls(resolved)
+    end
+
+    private def build_scoped_constraint(scoped_calls : Array(Graph::IR::ScopedCallEdge)) : Set(Tuple(String, String, String))?
+      return nil if scoped_calls.empty?
+
+      constraint = Set(Tuple(String, String, String)).new
+      scoped_calls.each do |edge|
+        constraint.add({edge.file, edge.caller, edge.callee})
+      end
+      constraint
     end
 
     private def resolve_semantic_call_callee(
