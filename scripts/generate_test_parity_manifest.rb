@@ -41,6 +41,7 @@ base, items = ParityInventory.discover_items(
 )
 
 test_items = items.select { |item| item.scope == "test" }
+test_items = ParityInventory.curated_inventory_items(test_items, language: language)
 if test_items.empty?
   warn "No #{language} test items found under #{base}"
   exit 1

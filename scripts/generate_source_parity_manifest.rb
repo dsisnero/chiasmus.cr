@@ -44,6 +44,7 @@ base, items = ParityInventory.discover_items(
 )
 
 source_items = items.select { |item| item.scope == "source" }
+source_items = ParityInventory.curated_inventory_items(source_items, language: language)
 if source_items.empty?
   warn "No #{language} source API items found under #{base}"
   exit 1

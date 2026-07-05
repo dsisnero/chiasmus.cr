@@ -9,9 +9,16 @@ CRYSTAL_FACTS_DIR="${5:-${PORT_CRYSTAL_FACTS_DIR:-src}}"
 PARSER_MODE="${PORT_PARSER:-auto}"
 CRYSTAL_DIRS="${PORT_CRYSTAL_DIRS:-src:spec}"
 ENTRY_POINTS="${PORT_ENTRY_POINTS:-}"
+COMPLETE_QUERY="${PORT_COMPLETE_QUERY:-status}"
+COMPLETE_FORMAT="${PORT_COMPLETE_FORMAT:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENTRY_POINT_ARGS=()
+EXTRA_COMPLETE_ARGS=()
+
+if (( $# > 5 )); then
+  EXTRA_COMPLETE_ARGS=("${@:6}")
+fi
 
 if [[ -z "${INVENTORY_PATH}" ]]; then
   INVENTORY_PATH="${ROOT_DIR}/plans/inventory/${SOURCE_LANGUAGE}_port_inventory.tsv"
@@ -123,9 +130,25 @@ complete_args=(
   --root "${ROOT_DIR}"
   --source-facts "${SOURCE_FACTS}"
   --crystal-facts "${CRYSTAL_FACTS}"
-  --query status
   --parser "${PARSER_MODE}"
 )
+
+has_query_arg=0
+has_format_arg=0
+if (( $# > 5 )); then
+  for arg in "${EXTRA_COMPLETE_ARGS[@]}"; do
+    [[ "${arg}" == "--query" ]] && has_query_arg=1
+    [[ "${arg}" == "--format" ]] && has_format_arg=1
+  done
+fi
+
+if (( has_query_arg == 0 )); then
+  complete_args+=(--query "${COMPLETE_QUERY}")
+fi
+
+if [[ -n "${COMPLETE_FORMAT}" ]] && (( has_format_arg == 0 )); then
+  complete_args+=(--format "${COMPLETE_FORMAT}")
+fi
 
 local_old_ifs="${IFS}"
 IFS=':'
@@ -135,5 +158,9 @@ IFS="${local_old_ifs}"
 for dir in "${crystal_dirs_array[@]}"; do
   [[ -n "${dir}" ]] && complete_args+=(--crystal-dir "${dir}")
 done
+
+if (( $# > 5 )); then
+  complete_args+=("${EXTRA_COMPLETE_ARGS[@]}")
+fi
 
 run_tool CHIASMUS_COMPLETE_BIN chiasmus-complete "${complete_args[@]}"

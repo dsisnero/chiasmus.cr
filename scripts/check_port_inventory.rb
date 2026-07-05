@@ -36,15 +36,22 @@ _, items = ParityInventory.discover_items(
   parser_mode: options[:parser]
 )
 
-discovered_ids = items.map(&:id).to_set
+discovered_ids = ParityInventory.filter_items_for_manifest(
+  items.reject { |item| item.scope == "test" },
+  manifest_path: manifest,
+  language: language
+).map(&:id).to_set
 manifest_ids = Set.new
+source_manifest_ids = Set.new
 errors = []
 
 ParityInventory.load_manifest_rows(manifest, min_cols: 5).each do |cols|
   id, _kind, status, refs, = cols
+  item_kind = ParityInventory.kind_from_id(id)
 
   errors << "Duplicate source_id: #{id}" if manifest_ids.include?(id)
   manifest_ids << id
+  source_manifest_ids << id unless item_kind == "test"
 
   unless VALID_STATUS.include?(status)
     errors << "Invalid status for #{id}: #{status}"
@@ -60,8 +67,8 @@ unless errors.empty?
   exit 2
 end
 
-missing = discovered_ids - manifest_ids
-stale = manifest_ids - discovered_ids
+missing = discovered_ids - source_manifest_ids
+stale = source_manifest_ids - discovered_ids
 
 if missing.any?
   warn "Source items missing from inventory:"

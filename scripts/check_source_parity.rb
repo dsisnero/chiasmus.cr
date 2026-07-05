@@ -35,7 +35,11 @@ _, items = ParityInventory.discover_items(
   parser_mode: options[:parser]
 )
 
-discovered_ids = items.select { |item| item.scope == "source" }.map(&:id).to_set
+discovered_ids = ParityInventory.filter_items_for_manifest(
+  items.select { |item| item.scope == "source" },
+  manifest_path: manifest,
+  language: language
+).map(&:id).to_set
 manifest_ids = Set.new
 errors = []
 

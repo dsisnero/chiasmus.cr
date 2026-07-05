@@ -65,6 +65,8 @@ if options[:example_dir] && options[:example_target]
   items = ParityInventory.dedupe_items(items)
 end
 
+items = ParityInventory.curated_inventory_items(items, language: language)
+
 if items.empty?
   warn "No #{language} items found under #{base}"
   exit 1
