@@ -60,6 +60,19 @@ Track those as Crystal-native parity-maintenance slices in this document and, if
 needed, as feature entries in `plans/parity.md`, but not as fake TypeScript
 inventory IDs.
 
+When vendor-backed platform work introduces new source IDs, use:
+
+```bash
+ruby scripts/sync_port_inventory.rb \
+  --manifest plans/inventory/typescript_port_inventory.tsv \
+  --source vendor/chiasmus \
+  --language typescript \
+  --parser tree-sitter
+```
+
+That sync keeps the curated ledger source-focused. Exhaustive test drift belongs
+in `plans/inventory/typescript_test_parity.tsv`, not in ad hoc inventory rows.
+
 ### Signoff rule
 
 For platform work, "done" is stricter than "the code compiles":

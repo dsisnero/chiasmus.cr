@@ -2,13 +2,23 @@
 
 ## Current Inventory State (vendor/chiasmus @ `576ed38`)
 
-Full inventory refresh 2026-06-05. All 1416 upstream items classified and tracked.
+Tree-sitter parity baseline refreshed on 2026-06-29.
 
 _(Vendor updated 07bbf4a → 576ed38 on 2026-06-15. See P20 for porting status.)_
 
 | Manifest | Tracked | Ported | Intentional divergence | Missing |
 |---|---|---:|---:|---:|---:|
-| `typescript_port_inventory.tsv` | 1416 | 1328 | 91 | 0 |
+| `typescript_port_inventory.tsv` | 1600 | 1326 | 94 | 180 |
+| `typescript_source_parity.tsv` | 633 | n/a | n/a | n/a |
+| `typescript_test_parity.tsv` | 991 | n/a | n/a | n/a |
+
+Current workflow split:
+
+- `typescript_port_inventory.tsv` is the curated source-focused ledger.
+- `typescript_source_parity.tsv` is the exhaustive generated source manifest.
+- `typescript_test_parity.tsv` is the exhaustive generated test manifest.
+- `check_port_inventory.sh` proves curated source coverage only.
+- `check_test_parity.sh` is the exhaustive test drift gate.
 
 ### Intentional Divergences (86 items)
 
@@ -33,6 +43,7 @@ The inventory workflow is safe for user/agent updates as long as we keep the cur
 - Curated ledger: `plans/inventory/typescript_port_inventory.tsv`
 - Generated/drift snapshots: `plans/inventory/typescript_source_parity.tsv`, `plans/inventory/typescript_test_parity.tsv`
 - Do not regenerate the curated ledger over existing work.
+- Use `ruby scripts/sync_port_inventory.rb --manifest plans/inventory/typescript_port_inventory.tsv --source vendor/chiasmus --language typescript --parser tree-sitter` to append newly discovered source rows without clobbering statuses or refs.
 - Use check scripts to detect new/stale IDs after vendor pulls.
 
 Current drift checks catch:
@@ -894,15 +905,27 @@ Per-language AST walkers for the `extract_graph` pipeline:
 ### After `git submodule update --remote vendor/chiasmus`
 
 ```bash
-# 1. Run drift checks
+# 1. Materialize the current fact/planning bundle
+./scripts/plan_with_chiasmus.sh . vendor/chiasmus typescript src
+# Review plans/generated/parity/typescript/parity_summary.txt for match-status and drift counts
+
+# 2. Run drift checks
 ./scripts/check_port_inventory.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
 ./scripts/check_source_parity.sh . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
 ./scripts/check_test_parity.sh . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
 
-# 2. Run the fact-driven completion gate
-./scripts/check_completion_gate.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src
+# 3. Sync the curated ledger when discovery finds new source rows
+ruby scripts/sync_port_inventory.rb \
+  --manifest plans/inventory/typescript_port_inventory.tsv \
+  --source vendor/chiasmus \
+  --language typescript \
+  --parser tree-sitter
 
-# 3. Regenerate Prolog facts only if you still need ledger-only queries
+# 4. Run the fact-driven completion gate
+./scripts/check_completion_gate.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src
+./scripts/check_completion_gate.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src --query incomplete --format ids
+
+# 5. Regenerate Prolog facts only if you still need ledger-only queries
 ruby scripts/generate_inventory_facts.rb \
   --inventory plans/inventory/typescript_port_inventory.tsv \
   --source plans/inventory/typescript_source_parity.tsv \
@@ -910,7 +933,7 @@ ruby scripts/generate_inventory_facts.rb \
   --rules plans/inventory/conversion_rules.tsv \
   > plans/inventory/parity_facts.pl
 
-# 4. Run quality gates and adversarial signoff
+# 6. Run quality gates and adversarial signoff
 make format && make test
 ./scripts/verify_parity_adversarial.sh . vendor/chiasmus typescript 'make test' '<upstream test command>'
 ./scripts/verify_parity_adversarial.sh . vendor/chiasmus typescript 'make test' '<upstream test command>'
@@ -920,7 +943,7 @@ make format && make test
 
 | Drift report | Action |
 |---|---|
-| `added` | Add new row to `typescript_port_inventory.tsv` with status `missing` |
+| `added` | Run `sync_port_inventory.rb`, then curate status/refs for the new source rows |
 | `removed` | Remove stale row from inventory |
 | `changed` | Review Crystal port for behavior update |
 | `context_changed` | Low risk; review for new edge cases |
@@ -931,4 +954,10 @@ make format && make test
 - No tracked row has status `missing` or `partial`
 - Every `ported`/`partial` row has non-empty `crystal_refs`
 - `typescript_port_inventory.tsv` is the curated ledger — never auto-regenerated
-
+- The curated ledger is source-focused; exhaustive test drift belongs in `typescript_test_parity.tsv`
+- Legacy ledgers may stay on the 5-column format; new ledgers may use a
+  header-driven schema with explicit `target_symbol` and `test_refs` columns so
+  symbol mapping and test coverage do not have to hide in free-form `notes`
+- `ruby scripts/upgrade_port_inventory.rb --input plans/inventory/typescript_port_inventory.tsv --in-place`
+  is the supported migration path from legacy 5-column ledgers to the richer
+  header-driven format

@@ -1,23 +1,34 @@
 # source_test_id	status	crystal_refs	notes
+benchmark/tests/p1-rbac.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::Problem 1: RBAC Policy Conflict Detection	missing	-	baseline
+benchmark/tests/p1-rbac.test.ts::test::Traditional	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::detects the auditor read/billing conflict	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::finds exactly one conflict in this ruleset	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::returns the specific conflicting triple	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::Problem 2: Package Dependency Resolution	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::test::Traditional	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::all versions are within allowed ranges	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::finds a satisfiable assignment	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::respects dependency requirements	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::respects incompatibilities	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::Problem 3: Data Flow Taint Analysis	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::test::Traditional	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::all three sinks are reachable	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach db_query	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach eval_engine	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach file_write	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p4-workflow.test.ts::test::Problem 4: Workflow State Machine Validation	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::test::Traditional	missing	-	baseline
 benchmark/tests/p4-workflow.test.ts::test::does not flag reachable states as unreachable	missing	-	baseline
 benchmark/tests/p4-workflow.test.ts::test::does not flag states with outgoing transitions as dead-ends	missing	-	baseline
-benchmark/tests/p4-workflow.test.ts::test::identifies 	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::test::identifies 'archived' as a dead-end	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::test::identifies 'deleted' as unreachable	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::Problem 5: API Validation Rule Consistency	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::test::Traditional	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::finds exactly 2 gaps	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::finds the age gap (frontend allows 13-17, backend rejects)	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::finds the username_length gap (frontend allows 21-30, backend max 20)	missing	-	baseline
@@ -32,8 +43,8 @@ tests/azure-openai-adapter.test.ts::test::batches at the Azure 16-input limit by
 tests/azure-openai-adapter.test.ts::test::defaults to API version 2023-05-15 when none is provided	missing	-	baseline
 tests/azure-openai-adapter.test.ts::test::dimension() returns the configured value, and learns it from the first embed when not configured	missing	-	baseline
 tests/azure-openai-adapter.test.ts::test::dimension() throws before the first embed when not pre-configured	missing	-	baseline
-tests/azure-openai-adapter.test.ts::test::forwards a configured dimension via the 	missing	-	baseline
-tests/azure-openai-adapter.test.ts::test::omits 	missing	-	baseline
+tests/azure-openai-adapter.test.ts::test::forwards a configured dimension via the 'dimensions' field, and omits it otherwise	missing	-	baseline
+tests/azure-openai-adapter.test.ts::test::omits 'model' from the body — Azure routes by deployment	missing	-	baseline
 tests/azure-openai-adapter.test.ts::test::preserves input → output position across batch boundaries	missing	-	baseline
 tests/azure-openai-adapter.test.ts::test::returns embeddings in input order even when the API responds out of order	missing	-	baseline
 tests/azure-openai-adapter.test.ts::test::routes by deployment name and uses the api-key header (not Bearer)	missing	-	baseline
@@ -47,6 +58,7 @@ tests/bm25.test.ts::test::search scores after incremental add match full rebuild
 tests/config.test.ts::test::falls back to defaults for invalid JSON	missing	-	baseline
 tests/config.test.ts::test::ignores unknown keys and wrong types	missing	-	baseline
 tests/config.test.ts::test::loadConfig	missing	-	baseline
+tests/config.test.ts::test::not valid json {{{	missing	-	baseline
 tests/config.test.ts::test::reads adapterDiscovery from config.json	missing	-	baseline
 tests/config.test.ts::test::returns defaults when config.json does not exist	missing	-	baseline
 tests/correction-loop.test.ts::test::Correction Loop	missing	-	baseline
@@ -189,9 +201,15 @@ tests/graph/analyses-insights.test.ts::test::runAnalysis: new insight analyses	m
 tests/graph/analyses-insights.test.ts::test::surprises analysis returns cross-community edges	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::buildFactsResult returns an error object when the program exceeds the cap	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::buildFactsResult returns the raw program under the cap	missing	-	baseline
+tests/graph/analyses-scale.test.ts::test::callers/callees on a 500-node dense graph respond in < 100ms	missing	-	baseline
+tests/graph/analyses-scale.test.ts::test::cycles on 300-node graph with 20 disjoint cycles finishes in < 1s	missing	-	baseline
+tests/graph/analyses-scale.test.ts::test::dead-code on a 1000-function graph with 100 orphans finishes in < 500ms	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::default cap is 10 MB (matches the agreed budget)	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::facts output size cap	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::graph analyses — scale	missing	-	baseline
+tests/graph/analyses-scale.test.ts::test::impact on a 500-node chain returns every ancestor in < 500ms	missing	-	baseline
+tests/graph/analyses-scale.test.ts::test::path on a 500-node chain returns a chain including the endpoints in < 500ms	missing	-	baseline
+tests/graph/analyses-scale.test.ts::test::reachability on a 1000-node chain finishes in < 200ms	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::runAnalysisFromGraph surfaces the cap error on an oversize graph	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::small graphs return the full program string via runAnalysisFromGraph	missing	-	baseline
 tests/graph/analyses.test.ts::test::an empty filePaths list is not an error — returns empty summary with no warnings	missing	-	baseline
@@ -286,7 +304,7 @@ tests/graph/clojure.test.ts::test::dead code detection works on Clojure graph	mi
 tests/graph/clojure.test.ts::test::dead-code integration (dispatch patterns)	missing	-	baseline
 tests/graph/clojure.test.ts::test::deduplicates call edges	missing	-	baseline
 tests/graph/clojure.test.ts::test::definterface	missing	-	baseline
-tests/graph/clojure.test.ts::test::does not emit in-file ref edges for locals that don	missing	-	baseline
+tests/graph/clojure.test.ts::test::does not emit in-file ref edges for locals that don't match any defn	missing	-	baseline
 tests/graph/clojure.test.ts::test::does not flag bare-sym-called helpers as dead in thread-last chains	missing	-	baseline
 tests/graph/clojure.test.ts::test::does not flag helpers used only as HOF args as dead	missing	-	baseline
 tests/graph/clojure.test.ts::test::does not flag helpers used only in as-> as dead	missing	-	baseline
@@ -405,7 +423,7 @@ tests/graph/extractor.test.ts::test::extracts method calls via attribute access	
 tests/graph/extractor.test.ts::test::extracts methods with receiver type and contains	missing	-	baseline
 tests/graph/extractor.test.ts::test::extracts multiple imports from a single from-import statement	missing	-	baseline
 tests/graph/extractor.test.ts::test::nested functions inside functions are kind=function not method	missing	-	baseline
-tests/graph/extractor.test.ts::test::records function-reference usage so callbacks don	missing	-	baseline
+tests/graph/extractor.test.ts::test::records function-reference usage so callbacks don't look dead	missing	-	baseline
 tests/graph/extractor.test.ts::test::resolves renamed imports ({ foo as bar } → call bar() edges to foo)	missing	-	baseline
 tests/graph/extractor.test.ts::test::skips unsupported file extensions	missing	-	baseline
 tests/graph/facts.test.ts::test::auto-detects entry points from exports	missing	-	baseline
@@ -457,6 +475,7 @@ tests/graph/import-resolution.test.ts::test::resolves .. relative imports correc
 tests/graph/import-resolution.test.ts::test::resolves directory imports to index.ts	missing	-	baseline
 tests/graph/import-resolution.test.ts::test::resolves imports to canonical file paths via suffix index	missing	-	baseline
 tests/graph/import-resolution.test.ts::test::resolves tsconfig-aliased imports (e.g. @/foo)	missing	-	baseline
+tests/graph/import-resolution.test.ts::test::tsconfig.json	missing	-	baseline
 tests/graph/layer-violation.test.ts::test::allows calls to adjacent layer	missing	-	baseline
 tests/graph/layer-violation.test.ts::test::allows calls within the same layer	missing	-	baseline
 tests/graph/layer-violation.test.ts::test::detects a call that skips a layer	missing	-	baseline
@@ -466,7 +485,7 @@ tests/graph/layer-violation.test.ts::test::returns empty when no calls exist	mis
 tests/graph/map-mcp.test.ts::test::appears in tool list	missing	-	baseline
 tests/graph/map-mcp.test.ts::test::chiasmus_map MCP tool	missing	-	baseline
 tests/graph/map-mcp.test.ts::test::clamps negative max_exports to 0 (returns no topExports, full exportCount)	missing	-	baseline
-tests/graph/map-mcp.test.ts::test::rejects mode=	missing	-	baseline
+tests/graph/map-mcp.test.ts::test::rejects mode='file' without path	missing	-	baseline
 tests/graph/map-mcp.test.ts::test::returns file detail JSON with exports and imports	missing	-	baseline
 tests/graph/map-mcp.test.ts::test::returns overview markdown with exports and signatures	missing	-	baseline
 tests/graph/map-mcp.test.ts::test::returns symbol detail JSON with callers and callees	missing	-	baseline
@@ -483,7 +502,7 @@ tests/graph/map.test.ts::test::captures TypeScript function signatures	missing	-
 tests/graph/map.test.ts::test::captures a Python module docstring	missing	-	baseline
 tests/graph/map.test.ts::test::captures a leading JSDoc block as fileDoc	missing	-	baseline
 tests/graph/map.test.ts::test::computes tokenEstimate and lineCount from content	missing	-	baseline
-tests/graph/map.test.ts::test::counts interface-only exports that aren	missing	-	baseline
+tests/graph/map.test.ts::test::counts interface-only exports that aren't in defines	missing	-	baseline
 tests/graph/map.test.ts::test::does NOT capture Python `#` comments without a docstring	missing	-	baseline
 tests/graph/map.test.ts::test::does NOT capture `//` line comments as fileDoc for TS/JS (usually license/shebang noise)	missing	-	baseline
 tests/graph/map.test.ts::test::does NOT capture license/copyright headers as fileDoc	missing	-	baseline
@@ -499,7 +518,7 @@ tests/graph/map.test.ts::test::returns defining files, callers, and callees	miss
 tests/graph/map.test.ts::test::returns empty arrays for an unknown symbol	missing	-	baseline
 tests/graph/map.test.ts::test::returns exports with signatures and lines	missing	-	baseline
 tests/graph/map.test.ts::test::returns imports with sources	missing	-	baseline
-tests/graph/map.test.ts::test::returns null when the file isn	missing	-	baseline
+tests/graph/map.test.ts::test::returns null when the file isn't in the graph	missing	-	baseline
 tests/graph/map.test.ts::test::returns summary counts and language list	missing	-	baseline
 tests/graph/map.test.ts::test::truncates topExports to maxExportsPerFile	missing	-	baseline
 tests/graph/mcp-integration.test.ts::test::appears in tool list	missing	-	baseline
@@ -598,6 +617,8 @@ tests/graph/surprises.test.ts::test::peripheral→hub edges earn a +1 bonus	miss
 tests/graph/surprises.test.ts::test::respects topN option	missing	-	baseline
 tests/graph/surprises.test.ts::test::returns empty list for empty graph	missing	-	baseline
 tests/graph/surprises.test.ts::test::scores descending with deterministic tiebreak	missing	-	baseline
+tests/graph/tsconfig-aliases.test.ts::test::a.json	missing	-	baseline
+tests/graph/tsconfig-aliases.test.ts::test::b.json	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::child paths override parent on conflict	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::follows extends chain and inherits parent paths	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::handles extends cycle without infinite loop	missing	-	baseline
@@ -610,6 +631,9 @@ tests/graph/tsconfig-aliases.test.ts::test::returns EMPTY_TSCONFIG_ALIASES when 
 tests/graph/tsconfig-aliases.test.ts::test::returns empty when tsconfig exists but has no paths	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::strips JSONC comments (// and /* */)	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::tolerates malformed json gracefully	missing	-	baseline
+tests/graph/tsconfig-aliases.test.ts::test::tsconfig.base.json	missing	-	baseline
+tests/graph/tsconfig-aliases.test.ts::test::tsconfig.json	missing	-	baseline
+tests/graph/tsconfig-aliases.test.ts::test::{ not valid json	missing	-	baseline
 tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 0 (explicit annotations)	missing	-	baseline
 tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 1 (constructor inference)	missing	-	baseline
 tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 2 (assignment chain)	missing	-	baseline
@@ -664,7 +688,7 @@ tests/mcp-search.test.ts::test::rejects empty query	missing	-	baseline
 tests/mcp-search.test.ts::test::returns an explicit error when no adapter is configured	missing	-	baseline
 tests/mcp-search.test.ts::test::returns well-formed hits for a query	missing	-	baseline
 tests/mcp-search.test.ts::test::top_k is clamped to [1, 100]	missing	-	baseline
-tests/mcp-server.test.ts::test::'security	missing	-	baseline
+tests/mcp-server.test.ts::test::'security' focus includes a chiasmus_formalize action for taint-propagation	missing	-	baseline
 tests/mcp-server.test.ts::test::Chiasmus MCP Server	missing	-	baseline
 tests/mcp-server.test.ts::test::appears in tool list	missing	-	baseline
 tests/mcp-server.test.ts::test::auto-fixes check-sat in Z3 spec	missing	-	baseline
@@ -680,9 +704,10 @@ tests/mcp-server.test.ts::test::chiasmus_verify	missing	-	baseline
 tests/mcp-server.test.ts::test::chiasmus_verify batch queries	missing	-	baseline
 tests/mcp-server.test.ts::test::created template appears in chiasmus_skills search	missing	-	baseline
 tests/mcp-server.test.ts::test::creates a template via MCP	missing	-	baseline
+tests/mcp-server.test.ts::test::documents that `converged` is not a verdict on the property	missing	-	baseline
 tests/mcp-server.test.ts::test::filters by solver type	missing	-	baseline
 tests/mcp-server.test.ts::test::gets a template by exact name	missing	-	baseline
-tests/mcp-server.test.ts::test::honors 	missing	-	baseline
+tests/mcp-server.test.ts::test::honors 'quick' focus with fewer phases	missing	-	baseline
 tests/mcp-server.test.ts::test::includes related templates in by-name lookup	missing	-	baseline
 tests/mcp-server.test.ts::test::includes suggestions for related templates	missing	-	baseline
 tests/mcp-server.test.ts::test::includes unsatCore in unsat Z3 response	missing	-	baseline
@@ -695,8 +720,9 @@ tests/mcp-server.test.ts::test::lists chiasmus_solve in available tools	missing	
 tests/mcp-server.test.ts::test::lists chiasmus_verify in available tools	missing	-	baseline
 tests/mcp-server.test.ts::test::passes clean spec with no issues	missing	-	baseline
 tests/mcp-server.test.ts::test::passes entry_points through to the dead-code action	missing	-	baseline
+tests/mcp-server.test.ts::test::reports the package.json version to clients, not a hardcoded value	missing	-	baseline
 tests/mcp-server.test.ts::test::requires query parameter for prolog solver	missing	-	baseline
-tests/mcp-server.test.ts::test::returns a plan with phases, templates, and reporting for a 	missing	-	baseline
+tests/mcp-server.test.ts::test::returns a plan with phases, templates, and reporting for a 'full' review	missing	-	baseline
 tests/mcp-server.test.ts::test::returns error for unknown template name	missing	-	baseline
 tests/mcp-server.test.ts::test::returns error when problem is missing	missing	-	baseline
 tests/mcp-server.test.ts::test::returns structured error for empty files array	missing	-	baseline
@@ -708,6 +734,7 @@ tests/mcp-server.test.ts::test::returns trace when explain=true for Prolog	missi
 tests/mcp-server.test.ts::test::returns validation errors for bad input	missing	-	baseline
 tests/mcp-server.test.ts::test::runs multiple Prolog queries against same program	missing	-	baseline
 tests/mcp-server.test.ts::test::searches for templates by query	missing	-	baseline
+tests/mcp-server.test.ts::test::server metadata	missing	-	baseline
 tests/mcp-server.test.ts::test::solves a problem end-to-end with mock LLM	missing	-	baseline
 tests/mcp-server.test.ts::test::stops batch on first error	missing	-	baseline
 tests/mcp-server.test.ts::test::verifies Prolog queries	missing	-	baseline
@@ -727,13 +754,14 @@ tests/prolog-input.test.ts::test::extractPrologQuery	missing	-	baseline
 tests/prolog-input.test.ts::test::extracts ?- query from last line	missing	-	baseline
 tests/prolog-input.test.ts::test::extracts ?- query from middle of text (uses last ?- line)	missing	-	baseline
 tests/prolog-input.test.ts::test::handles ?- with extra whitespace after dash	missing	-	baseline
-tests/prolog-input.test.ts::test::returns full text as program with 	missing	-	baseline
+tests/prolog-input.test.ts::test::returns full text as program with 'true.' query when no ?- found	missing	-	baseline
 tests/prolog-input.test.ts::test::trims trailing whitespace from program	missing	-	baseline
 tests/prolog-solver.test.ts::test::PrologSolver	missing	-	baseline
 tests/prolog-solver.test.ts::test::allows raising the budget for analyses that need more headroom	missing	-	baseline
 tests/prolog-solver.test.ts::test::derivation traces	missing	-	baseline
 tests/prolog-solver.test.ts::test::disposal	missing	-	baseline
 tests/prolog-solver.test.ts::test::does not duplicate the final clause when input has no trailing whitespace	missing	-	baseline
+tests/prolog-solver.test.ts::test::does not leak internal wrapper variables into bindings	missing	-	baseline
 tests/prolog-solver.test.ts::test::handles arithmetic	missing	-	baseline
 tests/prolog-solver.test.ts::test::handles ground queries (no variables)	missing	-	baseline
 tests/prolog-solver.test.ts::test::handles list operations	missing	-	baseline
@@ -745,6 +773,7 @@ tests/prolog-solver.test.ts::test::instrumentation	missing	-	baseline
 tests/prolog-solver.test.ts::test::isolates concurrent solves with overlapping predicate names	missing	-	baseline
 tests/prolog-solver.test.ts::test::isolates predicates across sequential solves	missing	-	baseline
 tests/prolog-solver.test.ts::test::module isolation	missing	-	baseline
+tests/prolog-solver.test.ts::test::renders a ground goal as clean `true` with no spurious bindings	missing	-	baseline
 tests/prolog-solver.test.ts::test::resolves recursive rules	missing	-	baseline
 tests/prolog-solver.test.ts::test::resolves simple fact queries	missing	-	baseline
 tests/prolog-solver.test.ts::test::returns a structured error for malformed programs	missing	-	baseline
@@ -755,9 +784,11 @@ tests/prolog-solver.test.ts::test::returns no trace when explain is false (defau
 tests/prolog-solver.test.ts::test::returns trace for ground query with explain=true	missing	-	baseline
 tests/prolog-solver.test.ts::test::returns trace for rule chain when explain=true	missing	-	baseline
 tests/prolog-solver.test.ts::test::returns trace with multiple rule applications	missing	-	baseline
+tests/prolog-solver.test.ts::test::strips the leaked wrapper var while preserving a user binding of the same name	missing	-	baseline
 tests/prolog-solver.test.ts::test::surfaces an existence_error rather than silently returning empty	missing	-	baseline
 tests/prolog-solver.test.ts::test::surfaces existence_error from a defined goal that calls an undefined helper	missing	-	baseline
 tests/prolog-solver.test.ts::test::undefined predicate in query	missing	-	baseline
+tests/prolog-solver.test.ts::test::wrapper-variable hygiene	missing	-	baseline
 tests/prolog-tracing.test.ts::test::Prolog solver tracing	missing	-	baseline
 tests/prolog-tracing.test.ts::test::does not split clauses on decimal-literal periods	missing	-	baseline
 tests/prolog-tracing.test.ts::test::handles rules with nested parenthesized terms	missing	-	baseline
@@ -772,16 +803,16 @@ tests/relationships.test.ts::test::returns related templates for schema-consiste
 tests/review-delta.test.ts::test::buildReviewPlan: PR-delta integration	missing	-	baseline
 tests/review-delta.test.ts::test::delta phase is absent when delta_against is omitted	missing	-	baseline
 tests/review-delta.test.ts::test::delta phase passes the against + save_snapshot args through	missing	-	baseline
-tests/review-delta.test.ts::test::delta phase still fires under focus=	missing	-	baseline
+tests/review-delta.test.ts::test::delta phase still fires under focus='quick' (PR review is always useful)	missing	-	baseline
 tests/review-delta.test.ts::test::inserts a delta phase as phase 0 when delta_against is supplied	missing	-	baseline
 tests/review-delta.test.ts::test::reporting section mentions PR scope when delta_against is set	missing	-	baseline
-tests/review.test.ts::test::'all	missing	-	baseline
-tests/review.test.ts::test::'architecture	missing	-	baseline
-tests/review.test.ts::test::'correctness	missing	-	baseline
-tests/review.test.ts::test::'quick	missing	-	baseline
-tests/review.test.ts::test::'security	missing	-	baseline
+tests/review.test.ts::test::'all' focus includes structural, architecture, security, correctness phases	missing	-	baseline
+tests/review.test.ts::test::'architecture' focus includes dead-code, cycles, and layer-violation analyses	missing	-	baseline
+tests/review.test.ts::test::'correctness' focus suggests invariant-check or boundary-condition templates	missing	-	baseline
+tests/review.test.ts::test::'quick' focus is a strict subset of 'all' (fewer phases)	missing	-	baseline
+tests/review.test.ts::test::'security' focus includes taint-propagation via chiasmus_formalize	missing	-	baseline
 tests/review.test.ts::test::buildReviewPlan	missing	-	baseline
-tests/review.test.ts::test::defaults focus to 	missing	-	baseline
+tests/review.test.ts::test::defaults focus to 'all' when omitted	missing	-	baseline
 tests/review.test.ts::test::graph actions pass through the files array	missing	-	baseline
 tests/review.test.ts::test::includes a reporting section describing severity format	missing	-	baseline
 tests/review.test.ts::test::includes a suggestedTemplates section listing named templates with workflow hints	missing	-	baseline
@@ -808,7 +839,7 @@ tests/search/engine.test.ts::test::honors topK smaller than corpus size	missing	
 tests/search/engine.test.ts::test::returns topK results ranked by similarity	missing	-	baseline
 tests/search/engine.test.ts::test::runSearch (MockEmbeddingAdapter)	missing	-	baseline
 tests/search/engine.test.ts::test::text includes the function signature when available	missing	-	baseline
-tests/search/engine.test.ts::test::works when the adapter	missing	-	baseline
+tests/search/engine.test.ts::test::works when the adapter's dimension is unknown until the first embed()	missing	-	baseline
 tests/search/vector-store.test.ts::test::VectorStore (R9)	missing	-	baseline
 tests/search/vector-store.test.ts::test::has() checks for id presence	missing	-	baseline
 tests/search/vector-store.test.ts::test::inserts vectors and finds nearest by cosine similarity	missing	-	baseline
@@ -914,6 +945,7 @@ tests/templates-taint-propagation.test.ts::test::taint-propagation template	miss
 tests/templates-taint-propagation.test.ts::test::template has matching slots and skeleton	missing	-	baseline
 tests/validate.test.ts::test::Prolog with % inside an atom is not treated as a line comment	missing	-	baseline
 tests/validate.test.ts::test::Prolog with /* inside an atom is not treated as a block comment	missing	-	baseline
+tests/validate.test.ts::test::Prolog with a float in a terminated clause passes	missing	-	baseline
 tests/validate.test.ts::test::Prolog with a paren inside a quoted atom is not counted as structural	missing	-	baseline
 tests/validate.test.ts::test::Prolog with backslash-quote escape in atom passes	missing	-	baseline
 tests/validate.test.ts::test::Prolog with comments passes	missing	-	baseline
@@ -921,6 +953,8 @@ tests/validate.test.ts::test::Prolog with doubled-quote escape in atom passes	mi
 tests/validate.test.ts::test::Spec Linting	missing	-	baseline
 tests/validate.test.ts::test::Z3 with comments passes	missing	-	baseline
 tests/validate.test.ts::test::auto-fixes	missing	-	baseline
+tests/validate.test.ts::test::catches a spec whose only period is a float decimal point	missing	-	baseline
+tests/validate.test.ts::test::catches an unterminated last clause in a multi-clause spec	missing	-	baseline
 tests/validate.test.ts::test::catches empty spec	missing	-	baseline
 tests/validate.test.ts::test::catches missing periods in Prolog	missing	-	baseline
 tests/validate.test.ts::test::catches unbalanced Prolog parentheses	missing	-	baseline
@@ -935,16 +969,6 @@ tests/validate.test.ts::test::strips markdown fences	missing	-	baseline
 tests/validate.test.ts::test::valid Prolog passes with no errors or fixes	missing	-	baseline
 tests/validate.test.ts::test::valid Z3 passes with no errors or fixes	missing	-	baseline
 tests/validate.test.ts::test::valid specs pass clean	missing	-	baseline
-tests/mcp-server.test.ts::test::documents that `converged` is not a verdict on the property	ported	spec/mcp_server/tools/solve_spec.cr:6	Ported via the solve tool description regression spec
-tests/mcp-server.test.ts::test::reports the package.json version to clients, not a hardcoded value	ported	spec/chiasmus/mcp_server/server_spec.cr:39	Ported via MCP client `server_version` assertion against `Chiasmus::VERSION`
-tests/mcp-server.test.ts::test::server metadata	ported	spec/chiasmus/mcp_server/server_spec.cr:31	Ported via initialize-and-tools/list transport specs, including wire-reported server version
-tests/prolog-solver.test.ts::test::does not leak internal wrapper variables into bindings	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:134	Ported as wrapper-variable hygiene coverage for the Crystal runtime
-tests/prolog-solver.test.ts::test::renders a ground goal as clean `true` with no spurious bindings	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:147	Ported as formatted-answer hygiene coverage for ground Prolog goals
-tests/prolog-solver.test.ts::test::strips the leaked wrapper var while preserving a user binding of the same name	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:160	Ported as user-binding preservation coverage for wrapper-like variable names
-tests/prolog-solver.test.ts::test::wrapper-variable hygiene	ported	spec/chiasmus/solvers/prolog_solver_spec.cr:133	Ported as wrapper-variable hygiene spec group
-tests/validate.test.ts::test::Prolog with a float in a terminated clause passes	ported	spec/chiasmus/formalize/validate_spec.cr:169	Ported as float-terminator lint regression coverage
-tests/validate.test.ts::test::catches a spec whose only period is a float decimal point	ported	spec/chiasmus/formalize/validate_spec.cr:84	Ported as decimal-point false-positive lint regression coverage
-tests/validate.test.ts::test::catches an unterminated last clause in a multi-clause spec	ported	spec/chiasmus/formalize/validate_spec.cr:74	Ported as multi-clause unterminated-tail lint regression coverage
 tests/z3-resource-management.test.ts::test::Z3Solver resource management	missing	-	baseline
 tests/z3-resource-management.test.ts::test::dispose is idempotent — calling twice does not throw	missing	-	baseline
 tests/z3-resource-management.test.ts::test::handles multiple solve calls on the same solver instance	missing	-	baseline
