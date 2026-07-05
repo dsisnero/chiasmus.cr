@@ -169,4 +169,85 @@ describe Chiasmus::Complete::CLI do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "treats explicit test_refs as coverage in header-driven ledgers" do
+    dir = File.join(Dir.tempdir, "chiasmus-complete-header-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(File.join(dir, "src"))
+    Dir.mkdir_p(File.join(dir, "spec"))
+    Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+    begin
+      File.write(File.join(dir, "src", "port.cr"), <<-CR)
+def main
+  load_config
+end
+
+def load_config
+end
+CR
+
+      File.write(File.join(dir, "spec", "config_spec.cr"), <<-CR)
+describe "load_config" do
+  it "is covered" do
+    true.should be_true
+  end
+end
+CR
+
+      File.write(File.join(dir, "plans", "inventory", "port.tsv"), <<-TSV)
+# source_id	kind	status	crystal_refs	target_symbol	test_refs	notes
+src/app.ts::function::loadConfig	function	ported	src/port.cr:5	load_config	spec/config_spec.cr:1	Covered by explicit test refs
+TSV
+
+      source_graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 2, end_line: 2),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "main", callee: "loadConfig"),
+        ],
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+
+      crystal_graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "load_config", kind: Chiasmus::Graph::SymbolKind::Function, line: 5, end_line: 5),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "main", callee: "load_config"),
+        ],
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+
+      source_facts_path = File.join(dir, "source.pl")
+      crystal_facts_path = File.join(dir, "crystal.pl")
+      File.write(source_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(source_graph, ["main"]))
+      File.write(crystal_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(crystal_graph, ["main"]))
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Complete::CLI.run(
+        [
+          "--inventory", File.join(dir, "plans", "inventory", "port.tsv"),
+          "--root", dir,
+          "--crystal-dir", "src",
+          "--source-facts", source_facts_path,
+          "--crystal-facts", crystal_facts_path,
+        ],
+        output,
+        error
+      )
+
+      exit_code.should eq(0), error.to_s
+      output.to_s.should contain("status\tcomplete")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
 end
