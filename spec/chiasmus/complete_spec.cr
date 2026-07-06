@@ -250,4 +250,97 @@ TSV
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "does not mark duplicate-name source rows reachable outside scoped entry-point flow" do
+    dir = File.join(Dir.tempdir, "chiasmus-complete-scoped-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(File.join(dir, "src"))
+    Dir.mkdir_p(File.join(dir, "spec"))
+    Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+    begin
+      File.write(File.join(dir, "src", "port.cr"), <<-CR)
+def main
+  helper
+end
+
+def helper
+  leaf
+end
+
+def leaf
+end
+CR
+
+      File.write(File.join(dir, "spec", "leaf_spec.cr"), <<-CR)
+describe "leaf" do
+  it "is covered" do
+    true.should be_true
+  end
+end
+CR
+
+      File.write(File.join(dir, "plans", "inventory", "port.tsv"), <<-TSV)
+# source_id	kind	status	crystal_refs	notes
+src/app.ts::function::leaf	function	ported	src/port.cr:9,spec/leaf_spec.cr:1	Covered reachable leaf
+src/util.ts::function::leaf	function	missing	-	Unreachable duplicate leaf
+TSV
+
+      source_graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5, end_line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9, end_line: 9),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 3, end_line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 7, end_line: 7),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+          Chiasmus::Graph::CallsFact.new(caller: "helper", callee: "leaf"),
+        ],
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+
+      crystal_graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5, end_line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9, end_line: 9),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+          Chiasmus::Graph::CallsFact.new(caller: "helper", callee: "leaf"),
+        ],
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+
+      source_facts_path = File.join(dir, "source.pl")
+      crystal_facts_path = File.join(dir, "crystal.pl")
+      File.write(source_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(source_graph, ["main"]))
+      File.write(crystal_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(crystal_graph, ["main"]))
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Complete::CLI.run(
+        [
+          "--inventory", File.join(dir, "plans", "inventory", "port.tsv"),
+          "--root", dir,
+          "--crystal-dir", "src",
+          "--source-facts", source_facts_path,
+          "--crystal-facts", crystal_facts_path,
+        ],
+        output,
+        error
+      )
+
+      exit_code.should eq(0), error.to_s
+      output.to_s.should contain("status\tcomplete")
+      output.to_s.should contain("incomplete_count\t0")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
 end

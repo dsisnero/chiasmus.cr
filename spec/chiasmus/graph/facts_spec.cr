@@ -83,6 +83,31 @@ describe Chiasmus::Graph::Facts do
     program.scan(/contains\('UserService', 'UserService\.fetch'\)\./).size.should eq(1)
   end
 
+  it "does not over-assign scoped call facts across duplicate caller names" do
+    graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 7),
+      ],
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+        Chiasmus::Graph::CallsFact.new(caller: "helper", callee: "leaf"),
+      ],
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [] of Chiasmus::Graph::ExportsFact,
+      contains: [] of Chiasmus::Graph::ContainsFact,
+    )
+
+    program = Chiasmus::Graph::Facts.graph_to_prolog(graph, ["main"])
+
+    program.should contain("calls_in('src/app.ts', main, helper).")
+    program.should contain("calls_in('src/app.ts', helper, leaf).")
+    program.should_not contain("calls_in('src/util.ts', helper, leaf).")
+  end
+
   describe "solver integration" do
     before_all do
       unless swipl_available?

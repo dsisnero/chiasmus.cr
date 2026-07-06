@@ -5,6 +5,14 @@ module Chiasmus
     module Facts
       extend self
 
+      alias ScopedCallCandidate = NamedTuple(
+        file: String,
+        caller: String,
+        callee: String,
+        callee_file: String,
+        caller_is_unique: Bool,
+      )
+
       BUILTIN_RULES = <<-PROLOG.strip
         % List membership (not built-in in Tau Prolog without lists module)
         member(X, [X|_]).
@@ -51,6 +59,8 @@ module Chiasmus
         semantic_graph : IR::SemanticGraph? = nil,
       ) : String
         lines = [] of String
+        effective_entry_points = entry_points || graph.exports.map(&.name).uniq!
+        entry_point_files = resolve_entry_point_files(graph, effective_entry_points)
 
         lines << ":- dynamic(defines/5)."
         lines << ":- dynamic(calls/2)."
@@ -71,7 +81,7 @@ module Chiasmus
           lines << "calls(#{escape_atom(fact.caller)}, #{escape_atom(fact.callee)})."
         end
         semantic_graph.try do |semantic|
-          resolve_scoped_calls(semantic).each do |file, caller, callee|
+          resolve_scoped_calls(semantic, entry_point_files).each do |file, caller, callee|
             lines << "calls_in(#{escape_atom(file)}, #{escape_atom(caller)}, #{escape_atom(callee)})."
           end
         end
@@ -92,11 +102,10 @@ module Chiasmus
         end
         lines << "" unless graph.contains.empty?
 
-        effective_entry_points = entry_points || graph.exports.map(&.name).uniq!
         effective_entry_points.each do |entry_point|
           lines << "entry_point(#{escape_atom(entry_point)})."
         end
-        resolve_entry_point_files(graph, effective_entry_points).each do |file, entry_point|
+        entry_point_files.each do |file, entry_point|
           lines << "entry_point_file(#{escape_atom(file)}, #{escape_atom(entry_point)})."
         end
 
@@ -127,9 +136,12 @@ module Chiasmus
         resolved.uniq
       end
 
-      private def resolve_scoped_calls(graph : IR::SemanticGraph) : Array(Tuple(String, String, String))
+      private def resolve_scoped_calls(
+        graph : IR::SemanticGraph,
+        entry_point_files : Array(Tuple(String, String)),
+      ) : Array(Tuple(String, String, String))
         index = IR::ScopedSymbolIndex.new(graph.symbols)
-        resolved = [] of Tuple(String, String, String)
+        candidates = [] of ScopedCallCandidate
 
         graph.calls.each do |edge|
           callers = index.symbols_named(edge.caller)
@@ -139,11 +151,59 @@ module Chiasmus
             callee = resolve_scoped_callee(index, edge.callee, caller.file, edge.callee_qn, caller_is_unique)
             next unless callee
 
-            resolved << {caller.file, edge.caller, edge.callee}
+            candidates << {
+              file:             caller.file,
+              caller:           edge.caller,
+              callee:           edge.callee,
+              callee_file:      callee.file,
+              caller_is_unique: caller_is_unique,
+            }
           end
         end
 
-        resolved.uniq
+        reachable_callers = resolve_reachable_scoped_callers(index, candidates, entry_point_files)
+        resolved = candidates
+          .select { |candidate| candidate[:caller_is_unique] || reachable_callers.includes?({candidate[:file], candidate[:caller]}) }
+          .map { |candidate| {candidate[:file], candidate[:caller], candidate[:callee]} }
+        resolved.uniq!
+        resolved
+      end
+
+      private def resolve_reachable_scoped_callers(
+        index : IR::ScopedSymbolIndex,
+        candidates : Array(ScopedCallCandidate),
+        entry_point_files : Array(Tuple(String, String)),
+      ) : Set(Tuple(String, String))
+        by_caller = Hash(Tuple(String, String), Array(ScopedCallCandidate)).new do |hash, key|
+          hash[key] = [] of ScopedCallCandidate
+        end
+        candidates.each do |candidate|
+          by_caller[{candidate[:file], candidate[:caller]}] << candidate
+        end
+
+        reachable = Set(Tuple(String, String)).new
+        queue = [] of Tuple(String, String)
+
+        entry_point_files.each do |file, name|
+          index.symbols_in_file(file, name).each do |symbol|
+            key = {symbol.file, symbol.qualified_name}
+            next unless reachable.add?(key)
+
+            queue << key
+          end
+        end
+
+        until queue.empty?
+          current = queue.shift
+          by_caller[current]?.try &.each do |candidate|
+            callee_key = {candidate[:callee_file], candidate[:callee]}
+            next unless reachable.add?(callee_key)
+
+            queue << callee_key
+          end
+        end
+
+        reachable
       end
 
       private def resolve_scoped_callee(

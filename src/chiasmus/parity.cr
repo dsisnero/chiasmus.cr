@@ -1,6 +1,7 @@
 require "option_parser"
 require "set"
 require "./discovery"
+require "./graph/ir"
 require "./graph/types"
 require "./utils/bounded_work"
 
@@ -75,7 +76,9 @@ module Chiasmus
 
     record StructuralFacts,
       graph : Graph::CodeGraph,
-      entry_points : Array(String)
+      entry_points : Array(String),
+      scoped_calls : Array(Graph::IR::ScopedCallEdge) = [] of Graph::IR::ScopedCallEdge,
+      entry_point_files : Array(Tuple(String, String)) = [] of Tuple(String, String)
 
     record StructuralReport,
       source_symbol : String,
@@ -260,10 +263,12 @@ module Chiasmus
       def load_facts(path : String) : StructuralFacts
         defines = [] of Graph::DefinesFact
         calls = [] of Graph::CallsFact
+        scoped_calls = [] of Graph::IR::ScopedCallEdge
         imports = [] of Graph::ImportsFact
         exports = [] of Graph::ExportsFact
         contains = [] of Graph::ContainsFact
         entry_points = [] of String
+        entry_point_files = [] of Tuple(String, String)
 
         File.each_line(path) do |line|
           stripped = line.strip
@@ -276,6 +281,13 @@ module Chiasmus
               kind: parse_symbol_kind(atom(args[2])),
               line: args[3].to_i,
               end_line: args[4].to_i,
+            )
+          elsif stripped.starts_with?("calls_in(")
+            args = parse_args(stripped["calls_in(".size...-2])
+            scoped_calls << Graph::IR::ScopedCallEdge.new(
+              file: atom(args[0]),
+              caller: atom(args[1]),
+              callee: atom(args[2]),
             )
           elsif stripped.starts_with?("calls(")
             args = parse_args(stripped["calls(".size...-2])
@@ -302,6 +314,9 @@ module Chiasmus
               parent: atom(args[0]),
               child: atom(args[1]),
             )
+          elsif stripped.starts_with?("entry_point_file(")
+            args = parse_args(stripped["entry_point_file(".size...-2])
+            entry_point_files << {atom(args[0]), atom(args[1])}
           elsif stripped.starts_with?("entry_point(")
             args = parse_args(stripped["entry_point(".size...-2])
             entry_points << atom(args[0])
@@ -317,6 +332,8 @@ module Chiasmus
             contains: contains,
           ),
           entry_points: normalized_entry_points(entry_points),
+          scoped_calls: scoped_calls,
+          entry_point_files: entry_point_files,
         )
       end
 
@@ -1049,7 +1066,7 @@ module Chiasmus
       extend self
 
       def render(output : IO, inventory : Array(InventoryRow), result : AnalysisResult, source_facts : StructuralFacts) : Nil
-        reachable = reachable_symbol_keys(source_facts)
+        reachable = reachable_source_ids(source_facts)
         rows_by_id = result.rows.to_h { |row| {row.source_id, row} }
 
         output.puts "% chiasmus completion facts"
@@ -1081,7 +1098,7 @@ module Chiasmus
         inventory.each do |row|
           emit_inventory_facts(output, row)
           output.puts "source_symbol_name(#{quote(row.source_id)}, #{quote(row.source_name)})."
-          output.puts "reachable_from_entry(#{quote(row.source_id)})." if reachable.includes?(Naming.normalized_key(row.source_name))
+          output.puts "reachable_from_entry(#{quote(row.source_id)})." if reachable.includes?(row.source_id)
           output.puts "tested(#{quote(row.source_id)})." if tested_from_refs?(row.crystal_refs) || tested_from_refs?(row.test_refs)
 
           next unless report = rows_by_id[row.source_id]?
@@ -1118,6 +1135,19 @@ module Chiasmus
         end
       end
 
+      private def reachable_source_ids(source_facts : StructuralFacts) : Set(String)
+        return reachable_scoped_source_ids(source_facts) if !source_facts.scoped_calls.empty? && !source_facts.entry_point_files.empty?
+
+        reachable_names = reachable_symbol_keys(source_facts)
+        source_ids = Set(String).new
+        source_facts.graph.defines.each do |fact|
+          next unless reachable_names.includes?(Naming.normalized_key(fact.name))
+
+          source_ids << source_id_for(fact)
+        end
+        source_ids
+      end
+
       private def reachable_symbol_keys(source_facts : StructuralFacts) : Set(String)
         forward = Hash(String, Set(String)).new { |hash, key| hash[key] = Set(String).new }
         source_facts.graph.calls.each do |fact|
@@ -1140,6 +1170,79 @@ module Chiasmus
         end
 
         visited.map { |name| Naming.normalized_key(name) }.to_set
+      end
+
+      private def reachable_scoped_source_ids(source_facts : StructuralFacts) : Set(String)
+        forward = Hash(Tuple(String, String), Set(Tuple(String, String))).new do |hash, key|
+          hash[key] = Set(Tuple(String, String)).new
+        end
+
+        source_facts.scoped_calls.each do |edge|
+          caller_key = {edge.file, edge.caller}
+          callee_key = resolve_scoped_callee_key(source_facts.graph, edge.file, edge.callee)
+          next unless callee_key
+
+          forward[caller_key] << callee_key
+          forward[callee_key] = Set(Tuple(String, String)).new unless forward.has_key?(callee_key)
+        end
+
+        visited = Set(Tuple(String, String)).new
+        queue = [] of Tuple(String, String)
+
+        source_facts.entry_point_files.each do |file, name|
+          source_ids_for(graph: source_facts.graph, file: file, name: name).each do |source_id|
+            key = source_key_for(source_id)
+            next unless visited.add?(key)
+
+            queue << key
+          end
+        end
+
+        until queue.empty?
+          current = queue.shift
+          forward[current]?.try &.each do |target|
+            next unless visited.add?(target)
+
+            queue << target
+          end
+        end
+
+        reachable_ids = Set(String).new
+        visited.each do |file, name|
+          source_ids_for(graph: source_facts.graph, file: file, name: name).each do |source_id|
+            reachable_ids << source_id
+          end
+        end
+        reachable_ids
+      end
+
+      private def resolve_scoped_callee_key(
+        graph : Graph::CodeGraph,
+        file : String,
+        callee : String,
+      ) : Tuple(String, String)?
+        local_matches = graph.defines.select { |fact| fact.file == file && fact.name == callee }
+        return {file, callee} if local_matches.size == 1
+
+        global_matches = graph.defines.select { |fact| fact.name == callee }
+        return {global_matches.first.file, callee} if global_matches.size == 1
+
+        nil
+      end
+
+      private def source_ids_for(graph : Graph::CodeGraph, file : String, name : String) : Array(String)
+        graph.defines
+          .select { |fact| fact.file == file && fact.name == name }
+          .map { |fact| source_id_for(fact) }
+      end
+
+      private def source_id_for(fact : Graph::DefinesFact) : String
+        Graph::IR::Lowering.symbol_id(fact.file, fact.kind, fact.name)
+      end
+
+      private def source_key_for(source_id : String) : Tuple(String, String)
+        parts = source_id.split("::", 3)
+        {parts[0], parts[2]}
       end
 
       private def render_rules(output : IO) : Nil
