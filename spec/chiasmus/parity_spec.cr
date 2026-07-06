@@ -392,6 +392,70 @@ describe Chiasmus::Parity::Structural do
     report.extra_imports.should eq([] of String)
     report.matched_imports.should eq([] of String)
   end
+
+  it "does not borrow scoped call structure from a duplicate target symbol in another file" do
+    source_facts = Chiasmus::Parity::StructuralFacts.new(
+      graph: Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+          Chiasmus::Graph::CallsFact.new(caller: "helper", callee: "leaf"),
+        ],
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+      ),
+      entry_points: ["main"],
+      scoped_calls: [
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/app.ts", "main", "helper"),
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/app.ts", "helper", "leaf"),
+      ],
+      entry_point_files: [{"src/app.ts", "main"}],
+    )
+
+    target_facts = Chiasmus::Parity::StructuralFacts.new(
+      graph: Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 7),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+          Chiasmus::Graph::CallsFact.new(caller: "helper", callee: "leaf"),
+        ],
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+      ),
+      entry_points: ["main"],
+      scoped_calls: [
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/port.cr", "main", "helper"),
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/port.cr", "helper", "leaf"),
+      ],
+      entry_point_files: [{"src/port.cr", "main"}],
+    )
+
+    report = Chiasmus::Parity::Structural.compare(
+      source_facts,
+      "helper",
+      target_facts,
+      "helper",
+      source_file: "src/app.ts",
+      target_file: "src/util.cr",
+    )
+
+    report.status.should eq("structural_drift")
+    report.matched_calls.should eq([] of String)
+    report.missing_calls.should eq(["leaf"])
+    report.extra_calls.should eq([] of String)
+  end
 end
 
 describe Chiasmus::Parity::CLI do

@@ -31,6 +31,13 @@ module Chiasmus
       notes : String,
       target_symbol : String = "",
       test_refs : String = "" do
+      def source_file : String?
+        parts = source_id.split("::", 3)
+        return nil if parts.size < 3
+
+        parts[0]
+      end
+
       def source_name : String
         source_id.split("::").last
       end
@@ -202,20 +209,95 @@ module Chiasmus
         target_symbol : String,
         source_entry_points : Array(String)? = nil,
         target_entry_points : Array(String)? = nil,
+        source_file : String? = nil,
+        target_file : String? = nil,
       ) : StructuralReport
-        source_defined = defined?(source_graph, source_symbol)
-        target_defined = defined?(target_graph, target_symbol)
-        source_exported = exported?(source_graph, source_symbol)
-        target_exported = exported?(target_graph, target_symbol)
-        source_entry_point = entry_point?(source_symbol, source_entry_points)
-        target_entry_point = entry_point?(target_symbol, target_entry_points)
-        source_imports = normalized_imports(source_graph, source_symbol)
-        target_imports = normalized_imports(target_graph, target_symbol)
-        source_callees = normalized_callees(source_graph, source_symbol)
-        target_callees = normalized_callees(target_graph, target_symbol)
-        source_contains = normalized_contains(source_graph, source_symbol)
-        target_contains = normalized_contains(target_graph, target_symbol)
+        source_defined = defined?(source_graph, source_symbol, source_file)
+        target_defined = defined?(target_graph, target_symbol, target_file)
+        source_exported = exported?(source_graph, source_symbol, source_file)
+        target_exported = exported?(target_graph, target_symbol, target_file)
+        source_entry_point = entry_point?(source_symbol, source_entry_points, source_file: source_file)
+        target_entry_point = entry_point?(target_symbol, target_entry_points, target_file: target_file)
+        source_imports = normalized_imports(source_graph, source_symbol, source_file)
+        target_imports = normalized_imports(target_graph, target_symbol, target_file)
+        source_callees = normalized_callees(source_graph, source_symbol, source_file)
+        target_callees = normalized_callees(target_graph, target_symbol, target_file)
+        source_contains = normalized_contains(source_graph, source_symbol, source_file)
+        target_contains = normalized_contains(target_graph, target_symbol, target_file)
 
+        build_structural_report(
+          source_symbol: source_symbol,
+          target_symbol: target_symbol,
+          source_defined: source_defined,
+          target_defined: target_defined,
+          source_exported: source_exported,
+          target_exported: target_exported,
+          source_entry_point: source_entry_point,
+          target_entry_point: target_entry_point,
+          source_imports: source_imports,
+          target_imports: target_imports,
+          source_callees: source_callees,
+          target_callees: target_callees,
+          source_contains: source_contains,
+          target_contains: target_contains,
+        )
+      end
+
+      def compare(
+        source_facts : StructuralFacts,
+        source_symbol : String,
+        target_facts : StructuralFacts,
+        target_symbol : String,
+        source_file : String? = nil,
+        target_file : String? = nil,
+      ) : StructuralReport
+        source_defined = defined?(source_facts.graph, source_symbol, source_file)
+        target_defined = defined?(target_facts.graph, target_symbol, target_file)
+        source_exported = exported?(source_facts.graph, source_symbol, source_file)
+        target_exported = exported?(target_facts.graph, target_symbol, target_file)
+        source_entry_point = entry_point?(source_symbol, source_facts.entry_points, source_file: source_file, entry_point_files: source_facts.entry_point_files)
+        target_entry_point = entry_point?(target_symbol, target_facts.entry_points, target_file: target_file, entry_point_files: target_facts.entry_point_files)
+        source_imports = normalized_imports(source_facts.graph, source_symbol, source_file)
+        target_imports = normalized_imports(target_facts.graph, target_symbol, target_file)
+        source_callees = normalized_callees(source_facts, source_symbol, source_file)
+        target_callees = normalized_callees(target_facts, target_symbol, target_file)
+        source_contains = normalized_contains(source_facts.graph, source_symbol, source_file)
+        target_contains = normalized_contains(target_facts.graph, target_symbol, target_file)
+
+        build_structural_report(
+          source_symbol: source_symbol,
+          target_symbol: target_symbol,
+          source_defined: source_defined,
+          target_defined: target_defined,
+          source_exported: source_exported,
+          target_exported: target_exported,
+          source_entry_point: source_entry_point,
+          target_entry_point: target_entry_point,
+          source_imports: source_imports,
+          target_imports: target_imports,
+          source_callees: source_callees,
+          target_callees: target_callees,
+          source_contains: source_contains,
+          target_contains: target_contains,
+        )
+      end
+
+      private def build_structural_report(
+        source_symbol : String,
+        target_symbol : String,
+        source_defined : Bool,
+        target_defined : Bool,
+        source_exported : Bool,
+        target_exported : Bool,
+        source_entry_point : Bool,
+        target_entry_point : Bool,
+        source_imports : Array(String),
+        target_imports : Array(String),
+        source_callees : Array(String),
+        target_callees : Array(String),
+        source_contains : Array(String),
+        target_contains : Array(String),
+      ) : StructuralReport
         matched_imports = source_imports & target_imports
         missing_imports = source_imports - target_imports
         extra_imports = target_imports - source_imports
@@ -341,24 +423,41 @@ module Chiasmus
         load_facts(path).graph
       end
 
-      private def defined?(graph : Graph::CodeGraph, symbol : String) : Bool
-        graph.defines.any? { |fact| fact.name == symbol }
+      private def defined?(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Bool
+        graph.defines.any? { |fact| fact.name == symbol && (file.nil? || fact.file == file) }
       end
 
-      private def exported?(graph : Graph::CodeGraph, symbol : String) : Bool
+      private def exported?(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Bool
         normalized_symbol = Naming.normalized_simple(symbol)
-        graph.exports.any? { |fact| Naming.normalized_simple(fact.name) == normalized_symbol }
+        graph.exports.any? do |fact|
+          Naming.normalized_simple(fact.name) == normalized_symbol &&
+            (file.nil? || fact.file == file)
+        end
       end
 
-      private def entry_point?(symbol : String, entry_points : Array(String)?) : Bool
+      private def entry_point?(
+        symbol : String,
+        entry_points : Array(String)?,
+        source_file : String? = nil,
+        target_file : String? = nil,
+        entry_point_files : Array(Tuple(String, String)) = [] of Tuple(String, String),
+      ) : Bool
+        file = source_file || target_file
+        if file && !entry_point_files.empty?
+          normalized_symbol = Naming.normalized_simple(symbol)
+          return entry_point_files.any? do |entry_file, entry_name|
+            entry_file == file && Naming.normalized_simple(entry_name) == normalized_symbol
+          end
+        end
+
         return false unless entry_points
 
         normalized_symbol = Naming.normalized_simple(symbol)
         entry_points.any? { |name| Naming.normalized_simple(name) == normalized_symbol }
       end
 
-      private def normalized_imports(graph : Graph::CodeGraph, symbol : String) : Array(String)
-        file = defining_file(graph, symbol)
+      private def normalized_imports(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Array(String)
+        file = file || defining_file(graph, symbol)
         return [] of String unless file
 
         imports = graph.imports.select { |fact| fact.file == file }
@@ -389,7 +488,7 @@ module Chiasmus
         leaf
       end
 
-      private def normalized_callees(graph : Graph::CodeGraph, symbol : String) : Array(String)
+      private def normalized_callees(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Array(String)
         callees = graph.calls.select { |fact| fact.caller == symbol }
           .map { |fact| Naming.normalized_simple(fact.callee) }
           .reject(&.empty?)
@@ -398,8 +497,24 @@ module Chiasmus
         callees
       end
 
-      private def normalized_contains(graph : Graph::CodeGraph, symbol : String) : Array(String)
-        contained = graph.contains.select { |fact| fact.parent == symbol }
+      private def normalized_callees(facts : StructuralFacts, symbol : String, file : String? = nil) : Array(String)
+        return normalized_callees(facts.graph, symbol, file) if file.nil? || facts.scoped_calls.empty?
+
+        callees = facts.scoped_calls.select { |edge| edge.file == file && edge.caller == symbol }
+          .map { |edge| Naming.normalized_simple(edge.callee) }
+          .reject(&.empty?)
+        callees.uniq!
+        callees.sort!
+        callees
+      end
+
+      private def normalized_contains(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Array(String)
+        contained = graph.contains.select do |fact|
+          next false unless fact.parent == symbol
+          next true if file.nil?
+
+          graph.defines.any? { |define| define.file == file && define.name == fact.child }
+        end
           .map { |fact| Naming.normalized_simple(fact.child) }
           .reject(&.empty?)
         contained.uniq!
@@ -681,6 +796,8 @@ module Chiasmus
         @crystal_graph : Graph::CodeGraph? = nil,
         @source_entry_points : Array(String)? = nil,
         @crystal_entry_points : Array(String)? = nil,
+        @source_facts : StructuralFacts? = nil,
+        @crystal_facts : StructuralFacts? = nil,
       )
         @symbols_by_file = Hash(String, Array(SymbolItem)).new { |hash, key| hash[key] = [] of SymbolItem }
         @rules_by_upstream = Hash(String, Array(ConversionRule)).new { |hash, key| hash[key] = [] of ConversionRule }
@@ -764,7 +881,7 @@ module Chiasmus
       end
 
       private def build_report(row : InventoryRow, status : String, match : Match, notes : String) : ReportRow
-        structural_status, structural_details = structural_fields(row.source_name, match.symbol.name, row.status)
+        structural_status, structural_details = structural_fields(row, match.symbol, row.status)
         ReportRow.new(
           source_id: row.source_id,
           kind: row.kind,
@@ -782,7 +899,7 @@ module Chiasmus
       end
 
       private def report_from_symbol(row : InventoryRow, status : String, symbol : SymbolItem, notes : String, confidence : Int32 = 100, basis : String = "ref_path") : ReportRow
-        structural_status, structural_details = structural_fields(row.source_name, symbol.name, row.status)
+        structural_status, structural_details = structural_fields(row, symbol, row.status)
         ReportRow.new(
           source_id: row.source_id,
           kind: row.kind,
@@ -864,6 +981,7 @@ module Chiasmus
         notes = append_notes(row.notes, "stale crystal_refs: #{missing_refs.join(", ")}")
 
         if match
+          structural_status, structural_details = structural_fields(row, match.symbol, row.status)
           return ReportRow.new(
             source_id: row.source_id,
             kind: row.kind,
@@ -874,8 +992,8 @@ module Chiasmus
             crystal_kind: match.symbol.kind,
             crystal_path: match.symbol.file,
             basis: "stale_ref_path",
-            structural_status: structural_fields(row.source_name, match.symbol.name, row.status)[0],
-            structural_details: structural_fields(row.source_name, match.symbol.name, row.status)[1],
+            structural_status: structural_status,
+            structural_details: structural_details,
             notes: notes,
           )
         end
@@ -890,20 +1008,37 @@ module Chiasmus
         "#{existing}; #{extra}"
       end
 
-      private def structural_fields(source_symbol : String, crystal_symbol : String, inventory_status : String) : Tuple(String, String)
+      private def structural_fields(row : InventoryRow, symbol : SymbolItem, inventory_status : String) : Tuple(String, String)
         return {"-", "-"} if inventory_status == "intentional_divergence"
-        source_graph = @source_graph
-        crystal_graph = @crystal_graph
-        return {"-", "-"} unless source_graph && crystal_graph
+        report = if source_facts = @source_facts
+                   if crystal_facts = @crystal_facts
+                     Structural.compare(
+                       source_facts,
+                       row.source_name,
+                       crystal_facts,
+                       symbol.name,
+                       source_file: row.source_file,
+                       target_file: symbol.file,
+                     )
+                   else
+                     return {"-", "-"}
+                   end
+                 else
+                   source_graph = @source_graph
+                   crystal_graph = @crystal_graph
+                   return {"-", "-"} unless source_graph && crystal_graph
 
-        report = Structural.compare(
-          source_graph,
-          source_symbol,
-          crystal_graph,
-          crystal_symbol,
-          source_entry_points: @source_entry_points,
-          target_entry_points: @crystal_entry_points,
-        )
+                   Structural.compare(
+                     source_graph,
+                     row.source_name,
+                     crystal_graph,
+                     symbol.name,
+                     source_entry_points: @source_entry_points,
+                     target_entry_points: @crystal_entry_points,
+                     source_file: row.source_file,
+                     target_file: symbol.file,
+                   )
+                 end
         details = structural_detail_lines(report)
         {report.status, details.empty? ? "-" : details.join("; ")}
       end
@@ -1058,6 +1193,8 @@ module Chiasmus
         crystal_graph: crystal_facts.try(&.graph),
         source_entry_points: source_facts.try(&.entry_points),
         crystal_entry_points: crystal_facts.try(&.entry_points),
+        source_facts: source_facts,
+        crystal_facts: crystal_facts,
       )
       AnalysisResult.new(rows: matcher.analyze(inventory), parser_mode: parser)
     end
