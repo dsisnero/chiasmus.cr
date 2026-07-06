@@ -8,6 +8,8 @@ CRYSTAL_SPEC_CMD="${4:-}"
 UPSTREAM_TEST_CMD="${5:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${SCRIPT_DIR}/port_path_lib.sh"
+SOURCE_PATH="$(resolve_port_source_path "${ROOT_DIR}" "${SOURCE_PATH}")"
 ENSURE_SCRIPT="${ENSURE_PARITY_PLAN_SCRIPT:-${SCRIPT_DIR}/ensure_parity_plan.sh}"
 COMPLETION_GATE_SCRIPT="${CHECK_COMPLETION_GATE_SCRIPT:-${SCRIPT_DIR}/check_completion_gate.sh}"
 PORT_INVENTORY="${ROOT_DIR}/plans/inventory/${LANGUAGE}_port_inventory.tsv"

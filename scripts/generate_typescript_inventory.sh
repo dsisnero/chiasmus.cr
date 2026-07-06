@@ -6,6 +6,9 @@ set -euo pipefail
 ROOT_DIR="${1:-$(pwd)}"
 SOURCE_PATH="${2:-vendor/chiasmus}"
 OUTPUT_DIR="${3:-plans/inventory}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${SCRIPT_DIR}/port_path_lib.sh"
+SOURCE_PATH="$(resolve_port_source_path "${ROOT_DIR}" "${SOURCE_PATH}")"
 
 mkdir -p "${OUTPUT_DIR}"
 
@@ -24,13 +27,13 @@ echo -e "source_test_id\tstatus\tcrystal_refs\tnotes" > "${TEST_PARITY}"
 # Find TypeScript files and extract basic information
 find "${SOURCE_PATH}" -name "*.ts" -type f | while read -r file; do
     rel_path="${file#${SOURCE_PATH}/}"
-    
+
     # Check if it's a test file
     if [[ "$rel_path" == *".test.ts" || "$rel_path" == *".spec.ts" || "$rel_path" == *"/test/"* || "$rel_path" == *"/tests/"* ]]; then
         # Extract test names (simplified)
-        grep -E "^(describe|it|test)\s*\(" "$file" | while read -r line; do
+        grep -E "^(describe|it|test)[[:space:]]*\\(" "$file" | while read -r line; do
             # Extract test name
-            test_name=$(echo "$line" | sed -E 's/^(describe|it|test)\s*\(\s*[\"\047]([^\"\047]+)[\"\047].*/\2/' | head -1)
+            test_name=$(echo "$line" | sed -E 's/^(describe|it|test)[[:space:]]*\([[:space:]]*["\047]([^"\047]+)["\047].*/\2/' | head -1)
             if [[ -n "$test_name" ]]; then
                 test_id="${rel_path}::test::${test_name}"
                 echo -e "${test_id}\tmissing\t-\t" >> "${TEST_PARITY}"
@@ -39,32 +42,32 @@ find "${SOURCE_PATH}" -name "*.ts" -type f | while read -r file; do
         done
     else
         # Extract function and class names (simplified)
-        grep -E "^(export\s+)?(function|class|interface|type|const|let|var)\s+[A-Za-z_]" "$file" | while read -r line; do
+        grep -E "^(export[[:space:]]+)?(function|class|interface|type|const|let|var)[[:space:]]+[A-Za-z_]" "$file" | while read -r line; do
             # Extract identifier name
-            if echo "$line" | grep -q "^\s*export\s"; then
+            if echo "$line" | grep -q "^[[:space:]]*export[[:space:]]"; then
                 # Remove export keyword
-                line=$(echo "$line" | sed 's/^\s*export\s\+//')
+                line=$(echo "$line" | sed -E 's/^[[:space:]]*export[[:space:]]+//')
             fi
-            
-            if echo "$line" | grep -q "^function\s"; then
-                name=$(echo "$line" | sed -E 's/^function\s+([A-Za-z_][A-Za-z0-9_]*).*/\1/')
+
+            if echo "$line" | grep -q "^function[[:space:]]"; then
+                name=$(echo "$line" | sed -E 's/^function[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\1/')
                 kind="function"
-            elif echo "$line" | grep -q "^class\s"; then
-                name=$(echo "$line" | sed -E 's/^class\s+([A-Za-z_][A-Za-z0-9_]*).*/\1/')
+            elif echo "$line" | grep -q "^class[[:space:]]"; then
+                name=$(echo "$line" | sed -E 's/^class[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\1/')
                 kind="class"
-            elif echo "$line" | grep -q "^interface\s"; then
-                name=$(echo "$line" | sed -E 's/^interface\s+([A-Za-z_][A-Za-z0-9_]*).*/\1/')
+            elif echo "$line" | grep -q "^interface[[:space:]]"; then
+                name=$(echo "$line" | sed -E 's/^interface[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\1/')
                 kind="interface"
-            elif echo "$line" | grep -q "^type\s"; then
-                name=$(echo "$line" | sed -E 's/^type\s+([A-Za-z_][A-Za-z0-9_]*).*/\1/')
+            elif echo "$line" | grep -q "^type[[:space:]]"; then
+                name=$(echo "$line" | sed -E 's/^type[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\1/')
                 kind="type"
-            elif echo "$line" | grep -q "^(const|let|var)\s"; then
-                name=$(echo "$line" | sed -E 's/^(const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*).*/\2/')
+            elif echo "$line" | grep -q "^(const|let|var)[[:space:]]"; then
+                name=$(echo "$line" | sed -E 's/^(const|let|var)[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\2/')
                 kind="variable"
             else
                 continue
             fi
-            
+
             if [[ -n "$name" ]]; then
                 source_id="${rel_path}::${kind}::${name}"
                 echo -e "${source_id}\tmissing\t-\t" >> "${SOURCE_PARITY}"

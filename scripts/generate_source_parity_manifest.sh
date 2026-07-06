@@ -10,6 +10,8 @@ FORCE_OVERWRITE="${6:-${PORT_FORCE_OVERWRITE:-0}}"
 PARSER="${PORT_PARSER:-auto}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${SCRIPT_DIR}/port_path_lib.sh"
+SOURCE_PATH="$(resolve_port_source_path "${ROOT_DIR}" "${SOURCE_PATH}")"
 
 args=(--root "${ROOT_DIR}" --language "${LANGUAGE}" --parser "${PARSER}")
 [[ -n "${OUT}" ]] && args+=(--out "${OUT}")

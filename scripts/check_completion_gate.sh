@@ -13,6 +13,7 @@ COMPLETE_QUERY="${PORT_COMPLETE_QUERY:-status}"
 COMPLETE_FORMAT="${PORT_COMPLETE_FORMAT:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${SCRIPT_DIR}/port_path_lib.sh"
 ENTRY_POINT_ARGS=()
 EXTRA_COMPLETE_ARGS=()
 
@@ -92,7 +93,7 @@ build_entry_point_args() {
   done
 }
 
-SOURCE_DIR="$(resolve_path "${ROOT_DIR}" "${SOURCE_PATH}")"
+SOURCE_DIR="$(resolve_port_source_path "${ROOT_DIR}" "${SOURCE_PATH}")"
 CRYSTAL_DIR="$(resolve_path "${ROOT_DIR}" "${CRYSTAL_FACTS_DIR}")"
 
 if [[ ! -d "${SOURCE_DIR}" ]]; then

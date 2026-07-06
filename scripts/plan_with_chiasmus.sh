@@ -17,6 +17,7 @@ if [[ -z "${SOURCE_PATH}" ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${SCRIPT_DIR}/port_path_lib.sh"
 ENTRY_POINT_ARGS=()
 
 resolve_path() {
@@ -77,7 +78,7 @@ build_entry_point_args() {
   done
 }
 
-SOURCE_DIR="$(resolve_path "${ROOT_DIR}" "${SOURCE_PATH}")"
+SOURCE_DIR="$(resolve_port_source_path "${ROOT_DIR}" "${SOURCE_PATH}")"
 CRYSTAL_DIR="$(resolve_path "${ROOT_DIR}" "${CRYSTAL_FACTS_DIR}")"
 INVENTORY_PATH="${ROOT_DIR}/plans/inventory/${SOURCE_LANGUAGE}_port_inventory.tsv"
 PARITY_PLAN_PATH="${ROOT_DIR}/plans/parity.md"

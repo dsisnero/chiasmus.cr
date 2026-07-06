@@ -8,6 +8,8 @@ PARSER="${4:-${PORT_PARSER:-auto}}"
 REFRESH="${5:-0}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${SCRIPT_DIR}/port_path_lib.sh"
+SOURCE_PATH="$(resolve_port_source_path "${ROOT_DIR}" "${SOURCE_PATH}")"
 INV_DIR="${ROOT_DIR}/plans/inventory"
 PORT_MANIFEST="${INV_DIR}/${LANGUAGE}_port_inventory.tsv"
 SOURCE_MANIFEST="${INV_DIR}/${LANGUAGE}_source_parity.tsv"
