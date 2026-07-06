@@ -1,0 +1,7 @@
+# Team-wide worktree automation (wktrees).
+
+# Build the local chiasmus binary in each new worktree so the opencode and
+# codex MCP configs can exec ./bin/chiasmus. Runs in the background after the
+# worktree is created (bin/ is gitignored, so each worktree builds its own).
+[post-start]
+build-chiasmus = "make build"
