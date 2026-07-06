@@ -3,5 +3,7 @@
 # Build the local chiasmus binary in each new worktree so the opencode and
 # codex MCP configs can exec ./bin/chiasmus. Runs in the background after the
 # worktree is created (bin/ is gitignored, so each worktree builds its own).
+# Use a worktree-local Crystal cache so sandboxed and multi-worktree builds
+# don't depend on mutating a shared home-directory compiler cache.
 [post-start]
-build-chiasmus = "make build"
+build-chiasmus = "CRYSTAL_CACHE_DIR=$PWD/.crystal-cache make build"
