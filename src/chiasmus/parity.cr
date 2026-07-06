@@ -489,12 +489,24 @@ module Chiasmus
       end
 
       private def normalized_callees(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Array(String)
+        if file && ambiguous_definition?(graph, symbol, file)
+          return [] of String
+        end
+
         callees = graph.calls.select { |fact| fact.caller == symbol }
           .map { |fact| Naming.normalized_simple(fact.callee) }
           .reject(&.empty?)
         callees.uniq!
         callees.sort!
         callees
+      end
+
+      private def ambiguous_definition?(graph : Graph::CodeGraph, symbol : String, file : String) : Bool
+        matching_defines = graph.defines.select { |fact| fact.name == symbol }
+        return false if matching_defines.empty?
+        return false if matching_defines.size == 1
+
+        matching_defines.any? { |fact| fact.file == file }
       end
 
       private def normalized_callees(facts : StructuralFacts, symbol : String, file : String? = nil) : Array(String)

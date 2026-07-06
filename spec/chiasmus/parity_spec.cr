@@ -456,6 +456,54 @@ describe Chiasmus::Parity::Structural do
     report.missing_calls.should eq(["leaf"])
     report.extra_calls.should eq([] of String)
   end
+
+  it "does not borrow graph-only call structure from a duplicate target symbol in another file when file hints are provided" do
+    source_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+      ],
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+        Chiasmus::Graph::CallsFact.new(caller: "helper", callee: "leaf"),
+      ],
+      exports: [] of Chiasmus::Graph::ExportsFact,
+      contains: [] of Chiasmus::Graph::ContainsFact,
+      imports: [] of Chiasmus::Graph::ImportsFact,
+    )
+
+    target_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
+        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 7),
+      ],
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+        Chiasmus::Graph::CallsFact.new(caller: "helper", callee: "leaf"),
+      ],
+      exports: [] of Chiasmus::Graph::ExportsFact,
+      contains: [] of Chiasmus::Graph::ContainsFact,
+      imports: [] of Chiasmus::Graph::ImportsFact,
+    )
+
+    report = Chiasmus::Parity::Structural.compare(
+      source_graph,
+      "helper",
+      target_graph,
+      "helper",
+      source_file: "src/app.ts",
+      target_file: "src/util.cr",
+    )
+
+    report.status.should eq("structural_drift")
+    report.matched_calls.should eq([] of String)
+    report.missing_calls.should eq(["leaf"])
+    report.extra_calls.should eq([] of String)
+  end
 end
 
 describe Chiasmus::Parity::CLI do
