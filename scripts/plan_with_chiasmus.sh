@@ -19,6 +19,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${SCRIPT_DIR}/port_path_lib.sh"
 ENTRY_POINT_ARGS=()
+ENTRY_POINTS_KEY=""
 
 resolve_path() {
   local base="$1"
@@ -59,6 +60,7 @@ run_tool() {
 
 build_entry_point_args() {
   ENTRY_POINT_ARGS=()
+  ENTRY_POINTS_KEY=""
   if [[ -z "${ENTRY_POINTS}" ]]; then
     return
   fi
@@ -69,13 +71,70 @@ build_entry_point_args() {
   IFS="${old_ifs}"
 
   local entry
+  local normalized_entries=()
   for entry in "${entries[@]}"; do
     entry="${entry#"${entry%%[![:space:]]*}"}"
     entry="${entry%"${entry##*[![:space:]]}"}"
     if [[ -n "${entry}" ]]; then
+      normalized_entries+=("${entry}")
       ENTRY_POINT_ARGS+=(--entry-point "${entry}")
     fi
   done
+
+  if (( ${#normalized_entries[@]} > 0 )); then
+    local join_ifs="${IFS}"
+    IFS=','
+    ENTRY_POINTS_KEY="${normalized_entries[*]}"
+    IFS="${join_ifs}"
+  fi
+}
+
+facts_meta_path() {
+  printf '%s.meta\n' "$1"
+}
+
+write_facts_metadata() {
+  local facts_path="$1"
+  local language="$2"
+  local dir="$3"
+  local meta_path
+  meta_path="$(facts_meta_path "${facts_path}")"
+
+  cat > "${meta_path}" <<EOF
+language=${language}
+dir=${dir}
+entry_points=${ENTRY_POINTS_KEY}
+EOF
+}
+
+facts_snapshot_fresh() {
+  local facts_path="$1"
+  local language="$2"
+  local dir="$3"
+  local meta_path
+  meta_path="$(facts_meta_path "${facts_path}")"
+
+  [[ -f "${facts_path}" ]] || return 1
+  [[ -f "${meta_path}" ]] || return 1
+  grep -Fxq "language=${language}" "${meta_path}" || return 1
+  grep -Fxq "dir=${dir}" "${meta_path}" || return 1
+  grep -Fxq "entry_points=${ENTRY_POINTS_KEY}" "${meta_path}" || return 1
+
+  local newer_path
+  newer_path="$(find "${dir}" -type f -newer "${facts_path}" -print -quit 2>/dev/null || true)"
+  [[ -z "${newer_path}" ]] || return 1
+
+  return 0
+}
+
+refresh_facts_snapshot() {
+  local facts_path="$1"
+  local language="$2"
+  local dir="$3"
+  shift 3
+
+  run_tool CHIASMUS_FACTS_BIN chiasmus-facts "$@" > "${facts_path}"
+  write_facts_metadata "${facts_path}" "${language}" "${dir}"
 }
 
 SOURCE_DIR="$(resolve_port_source_path "${ROOT_DIR}" "${SOURCE_PATH}")"
@@ -120,8 +179,13 @@ if (( ${#ENTRY_POINT_ARGS[@]} > 0 )); then
   crystal_args+=("${ENTRY_POINT_ARGS[@]}")
 fi
 
-run_tool CHIASMUS_FACTS_BIN chiasmus-facts "${source_args[@]}" > "${SOURCE_FACTS}"
-run_tool CHIASMUS_FACTS_BIN chiasmus-facts "${crystal_args[@]}" > "${CRYSTAL_FACTS}"
+if ! facts_snapshot_fresh "${SOURCE_FACTS}" "${SOURCE_LANGUAGE}" "${SOURCE_DIR}"; then
+  refresh_facts_snapshot "${SOURCE_FACTS}" "${SOURCE_LANGUAGE}" "${SOURCE_DIR}" "${source_args[@]}"
+fi
+
+if ! facts_snapshot_fresh "${CRYSTAL_FACTS}" crystal "${CRYSTAL_DIR}"; then
+  refresh_facts_snapshot "${CRYSTAL_FACTS}" crystal "${CRYSTAL_DIR}" "${crystal_args[@]}"
+fi
 
 plan_args=(--facts "${SOURCE_FACTS}" --format tsv --top "${TOP_N}")
 if (( ${#ENTRY_POINT_ARGS[@]} > 0 )); then
