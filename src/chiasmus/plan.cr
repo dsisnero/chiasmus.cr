@@ -8,6 +8,9 @@ require "./graph/community"
 
 module Chiasmus
   module Plan
+    @@after_report_analyzed_hook_for_test : Proc(String, Nil)? = nil
+    @@after_report_analyzed_hook_lock = Mutex.new
+
     enum Mode
       Rank
       Safe
@@ -131,6 +134,18 @@ module Chiasmus
 
     extend self
 
+    def set_after_report_analyzed_hook_for_test(&block : String ->) : Nil
+      @@after_report_analyzed_hook_lock.synchronize do
+        @@after_report_analyzed_hook_for_test = block
+      end
+    end
+
+    def clear_after_report_analyzed_hook_for_test : Nil
+      @@after_report_analyzed_hook_lock.synchronize do
+        @@after_report_analyzed_hook_for_test = nil
+      end
+    end
+
     def rank(graph : Graph::CodeGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
       reports = analyze(graph, entry_points)
       ranked = reports.sort do |a, b|
@@ -237,7 +252,12 @@ module Chiasmus
       file : String? = nil,
       entry_points : Array(String)? = nil,
     ) : Report
-      resolve_audit_report(analyze(graph, entry_points), symbol, file)
+      context = build_analysis_context(graph, entry_points)
+      reports = graph.defines
+        .select { |fact| fact.name == symbol }
+        .select { |fact| file.nil? || fact.file == file }
+        .map { |fact| analyze_fact(fact, context) }
+      resolve_audit_report(reports, symbol, file)
     end
 
     def audit(
@@ -246,7 +266,14 @@ module Chiasmus
       file : String? = nil,
       entry_points : Array(String)? = nil,
     ) : Report
-      resolve_audit_report(analyze(graph, entry_points), symbol, file)
+      normalized = Graph::IR.normalize(graph)
+      analysis_graph = build_semantic_analysis_graph(normalized)
+      context = build_analysis_context(analysis_graph, resolve_semantic_entry_points(normalized, entry_points))
+      reports = normalized.symbols
+        .select { |node| node.qualified_name == symbol }
+        .select { |node| file.nil? || node.file == file }
+        .map { |node| analyze_symbol(node, context, node.id) }
+      resolve_audit_report(reports, symbol, file)
     end
 
     def refresh(
@@ -767,7 +794,7 @@ module Chiasmus
       reasons = report_reasons(reachable_from_entry, exported, impact_count, hub_degree, bridge_score, dead_code, community_size)
       recommendation = recommendation_for(dead_code, reachable_from_entry, callee_count, hub_degree, bridge_score, contains_count, safety_score)
 
-      Report.new(
+      report = Report.new(
         name: fact.name,
         file: fact.file,
         kind: fact.kind.to_s.downcase,
@@ -787,6 +814,8 @@ module Chiasmus
         reasons: reasons,
         recommendation: recommendation,
       )
+      notify_after_report_analyzed_for_test(report.name)
+      report
     end
 
     private def analyze_symbol(
@@ -810,7 +839,7 @@ module Chiasmus
       reasons = report_reasons(reachable_from_entry, exported, impact_count, hub_degree, bridge_score, dead_code, community_size)
       recommendation = recommendation_for(dead_code, reachable_from_entry, callee_count, hub_degree, bridge_score, contains_count, safety_score)
 
-      Report.new(
+      report = Report.new(
         name: symbol.qualified_name,
         file: symbol.file,
         kind: symbol.kind.to_s.downcase,
@@ -830,6 +859,15 @@ module Chiasmus
         reasons: reasons,
         recommendation: recommendation,
       )
+      notify_after_report_analyzed_for_test(report.name)
+      report
+    end
+
+    private def notify_after_report_analyzed_for_test(name : String) : Nil
+      hook = @@after_report_analyzed_hook_lock.synchronize do
+        @@after_report_analyzed_hook_for_test
+      end
+      hook.try &.call(name)
     end
 
     private def priority_score_for(

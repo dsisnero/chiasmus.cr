@@ -543,6 +543,23 @@ describe Chiasmus::Plan do
     report.reasons.join(" ").should contain("reachable from entry point")
   end
 
+  it "audits only the requested report instead of analyzing every symbol" do
+    analyzed = [] of String
+
+    begin
+      Chiasmus::Plan.set_after_report_analyzed_hook_for_test do |name|
+        analyzed << name
+      end
+
+      report = Chiasmus::Plan.audit(sample_plan_graph, symbol: "hub", entry_points: ["main"])
+
+      report.name.should eq("hub")
+      analyzed.should eq(["hub"])
+    ensure
+      Chiasmus::Plan.clear_after_report_analyzed_hook_for_test
+    end
+  end
+
   it "requires a file hint when auditing duplicate semantic-ir names" do
     expect_raises(Exception, /Ambiguous symbol: helper/) do
       Chiasmus::Plan.audit(sample_semantic_duplicate_name_plan_graph, symbol: "helper", entry_points: ["main"])
