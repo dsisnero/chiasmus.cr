@@ -11,7 +11,7 @@ require "../utils/xdg"
 
 module Chiasmus
   module Graph
-    CACHE_SCHEMA_VERSION = "3"
+    CACHE_SCHEMA_VERSION = "4"
 
     DEFAULT_MAX_BYTES = 64 * 1024 * 1024 # 64 MB
 
@@ -19,6 +19,7 @@ module Chiasmus
       extend self
 
       private alias CacheItem = NamedTuple(path: String, content: String, graph: CodeGraph)
+      private alias CacheLookupItem = NamedTuple(path: String, content: String)
       private record FileCacheWriteRequest,
         items : Array(CacheItem),
         cache_dir : String,
@@ -35,6 +36,14 @@ module Chiasmus
         ack : Channel(Bool)
 
       private alias AsyncWriteRequest = FileCacheWriteRequest | SnapshotWriteRequest | FlushRequest
+      private record GitRepoContext,
+        repo_root : String,
+        common_dir : String
+
+      private record CacheIdentity,
+        manifest_path : String,
+        hash : String,
+        origin_path : String
 
       @@mutex = Mutex.new
       @@writer_mutex = Mutex.new
@@ -48,7 +57,8 @@ module Chiasmus
       end
 
       def default_repo_key(cwd : String = Dir.current) : String
-        OpenSSL::Digest.new("SHA256").update(cwd).final.hexstring[0, 16]
+        key_source = git_repo_context_for(cwd).try(&.common_dir) || canonical_path(cwd)
+        OpenSSL::Digest.new("SHA256").update(key_source).final.hexstring[0, 16]
       end
 
       # Resolve repo_key from nil → default_repo_key (SHA-256 of CWD).
@@ -88,19 +98,24 @@ module Chiasmus
       ) : NamedTuple(hits: Array(NamedTuple(path: String, graph: CodeGraph)), misses: Array(NamedTuple(path: String, content: String)))
         paths = resolve_cache_paths(cache_dir, repo_key)
         manifest = load_manifest(paths)
+        identities = build_cache_identities(files)
 
         hits = [] of NamedTuple(path: String, graph: CodeGraph)
         misses = [] of NamedTuple(path: String, content: String)
 
-        files.each do |file_info|
-          h = file_hash(file_info[:content], file_info[:path])
-          entry = manifest["entries"].as_h[file_info[:path]]?
+        files.each_with_index do |file_info, index|
+          identity = identities[index]
+          entry = manifest["entries"].as_h[identity.manifest_path]?
           entry_hash = entry.try(&.["hash"].as_s)
-          if entry_hash && entry_hash == h
-            cache_path = File.join(paths["files_dir"], "#{h}.json")
+          if entry_hash && entry_hash == identity.hash
+            cache_path = File.join(paths["files_dir"], "#{identity.hash}.json")
             begin
               raw = File.read(cache_path)
-              graph = code_graph_from_json(raw)
+              graph = rewrite_cached_graph_paths(
+                code_graph_from_json(raw),
+                entry_origin_path(entry) || identity.origin_path,
+                file_info[:path]
+              )
               # Best-effort mtime bump for LRU
               File.utime(Time.utc, Time.utc, cache_path) rescue nil
               hits << {path: file_info[:path], graph: graph}
@@ -129,20 +144,22 @@ module Chiasmus
           Dir.mkdir_p(paths["files_dir"])
 
           manifest = load_manifest(paths)
+          identities = build_cache_identities(items.map { |item| {path: item[:path], content: item[:content]} })
 
-          items.each do |item|
-            h = file_hash(item[:content], item[:path])
+          items.each_with_index do |item, index|
+            identity = identities[index]
             serialized = code_graph_to_json(item[:graph])
-            cache_path = File.join(paths["files_dir"], "#{h}.json")
+            cache_path = File.join(paths["files_dir"], "#{identity.hash}.json")
             tmp = unique_tmp_path(cache_path)
             File.write(tmp, serialized)
             File.rename(tmp, cache_path)
 
             entry = manifest["entries"].as_h
-            entry[item[:path]] = JSON.parse({
-              "hash"    => h,
-              "size"    => serialized.bytesize.to_s,
-              "savedAt" => Time.utc.to_unix_ms.to_s,
+            entry[identity.manifest_path] = JSON.parse({
+              "hash"       => identity.hash,
+              "size"       => serialized.bytesize.to_s,
+              "savedAt"    => Time.utc.to_unix_ms.to_s,
+              "originPath" => identity.origin_path,
             }.to_json)
           end
 
@@ -291,6 +308,212 @@ module Chiasmus
         raise ArgumentError.new("Invalid snapshot name: #{name}") if name.includes?('/') || name.includes?('\\') || name.includes?('\0')
       end
 
+      private def build_cache_identities(files : Array(CacheLookupItem)) : Array(CacheIdentity)
+        identities = Array(CacheIdentity?).new(files.size, nil)
+        repo_groups = Hash(String, Array(NamedTuple(index: Int32, file: CacheLookupItem, rel_path: String, context: GitRepoContext))).new do |hash, key|
+          hash[key] = [] of NamedTuple(index: Int32, file: CacheLookupItem, rel_path: String, context: GitRepoContext)
+        end
+
+        files.each_with_index do |file_info, index|
+          if context = git_repo_context_for(file_info[:path])
+            if rel_path = repo_relative_path(context.repo_root, file_info[:path])
+              repo_groups[context.repo_root] << {index: index.to_i32, file: file_info, rel_path: rel_path, context: context}
+              next
+            end
+          end
+
+          identities[index] = CacheIdentity.new(
+            manifest_path: file_info[:path],
+            hash: file_hash(file_info[:content], file_info[:path]),
+            origin_path: file_info[:path]
+          )
+        end
+
+        repo_groups.each_value do |group|
+          context = group.first[:context]
+          rel_paths = group.map(&.[:rel_path])
+          rel_paths.uniq!
+          dirty_paths = git_dirty_paths(context.repo_root, rel_paths)
+          clean_paths = rel_paths.reject { |rel_path| dirty_paths.includes?(rel_path) }
+          blob_map = git_blob_oids(context.repo_root, clean_paths)
+
+          group.each do |entry|
+            logical_path = entry[:rel_path]
+            hash = if dirty_paths.includes?(logical_path)
+                     file_hash(entry[:file][:content], logical_path)
+                   elsif blob_oid = blob_map[logical_path]?
+                     git_blob_hash(blob_oid, logical_path)
+                   else
+                     file_hash(entry[:file][:content], logical_path)
+                   end
+
+            identities[entry[:index]] = CacheIdentity.new(
+              manifest_path: logical_path,
+              hash: hash,
+              origin_path: entry[:file][:path]
+            )
+          end
+        end
+
+        identities.map do |identity|
+          identity || raise "missing cache identity"
+        end
+      end
+
+      private def git_blob_hash(blob_oid : String, logical_path : String) : String
+        OpenSSL::Digest.new("SHA256").update(blob_oid).update("\u0000").update(logical_path).final.hexstring
+      end
+
+      private def entry_origin_path(entry : JSON::Any?) : String?
+        entry.try(&.as_h["originPath"]?).try(&.as_s?)
+      end
+
+      private def rewrite_cached_graph_paths(graph : CodeGraph, from_path : String, to_path : String) : CodeGraph
+        return graph if from_path == to_path
+
+        files = graph.files.try &.map do |file_node|
+          next file_node unless file_node.path == from_path
+          FileNode.new(
+            path: to_path,
+            language: file_node.language,
+            line_count: file_node.line_count,
+            token_estimate: file_node.token_estimate,
+            file_doc: file_node.file_doc
+          )
+        end
+
+        type_info = graph.type_info.try &.map do |type_entry|
+          next type_entry unless type_entry.file == from_path
+          FileTypeInfo.new(
+            file: to_path,
+            class_fields: type_entry.class_fields,
+            class_methods: type_entry.class_methods,
+            class_extends: type_entry.class_extends,
+            pending_calls: type_entry.pending_calls
+          )
+        end
+
+        CodeGraph.new(
+          defines: graph.defines.map { |defn| defn.file == from_path ? DefinesFact.new(file: to_path, name: defn.name, kind: defn.kind, line: defn.line, end_line: defn.end_line, signature: defn.signature) : defn },
+          calls: graph.calls,
+          imports: graph.imports.map { |imp| imp.file == from_path ? ImportsFact.new(file: to_path, name: imp.name, source: imp.source) : imp },
+          exports: graph.exports.map { |exp| exp.file == from_path ? ExportsFact.new(file: to_path, name: exp.name) : exp },
+          contains: graph.contains,
+          files: files,
+          type_info: type_info
+        )
+      end
+
+      private def git_repo_context_for(path : String) : GitRepoContext?
+        current = canonical_path(Dir.exists?(path) ? path : File.dirname(path))
+
+        loop do
+          git_entry = File.join(current, ".git")
+          if Dir.exists?(git_entry)
+            git_dir = canonical_path(git_entry)
+            return GitRepoContext.new(repo_root: current, common_dir: git_common_dir_for(git_dir))
+          end
+
+          if File.file?(git_entry)
+            if git_dir = parse_git_dir_pointer(git_entry)
+              return GitRepoContext.new(repo_root: current, common_dir: git_common_dir_for(git_dir))
+            end
+          end
+
+          parent = File.dirname(current)
+          return nil if parent == current
+          current = parent
+        end
+      rescue
+        nil
+      end
+
+      private def parse_git_dir_pointer(git_file : String) : String?
+        line = File.read_lines(git_file).first?
+        return nil unless line
+        prefix = "gitdir: "
+        return nil unless line.starts_with?(prefix)
+        canonical_path(File.expand_path(line[prefix.size..], File.dirname(git_file)))
+      rescue
+        nil
+      end
+
+      private def git_common_dir_for(git_dir : String) : String
+        common_dir_file = File.join(git_dir, "commondir")
+        return canonical_path(git_dir) unless File.file?(common_dir_file)
+        rel_path = File.read(common_dir_file).strip
+        return canonical_path(git_dir) if rel_path.empty?
+        canonical_path(File.expand_path(rel_path, git_dir))
+      rescue
+        canonical_path(git_dir)
+      end
+
+      private def repo_relative_path(repo_root : String, abs_path : String) : String?
+        root = canonical_path(repo_root)
+        path = canonical_path(abs_path)
+        prefix = "#{root}/"
+        return nil unless path.starts_with?(prefix)
+        path.byte_slice(prefix.bytesize, path.bytesize - prefix.bytesize)
+      end
+
+      private def canonical_path(path : String) : String
+        File.realpath(path)
+      rescue
+        File.expand_path(path)
+      end
+
+      private def git_dirty_paths(repo_root : String, rel_paths : Array(String)) : Set(String)
+        return Set(String).new if rel_paths.empty?
+        output = git_capture(repo_root, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--"] + rel_paths)
+        return rel_paths.to_set unless output
+
+        dirty = Set(String).new
+        entries = output.split('\0')
+        index = 0
+        while index < entries.size
+          entry = entries[index]
+          index += 1
+          next if entry.empty? || entry.size < 4
+
+          status = entry[0, 2]
+          path = entry[3..]
+          dirty.add(path) if path
+
+          if status && (status.includes?('R') || status.includes?('C'))
+            other = entries[index]?
+            dirty.add(other) if other && !other.empty?
+            index += 1
+          end
+        end
+
+        dirty
+      end
+
+      private def git_blob_oids(repo_root : String, rel_paths : Array(String)) : Hash(String, String)
+        return Hash(String, String).new if rel_paths.empty?
+        output = git_capture(repo_root, ["ls-files", "--stage", "-z", "--"] + rel_paths)
+        return Hash(String, String).new unless output
+
+        oids = Hash(String, String).new
+        output.split('\0').each do |entry|
+          next if entry.empty?
+          if match = /^(?:\d+)\s+([0-9a-f]+)\s+\d\t(.+)$/.match(entry)
+            oids[match[2]] = match[1]
+          end
+        end
+        oids
+      end
+
+      private def git_capture(repo_root : String, args : Array(String)) : String?
+        output = IO::Memory.new
+        error = IO::Memory.new
+        status = Process.run("git", ["-C", repo_root] + args, output: output, error: error)
+        return nil unless status.success?
+        output.to_s
+      rescue
+        nil
+      end
+
       private def load_manifest(paths : Hash(String, String)) : Hash(String, JSON::Any)
         unless File.exists?(paths["manifest_path"])
           return Hash(String, JSON::Any).new.tap { |hash|
@@ -360,6 +583,15 @@ module Chiasmus
               h = h.merge({"class_extends" => type_entry.class_extends.try(&.map { |class_ext|
                 {"class_name" => class_ext.class_name, "parent" => class_ext.parent}
               })}) if type_entry.class_extends
+              h = h.merge({"pending_calls" => type_entry.pending_calls.map { |pending|
+                {
+                  "caller"          => pending.caller,
+                  "callee"          => pending.callee,
+                  "receiver_chain"  => pending.receiver_chain,
+                  "enclosing_class" => pending.enclosing_class,
+                  "var_types"       => pending.var_types,
+                }
+              }})
               h
             },
           })
@@ -381,6 +613,45 @@ module Chiasmus
             )
           }
         end
+        type_info = parsed["_typeInfo"]?.try do |entries|
+          entries.as_a.map do |type_entry|
+            h = type_entry.as_h
+            FileTypeInfo.new(
+              file: h["file"].as_s,
+              class_fields: h["class_fields"]?.try(&.as_a.map { |class_field|
+                field_hash = class_field.as_h
+                ClassFieldEntry.new(
+                  class_name: field_hash["class_name"].as_s,
+                  fields: field_hash["fields"].as_h.transform_values(&.as_s)
+                )
+              }) || [] of ClassFieldEntry,
+              class_methods: h["class_methods"]?.try(&.as_a.map { |class_method|
+                method_hash = class_method.as_h
+                ClassMethodEntry.new(
+                  class_name: method_hash["class_name"].as_s,
+                  methods: method_hash["methods"].as_a.map(&.as_s)
+                )
+              }),
+              class_extends: h["class_extends"]?.try(&.as_a.map { |class_extend|
+                extend_hash = class_extend.as_h
+                ClassExtendsEntry.new(
+                  class_name: extend_hash["class_name"].as_s,
+                  parent: extend_hash["parent"].as_s
+                )
+              }),
+              pending_calls: h["pending_calls"]?.try(&.as_a.map { |pending_call|
+                pending_hash = pending_call.as_h
+                PendingCall.new(
+                  caller: pending_hash["caller"].as_s,
+                  callee: pending_hash["callee"].as_s,
+                  receiver_chain: pending_hash["receiver_chain"]?.try(&.as_a.map(&.as_s)) || [] of String,
+                  enclosing_class: pending_hash["enclosing_class"]?.try(&.as_s?),
+                  var_types: pending_hash["var_types"]?.try(&.as_h.transform_values(&.as_s)) || Hash(String, String).new
+                )
+              }) || [] of PendingCall
+            )
+          end
+        end
         CodeGraph.new(
           defines: parsed["defines"].as_a.map { |defn|
             DefinesFact.new(file: defn["file"].as_s, name: defn["name"].as_s, kind: SymbolKind.parse(defn["kind"].as_s), line: defn["line"].as_i, end_line: defn["end_line"]?.try(&.as_i?) || 0)
@@ -398,6 +669,7 @@ module Chiasmus
             ContainsFact.new(parent: cont["parent"].as_s, child: cont["child"].as_s)
           },
           files: files,
+          type_info: type_info,
         )
       end
 
