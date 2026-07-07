@@ -10,7 +10,7 @@ describe TreeSitterManager::GrammarManager do
       temp_cache = File.join(Dir.tempdir, "chiasmus-test-cache-#{Random.rand(1_000_000)}")
       Dir.mkdir_p(temp_cache)
 
-      # Reset GrammarManager state
+      # Reset TreeSitterManager::GrammarManager state
       TreeSitterManager::GrammarManager.test_reset(temp_cache)
 
       begin

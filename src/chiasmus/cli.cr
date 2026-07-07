@@ -377,7 +377,7 @@ module Chiasmus
       inferred_language = infer_add_language(source, language, local)
 
       # Initialize GrammarManager
-      TreeSitterManager::TreeSitterManager::GrammarManager.init(@cache_dir)
+      TreeSitterManager::GrammarManager.init(@cache_dir)
 
       install_grammar_from_source(source, inferred_language, local)
     end
@@ -445,7 +445,7 @@ module Chiasmus
       puts
 
       # Initialize GrammarManager
-      TreeSitterManager::TreeSitterManager::GrammarManager.init(cache_dir)
+      TreeSitterManager::GrammarManager.init(cache_dir)
 
       unless cache_dir && Dir.exists?(cache_dir)
         puts "Cache directory not found"
@@ -468,7 +468,7 @@ module Chiasmus
         grammars_found = true
 
         # Load metadata (will auto-create if missing)
-        metadata = TreeSitterManager::TreeSitterManager::GrammarManager.instance.get_grammar_metadata(language)
+        metadata = TreeSitterManager::GrammarManager.instance.get_grammar_metadata(language)
 
         if metadata
           puts "✓ #{language}"
@@ -501,7 +501,7 @@ module Chiasmus
       end
 
       cache_dir = @cache_dir || default_cache_dir
-      TreeSitterManager::TreeSitterManager::GrammarManager.init(cache_dir)
+      TreeSitterManager::GrammarManager.init(cache_dir)
 
       updated_count = 0
       repaired_count = 0
@@ -526,7 +526,7 @@ module Chiasmus
     private def install_grammar(language : String) : Bool
       puts "Installing #{language}..." if @verbose
 
-      channel = TreeSitterManager::TreeSitterManager::GrammarManager.instance.ensure_grammar_async(language)
+      channel = TreeSitterManager::GrammarManager.instance.ensure_grammar_async(language)
       result = wait_for_channel(channel, 120_000)
 
       if result && result.success? && result.value == true
@@ -611,7 +611,7 @@ module Chiasmus
         last_updated: metadata.last_updated
       )
 
-      TreeSitterManager::TreeSitterManager::GrammarMetadataStore.save(language_dir, updated_metadata)
+      TreeSitterManager::GrammarMetadataStore.save(language_dir, updated_metadata)
     end
 
     private def reinstall_grammar(language : String) : Bool
@@ -634,11 +634,11 @@ module Chiasmus
       return language if language
 
       inferred_language = if local
-                            TreeSitterManager::TreeSitterManager::GrammarMetadataStore.infer_language_from_package(File.basename(source))
+                            TreeSitterManager::GrammarMetadataStore.infer_language_from_package(File.basename(source))
                           elsif git_source?(source)
-                            TreeSitterManager::TreeSitterManager::GrammarMetadataStore.infer_language_from_url(source)
+                            TreeSitterManager::GrammarMetadataStore.infer_language_from_url(source)
                           else
-                            TreeSitterManager::TreeSitterManager::GrammarMetadataStore.infer_language_from_package(source)
+                            TreeSitterManager::GrammarMetadataStore.infer_language_from_package(source)
                           end
 
       return inferred_language if inferred_language
@@ -682,7 +682,7 @@ module Chiasmus
 
     private def install_local_grammar(source : String, language : String) : Nil
       puts "Installing local grammar: #{source} as #{language}"
-      channel = TreeSitterManager::TreeSitterManager::GrammarManager.instance.install_from_local_async(source, language)
+      channel = TreeSitterManager::GrammarManager.instance.install_from_local_async(source, language)
       result = wait_for_channel(channel, 120_000)
       return if result && result.success? && result.value == true && puts("✓ Successfully installed #{language} from local directory").nil?
 
@@ -709,8 +709,8 @@ module Chiasmus
 
     private def process_grammar_update(grammar_dir : String, cache_dir : String?) : {Int32, Int32, Int32}
       package_name = File.basename(grammar_dir)
-      metadata_before = TreeSitterManager::TreeSitterManager::GrammarMetadataStore.load(grammar_dir)
-      inferred_metadata = TreeSitterManager::TreeSitterManager::GrammarMetadataStore.infer_metadata(grammar_dir)
+      metadata_before = TreeSitterManager::GrammarMetadataStore.load(grammar_dir)
+      inferred_metadata = TreeSitterManager::GrammarMetadataStore.infer_metadata(grammar_dir)
 
       unless inferred_metadata
         puts "✗ Could not infer metadata for #{package_name}"
@@ -723,13 +723,13 @@ module Chiasmus
       puts "Processing #{package_name} (#{inferred_metadata.type})..." if @verbose
       return dry_run_update(package_name, languages, repaired) if @dry_run
 
-      metadata = TreeSitterManager::TreeSitterManager::GrammarMetadataStore.ensure_metadata(grammar_dir, overwrite: true)
+      metadata = TreeSitterManager::GrammarMetadataStore.ensure_metadata(grammar_dir, overwrite: true)
       unless metadata
         puts "✗ Failed to write metadata for #{package_name}"
         return {0, 0, 1}
       end
 
-      refreshed_metadata = TreeSitterManager::TreeSitterManager::GrammarMetadataStore.ensure_metadata(grammar_dir, overwrite: true) || metadata
+      refreshed_metadata = TreeSitterManager::GrammarMetadataStore.ensure_metadata(grammar_dir, overwrite: true) || metadata
       return {0, repaired ? 1 : 0, 1} unless compile_updated_languages(grammar_dir, languages, refreshed_metadata, cache_dir)
 
       puts "✓ Updated #{package_name}" if @verbose
@@ -783,13 +783,13 @@ module Chiasmus
       metadata = corrected_vendor_metadata(language, vendor_grammar_dir)
       return unless metadata
 
-      if TreeSitterManager::TreeSitterManager::GrammarMetadataStore.save(language_dir, metadata)
+      if TreeSitterManager::GrammarMetadataStore.save(language_dir, metadata)
         puts "  Created correct metadata for #{language} (type: #{metadata.type}, source: #{metadata.url})" if @verbose
       end
     end
 
     private def corrected_vendor_metadata(language : String, vendor_grammar_dir : String) : TreeSitterManager::GrammarMetadata?
-      metadata = TreeSitterManager::TreeSitterManager::GrammarMetadataStore.infer_metadata(vendor_grammar_dir)
+      metadata = TreeSitterManager::GrammarMetadataStore.infer_metadata(vendor_grammar_dir)
       return unless metadata
 
       TreeSitterManager::GrammarMetadata.new(
@@ -806,19 +806,19 @@ module Chiasmus
 
     private def register_custom_language(language : String, package_name : String)
       # Check if language is already registered
-      if TreeSitterManager::TreeSitterManager::LanguageRegistry.package_name(language)
+      if TreeSitterManager::LanguageRegistry.package_name(language)
         return # Already registered
       end
 
       # Create LanguageInfo for custom language
-      info = TreeSitterManager::TreeSitterManager::LanguageRegistry::LanguageInfo.new(
+      info = TreeSitterManager::LanguageRegistry::LanguageInfo.new(
         name: language,
         package: package_name,
         extensions: [] of String
       )
 
       # Register the language
-      TreeSitterManager::TreeSitterManager::LanguageRegistry.register_language(info)
+      TreeSitterManager::LanguageRegistry.register_language(info)
       puts "Registered custom language: #{language} (#{package_name})" if @verbose
     end
 
@@ -865,10 +865,10 @@ module Chiasmus
       puts "Force reinstall: #{@force}" if @force && @verbose
 
       # Initialize GrammarManager
-      TreeSitterManager::TreeSitterManager::GrammarManager.init(@cache_dir)
+      TreeSitterManager::GrammarManager.init(@cache_dir)
 
       puts "Installing default grammars with dependency resolution..."
-      channel = TreeSitterManager::TreeSitterManager::GrammarBatchOperations.install_all_defaults_async(@force)
+      channel = TreeSitterManager::GrammarBatchOperations.install_all_defaults_async(@force)
       result = wait_for_batch_channel(channel, 300_000) # 5 minutes timeout
 
       if result && result.success?
@@ -905,9 +905,9 @@ module Chiasmus
       puts "Force reinstall: #{@force}" if @force && @verbose
 
       # Initialize GrammarManager
-      TreeSitterManager::TreeSitterManager::GrammarManager.init(@cache_dir)
+      TreeSitterManager::GrammarManager.init(@cache_dir)
 
-      channel = TreeSitterManager::TreeSitterManager::GrammarBatchOperations.install_multiple_async(languages, force: @force)
+      channel = TreeSitterManager::GrammarBatchOperations.install_multiple_async(languages, force: @force)
       result = wait_for_batch_channel(channel, 300_000) # 5 minutes timeout
 
       if result && result.success?

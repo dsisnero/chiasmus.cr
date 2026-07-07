@@ -57,7 +57,7 @@ describe TreeSitterManager::GrammarBatchOperations do
       temp_cache = File.join(Dir.tempdir, "chiasmus-test-cache-#{Random.rand(1_000_000)}")
       Dir.mkdir_p(temp_cache)
 
-      # Reset GrammarManager state
+      # Reset TreeSitterManager::GrammarManager state
       TreeSitterManager::GrammarManager.test_reset(temp_cache)
 
       begin
@@ -68,7 +68,7 @@ describe TreeSitterManager::GrammarBatchOperations do
     end
 
     it "returns batch result with missing status" do
-      # Initialize GrammarManager
+      # Initialize TreeSitterManager::GrammarManager
       TreeSitterManager::GrammarManager.init
 
       channel = TreeSitterManager::GrammarBatchOperations.check_missing_defaults_async
