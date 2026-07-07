@@ -74,3 +74,6 @@
 [submodule "vendor/openapi_cr"]
 	path = vendor/openapi_cr
 	url = https://github.com/dsisnero/openapi_cr.git
+[submodule "vendor/syntastica"]
+	path = vendor/syntastica
+	url = https://github.com/RubixDev/syntastica.git
