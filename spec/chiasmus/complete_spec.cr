@@ -170,6 +170,49 @@ describe Chiasmus::Complete::CLI do
     end
   end
 
+  it "reuses a precomputed parity report instead of requiring crystal facts" do
+    dir = build_completion_gate_fixture(mark_needs_test_complete: true)
+
+    begin
+      parity_output = IO::Memory.new
+      parity_error = IO::Memory.new
+      parity_exit_code = Chiasmus::Parity::CLI.run(
+        [
+          "--inventory", File.join(dir, "plans", "inventory", "port.tsv"),
+          "--root", dir,
+          "--crystal-dir", "src",
+          "--source-facts", File.join(dir, "source.pl"),
+          "--crystal-facts", File.join(dir, "crystal.pl"),
+        ],
+        parity_output,
+        parity_error
+      )
+
+      parity_exit_code.should eq(0), parity_error.to_s
+
+      parity_report_path = File.join(dir, "parity.tsv")
+      File.write(parity_report_path, parity_output.to_s)
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Complete::CLI.run(
+        [
+          "--inventory", File.join(dir, "plans", "inventory", "port.tsv"),
+          "--source-facts", File.join(dir, "source.pl"),
+          "--parity-report", parity_report_path,
+        ],
+        output,
+        error
+      )
+
+      exit_code.should eq(0), error.to_s
+      output.to_s.should contain("status\tcomplete")
+      output.to_s.should contain("incomplete_count\t0")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "treats explicit test_refs as coverage in header-driven ledgers" do
     dir = File.join(Dir.tempdir, "chiasmus-complete-header-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(File.join(dir, "src"))

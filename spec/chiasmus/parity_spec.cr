@@ -663,6 +663,47 @@ TSV
     end
   end
 
+  it "uses tree-sitter directly for auto mode when Crystal tree-sitter is available" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-auto-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+
+    begin
+      Dir.mkdir_p(File.join(dir, "src"))
+      Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+      File.write(File.join(dir, "src", "demo.cr"), <<-CR)
+module Demo
+  def self.alpha
+  end
+end
+CR
+
+      File.write(File.join(dir, "plans", "inventory", "port.tsv"), <<-TSV)
+# source_id\tkind\tstatus\tcrystal_refs\tnotes
+src/demo.ts::function::alpha\tfunction\tported\tsrc/demo.cr:2\tPorted
+TSV
+
+      auto_result = Chiasmus::Parity.analyze(
+        inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
+        root_dir: dir,
+        crystal_dirs: ["src"],
+        parser_mode: "auto"
+      )
+
+      tree_result = Chiasmus::Parity.analyze(
+        inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
+        root_dir: dir,
+        crystal_dirs: ["src"],
+        parser_mode: "tree-sitter"
+      )
+
+      auto_result.rows.should eq(tree_result.rows)
+      auto_result.parser_mode.should eq("tree-sitter")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "reports structural drift when source and crystal facts are provided" do
     dir = File.join(Dir.tempdir, "chiasmus-parity-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)

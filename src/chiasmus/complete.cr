@@ -25,21 +25,27 @@ module Chiasmus
     def evaluate(
       inventory_path : String,
       source_facts_path : String,
-      crystal_facts_path : String,
+      crystal_facts_path : String? = nil,
+      parity_report_path : String? = nil,
       root_dir : String = ".",
       crystal_dirs : Array(String) = ["src", "spec"],
       rules_path : String? = nil,
       parser_mode : String? = nil,
     ) : Evaluation
-      analysis = Parity.analyze(
-        inventory_path: inventory_path,
-        root_dir: root_dir,
-        crystal_dirs: crystal_dirs,
-        rules_path: rules_path,
-        parser_mode: parser_mode,
-        source_facts_path: source_facts_path,
-        crystal_facts_path: crystal_facts_path,
-      )
+      analysis = if parity_report_path
+                   Parity::Loader.read_report(parity_report_path)
+                 else
+                   facts_path = crystal_facts_path || raise ArgumentError.new("crystal_facts_path is required when parity_report_path is not provided")
+                   Parity.analyze(
+                     inventory_path: inventory_path,
+                     root_dir: root_dir,
+                     crystal_dirs: crystal_dirs,
+                     rules_path: rules_path,
+                     parser_mode: parser_mode,
+                     source_facts_path: source_facts_path,
+                     crystal_facts_path: facts_path,
+                   )
+                 end
       inventory = Parity::Loader.read_inventory(inventory_path)
       source_facts = Parity::Structural.load_facts(source_facts_path)
       program = IO::Memory.new
@@ -85,12 +91,13 @@ module Chiasmus
         parser_mode : String? = nil
         source_facts_path = ""
         crystal_facts_path = ""
+        parity_report_path : String? = nil
         query_mode = QueryMode::Status
         format = OutputFormat::Tsv
         help_requested = false
 
         parser = OptionParser.new do |opts|
-          opts.banner = "Usage: chiasmus-complete --inventory FILE --source-facts FILE --crystal-facts FILE [options]"
+          opts.banner = "Usage: chiasmus-complete --inventory FILE --source-facts FILE [--crystal-facts FILE | --parity-report FILE] [options]"
           opts.on("--inventory FILE", "Curated port inventory TSV") { |value| inventory_path = value }
           opts.on("--root DIR", "Repo root for relative crystal dirs (default: .)") { |value| root_dir = value }
           opts.on("--crystal-dir DIR", "Crystal source/spec directory (repeatable)") { |value| crystal_dirs << value }
@@ -98,6 +105,7 @@ module Chiasmus
           opts.on("--parser MODE", "Parser mode: auto|tree-sitter|regex") { |value| parser_mode = value }
           opts.on("--source-facts FILE", "Source graph facts") { |value| source_facts_path = value }
           opts.on("--crystal-facts FILE", "Crystal graph facts") { |value| crystal_facts_path = value }
+          opts.on("--parity-report FILE", "Precomputed parity TSV report") { |value| parity_report_path = value }
           opts.on("--query MODE", "Query mode: status|complete|incomplete") { |value| query_mode = parse_query_mode(value) }
           opts.on("--format FORMAT", "List output format: tsv|ids") { |value| format = parse_format(value) }
           opts.on("--help", "Show this help") { help_requested = true }
@@ -122,8 +130,14 @@ module Chiasmus
           return 1
         end
 
-        if source_facts_path.empty? || crystal_facts_path.empty?
-          error.puts "--source-facts and --crystal-facts are required"
+        if source_facts_path.empty?
+          error.puts "--source-facts is required"
+          error.puts parser
+          return 1
+        end
+
+        if parity_report_path.nil? && crystal_facts_path.empty?
+          error.puts "--crystal-facts is required unless --parity-report is provided"
           error.puts parser
           return 1
         end
@@ -138,6 +152,7 @@ module Chiasmus
           parser_mode: parser_mode,
           source_facts_path: source_facts_path,
           crystal_facts_path: crystal_facts_path,
+          parity_report_path: parity_report_path,
         )
 
         case query_mode

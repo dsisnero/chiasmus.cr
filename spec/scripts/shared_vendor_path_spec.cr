@@ -95,7 +95,8 @@ SH
       log.should contain("facts:--language crystal --dir #{dir}/src")
       log.should contain("plan:rank --facts #{out_dir}/source_facts.pl --format tsv --top 25")
       log.should contain("parity:--inventory #{inventory_path} --root #{dir}")
-      log.should contain("complete:--inventory #{inventory_path} --root #{dir}")
+      log.should contain("complete:--inventory #{inventory_path} --source-facts #{out_dir}/source_facts.pl --parity-report #{out_dir}/parity.tsv --query status")
+      log.should contain("complete:--inventory #{inventory_path} --source-facts #{out_dir}/source_facts.pl --parity-report #{out_dir}/parity.tsv --query incomplete --format tsv")
     ensure
       FileUtils.rm_rf(dir)
       FileUtils.rm_rf(shared_vendor_dir)

@@ -229,15 +229,9 @@ ruby "${SCRIPT_DIR}/summarize_parity_report.rb" --input "${PARITY_TSV}" > "${PAR
 
 complete_args=(
   --inventory "${INVENTORY_PATH}"
-  --root "${ROOT_DIR}"
   --source-facts "${SOURCE_FACTS}"
-  --crystal-facts "${CRYSTAL_FACTS}"
-  --parser "${PARSER_MODE}"
+  --parity-report "${PARITY_TSV}"
 )
-
-for dir in "${crystal_dirs_array[@]}"; do
-  [[ -n "${dir}" ]] && complete_args+=(--crystal-dir "${dir}")
-done
 
 run_tool CHIASMUS_COMPLETE_BIN chiasmus-complete \
   "${complete_args[@]}" \

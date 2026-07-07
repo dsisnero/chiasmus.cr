@@ -139,6 +139,43 @@ module Chiasmus
         end
       end
 
+      def self.read_report(path : String) : AnalysisResult
+        parser_mode = "unknown"
+        rows = [] of ReportRow
+
+        File.each_line(path) do |line|
+          stripped = line.strip
+          next if stripped.empty?
+
+          if stripped.starts_with?("# parser_mode=")
+            parser_mode = stripped.lchop("# parser_mode=")
+            next
+          end
+
+          next if stripped.starts_with?('#')
+
+          cols = line.rstrip("\n").split('\t', remove_empty: false)
+          raise "Malformed parity report row in #{path}: #{line}" if cols.size < 12
+
+          rows << ReportRow.new(
+            source_id: cols[0],
+            kind: cols[1],
+            inventory_status: cols[2],
+            match_status: cols[3],
+            confidence: cols[4].to_i,
+            crystal_name: cols[5],
+            crystal_kind: cols[6],
+            crystal_path: cols[7],
+            basis: cols[8],
+            structural_status: cols[9],
+            structural_details: cols[10],
+            notes: cols[11],
+          )
+        end
+
+        AnalysisResult.new(rows: rows, parser_mode: parser_mode)
+      end
+
       private def self.rows(path : String, min_cols : Int32) : Array(Array(String))
         data = [] of Array(String)
         File.each_line(path) do |line|
@@ -604,23 +641,22 @@ module Chiasmus
       def self.scan(root_dir : String, dirs : Array(String), parser_mode : String? = nil) : Tuple(Array(SymbolItem), String)
         force = parser_mode.try(&.downcase)
         register_vendor_grammars(root_dir)
-        regex_items = regex_scan(root_dir, dirs)
 
         if force == "tree-sitter"
           items = tree_sitter_scan(root_dir, dirs, "tree-sitter")
-          return {deduplicate(items + regex_items), "tree-sitter+regex"}
+          return {deduplicate(items), "tree-sitter"}
         end
 
         if force != "regex" && Discovery.tree_sitter_available?("crystal")
           begin
             items = tree_sitter_scan(root_dir, dirs, nil)
-            return {deduplicate(items + regex_items), "tree-sitter+regex"}
+            return {deduplicate(items), "tree-sitter"}
           rescue ex
             # Keep the report usable when discovery cannot parse the workspace.
           end
         end
 
-        {regex_items, "regex"}
+        {regex_scan(root_dir, dirs), "regex"}
       end
 
       private def self.register_vendor_grammars(root_dir : String) : Nil
