@@ -58,6 +58,29 @@ run_tool() {
   exit 1
 }
 
+spawn_tool_to_file() {
+  local output_path="$1"
+  shift
+
+  (
+    run_tool "$@" > "${output_path}"
+  ) &
+
+  SPAWNED_PID="$!"
+}
+
+wait_for_pids() {
+  local failed=0
+  local pid
+  for pid in "$@"; do
+    if ! wait "${pid}"; then
+      failed=1
+    fi
+  done
+
+  return "${failed}"
+}
+
 build_entry_point_args() {
   ENTRY_POINT_ARGS=()
   ENTRY_POINTS_KEY=""
@@ -192,11 +215,6 @@ if (( ${#ENTRY_POINT_ARGS[@]} > 0 )); then
   plan_args+=("${ENTRY_POINT_ARGS[@]}")
 fi
 
-run_tool CHIASMUS_PLAN_BIN chiasmus-plan rank "${plan_args[@]}" > "${RANK_TSV}"
-run_tool CHIASMUS_PLAN_BIN chiasmus-plan safe "${plan_args[@]}" > "${SAFE_TSV}"
-run_tool CHIASMUS_PLAN_BIN chiasmus-plan slice "${plan_args[@]}" > "${SLICES_TSV}"
-run_tool CHIASMUS_PLAN_BIN chiasmus-plan seed-parity "${plan_args[@]}" > "${SEED_MD}"
-
 track_args=(track --facts "${SOURCE_FACTS}" --format tsv --top "${TOP_N}" --inventory "${INVENTORY_PATH}")
 if [[ -f "${PARITY_PLAN_PATH}" ]]; then
   track_args+=(--parity-plan "${PARITY_PLAN_PATH}")
@@ -204,7 +222,20 @@ fi
 if (( ${#ENTRY_POINT_ARGS[@]} > 0 )); then
   track_args+=("${ENTRY_POINT_ARGS[@]}")
 fi
-run_tool CHIASMUS_PLAN_BIN chiasmus-plan "${track_args[@]}" > "${TRACK_TSV}"
+
+plan_pids=()
+spawn_tool_to_file "${RANK_TSV}" CHIASMUS_PLAN_BIN chiasmus-plan rank "${plan_args[@]}"
+plan_pids+=("${SPAWNED_PID}")
+spawn_tool_to_file "${SAFE_TSV}" CHIASMUS_PLAN_BIN chiasmus-plan safe "${plan_args[@]}"
+plan_pids+=("${SPAWNED_PID}")
+spawn_tool_to_file "${SLICES_TSV}" CHIASMUS_PLAN_BIN chiasmus-plan slice "${plan_args[@]}"
+plan_pids+=("${SPAWNED_PID}")
+spawn_tool_to_file "${SEED_MD}" CHIASMUS_PLAN_BIN chiasmus-plan seed-parity "${plan_args[@]}"
+plan_pids+=("${SPAWNED_PID}")
+spawn_tool_to_file "${TRACK_TSV}" CHIASMUS_PLAN_BIN chiasmus-plan "${track_args[@]}"
+plan_pids+=("${SPAWNED_PID}")
+
+wait_for_pids "${plan_pids[@]}"
 
 local_old_ifs="${IFS}"
 IFS=':'
@@ -233,14 +264,13 @@ complete_args=(
   --parity-report "${PARITY_TSV}"
 )
 
-run_tool CHIASMUS_COMPLETE_BIN chiasmus-complete \
-  "${complete_args[@]}" \
-  --query status > "${COMPLETE_STATUS}" || true
+complete_pids=()
+spawn_tool_to_file "${COMPLETE_STATUS}" CHIASMUS_COMPLETE_BIN chiasmus-complete "${complete_args[@]}" --query status
+complete_pids+=("${SPAWNED_PID}")
+spawn_tool_to_file "${COMPLETE_INCOMPLETE}" CHIASMUS_COMPLETE_BIN chiasmus-complete "${complete_args[@]}" --query incomplete --format tsv
+complete_pids+=("${SPAWNED_PID}")
 
-run_tool CHIASMUS_COMPLETE_BIN chiasmus-complete \
-  "${complete_args[@]}" \
-  --query incomplete \
-  --format tsv > "${COMPLETE_INCOMPLETE}" || true
+wait_for_pids "${complete_pids[@]}" || true
 
 echo "Chiasmus planning bundle written to ${OUT_DIR}"
 echo "  source facts: ${SOURCE_FACTS}"

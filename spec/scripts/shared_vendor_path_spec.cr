@@ -318,6 +318,112 @@ SH
     end
   end
 
+  it "runs independent planner and completion subcommands in parallel" do
+    dir = File.join(Dir.tempdir, "chiasmus-plan-parallel-#{Random::Secure.hex(8)}")
+    shared_vendor_dir = File.join(Dir.tempdir, "chiasmus-plan-parallel-shared-vendor-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(File.join(dir, "src"))
+    Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+    Dir.mkdir_p(File.join(dir, "bin"))
+    Dir.mkdir_p(File.join(shared_vendor_dir, "source"))
+
+    begin
+      inventory_path = File.join(dir, "plans", "inventory", "typescript_port_inventory.tsv")
+      File.write(inventory_path, <<-TSV)
+# source_id	kind	status	crystal_refs	notes
+src/app.ts::function::main	function	ported	src/main.cr:1,spec/main_spec.cr:1	Covered
+TSV
+
+      log_path = File.join(dir, "tool.log")
+      facts_bin = File.join(dir, "bin", "fake-facts")
+      plan_bin = File.join(dir, "bin", "fake-plan")
+      parity_bin = File.join(dir, "bin", "fake-parity")
+      complete_bin = File.join(dir, "bin", "fake-complete")
+      ruby_bin = File.join(dir, "bin", "ruby")
+      out_dir = File.join(dir, "plans", "generated")
+
+      File.write(facts_bin, <<-SH)
+#!/usr/bin/env bash
+set -euo pipefail
+printf "%% facts\\n"
+SH
+      File.write(plan_bin, <<-SH)
+#!/usr/bin/env bash
+set -euo pipefail
+mode="$1"
+printf 'plan-start:%s\n' "${mode}" >> #{log_path.inspect}
+sleep 1
+printf 'plan-end:%s\n' "${mode}" >> #{log_path.inspect}
+printf "slice_id\tslice_kind\n"
+SH
+      File.write(parity_bin, <<-SH)
+#!/usr/bin/env bash
+set -euo pipefail
+printf "source_id\tstatus\n"
+SH
+      File.write(complete_bin, <<-SH)
+#!/usr/bin/env bash
+set -euo pipefail
+query="status"
+while (($#)); do
+  if [[ "$1" == "--query" ]]; then
+    query="$2"
+    shift 2
+    continue
+  fi
+  shift
+done
+printf 'complete-start:%s\n' "${query}" >> #{log_path.inspect}
+sleep 1
+printf 'complete-end:%s\n' "${query}" >> #{log_path.inspect}
+printf "status\tcomplete\n"
+SH
+      File.write(ruby_bin, <<-SH)
+#!/usr/bin/env bash
+set -euo pipefail
+printf "summary\n"
+SH
+
+      {facts_bin, plan_bin, parity_bin, complete_bin, ruby_bin}.each do |path|
+        File.chmod(path, 0o755_i32)
+      end
+
+      script = File.expand_path("../../scripts/plan_with_chiasmus.sh", __DIR__)
+      output_io = IO::Memory.new
+      error_io = IO::Memory.new
+      status = Process.run(
+        "bash",
+        [script, dir, "vendor/source", "typescript", "src", out_dir],
+        output: output_io,
+        error: error_io,
+        env: {
+          "CHIASMUS_FACTS_BIN"    => facts_bin,
+          "CHIASMUS_PLAN_BIN"     => plan_bin,
+          "CHIASMUS_PARITY_BIN"   => parity_bin,
+          "CHIASMUS_COMPLETE_BIN" => complete_bin,
+          "PATH"                  => "#{File.join(dir, "bin")}:#{ENV["PATH"]? || ""}",
+          "PORT_PARSER"           => "regex",
+          "PORT_CRYSTAL_DIRS"     => "src:spec",
+          "VENDOR_DIR"            => shared_vendor_dir,
+        }
+      )
+
+      status.success?.should be_true, error_io.to_s
+
+      log_lines = File.read(log_path).lines.map(&.strip)
+      first_plan_end = log_lines.index(&.starts_with?("plan-end:")) || raise "missing plan end marker"
+      log_lines[0, first_plan_end].count(&.starts_with?("plan-start:")).should eq(5)
+
+      first_complete_end = log_lines.index(&.starts_with?("complete-end:")) || raise "missing complete end marker"
+      complete_window = log_lines.select { |line| line.starts_with?("complete-start:") || line.starts_with?("complete-end:") }
+      complete_first_end = complete_window.index(&.starts_with?("complete-end:")) || raise "missing complete window end marker"
+      first_complete_end.should be >= 0
+      complete_window[0, complete_first_end].count(&.starts_with?("complete-start:")).should eq(2)
+    ensure
+      FileUtils.rm_rf(dir)
+      FileUtils.rm_rf(shared_vendor_dir)
+    end
+  end
+
   it "lets generate_typescript_inventory.sh resolve vendor paths through VENDOR_DIR" do
     dir = File.join(Dir.tempdir, "chiasmus-generate-ts-#{Random::Secure.hex(8)}")
     shared_vendor_dir = File.join(Dir.tempdir, "chiasmus-generate-ts-shared-vendor-#{Random::Secure.hex(8)}")
