@@ -23,6 +23,7 @@ module Chiasmus
         walk_crystal_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
       end
 
+      # ameba:disable Metrics/CyclomaticComplexity
       private def handle_crystal_scope(
         node : TreeSitter::Node,
         source : String,
@@ -49,31 +50,80 @@ module Chiasmus
             walk_crystal_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
           end
           true
+        when "macro_def"
+          crystal_callable_scope(node, source, file_path, scope_stack, SymbolKind::Function, defines, calls, imports, exports, contains, call_set)
+        when "fun_def"
+          crystal_callable_scope(node, source, file_path, scope_stack, SymbolKind::Function, defines, calls, imports, exports, contains, call_set)
         when "class_def"
           crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Class, defines, calls, imports, exports, contains, call_set)
         when "struct_def"
           crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Class, defines, calls, imports, exports, contains, call_set)
+        when "c_struct_def"
+          crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Class, defines, calls, imports, exports, contains, call_set)
+        when "union_def"
+          crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Class, defines, calls, imports, exports, contains, call_set)
         when "module_def"
           crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Interface, defines, calls, imports, exports, contains, call_set)
+        when "lib_def"
+          crystal_container_scope(node, source, file_path, scope_stack, SymbolKind::Module, defines, calls, imports, exports, contains, call_set)
         when "enum_def"
-          crystal_enum_scope(node, source, file_path, defines)
+          crystal_enum_scope(node, source, file_path, scope_stack, defines, contains)
         when "alias"
-          crystal_alias_scope(node, source, file_path, defines)
+          crystal_alias_scope(node, source, file_path, scope_stack, defines, contains)
+        when "type_def"
+          crystal_type_definition(node, source, file_path, scope_stack, defines, contains)
+        when "annotation_def"
+          crystal_simple_definition(node, source, file_path, scope_stack, SymbolKind::Type, defines, contains)
+        when "const_assign"
+          crystal_constant_definition(node, source, file_path, scope_stack, defines, contains)
         else
           false
         end
+      end
+
+      # ameba:enable Metrics/CyclomaticComplexity
+
+      private def crystal_callable_scope(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        kind : SymbolKind,
+        defines : Array(DefinesFact),
+        calls : Array(CallsFact),
+        imports : Array(ImportsFact),
+        exports : Array(ExportsFact),
+        contains : Array(ContainsFact),
+        call_set : Set(String),
+      ) : Bool
+        name = crystal_name_field(node, source)
+        return false unless name
+
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        if enclosing = scope_stack.last?
+          contains << ContainsFact.new(parent: enclosing, child: name)
+        end
+        with_scope(scope_stack, name) do
+          walk_crystal_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
+        end
+        true
       end
 
       private def crystal_alias_scope(
         node : TreeSitter::Node,
         source : String,
         file_path : String,
+        scope_stack : Array(String),
         defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
       ) : Bool
-        name = node.children.find(&.type.==("constant")).try(&.text(source))
+        name = crystal_name_field(node, source)
         return false unless name
 
         defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        if enclosing = scope_stack.last?
+          contains << ContainsFact.new(parent: enclosing, child: name)
+        end
 
         # Extract aliased types (direct constants or union_type children)
         node.children.each do |child|
@@ -98,12 +148,17 @@ module Chiasmus
         node : TreeSitter::Node,
         source : String,
         file_path : String,
+        scope_stack : Array(String),
         defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
       ) : Bool
-        name = node.children.find(&.type.==("constant")).try(&.text(source))
+        name = crystal_name_field(node, source)
         return false unless name
 
         defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        if enclosing = scope_stack.last?
+          contains << ContainsFact.new(parent: enclosing, child: name)
+        end
 
         # Extract enum members (constants/const_assign inside the enum body)
         node.children.each do |child|
@@ -140,10 +195,13 @@ module Chiasmus
         contains : Array(ContainsFact),
         call_set : Set(String),
       ) : Bool
-        name = node.children.find(&.type.==("constant")).try(&.text(source))
+        name = crystal_name_field(node, source)
         return false unless name
 
         defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        if enclosing = scope_stack.last?
+          contains << ContainsFact.new(parent: enclosing, child: name)
+        end
         with_scope(scope_stack, name) do
           walk_crystal_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
         end
@@ -305,6 +363,73 @@ module Chiasmus
       end
 
       private def find_crystal_enclosing_class(node : TreeSitter::Node, source : String) : String?
+        nil
+      end
+
+      private def crystal_type_definition(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
+      ) : Bool
+        crystal_simple_definition(node, source, file_path, scope_stack, SymbolKind::Type, defines, contains)
+      end
+
+      private def crystal_constant_definition(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
+      ) : Bool
+        name_node = node.child_by_field_name("lhs") || node.children.find(&.type.==("constant"))
+        name = name_node.try(&.text(source))
+        return false unless name
+        return false unless name.matches?(/^[A-Z][A-Z0-9_]*$/)
+
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        if enclosing = scope_stack.last?
+          contains << ContainsFact.new(parent: enclosing, child: name)
+        end
+        true
+      end
+
+      private def crystal_simple_definition(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        kind : SymbolKind,
+        defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
+      ) : Bool
+        name = crystal_name_field(node, source)
+        return false unless name
+
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        if enclosing = scope_stack.last?
+          contains << ContainsFact.new(parent: enclosing, child: name)
+        end
+        true
+      end
+
+      private def crystal_name_field(node : TreeSitter::Node, source : String) : String?
+        node.child_by_field_name("name").try { |name_node| crystal_name_token(name_node, source) } ||
+          node.children.find(&.type.==("constant")).try(&.text(source)) ||
+          node.children.find(&.type.==("identifier")).try(&.text(source))
+      end
+
+      private def crystal_name_token(node : TreeSitter::Node, source : String) : String?
+        return node.text(source) if node.type.in?("constant", "identifier")
+
+        node.children.each do |child|
+          name = crystal_name_token(child, source)
+          return name if name
+        end
+
         nil
       end
     end

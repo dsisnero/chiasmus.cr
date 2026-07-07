@@ -136,6 +136,84 @@ describe "Crystal walker structural extraction" do
     children.should contain("subtract")
   end
 
+  it "keeps generic class methods contained under the class instead of the outer module" do
+    cr = <<-CR
+      module Utils
+        class Result(T)
+          def initialize(@value : T? = nil)
+          end
+        end
+      end
+    CR
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/generic_contains.cr", content: cr)])
+
+    names = graph.defines.map(&.name).to_set
+    names.should contain("Result")
+    names.should contain("initialize")
+
+    graph.contains.map { |fact| {fact.parent, fact.child} }.should contain({"Result", "initialize"})
+    graph.contains.map { |fact| {fact.parent, fact.child} }.should_not contain({"Utils", "initialize"})
+  end
+
+  it "extracts crystal-native definitions for macros, constants, annotations, and lib bindings" do
+    cr = <<-CR
+      VERSION = "1.0.0"
+
+      annotation Audited
+      end
+
+      macro define_reader(name)
+        def {{name}}
+        end
+      end
+
+      lib LibC
+        fun malloc(size : UInt64) : Void*
+        type Handle = Void*
+        struct Point
+          x : Int32
+        end
+      end
+    CR
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/crystal_defs.cr", content: cr)])
+
+    definitions = graph.defines.map { |fact| {fact.kind, fact.name} }.to_set
+    definitions.should contain({SymbolKind::Variable, "VERSION"})
+    definitions.should contain({SymbolKind::Type, "Audited"})
+    definitions.should contain({SymbolKind::Function, "define_reader"})
+    definitions.should contain({SymbolKind::Module, "LibC"})
+    definitions.should contain({SymbolKind::Function, "malloc"})
+    definitions.should contain({SymbolKind::Type, "Handle"})
+    definitions.should contain({SymbolKind::Class, "Point"})
+  end
+
+  it "keeps nested crystal-native definitions attached to their enclosing container" do
+    cr = <<-CR
+      module Outer
+        VALUE = 1
+
+        annotation Audited
+        end
+
+        alias Handle = String
+
+        lib LibC
+          type Token = Void*
+          fun malloc(size : UInt64) : Void*
+        end
+      end
+    CR
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/crystal_nested_defs.cr", content: cr)])
+
+    contains = graph.contains.map { |fact| {fact.parent, fact.child} }.to_set
+    contains.should contain({"Outer", "VALUE"})
+    contains.should contain({"Outer", "Audited"})
+    contains.should contain({"Outer", "Handle"})
+    contains.should contain({"Outer", "LibC"})
+    contains.should contain({"LibC", "Token"})
+    contains.should contain({"LibC", "malloc"})
+  end
+
   it "extracts require imports" do
     cr = <<-CR
       require "./parser"

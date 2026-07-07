@@ -37,6 +37,8 @@ module Chiasmus
           to_extract = check_result[:misses].map { |miss| SourceFile.new(path: miss[:path], content: miss[:content]) }
         end
 
+        effective_max_concurrent = extraction_max_concurrent(to_extract, parser, max_concurrent, parallel_cpu)
+
         defines = [] of DefinesFact
         calls = [] of CallsFact
         imports = [] of ImportsFact
@@ -47,7 +49,7 @@ module Chiasmus
         call_set = Set(String).new
         fresh_graphs = [] of {path: String, content: String, graph: CodeGraph}
 
-        fresh_results = Utils::BoundedWork.map_ordered(to_extract, max_concurrent, parallel: parallel_cpu) do |file|
+        fresh_results = Utils::BoundedWork.map_ordered(to_extract, effective_max_concurrent, parallel: parallel_cpu) do |file|
           extract_single_file(file, parser)
         end
 
@@ -130,6 +132,23 @@ module Chiasmus
 
       private def parallel_cpu_enabled? : Bool
         ENV["CHIASMUS_GRAPH_PARALLEL"]? == "1"
+      end
+
+      private def extraction_max_concurrent(
+        files : Array(SourceFile),
+        parser,
+        requested : Int32,
+        parallel_cpu : Bool,
+      ) : Int32
+        return requested if requested <= 1
+        return requested if parallel_cpu
+        return requested if ENV["CHIASMUS_CRYSTAL_EXTRACT_CONCURRENT"]? == "1"
+
+        crystal_only = files.all? do |file|
+          parser.language_for_file(file.path) == "crystal"
+        end
+
+        crystal_only ? 1 : requested
       end
 
       # Pure extraction: returns a CodeGraph for a single file without touching any shared state.
