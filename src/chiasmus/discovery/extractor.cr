@@ -307,7 +307,7 @@ module Chiasmus
           return @@language_cache[grammar]? if @@language_cache.has_key?(grammar)
         end
 
-        lang = GrammarLoader.load_language(grammar)
+        lang = TreeSitterManager::GrammarLoader.load_language(grammar)
         @@cache_mutex.synchronize { @@language_cache[grammar] = lang }
         lang
       end

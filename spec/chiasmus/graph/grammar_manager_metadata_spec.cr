@@ -1,15 +1,15 @@
 require "spec"
 require "file_utils"
-require "../../../src/chiasmus/graph/grammar_manager"
-require "../../../src/chiasmus/graph/grammar_metadata"
-require "../../../src/chiasmus/graph/language_registry"
+require "tree-sitter-manager"
+require "tree-sitter-manager"
+require "tree-sitter-manager"
 
-describe Chiasmus::Graph::GrammarManager do
+describe TreeSitterManager::GrammarManager do
   describe "metadata integration" do
     around_each do |test|
       temp_cache = File.join(Dir.tempdir, "chiasmus-test-cache-#{Random.rand(1_000_000)}")
       Dir.mkdir_p(temp_cache)
-      Chiasmus::Graph::GrammarManager.test_reset(temp_cache)
+      TreeSitterManager::GrammarManager.test_reset(temp_cache)
 
       begin
         test.run
@@ -20,14 +20,14 @@ describe Chiasmus::Graph::GrammarManager do
 
     describe "#get_grammar_metadata" do
       it "returns metadata for installed grammar" do
-        cache_dir = Chiasmus::Graph::GrammarManager.instance.cache_dir
+        cache_dir = TreeSitterManager::GrammarManager.instance.cache_dir
         cache_dir.should_not be_nil
         cdir = cache_dir || raise "Expected cache_dir"
 
         python_dir = File.join(cdir, "python")
         Dir.mkdir_p(python_dir)
 
-        metadata = Chiasmus::Graph::GrammarMetadata.new(
+        metadata = TreeSitterManager::GrammarMetadata.new(
           url: "https://github.com/tree-sitter/tree-sitter-python",
           type: "git",
           commit_hash: "abc123",
@@ -37,9 +37,9 @@ describe Chiasmus::Graph::GrammarManager do
           last_updated: Time.utc(2025, 4, 19, 12, 0, 0)
         )
 
-        Chiasmus::Graph::GrammarMetadataStore.save(python_dir, metadata)
+        TreeSitterManager::GrammarMetadataStore.save(python_dir, metadata)
 
-        result = Chiasmus::Graph::GrammarManager.instance.get_grammar_metadata("python")
+        result = TreeSitterManager::GrammarManager.instance.get_grammar_metadata("python")
         result.should_not be_nil
         res = result || raise "Expected result"
         res.package_name.should eq "tree-sitter-python"
@@ -48,7 +48,7 @@ describe Chiasmus::Graph::GrammarManager do
       end
 
       it "returns nil for non-existent grammar" do
-        result = Chiasmus::Graph::GrammarManager.instance.get_grammar_metadata("nonexistent")
+        result = TreeSitterManager::GrammarManager.instance.get_grammar_metadata("nonexistent")
         result.should be_nil
       end
     end
@@ -87,20 +87,20 @@ SCRIPT
         ENV["PATH"] = "#{temp_bin_dir}:#{original_path}"
 
         begin
-          channel = Chiasmus::Graph::GrammarManager.instance.install_from_local_async(local_grammar_dir)
+          channel = TreeSitterManager::GrammarManager.instance.install_from_local_async(local_grammar_dir)
           result = channel.receive
 
           result.success?.should be_true
           result.value.should be_true
 
-          cache_dir = Chiasmus::Graph::GrammarManager.instance.cache_dir
+          cache_dir = TreeSitterManager::GrammarManager.instance.cache_dir
           cache_dir.should_not be_nil
           cdir = cache_dir || raise "Expected cache_dir"
 
           fake_dir = File.join(cdir, "fake")
           File.exists?(File.join(fake_dir, "libtree-sitter-fake.#{ext}")).should be_true
 
-          metadata = Chiasmus::Graph::GrammarMetadataStore.load(fake_dir)
+          metadata = TreeSitterManager::GrammarMetadataStore.load(fake_dir)
           metadata.should_not be_nil
           md = metadata || raise "Expected metadata"
           md.type.should eq "local"
@@ -120,7 +120,7 @@ SCRIPT
       it "fails for invalid local directory" do
         nonexistent = File.join(Dir.tempdir, "missing-grammar-#{Random.rand(1_000_000)}")
 
-        channel = Chiasmus::Graph::GrammarManager.instance.install_from_local_async(nonexistent)
+        channel = TreeSitterManager::GrammarManager.instance.install_from_local_async(nonexistent)
         result = channel.receive
 
         result.failure?.should be_true

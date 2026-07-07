@@ -1,9 +1,9 @@
 require "spec"
 require "file_utils"
-require "../../../src/chiasmus/graph/grammar_batch_operations"
-require "../../../src/chiasmus/graph/grammar_manager"
+require "tree-sitter-manager"
+require "tree-sitter-manager"
 
-describe Chiasmus::Graph::GrammarBatchOperations do
+describe TreeSitterManager::GrammarBatchOperations do
   describe ".resolve_dependencies" do
     it "returns languages in dependency order" do
       dependencies = {
@@ -14,7 +14,7 @@ describe Chiasmus::Graph::GrammarBatchOperations do
       }
 
       languages = ["typescript", "javascript", "tsx", "python"]
-      result = Chiasmus::Graph::GrammarBatchOperations.resolve_dependencies(languages, dependencies)
+      result = TreeSitterManager::GrammarBatchOperations.resolve_dependencies(languages, dependencies)
 
       # javascript should come before typescript and tsx
       javascript_index = result.index!("javascript")
@@ -36,7 +36,7 @@ describe Chiasmus::Graph::GrammarBatchOperations do
       }
 
       languages = ["a", "b", "c"]
-      result = Chiasmus::Graph::GrammarBatchOperations.resolve_dependencies(languages, dependencies)
+      result = TreeSitterManager::GrammarBatchOperations.resolve_dependencies(languages, dependencies)
 
       # Should fall back to original order when cycle detected
       result.should eq languages
@@ -46,7 +46,7 @@ describe Chiasmus::Graph::GrammarBatchOperations do
       dependencies = {} of String => Array(String)
       languages = ["python", "javascript", "ruby"]
 
-      result = Chiasmus::Graph::GrammarBatchOperations.resolve_dependencies(languages, dependencies)
+      result = TreeSitterManager::GrammarBatchOperations.resolve_dependencies(languages, dependencies)
       result.sort.should eq languages.sort
     end
   end
@@ -58,7 +58,7 @@ describe Chiasmus::Graph::GrammarBatchOperations do
       Dir.mkdir_p(temp_cache)
 
       # Reset GrammarManager state
-      Chiasmus::Graph::GrammarManager.test_reset(temp_cache)
+      TreeSitterManager::GrammarManager.test_reset(temp_cache)
 
       begin
         test.run
@@ -69,12 +69,12 @@ describe Chiasmus::Graph::GrammarBatchOperations do
 
     it "returns batch result with missing status" do
       # Initialize GrammarManager
-      Chiasmus::Graph::GrammarManager.init
+      TreeSitterManager::GrammarManager.init
 
-      channel = Chiasmus::Graph::GrammarBatchOperations.check_missing_defaults_async
+      channel = TreeSitterManager::GrammarBatchOperations.check_missing_defaults_async
       result = channel.receive
 
-      result.should be_a Chiasmus::Utils::BatchResult
+      result.should be_a TreeSitterManager::BatchResult
       result.success?.should be_true
 
       # Should return a batch result
@@ -83,7 +83,7 @@ describe Chiasmus::Graph::GrammarBatchOperations do
 
       # Check that we got results for all default languages
       if value = result.value
-        value.keys.sort!.should eq Chiasmus::Graph::GrammarBatchOperations::DEFAULT_REQUIRED_LANGUAGES.keys.sort!
+        value.keys.sort!.should eq TreeSitterManager::GrammarBatchOperations::DEFAULT_REQUIRED_LANGUAGES.keys.sort!
 
         # At least some grammars should be missing (we can't guarantee all are missing
         # because some might be embedded or available via tree-sitter)

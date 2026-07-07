@@ -1,12 +1,12 @@
 require "../../spec_helper"
-require "../../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 
-describe Chiasmus::Utils::Timeout do
+describe TreeSitterManager::Timeout do
   it "returns nil when an async channel closes before producing a value" do
     channel = Channel(Int32).new(1)
     channel.close
 
-    result = Chiasmus::Utils::Timeout.with_timeout_async(50, channel)
+    result = TreeSitterManager::Timeout.with_timeout_async(50, channel)
 
     result.should be_nil
   end
@@ -20,7 +20,7 @@ describe Chiasmus::Utils::Timeout do
       channel.close
     end
 
-    result = Chiasmus::Utils::Timeout.with_timeout_async(50, channel)
+    result = TreeSitterManager::Timeout.with_timeout_async(50, channel)
 
     result.should eq(42)
   end

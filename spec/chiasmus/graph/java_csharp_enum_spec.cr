@@ -3,7 +3,7 @@ require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/parser"
 require "../../../src/chiasmus/graph/walkers"
 require "../../../src/chiasmus/graph/extractor"
-require "../../../src/chiasmus/discovery/grammar_loader"
+require "tree-sitter-manager"
 
 include Chiasmus::Graph
 
@@ -23,7 +23,7 @@ describe "Java enum member extraction" do
 end
 
 describe "C# enum member extraction" do
-  if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("csharp")
+  if TreeSitterManager::GrammarLoader.tree_sitter_available?("csharp")
     it "captures enum name and members" do
       code = <<-CS
         enum Color { Red, Green, Blue }

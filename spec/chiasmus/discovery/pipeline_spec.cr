@@ -1,7 +1,7 @@
 require "../../spec_helper"
 require "tree_sitter"
 require "file_utils"
-require "../../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 
 vendor_dir = File.expand_path("../../../grammars", __DIR__)
 if Dir.exists?(vendor_dir)
@@ -158,8 +158,8 @@ describe Chiasmus::Discovery::Pipeline do
           result_channel.send(pipeline.discover(dir))
         end
 
-        first = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
-        second = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        first = TreeSitterManager::Timeout.with_timeout_async(500, entered)
+        second = TreeSitterManager::Timeout.with_timeout_async(500, entered)
         first.should_not be_nil
         second.should_not be_nil
 
@@ -170,12 +170,12 @@ describe Chiasmus::Discovery::Pipeline do
         end
 
         release.send(true)
-        third = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        third = TreeSitterManager::Timeout.with_timeout_async(500, entered)
         third.should_not be_nil
 
         2.times { release.send(true) }
 
-        result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+        result = TreeSitterManager::Timeout.with_timeout_async(1_000, result_channel)
         result.should_not be_nil
         discovery = result || raise "expected pipeline discovery result"
         discovery.items.select { |i| i.kind == "function" }.map(&.name).to_set.should eq(Set{"a", "b", "c"})
@@ -283,7 +283,7 @@ describe Chiasmus::Discovery::Pipeline do
       MissingGrammarExtractor.new,
     ])
 
-    result = Chiasmus::Utils::Timeout.with_timeout(200) do
+    result = TreeSitterManager::Timeout.with_timeout(200) do
       pipeline.discover_files([
         {"test.missing", "noop"},
       ])
@@ -313,7 +313,7 @@ describe Chiasmus::Discovery::Pipeline do
         {"app.ts", "function main() {}\n"},
       ])
 
-      Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
+      TreeSitterManager::Timeout.with_timeout_async(500, entered).should eq(true)
 
       select
       when value = result_channel.receive
@@ -323,7 +323,7 @@ describe Chiasmus::Discovery::Pipeline do
 
       release.send(true)
 
-      result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+      result = TreeSitterManager::Timeout.with_timeout_async(1_000, result_channel)
       result.should_not be_nil
 
       async_result = result || raise "expected async discovery result"

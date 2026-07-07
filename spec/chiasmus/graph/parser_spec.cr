@@ -1,7 +1,7 @@
 require "spec"
 require "tree_sitter"
-require "../../../src/chiasmus/utils/result"
-require "../../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
+require "tree-sitter-manager"
 require "../../../src/chiasmus/graph/parser"
 
 private def build_test_language(name : String) : TreeSitter::Language
@@ -42,30 +42,30 @@ class FakeGrammarGateway < Chiasmus::Graph::Parser::GrammarGateway
     @init_calls += 1
   end
 
-  def ensure_grammar_async(language : String, timeout_ms : Int32 = 120_000) : Channel(Chiasmus::Utils::BoolResult)
+  def ensure_grammar_async(language : String, timeout_ms : Int32 = 120_000) : Channel(TreeSitterManager::BoolResult)
     @ensure_calls += 1
     @current_path = @path_after_ensure
-    channel = Channel(Chiasmus::Utils::BoolResult).new(1)
-    channel.send(Chiasmus::Utils::BoolResult.success)
+    channel = Channel(TreeSitterManager::BoolResult).new(1)
+    channel.send(TreeSitterManager::BoolResult.success)
     channel
   end
 
-  def grammar_available_async(language : String) : Channel(Chiasmus::Utils::BoolResult)
-    channel = Channel(Chiasmus::Utils::BoolResult).new(1)
+  def grammar_available_async(language : String) : Channel(TreeSitterManager::BoolResult)
+    channel = Channel(TreeSitterManager::BoolResult).new(1)
     if @available
-      channel.send(Chiasmus::Utils::BoolResult.success)
+      channel.send(TreeSitterManager::BoolResult.success)
     else
-      channel.send(Chiasmus::Utils::BoolResult.new(value: false))
+      channel.send(TreeSitterManager::BoolResult.new(value: false))
     end
     channel
   end
 
-  def get_grammar_path_async(language : String) : Channel(Chiasmus::Utils::StringResult)
-    channel = Channel(Chiasmus::Utils::StringResult).new(1)
+  def get_grammar_path_async(language : String) : Channel(TreeSitterManager::StringResult)
+    channel = Channel(TreeSitterManager::StringResult).new(1)
     if path = @current_path
-      channel.send(Chiasmus::Utils::StringResult.success(path))
+      channel.send(TreeSitterManager::StringResult.success(path))
     else
-      channel.send(Chiasmus::Utils::StringResult.failure("missing", {"language" => language}))
+      channel.send(TreeSitterManager::StringResult.failure("missing", {"language" => language}))
     end
     channel
   end
@@ -204,7 +204,7 @@ module Chiasmus
       end
 
       it "returns a failure result for unsupported files through the async parser API" do
-        result = Chiasmus::Utils::Timeout.with_timeout_async(100, Parser.parse_async("some content", "test.unknown"))
+        result = TreeSitterManager::Timeout.with_timeout_async(100, Parser.parse_async("some content", "test.unknown"))
 
         result.should_not be_nil
         res = result || raise "Expected result"
@@ -221,7 +221,7 @@ module Chiasmus
         loader.register("python", "/tmp/python.so", language)
         service = Parser::Service.new(resolver, environment, grammar, loader, FakeTreeBuilder.new)
 
-        result = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
+        result = TreeSitterManager::Timeout.with_timeout_async(100, service.get_language_async("python"))
 
         result.should_not be_nil
         res = result || raise "Expected result"
@@ -247,7 +247,7 @@ module Chiasmus
           FakeTreeBuilder.new
         )
 
-        result = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
+        result = TreeSitterManager::Timeout.with_timeout_async(100, service.get_language_async("python"))
         result.should_not be_nil
         res = result || raise "Expected result"
         res.success?.should be_true
@@ -270,8 +270,8 @@ module Chiasmus
           FakeTreeBuilder.new
         )
 
-        first = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
-        second = Chiasmus::Utils::Timeout.with_timeout_async(100, service.get_language_async("python"))
+        first = TreeSitterManager::Timeout.with_timeout_async(100, service.get_language_async("python"))
+        second = TreeSitterManager::Timeout.with_timeout_async(100, service.get_language_async("python"))
 
         first.should_not be_nil
         second.should_not be_nil
@@ -333,12 +333,12 @@ module Chiasmus
         )
 
         start = Channel(Nil).new(2)
-        done = Channel(Chiasmus::Utils::Result(TreeSitter::Language?)).new(2)
+        done = Channel(TreeSitterManager::Result(TreeSitter::Language?)).new(2)
 
         2.times do
           spawn do
             start.receive
-            result = Chiasmus::Utils::Timeout.with_timeout_async(500, service.get_language_async("python"))
+            result = TreeSitterManager::Timeout.with_timeout_async(500, service.get_language_async("python"))
             done.send(result || raise "expected language result")
           end
         end

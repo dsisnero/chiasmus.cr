@@ -1,11 +1,11 @@
-require "../utils/xdg"
+require "tree-sitter-manager"
 
 module Chiasmus
   module Graph
     module Parser
       class Environment
         def ensure_tree_sitter_config : Nil
-          config_dir = Utils::XDG.tree_sitter_config_dir
+          config_dir = TreeSitterManager::XDG.tree_sitter_config_dir
           tree_sitter_config_dir = File.join(config_dir, "tree-sitter")
           Dir.mkdir_p(tree_sitter_config_dir)
 

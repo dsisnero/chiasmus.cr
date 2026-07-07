@@ -1,7 +1,7 @@
 require "../../spec_helper"
 require "json"
 require "file_utils"
-require "../../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 
 class Chiasmus::MCPServer::Tools::SearchTool
   def read_search_files_for_test(files : Array(String), max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT, &reader : String -> String)
@@ -87,7 +87,7 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
           end
         end
 
-        Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+        TreeSitterManager::Timeout.with_timeout_async(250, entered).should eq(true)
 
         select
         when result_chan.receive?
@@ -96,7 +96,7 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         end
 
         release.send(true)
-        result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+        result = TreeSitterManager::Timeout.with_timeout_async(250, result_chan)
         result.should_not be_nil
         search_result = result || raise "expected search tool result"
         search_result.status.should eq("error")

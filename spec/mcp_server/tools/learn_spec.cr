@@ -216,7 +216,7 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
       }))
     end
 
-    Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+    TreeSitterManager::Timeout.with_timeout_async(250, entered).should eq(true)
 
     select
     when result_chan.receive?
@@ -225,7 +225,7 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
     end
 
     release.send(true)
-    result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+    result = TreeSitterManager::Timeout.with_timeout_async(250, result_chan)
     result.should_not be_nil
     learn_result = result || raise "expected learn tool result"
     learn_result.status.should eq("success")

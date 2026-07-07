@@ -1,6 +1,6 @@
 require "../spec_helper"
 require "file_utils"
-require "../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 
 describe "Chiasmus MCP tool cancellation" do
   it "returns a cancellation response without waiting for blocked tool work to finish" do
@@ -45,12 +45,12 @@ describe "Chiasmus MCP tool cancellation" do
           spawn do
             client_transport.send(request)
           end
-          Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
+          TreeSitterManager::Timeout.with_timeout_async(500, entered).should eq(true)
 
           request_id = request.id || raise "expected cancellable request id"
           client_transport.send(MCP::Protocol::CancelledNotification.new(request_id: request_id))
 
-          message = Chiasmus::Utils::Timeout.with_timeout_async(500, responses)
+          message = TreeSitterManager::Timeout.with_timeout_async(500, responses)
           message.should be_a(MCP::Protocol::JSONRPCResponse)
 
           response = message.as(MCP::Protocol::JSONRPCResponse)

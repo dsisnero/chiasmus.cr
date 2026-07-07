@@ -402,7 +402,7 @@ describe "Crystal walker MCP integration" do
         }))
       end
 
-      Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+      TreeSitterManager::Timeout.with_timeout_async(250, entered).should eq(true)
 
       select
       when result_chan.receive?
@@ -411,7 +411,7 @@ describe "Crystal walker MCP integration" do
       end
 
       release.send(true)
-      result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+      result = TreeSitterManager::Timeout.with_timeout_async(250, result_chan)
       result.should_not be_nil
       graph_result = result || raise "expected async walker result"
       graph_result.status.should eq("success")

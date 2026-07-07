@@ -2,7 +2,7 @@ require "spec"
 require "file_utils"
 require "json"
 require "process"
-require "../../../src/chiasmus/graph/grammar_metadata"
+require "tree-sitter-manager"
 
 module Chiasmus
   module Graph

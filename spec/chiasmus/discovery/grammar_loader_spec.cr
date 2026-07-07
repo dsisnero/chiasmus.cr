@@ -1,28 +1,28 @@
 require "../../spec_helper"
 require "file_utils"
-require "../../../src/chiasmus/discovery/grammar_loader"
+require "tree-sitter-manager"
 
-describe Chiasmus::Discovery::GrammarLoader do
+describe TreeSitterManager::GrammarLoader do
   it "returns a snapshot of registered grammar directories instead of the shared backing array" do
     tmpdir = File.join(Dir.tempdir, "grammar-loader-snapshot-#{Random::Secure.hex(6)}")
     Dir.mkdir_p(tmpdir)
 
     begin
-      Chiasmus::Discovery::GrammarLoader.clear_registered_directories_for_test
-      Chiasmus::Discovery::GrammarLoader.register_grammar_directory(tmpdir)
+      TreeSitterManager::GrammarLoader.clear_registered_directories_for_test
+      TreeSitterManager::GrammarLoader.register_grammar_directory(tmpdir)
 
-      snapshot = Chiasmus::Discovery::GrammarLoader.grammar_directories
+      snapshot = TreeSitterManager::GrammarLoader.grammar_directories
       snapshot.clear
 
-      Chiasmus::Discovery::GrammarLoader.grammar_directories.should eq([tmpdir])
+      TreeSitterManager::GrammarLoader.grammar_directories.should eq([tmpdir])
     ensure
-      Chiasmus::Discovery::GrammarLoader.clear_registered_directories_for_test
+      TreeSitterManager::GrammarLoader.clear_registered_directories_for_test
       FileUtils.rm_rf(tmpdir)
     end
   end
 
   it "prefers CHIASMUS_GRAMMAR_DIR over registered grammar directories" do
-    source_lib = Chiasmus::Discovery::GrammarLoader.find_grammar_library("python")
+    source_lib = TreeSitterManager::GrammarLoader.find_grammar_library("python")
     next pending "python grammar library not available" unless source_lib
 
     tmpdir = File.join(Dir.tempdir, "grammar-loader-override-#{Random::Secure.hex(6)}")
@@ -35,7 +35,7 @@ describe Chiasmus::Discovery::GrammarLoader do
 
     begin
       with_env({"CHIASMUS_GRAMMAR_DIR" => override_dir}) do
-        Chiasmus::Discovery::GrammarLoader.find_grammar_library("python").should eq(dest_lib)
+        TreeSitterManager::GrammarLoader.find_grammar_library("python").should eq(dest_lib)
       end
     ensure
       FileUtils.rm_rf(tmpdir)

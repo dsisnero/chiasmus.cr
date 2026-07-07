@@ -3,12 +3,12 @@ require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/parser"
 require "../../../src/chiasmus/graph/walkers"
 require "../../../src/chiasmus/graph/extractor"
-require "../../../src/chiasmus/discovery/grammar_loader"
+require "tree-sitter-manager"
 
 include Chiasmus::Graph
 
 describe "C++ graph walker" do
-  if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("cpp")
+  if TreeSitterManager::GrammarLoader.tree_sitter_available?("cpp")
     it "extracts class declarations" do
       code = <<-CPP
         class Calculator {

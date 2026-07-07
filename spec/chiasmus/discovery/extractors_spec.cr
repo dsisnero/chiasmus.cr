@@ -14,7 +14,7 @@ end
 describe Chiasmus::Discovery::PythonExtractor do
   it "extracts class definitions" do
     extractor = Chiasmus::Discovery::PythonExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("python")
+    lang = TreeSitterManager::GrammarLoader.load_language("python")
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     tree = parser.parse(nil, "class MyClass:\n  pass\n")
@@ -26,7 +26,7 @@ describe Chiasmus::Discovery::PythonExtractor do
 
   it "extracts function definitions" do
     extractor = Chiasmus::Discovery::PythonExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("python")
+    lang = TreeSitterManager::GrammarLoader.load_language("python")
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "def my_func():\n  pass\n"
@@ -39,7 +39,7 @@ describe Chiasmus::Discovery::PythonExtractor do
 
   it "extracts UPPERCASE constants" do
     extractor = Chiasmus::Discovery::PythonExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("python")
+    lang = TreeSitterManager::GrammarLoader.load_language("python")
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "API_KEY = 'secret'\nnormal_var = 1\n"
@@ -53,7 +53,7 @@ describe Chiasmus::Discovery::PythonExtractor do
 
   it "extracts test functions named test_*" do
     extractor = Chiasmus::Discovery::PythonExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("python")
+    lang = TreeSitterManager::GrammarLoader.load_language("python")
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "def test_addition():\n  pass\n"
@@ -66,7 +66,7 @@ describe Chiasmus::Discovery::PythonExtractor do
 
   it "classifies methods inside classes as method kind" do
     extractor = Chiasmus::Discovery::PythonExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("python")
+    lang = TreeSitterManager::GrammarLoader.load_language("python")
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo:\n  def bar(self):\n    pass\n"
@@ -81,7 +81,7 @@ end
 describe Chiasmus::Discovery::GoExtractor do
   it "extracts function declarations" do
     extractor = Chiasmus::Discovery::GoExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("go")
+    lang = TreeSitterManager::GrammarLoader.load_language("go")
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\nfunc main() {}\n"
@@ -94,7 +94,7 @@ describe Chiasmus::Discovery::GoExtractor do
 
   it "extracts struct as class" do
     extractor = Chiasmus::Discovery::GoExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("go")
+    lang = TreeSitterManager::GrammarLoader.load_language("go")
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\ntype Server struct {}\n"
@@ -107,7 +107,7 @@ describe Chiasmus::Discovery::GoExtractor do
 
   it "extracts interface as interface" do
     extractor = Chiasmus::Discovery::GoExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("go")
+    lang = TreeSitterManager::GrammarLoader.load_language("go")
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\ntype Speaker interface {}\n"
@@ -120,7 +120,7 @@ describe Chiasmus::Discovery::GoExtractor do
 
   it "extracts methods with receiver-qualified names" do
     extractor = Chiasmus::Discovery::GoExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("go")
+    lang = TreeSitterManager::GrammarLoader.load_language("go")
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\nfunc (s *Server) Start() {}\n"
@@ -133,7 +133,7 @@ describe Chiasmus::Discovery::GoExtractor do
 
   it "extracts TestXxx functions as tests" do
     extractor = Chiasmus::Discovery::GoExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("go")
+    lang = TreeSitterManager::GrammarLoader.load_language("go")
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\nfunc TestServer(t *testing.T) {}\n"
@@ -148,7 +148,7 @@ end
 describe Chiasmus::Discovery::JavaExtractor do
   it "extracts class declarations" do
     extractor = Chiasmus::Discovery::JavaExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("java")
+    lang = TreeSitterManager::GrammarLoader.load_language("java")
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class MyClass {}\n"
@@ -161,7 +161,7 @@ describe Chiasmus::Discovery::JavaExtractor do
 
   it "extracts interface declarations" do
     extractor = Chiasmus::Discovery::JavaExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("java")
+    lang = TreeSitterManager::GrammarLoader.load_language("java")
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "interface Runnable {}\n"
@@ -174,7 +174,7 @@ describe Chiasmus::Discovery::JavaExtractor do
 
   it "extracts enum declarations as class" do
     extractor = Chiasmus::Discovery::JavaExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("java")
+    lang = TreeSitterManager::GrammarLoader.load_language("java")
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "enum Color { RED, GREEN }\n"
@@ -187,7 +187,7 @@ describe Chiasmus::Discovery::JavaExtractor do
 
   it "extracts method declarations" do
     extractor = Chiasmus::Discovery::JavaExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("java")
+    lang = TreeSitterManager::GrammarLoader.load_language("java")
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class X { void foo() {} }\n"
@@ -202,7 +202,7 @@ end
 describe Chiasmus::Discovery::RustExtractor do
   it "extracts struct_item as class" do
     extractor = Chiasmus::Discovery::RustExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("rust")
+    lang = TreeSitterManager::GrammarLoader.load_language("rust")
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "struct Point { x: i32 }\n"
@@ -215,7 +215,7 @@ describe Chiasmus::Discovery::RustExtractor do
 
   it "extracts enum_item as class" do
     extractor = Chiasmus::Discovery::RustExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("rust")
+    lang = TreeSitterManager::GrammarLoader.load_language("rust")
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "enum Option { Some, None }\n"
@@ -228,7 +228,7 @@ describe Chiasmus::Discovery::RustExtractor do
 
   it "extracts trait_item as interface" do
     extractor = Chiasmus::Discovery::RustExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("rust")
+    lang = TreeSitterManager::GrammarLoader.load_language("rust")
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "trait Display {}\n"
@@ -241,7 +241,7 @@ describe Chiasmus::Discovery::RustExtractor do
 
   it "extracts function_item" do
     extractor = Chiasmus::Discovery::RustExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("rust")
+    lang = TreeSitterManager::GrammarLoader.load_language("rust")
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "fn main() {}\n"
@@ -254,7 +254,7 @@ describe Chiasmus::Discovery::RustExtractor do
 
   it "extracts UPPERCASE const_item" do
     extractor = Chiasmus::Discovery::RustExtractor.new
-    lang = Chiasmus::Discovery::GrammarLoader.load_language("rust")
+    lang = TreeSitterManager::GrammarLoader.load_language("rust")
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "const MAX: i32 = 100;\n"

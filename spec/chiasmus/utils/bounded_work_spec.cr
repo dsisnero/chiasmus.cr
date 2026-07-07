@@ -1,6 +1,6 @@
 require "../../spec_helper"
 require "../../../src/chiasmus/utils/bounded_work"
-require "../../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 
 describe Chiasmus::Utils::BoundedWork do
   it "preserves order while respecting the concurrency bound" do
@@ -54,7 +54,7 @@ describe Chiasmus::Utils::BoundedWork do
       value * 10
     end
 
-    first = Chiasmus::Utils::Timeout.with_timeout_async(40, results)
+    first = TreeSitterManager::Timeout.with_timeout_async(40, results)
     first.should_not be_nil
     first_result = first || raise "expected first bounded work result"
     first_result.index.should eq(1)

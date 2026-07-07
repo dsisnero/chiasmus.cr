@@ -1,11 +1,11 @@
 require "spec"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/extractor"
-require "../../../src/chiasmus/discovery/grammar_loader"
+require "tree-sitter-manager"
 
 describe "Rust extractor" do
   before_all do
-    unless Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("rust")
+    unless TreeSitterManager::GrammarLoader.tree_sitter_available?("rust")
       pending "rust tree-sitter grammar not available"
     end
   end

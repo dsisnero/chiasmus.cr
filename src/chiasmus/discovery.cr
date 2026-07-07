@@ -1,5 +1,5 @@
 require "tree_sitter"
-require "./discovery/grammar_loader"
+require "tree-sitter-manager"
 require "./discovery/predicate_evaluator"
 require "./discovery/extractor"
 require "./discovery/registry"
@@ -64,19 +64,19 @@ module Chiasmus
 
     # Delegated to GrammarLoader
     def register_grammar_directory(path : String) : Nil
-      GrammarLoader.register_grammar_directory(path)
+      TreeSitterManager::GrammarLoader.register_grammar_directory(path)
     end
 
     def tree_sitter_available?(language : String) : Bool
-      GrammarLoader.tree_sitter_available?(language)
+      TreeSitterManager::GrammarLoader.tree_sitter_available?(language)
     end
 
     def find_grammar_library(language : String) : String?
-      GrammarLoader.find_grammar_library(language)
+      TreeSitterManager::GrammarLoader.find_grammar_library(language)
     end
 
     def load_language(language : String) : TreeSitter::Language?
-      GrammarLoader.load_language(language)
+      TreeSitterManager::GrammarLoader.load_language(language)
     end
 
     # Discover declarations in a single file.

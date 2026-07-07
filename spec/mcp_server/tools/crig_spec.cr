@@ -79,7 +79,7 @@ describe Chiasmus::MCPServer::Tools::CrigTool do
             result_chan.send(tool.invoke({"prompt" => JSON::Any.new("hello")}))
           end
 
-          Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+          TreeSitterManager::Timeout.with_timeout_async(250, entered).should eq(true)
 
           select
           when result_chan.receive?
@@ -88,7 +88,7 @@ describe Chiasmus::MCPServer::Tools::CrigTool do
           end
 
           release.send(true)
-          result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+          result = TreeSitterManager::Timeout.with_timeout_async(250, result_chan)
           result.should_not be_nil
           crig_result = result || raise "expected crig tool result"
           crig_result.status.should eq("error")

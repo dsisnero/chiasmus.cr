@@ -136,8 +136,8 @@ describe "MCP async tool calls through transport" do
       "input"  => JSON::Any.new("(declare-const y Int) (assert (> y 1))"),
     })
 
-    Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
-    Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
+    TreeSitterManager::Timeout.with_timeout_async(500, entered).should eq(true)
+    TreeSitterManager::Timeout.with_timeout_async(500, entered).should eq(true)
 
     select
     when first.receive?
@@ -151,7 +151,7 @@ describe "MCP async tool calls through transport" do
     release.send(true)
 
     [first, second].each do |channel|
-      result = Chiasmus::Utils::Timeout.with_timeout_async(1000, channel)
+      result = TreeSitterManager::Timeout.with_timeout_async(1000, channel)
       result.should_not be_nil
       raw = result || raise "expected async MCP tool result"
       raw.should be_a(MCP::Protocol::CallToolResult)

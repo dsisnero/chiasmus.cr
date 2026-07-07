@@ -93,7 +93,7 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
       }))
     end
 
-    Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+    TreeSitterManager::Timeout.with_timeout_async(250, entered).should eq(true)
 
     select
     when result_chan.receive?
@@ -102,7 +102,7 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     end
 
     release.send(true)
-    result = Chiasmus::Utils::Timeout.with_timeout_async(500, result_chan)
+    result = TreeSitterManager::Timeout.with_timeout_async(500, result_chan)
     result.should_not be_nil
     solve_result = result || raise "expected solve tool result"
     solve_result.status.should eq("success")

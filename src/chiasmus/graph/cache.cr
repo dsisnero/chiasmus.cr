@@ -7,7 +7,7 @@
 require "openssl"
 require "json"
 require "./types"
-require "../utils/xdg"
+require "tree-sitter-manager"
 
 module Chiasmus
   module Graph
@@ -67,7 +67,7 @@ module Chiasmus
       end
 
       def default_cache_dir : String
-        ENV["CHIASMUS_CACHE_DIR"]? || Utils::XDG.chiasmus_cache_dir
+        ENV["CHIASMUS_CACHE_DIR"]? || TreeSitterManager::XDG.chiasmus_cache_dir
       end
 
       def default_max_bytes_per_repo : Int32

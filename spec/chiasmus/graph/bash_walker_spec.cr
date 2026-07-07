@@ -3,12 +3,12 @@ require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/parser"
 require "../../../src/chiasmus/graph/walkers"
 require "../../../src/chiasmus/graph/extractor"
-require "../../../src/chiasmus/discovery/grammar_loader"
+require "tree-sitter-manager"
 
 include Chiasmus::Graph
 
 describe "Bash graph walker" do
-  if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("bash")
+  if TreeSitterManager::GrammarLoader.tree_sitter_available?("bash")
     it "extracts function definitions" do
       code = <<-BASH
         hello() {

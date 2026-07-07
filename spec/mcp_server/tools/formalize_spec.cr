@@ -91,7 +91,7 @@ describe Chiasmus::MCPServer::Tools::FormalizeTool do
       }))
     end
 
-    Chiasmus::Utils::Timeout.with_timeout_async(250, entered).should eq(true)
+    TreeSitterManager::Timeout.with_timeout_async(250, entered).should eq(true)
 
     select
     when result_chan.receive?
@@ -100,7 +100,7 @@ describe Chiasmus::MCPServer::Tools::FormalizeTool do
     end
 
     release.send(true)
-    result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+    result = TreeSitterManager::Timeout.with_timeout_async(250, result_chan)
     result.should_not be_nil
     formalize_result = result || raise "expected formalize tool result"
     formalize_result.status.should eq("success")

@@ -3,12 +3,12 @@ require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/parser"
 require "../../../src/chiasmus/graph/walkers"
 require "../../../src/chiasmus/graph/extractor"
-require "../../../src/chiasmus/discovery/grammar_loader"
+require "tree-sitter-manager"
 
 include Chiasmus::Graph
 
 describe "Kotlin graph walker" do
-  if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("kotlin")
+  if TreeSitterManager::GrammarLoader.tree_sitter_available?("kotlin")
     it "extracts class declarations" do
       code = <<-KT
         class Calculator {

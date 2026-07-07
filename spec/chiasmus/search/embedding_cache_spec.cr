@@ -154,10 +154,10 @@ describe EmbeddingCache do
             save_done.send(true)
           end
 
-          Chiasmus::Utils::Timeout.with_timeout_async(500, entered_hook).should eq(true)
+          TreeSitterManager::Timeout.with_timeout_async(500, entered_hook).should eq(true)
           cache.put("late", [4.0, 5.0, 6.0])
           release_hook.send(true)
-          Chiasmus::Utils::Timeout.with_timeout_async(500, save_done).should eq(true)
+          TreeSitterManager::Timeout.with_timeout_async(500, save_done).should eq(true)
           cache.clear_before_dirty_clear_hook_for_test
 
           cache.save

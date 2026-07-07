@@ -1,5 +1,5 @@
 require "../../spec_helper"
-require "../../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 
 private def swipl_available? : Bool
   # crolog requires the SWI-Prolog shared library at runtime

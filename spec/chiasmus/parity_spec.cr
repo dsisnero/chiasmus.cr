@@ -5,7 +5,7 @@ require "../../src/chiasmus/graph/facts"
 require "../../src/chiasmus/graph/insights"
 require "../../src/chiasmus/graph/types"
 require "file_utils"
-require "../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 require "../../src/chiasmus/solvers/prolog_solver"
 
 describe Chiasmus::Parity::Naming do
@@ -655,8 +655,8 @@ TSV
           ))
         end
 
-        first = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
-        second = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        first = TreeSitterManager::Timeout.with_timeout_async(500, entered)
+        second = TreeSitterManager::Timeout.with_timeout_async(500, entered)
         first.should_not be_nil
         second.should_not be_nil
 
@@ -667,11 +667,11 @@ TSV
         end
 
         release.send(true)
-        third = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        third = TreeSitterManager::Timeout.with_timeout_async(500, entered)
         third.should_not be_nil
         2.times { release.send(true) }
 
-        result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+        result = TreeSitterManager::Timeout.with_timeout_async(1_000, result_channel)
         result.should_not be_nil
         parity_result = result || raise "expected parity result"
         parity_result.parser_mode.should contain("tree-sitter")

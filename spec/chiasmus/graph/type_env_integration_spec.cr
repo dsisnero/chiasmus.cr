@@ -1,12 +1,12 @@
 require "../../spec_helper"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/type_env"
-require "../../../src/chiasmus/discovery/grammar_loader"
+require "tree-sitter-manager"
 
 include Chiasmus::Graph
 
 private def typescript_language : TreeSitter::Language?
-  Chiasmus::Discovery::GrammarLoader.load_language("typescript")
+  TreeSitterManager::GrammarLoader.load_language("typescript")
 end
 
 private def parse_ts(source : String) : TreeSitter::Node?

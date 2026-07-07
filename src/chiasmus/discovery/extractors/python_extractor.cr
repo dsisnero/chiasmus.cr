@@ -62,7 +62,7 @@ module Chiasmus
 
       def extract(root_node : TreeSitter::Node, source : String, file_path : String) : Array(Item)
         items = [] of Item
-        lang = GrammarLoader.load_language(grammar_language)
+        lang = TreeSitterManager::GrammarLoader.load_language(grammar_language)
         return items unless lang
 
         # Use a combined function query and split by context

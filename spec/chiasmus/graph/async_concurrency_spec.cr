@@ -1,12 +1,12 @@
 require "spec"
 require "file_utils"
 require "tree_sitter"
-require "../../../src/chiasmus/utils/result"
-require "../../../src/chiasmus/utils/timeout"
-require "../../../src/chiasmus/utils/xdg"
+require "tree-sitter-manager"
+require "tree-sitter-manager"
+require "tree-sitter-manager"
 require "../../../src/chiasmus/graph/types"
-require "../../../src/chiasmus/graph/grammar_operations"
-require "../../../src/chiasmus/graph/grammar_manager"
+require "tree-sitter-manager"
+require "tree-sitter-manager"
 require "../../../src/chiasmus/graph/parser"
 
 class TreeSitter::Config
@@ -30,16 +30,16 @@ module Chiasmus::Graph::Parser
     service.seed_cache_for_test(language, lang)
   end
 
-  def self.test_seed_waiters(language : String, count : Int32) : Array(Channel(Chiasmus::Utils::Result(TreeSitter::Language?)))
+  def self.test_seed_waiters(language : String, count : Int32) : Array(Channel(TreeSitterManager::Result(TreeSitter::Language?)))
     service.seed_waiters_for_test(language, count)
   end
 
-  def self.test_notify(language : String, result : Chiasmus::Utils::Result(TreeSitter::Language?))
+  def self.test_notify(language : String, result : TreeSitterManager::Result(TreeSitter::Language?))
     service.notify_for_test(language, result)
   end
 end
 
-class Chiasmus::Graph::GrammarManager
+class TreeSitterManager::GrammarManager
   def self.test_reset(cache_dir : String? = nil)
     @@mutex.synchronize do
       @@instance = nil
@@ -58,8 +58,8 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
 
   TreeSitter::Config.test_reset
   TreeSitter::Repository.test_reset
-  Chiasmus::Graph::LanguageRegistry.clear_cache
-  Chiasmus::Graph::GrammarManager.test_reset
+  TreeSitterManager::LanguageRegistry.clear_cache
+  TreeSitterManager::GrammarManager.test_reset
   Chiasmus::Graph::Parser.test_reset
 
   begin
@@ -79,8 +79,8 @@ private def with_xdg_dirs(cache_home : String, config_home : String, &)
 
     TreeSitter::Config.test_reset
     TreeSitter::Repository.test_reset
-    Chiasmus::Graph::LanguageRegistry.clear_cache
-    Chiasmus::Graph::GrammarManager.test_reset
+    TreeSitterManager::LanguageRegistry.clear_cache
+    TreeSitterManager::GrammarManager.test_reset
     Chiasmus::Graph::Parser.test_reset
   end
 end
@@ -153,7 +153,7 @@ describe "async graph concurrency" do
     Chiasmus::Graph::Parser.test_seed_cache("cached-lang", lang)
 
     channel = Chiasmus::Graph::Parser.get_language_async("cached-lang")
-    result = Chiasmus::Utils::Timeout.with_timeout_async(100, channel)
+    result = TreeSitterManager::Timeout.with_timeout_async(100, channel)
 
     result.should_not be_nil
     raise "expected non-nil result" if result.nil?
@@ -166,11 +166,11 @@ describe "async graph concurrency" do
     lang = build_test_language("shared-lang")
     waiters = Chiasmus::Graph::Parser.test_seed_waiters("shared-lang", 2)
 
-    success = Chiasmus::Utils::Result(TreeSitter::Language?).success(lang)
+    success = TreeSitterManager::Result(TreeSitter::Language?).success(lang)
     Chiasmus::Graph::Parser.test_notify("shared-lang", success)
 
-    first = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[0])
-    second = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[1])
+    first = TreeSitterManager::Timeout.with_timeout_async(100, waiters[0])
+    second = TreeSitterManager::Timeout.with_timeout_async(100, waiters[1])
     first.should_not be_nil
     second.should_not be_nil
     raise "expected non-nil first" if first.nil?
@@ -187,7 +187,7 @@ describe "async graph concurrency" do
     Chiasmus::Graph::Parser.test_seed_cache("cached-lang-second", lang)
 
     channel = Chiasmus::Graph::Parser.get_language_async("cached-lang-second")
-    result = Chiasmus::Utils::Timeout.with_timeout_async(100, channel)
+    result = TreeSitterManager::Timeout.with_timeout_async(100, channel)
 
     result.should_not be_nil
     raise "expected non-nil result" if result.nil?
@@ -199,12 +199,12 @@ describe "async graph concurrency" do
     Chiasmus::Graph::Parser.test_reset
     lang = build_test_language("shared-lang-second")
     waiters = Chiasmus::Graph::Parser.test_seed_waiters("shared-lang-second", 2)
-    success = Chiasmus::Utils::Result(TreeSitter::Language?).success(lang)
+    success = TreeSitterManager::Result(TreeSitter::Language?).success(lang)
 
     Chiasmus::Graph::Parser.test_notify("shared-lang-second", success)
 
-    first = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[0])
-    second = Chiasmus::Utils::Timeout.with_timeout_async(100, waiters[1])
+    first = TreeSitterManager::Timeout.with_timeout_async(100, waiters[0])
+    second = TreeSitterManager::Timeout.with_timeout_async(100, waiters[1])
 
     first.should_not be_nil
     second.should_not be_nil
@@ -219,10 +219,10 @@ describe "async graph concurrency" do
   it "treats missing cached grammar as an unavailable grammar, not a timeout failure" do
     cache_dir = File.join(Dir.tempdir, "async-grammar-manager-#{Random.rand(1_000_000)}")
     Dir.mkdir_p(cache_dir)
-    Chiasmus::Graph::GrammarManager.test_reset(cache_dir)
+    TreeSitterManager::GrammarManager.test_reset(cache_dir)
 
-    channel = Chiasmus::Graph::GrammarManager.instance.grammar_available_async("definitely-missing-language")
-    result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, channel)
+    channel = TreeSitterManager::GrammarManager.instance.grammar_available_async("definitely-missing-language")
+    result = TreeSitterManager::Timeout.with_timeout_async(1_000, channel)
 
     result.should_not be_nil
     raise "expected non-nil result" if result.nil?
@@ -233,23 +233,23 @@ describe "async graph concurrency" do
   it "coalesces concurrent ensure_grammar_async calls for the same language" do
     cache_dir = File.join(Dir.tempdir, "async-grammar-manager-coalesce-#{Random.rand(1_000_000)}")
     Dir.mkdir_p(cache_dir)
-    Chiasmus::Graph::GrammarManager.test_reset(cache_dir)
+    TreeSitterManager::GrammarManager.test_reset(cache_dir)
 
-    manager = Chiasmus::Graph::GrammarManager.instance
+    manager = TreeSitterManager::GrammarManager.instance
     install_calls = Atomic(Int32).new(0)
     release_install = Channel(Bool).new(1)
 
     manager.set_install_hook_for_test do |_language|
       install_calls.add(1)
       release_install.receive
-      Chiasmus::Utils::BoolResult.success
+      TreeSitterManager::BoolResult.success
     end
 
     begin
       first = manager.ensure_grammar_async("coalesced-language", 1_000)
       second = manager.ensure_grammar_async("coalesced-language", 1_000)
 
-      ready = Chiasmus::Utils::Timeout.with_timeout(200) do
+      ready = TreeSitterManager::Timeout.with_timeout(200) do
         until install_calls.get == 1
           Fiber.yield
         end
@@ -259,8 +259,8 @@ describe "async graph concurrency" do
       ready.should eq(true)
       release_install.send(true)
 
-      first_result = Chiasmus::Utils::Timeout.with_timeout_async(500, first)
-      second_result = Chiasmus::Utils::Timeout.with_timeout_async(500, second)
+      first_result = TreeSitterManager::Timeout.with_timeout_async(500, first)
+      second_result = TreeSitterManager::Timeout.with_timeout_async(500, second)
 
       first_result.should_not be_nil
       second_result.should_not be_nil
@@ -285,7 +285,7 @@ describe "async graph concurrency" do
 
       with_xdg_dirs(cache_home, config_home) do
         channel = Chiasmus::Graph::Parser.get_language_async("python")
-        result = Chiasmus::Utils::Timeout.with_timeout_async(5_000, channel)
+        result = TreeSitterManager::Timeout.with_timeout_async(5_000, channel)
 
         result.should_not be_nil
         raise "expected non-nil result" if result.nil?

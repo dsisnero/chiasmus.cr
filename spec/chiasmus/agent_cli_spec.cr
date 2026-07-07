@@ -1,7 +1,7 @@
 require "spec"
 require "json"
 require "../../src/chiasmus"
-require "../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 
 private def parse(args : Array(String)) : Chiasmus::AgentCLI::Options
   Chiasmus::AgentCLI.parse(args)
@@ -241,8 +241,8 @@ describe Chiasmus::AgentCLI do
           result_channel.send(Chiasmus::AgentCLI.run_graph_analysis(paths, "summary"))
         end
 
-        first = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
-        second = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        first = TreeSitterManager::Timeout.with_timeout_async(500, entered)
+        second = TreeSitterManager::Timeout.with_timeout_async(500, entered)
         first.should_not be_nil
         second.should_not be_nil
 
@@ -253,11 +253,11 @@ describe Chiasmus::AgentCLI do
         end
 
         release.send(true)
-        third = Chiasmus::Utils::Timeout.with_timeout_async(500, entered)
+        third = TreeSitterManager::Timeout.with_timeout_async(500, entered)
         third.should_not be_nil
         2.times { release.send(true) }
 
-        result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+        result = TreeSitterManager::Timeout.with_timeout_async(1_000, result_channel)
         result.should_not be_nil
         raw_result = result || raise "expected CLI JSON output"
         JSON.parse(raw_result)["result"]["files"].as_i.should eq(3)

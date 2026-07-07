@@ -2,7 +2,7 @@ require "spec"
 require "../spec_helper"
 require "tree_sitter"
 require "../../src/chiasmus/discovery"
-require "../../src/chiasmus/utils/timeout"
+require "tree-sitter-manager"
 
 module Chiasmus
   module Discovery
@@ -266,7 +266,7 @@ describe Chiasmus::Discovery do
           "test.ts"
         )
 
-        Chiasmus::Utils::Timeout.with_timeout_async(500, entered).should eq(true)
+        TreeSitterManager::Timeout.with_timeout_async(500, entered).should eq(true)
 
         select
         when value = result_channel.receive
@@ -276,7 +276,7 @@ describe Chiasmus::Discovery do
 
         release.send(true)
 
-        result = Chiasmus::Utils::Timeout.with_timeout_async(1_000, result_channel)
+        result = TreeSitterManager::Timeout.with_timeout_async(1_000, result_channel)
         result.should_not be_nil
 
         async_result = result || raise "expected async discovery result"

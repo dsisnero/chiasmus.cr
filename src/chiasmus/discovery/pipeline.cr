@@ -1,4 +1,4 @@
-require "./grammar_loader"
+require "tree-sitter-manager"
 require "./registry"
 require "../utils/bounded_work"
 
@@ -96,7 +96,7 @@ module Chiasmus
         extractor = @registry.for_file(file_path)
         return [] of Item unless extractor
 
-        lang = GrammarLoader.load_language(extractor.grammar_language)
+        lang = TreeSitterManager::GrammarLoader.load_language(extractor.grammar_language)
         return [] of Item unless lang
 
         parser = TreeSitter::Parser.new(language: lang)

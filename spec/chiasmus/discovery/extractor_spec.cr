@@ -9,7 +9,7 @@ end
 
 # Helper to load TypeScript grammar for tests
 private def typescript_language : TreeSitter::Language?
-  Chiasmus::Discovery::GrammarLoader.load_language("typescript")
+  TreeSitterManager::GrammarLoader.load_language("typescript")
 end
 
 describe Chiasmus::Discovery::LanguageExtractor do

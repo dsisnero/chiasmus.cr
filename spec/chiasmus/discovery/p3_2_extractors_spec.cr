@@ -8,7 +8,7 @@ end
 
 # Helper: load language or skip test (grammar may not be compiled in CI)
 private def load_lang(name)
-  Chiasmus::Discovery::GrammarLoader.load_language(name)
+  TreeSitterManager::GrammarLoader.load_language(name)
 end
 
 describe Chiasmus::Discovery::JavaScriptExtractor do

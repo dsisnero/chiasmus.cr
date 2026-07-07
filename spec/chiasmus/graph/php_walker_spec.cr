@@ -3,12 +3,12 @@ require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/parser"
 require "../../../src/chiasmus/graph/walkers"
 require "../../../src/chiasmus/graph/extractor"
-require "../../../src/chiasmus/discovery/grammar_loader"
+require "tree-sitter-manager"
 
 include Chiasmus::Graph
 
 describe "PHP graph walker" do
-  if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?("php")
+  if TreeSitterManager::GrammarLoader.tree_sitter_available?("php")
     it "extracts class declarations and methods" do
       code = <<-PHP
         <?php

@@ -36,7 +36,7 @@ describe "async cache persistence" do
       end
 
       entered.receive
-      graph = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+      graph = TreeSitterManager::Timeout.with_timeout_async(250, result_chan)
       graph.should_not be_nil
 
       cached_graph = graph || raise "expected cached graph"
@@ -87,7 +87,7 @@ describe "async cache persistence" do
       end
 
       entered.receive
-      result = Chiasmus::Utils::Timeout.with_timeout_async(250, result_chan)
+      result = TreeSitterManager::Timeout.with_timeout_async(250, result_chan)
       result.should_not be_nil
 
       graph_result = result || raise "expected async cache graph result"

@@ -39,11 +39,11 @@ module Chiasmus
         service.supported_extensions
       end
 
-      def parse_async(content : String, file_path : String, timeout_ms : Int32 = 30_000) : Channel(Utils::Result(ParseArtifact))
+      def parse_async(content : String, file_path : String, timeout_ms : Int32 = 30_000) : Channel(TreeSitterManager::Result(ParseArtifact))
         service.parse_async(content, file_path, timeout_ms)
       end
 
-      def parse_source_async(content : String, file_path : String, timeout_ms : Int32 = 30_000) : Channel(Utils::Result(ParseArtifact))
+      def parse_source_async(content : String, file_path : String, timeout_ms : Int32 = 30_000) : Channel(TreeSitterManager::Result(ParseArtifact))
         service.parse_async(content, file_path, timeout_ms)
       end
 
@@ -55,7 +55,7 @@ module Chiasmus
         service.parse(content, file_path, timeout_ms)
       end
 
-      def get_language_async(language : String, timeout_ms : Int32 = 60_000) : Channel(Utils::Result(TreeSitter::Language?))
+      def get_language_async(language : String, timeout_ms : Int32 = 60_000) : Channel(TreeSitterManager::Result(TreeSitter::Language?))
         service.get_language_async(language, timeout_ms)
       end
 

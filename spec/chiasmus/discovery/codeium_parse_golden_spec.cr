@@ -6,7 +6,7 @@ GOLDEN_DIR        = File.expand_path("../../testdata/codeium_parse", __DIR__)
 CRYSTAL_TEST_PATH = File.expand_path("../../testdata/codeium_parse/crystal_input.txt", __DIR__)
 
 private def extract_for(grammar_lang, test_ext)
-  lang = Chiasmus::Discovery::GrammarLoader.load_language(grammar_lang)
+  lang = TreeSitterManager::GrammarLoader.load_language(grammar_lang)
   return nil unless lang
 
   test_path =
@@ -30,7 +30,7 @@ end
 
 macro golden_spec(lang_key, grammar_lang, test_ext, extractor_class)
   describe "Codeium-parse golden: {{lang_key.id}}" do
-    if Chiasmus::Discovery::GrammarLoader.tree_sitter_available?({{grammar_lang}})
+    if TreeSitterManager::GrammarLoader.tree_sitter_available?({{grammar_lang}})
       it "matches golden output" do
         result = extract_for({{grammar_lang}}, {{test_ext}})
         result.should_not be_nil
