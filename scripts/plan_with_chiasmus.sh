@@ -10,6 +10,7 @@ TOP_N="${PORT_PLAN_TOP:-25}"
 ENTRY_POINTS="${PORT_ENTRY_POINTS:-}"
 PARSER_MODE="${PORT_PARSER:-auto}"
 CRYSTAL_DIRS="${PORT_CRYSTAL_DIRS:-src:spec}"
+FACTS_CACHE_DIR="${PORT_FACTS_CACHE_DIR:-${OUT_DIR}/facts_cache}"
 
 if [[ -z "${SOURCE_PATH}" ]]; then
   echo "source path is required as arg 2 or PORT_SOURCE_DIR" >&2
@@ -156,7 +157,7 @@ refresh_facts_snapshot() {
   local dir="$3"
   shift 3
 
-  run_tool CHIASMUS_FACTS_BIN chiasmus-facts "$@" > "${facts_path}"
+  run_tool CHIASMUS_FACTS_BIN chiasmus-facts "$@" --cache-dir "${FACTS_CACHE_DIR}" > "${facts_path}"
   write_facts_metadata "${facts_path}" "${language}" "${dir}"
 }
 

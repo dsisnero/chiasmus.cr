@@ -91,8 +91,8 @@ SH
       status.success?.should be_true, error_io.to_s
 
       log = File.read(log_path)
-      log.should contain("facts:--language typescript --dir #{shared_vendor_dir}/source")
-      log.should contain("facts:--language crystal --dir #{dir}/src")
+      log.should contain("facts:--language typescript --dir #{shared_vendor_dir}/source --cache-dir #{out_dir}/facts_cache")
+      log.should contain("facts:--language crystal --dir #{dir}/src --cache-dir #{out_dir}/facts_cache")
       log.should contain("plan:rank --facts #{out_dir}/source_facts.pl --format tsv --top 25")
       log.should contain("parity:--inventory #{inventory_path} --root #{dir}")
       log.should contain("complete:--inventory #{inventory_path} --source-facts #{out_dir}/source_facts.pl --parity-report #{out_dir}/parity.tsv --query status")
@@ -308,9 +308,9 @@ SH
 
       log = File.read(log_path)
       log.lines.count(&.starts_with?("facts:")).should eq(1)
-      log.should contain("facts:--language typescript --dir #{source_dir}")
+      log.should contain("facts:--language typescript --dir #{source_dir} --cache-dir #{out_dir}/facts_cache")
       log.should_not contain("facts:--language crystal --dir #{crystal_dir}")
-      File.read(source_facts_path).should contain("generated:--language typescript --dir #{source_dir}")
+      File.read(source_facts_path).should contain("generated:--language typescript --dir #{source_dir} --cache-dir #{out_dir}/facts_cache")
       File.read(crystal_facts_path).should eq("fresh crystal facts\n")
     ensure
       FileUtils.rm_rf(dir)
