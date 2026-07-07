@@ -59,9 +59,11 @@ build-clis:
 	mkdir -p bin
 	crystal build --release -o bin/chiasmus-discover src/chiasmus_discover.cr
 	crystal build --release -o bin/chiasmus-grammar src/chiasmus_grammar.cr
-	crystal build --release -o bin/chiasmus-parity src/chiasmus_parity.cr
+	# Build parity CLIs with execution contexts enabled so CHIASMUS_PARITY_PARALLEL
+	# can opt into true-thread worker pools for row matching and regex-side scans.
+	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-parity src/chiasmus_parity.cr
 	crystal build --release -o bin/chiasmus-plan src/chiasmus_plan.cr
-	crystal build --release -o bin/chiasmus-complete src/chiasmus_complete.cr
+	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-complete src/chiasmus_complete.cr
 	# chiasmus-facts is the graph engine headless; build it like the server
 	# (-Dpreview_mt -Dexecution_context) so extraction uses true-thread
 	# parallelism (parallel_cpu_enabled?) instead of fiber-only.

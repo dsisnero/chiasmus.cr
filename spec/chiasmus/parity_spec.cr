@@ -26,6 +26,27 @@ describe Chiasmus::Parity::Naming do
   end
 end
 
+describe Chiasmus::Parity do
+  it "enables parity worker parallelism through CHIASMUS_PARITY_PARALLEL" do
+    previous = ENV["CHIASMUS_PARITY_PARALLEL"]?
+
+    begin
+      ENV["CHIASMUS_PARITY_PARALLEL"] = "1"
+      Chiasmus::Parity.parallel_enabled?.should be_true
+      Chiasmus::Parity.parallel_map([1, 2, 3]) { |value| value * 2 }.should eq([2, 4, 6])
+
+      ENV["CHIASMUS_PARITY_PARALLEL"] = "0"
+      Chiasmus::Parity.parallel_enabled?.should be_false
+    ensure
+      if previous
+        ENV["CHIASMUS_PARITY_PARALLEL"] = previous
+      else
+        ENV.delete("CHIASMUS_PARITY_PARALLEL")
+      end
+    end
+  end
+end
+
 describe Chiasmus::Parity::Matcher do
   it "classifies snake_case Crystal methods as curated aliases for camelCase upstream functions" do
     row = Chiasmus::Parity::InventoryRow.new(

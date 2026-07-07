@@ -374,6 +374,17 @@ We need real measurements before phase 3 and before any `ExecutionContext` work.
 - hit/miss counts for cache
 - warnings/error counts
 
+### Current measurements (2026-07-06)
+
+- `chiasmus-parity` on the TypeScript inventory with precomputed facts improved from about `35.24s` to `25.63s` when built with `-Dpreview_mt -Dexecution_context` and run with `CHIASMUS_PARITY_PARALLEL=1`.
+- `chiasmus-facts --language typescript --dir vendor/chiasmus` improved from about `26.72s` to `5.92s` when the CLI was built with `-Dpreview_mt -Dexecution_context` and run with `CHIASMUS_GRAPH_PARALLEL=1`.
+- `chiasmus-facts --language crystal --dir src` is still not in a safe state for the same toggle. Both default and `CHIASMUS_GRAPH_PARALLEL=1` runs exceeded a `60s` probe, and earlier longer probes also failed to finish in a reasonable window.
+
+Decision:
+
+- keep `CHIASMUS_PARITY_PARALLEL` as an opt-in path and compile `chiasmus-parity` / `chiasmus-complete` with execution-context support
+- keep `CHIASMUS_GRAPH_PARALLEL` opt-in for `chiasmus-facts`, but do not treat it as planner-default-safe until the Crystal-source extraction slowdown is understood
+
 ### Likely place
 
 - extend `scripts/measure.cr` or add `scripts/measure_concurrency.cr`

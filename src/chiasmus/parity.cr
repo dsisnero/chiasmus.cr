@@ -1553,9 +1553,13 @@ module Chiasmus
     end
 
     def self.parallel_map(items : Array(T), max_concurrency : Int32 = MAX_CONCURRENCY, &block : T -> U) : Array(U) forall T, U
-      Utils::BoundedWork.map_ordered_or_raise(items, max_concurrency) do |item|
+      Utils::BoundedWork.map_ordered_or_raise(items, max_concurrency, parallel: parallel_enabled?) do |item|
         block.call(item)
       end
+    end
+
+    def self.parallel_enabled? : Bool
+      ENV["CHIASMUS_PARITY_PARALLEL"]? == "1"
     end
   end
 end
