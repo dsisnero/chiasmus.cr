@@ -1,31 +1,22 @@
 # Keep git submodules materialized at the recorded commit in every worktree.
-# Symlinking tracked submodule directories across worktrees is unsafe because
-# git expects each worktree/submodule checkout to own its own working tree.
 #
-# Copy dotfiles and root-level config files from the parent repo into every
-# new worktree.  git checkout only tracks committed blobs; project-local
-# configuration (linter settings, editor config, CI workflows) lives outside
-# the branch and must be seeded explicitly.
-#
-# `pre-start` gives a blocking best-effort check on worktree creation.
-# `post-start` repairs freshly-created worktrees after checkout.
-# `post-switch` and `post-merge` repair branch moves that change submodule SHAs.
+# pre-start:  blocking — submodule sync before worktree is usable.
+# post-start: background — copy gitignored files from primary, then build.
+# post-switch / post-merge: repair submodule SHAs after branch changes.
 
 [pre-start]
-dotfiles = "./scripts/wktrees_copy_dotfiles.sh"
-submodules = "./scripts/wktrees_sync_vendor.sh"
+submodules = "git submodule sync --recursive && git submodule update --init --recursive --checkout"
 
-# Build the local chiasmus binary in each new worktree so the opencode and
-# codex MCP configs can exec ./bin/chiasmus. Runs in the background after the
-# worktree is created (bin/ is gitignored, so each worktree builds its own).
-# Use a worktree-local Crystal cache so sandboxed and multi-worktree builds
-# don't depend on mutating a shared home-directory compiler cache.
-[post-start]
-submodules = "./scripts/wktrees_sync_vendor.sh"
+# Pipeline: copy gitignored build/config files from primary worktree first,
+# then build the chiasmus binary (needs submodules already materialized).
+[[post-start]]
+copy-ignored = "wt step copy-ignored"
+
+[[post-start]]
 build-chiasmus = "CRYSTAL_CACHE_DIR=$PWD/.crystal-cache make build"
 
 [post-switch]
-submodules = "./scripts/wktrees_sync_vendor.sh"
+submodules = "git submodule sync --recursive && git submodule update --init --recursive --checkout"
 
 [post-merge]
-submodules = "./scripts/wktrees_sync_vendor.sh"
+submodules = "git submodule sync --recursive && git submodule update --init --recursive --checkout"
