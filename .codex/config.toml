@@ -1,0 +1,41 @@
+# Project-local Codex config for chiasmus.cr.
+# Codex merges this (the "Repo" layer, resolved via `git rev-parse --show-toplevel`)
+# over ~/.codex/config.toml when the worktree is trusted. The command below cds to
+# the current worktree root and execs its own freshly-built binary, so each git
+# worktree uses its own bin/chiasmus with no global symlink or hardcoded path.
+[mcp_servers.chiasmus]
+command = "/bin/sh"
+args = ["-c", "cd \"$(git rev-parse --show-toplevel)\" && exec ./bin/chiasmus"]
+
+[mcp_servers.chiasmus.tools.chiasmus_graph]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_verify]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_formalize]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_lint]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_map]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_review]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_search]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_solve]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_crig]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_craft]
+approval_mode = "approve"
+
+[mcp_servers.chiasmus.tools.chiasmus_skills]
+approval_mode = "approve"

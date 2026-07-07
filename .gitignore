@@ -5,7 +5,7 @@
 /plans/generated/
 *.dwarf
 
-# macOS metadata sidecars commonly created on exFAT/removable volumes
+# AppleDouble/macOS metadata sidecars commonly created on exFAT/removable volumes
 ._*
 **/._*
 .AppleDouble/
@@ -67,6 +67,6 @@ fetch_docs.sh
 spec/tmp_cr_*.cr
 /temp/
 /chiasmus
-._*
+/.opencode/
 go/
 go
