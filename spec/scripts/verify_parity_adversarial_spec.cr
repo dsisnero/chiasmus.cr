@@ -12,6 +12,7 @@ describe "verify_parity_adversarial.sh" do
       inventory_path = File.join(dir, "plans", "inventory", "typescript_port_inventory.tsv")
       source_manifest = File.join(dir, "plans", "inventory", "typescript_source_parity.tsv")
       test_manifest = File.join(dir, "plans", "inventory", "typescript_test_parity.tsv")
+      resolved_source = File.join(dir, "vendor", "source")
 
       File.write(inventory_path, <<-TSV)
 # source_id	kind	status	crystal_refs	notes
@@ -64,8 +65,8 @@ SH
       output_io.to_s.should contain("Adversarial parity verification passed for language=typescript.")
 
       log = File.read(log_path)
-      log.should contain("ensure:#{dir} vendor/source typescript regex 0")
-      log.should contain("complete:#{dir} #{inventory_path} vendor/source typescript")
+      log.should contain("ensure:#{dir} #{resolved_source} typescript regex 0")
+      log.should contain("complete:#{dir} #{inventory_path} #{resolved_source} typescript")
     ensure
       FileUtils.rm_rf(dir)
     end
