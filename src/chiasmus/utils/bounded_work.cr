@@ -5,7 +5,7 @@ module Chiasmus
     module BoundedWork
       extend self
 
-      DEFAULT_MAX_CONCURRENT = {System.cpu_count, 1}.max
+      DEFAULT_MAX_CONCURRENT = {System.cpu_count, 1}.max.to_i32
 
       record ResultEnvelope(T),
         index : Int32,

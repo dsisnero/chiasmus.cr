@@ -25,12 +25,12 @@ module Chiasmus
       error : String? = nil
 
     class ToolDispatcher
-      DEFAULT_MAX_CONCURRENT = {System.cpu_count, 1}.max
+      DEFAULT_MAX_CONCURRENT = {System.cpu_count, 1}.max.to_i32
 
       @slots : Channel(Bool)
 
       def initialize(max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT)
-        @slots = Channel(Bool).new({max_concurrent, 1}.max)
+        @slots = Channel(Bool).new({max_concurrent, 1}.max.to_i32)
       end
 
       def dispatch(&block : -> T) : Channel(T) forall T
