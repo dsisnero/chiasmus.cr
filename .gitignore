@@ -70,3 +70,6 @@ spec/tmp_cr_*.cr
 /.opencode/
 go/
 go
+node_modules/
+chiasmus_cli
+chiasmus_spec
