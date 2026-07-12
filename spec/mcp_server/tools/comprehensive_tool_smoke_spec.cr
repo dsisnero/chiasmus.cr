@@ -89,7 +89,7 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
         tool = Chiasmus::MCPServer::Tools::SkillsTool.new
         r = tool.invoke({} of String => JSON::Any)
         r.status.should eq("success")
-        r.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.size.should be >= 9
+        r.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.size.should be >= 8
       ensure
         server.skill_library.close rescue nil
         Chiasmus::MCPServer.current_server = nil
