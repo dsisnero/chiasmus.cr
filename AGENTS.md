@@ -116,6 +116,20 @@ A ported unit is complete when:
 5. Cross-language parity checks pass
 6. Documentation reflects completion status and any unavoidable deviations
 
+## Vendor Directories (`vendor/`)
+
+| Directory | Description |
+|-----------|-------------|
+| `chiasmus/` | **Main upstream** — TypeScript MCP server for formal verification with Z3, Tau Prolog, tree-sitter source analysis. This is the source of truth for porting. |
+| `codeium-parse/` | CLI parsing tool built on tree-sitter with prepackaged grammars for many languages (C, C++, Go, Java, Python, TS, Ruby, PHP, Kotlin, Dart, Bash, Protobuf). |
+| `coderlm/` | CodeRLM — Rust server indexing codebases via tree-sitter, exposes JSON API for LLM agents (symbols, callers, tests, grep). |
+| `maki/` | Maki — Rust TUI AI coding agent optimised for minimal context token usage, using tree-sitter for compact file indexing. |
+| `merkletree/` | Minimal Go Merkle Tree implementation (SHA-256). |
+| `openapi_cr/` | Crystal port of Microsoft Kiota — OpenAPI parser, URL-tree resource grouper, codegen AST builder, Crystal API client generator. |
+| `syntastica/` | Rust syntax highlighting library using tree-sitter with three highlighting modes, theme system, query preprocessing, and Node.js bindings. |
+
+**When investigating tree-sitter grammar loading**: check `syntastica` (Rust reference) and `codeium-parse` (packaged grammars) for patterns. The main `chiasmus/` upstream is the porting source of truth.
+
 ## Getting Started
 
 1. Review the upstream source in `vendor/chiasmus/`

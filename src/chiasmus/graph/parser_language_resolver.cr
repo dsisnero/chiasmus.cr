@@ -51,7 +51,7 @@ module Chiasmus
         end
 
         private def normalized_extension(file_path : String) : String
-          File.extname(file_path).downcase
+          File.extname(file_path).lstrip('.').downcase
         end
       end
     end

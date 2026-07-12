@@ -1,4 +1,6 @@
 require "./ir"
+require "./community"
+require "./insights"
 
 module Chiasmus
   module Graph

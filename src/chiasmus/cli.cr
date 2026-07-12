@@ -201,41 +201,115 @@ module Chiasmus
     end
 
     private def compile_grammar_dir(grammar_dir : String, language : String) : Bool
-      Dir.cd(grammar_dir) do
-        # Check if already compiled
-        ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-        lib_name = "libtree-sitter-#{language}.#{ext}"
+      ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
+      lib_name = "libtree-sitter-#{language}.#{ext}"
 
-        if File.exists?(lib_name) && !@force
-          puts "Grammar already compiled: #{lib_name}" if @verbose
-          return true
-        end
-
-        # Try to generate and build
-        puts "Generating parser..." if @verbose
-        generate_result = Process.run("tree-sitter", ["generate"], output: @verbose ? Process::Redirect::Inherit : Process::Redirect::Pipe, error: @verbose ? Process::Redirect::Inherit : Process::Redirect::Pipe)
-
-        unless generate_result.success?
-          puts "Failed to generate parser" if @verbose
-          return false
-        end
-
-        puts "Building grammar..." if @verbose
-        build_result = Process.run("tree-sitter", ["build"], output: @verbose ? Process::Redirect::Inherit : Process::Redirect::Pipe, error: @verbose ? Process::Redirect::Inherit : Process::Redirect::Pipe)
-
-        unless build_result.success?
-          puts "Failed to build grammar" if @verbose
-          return false
-        end
-
-        # Rename if needed (tree-sitter creates language.dylib/so)
-        source_lib = "#{language}.#{ext}"
-        if File.exists?(source_lib) && !File.exists?(lib_name)
-          File.rename(source_lib, lib_name)
-        end
-
-        File.exists?(lib_name)
+      # Check if already compiled
+      lib_path = File.join(grammar_dir, lib_name)
+      if File.exists?(lib_path) && !@force
+        puts "Grammar already compiled: #{lib_name}" if @verbose
+        return true
       end
+
+      # Try tree-sitter CLI first
+      if compile_with_tree_sitter_cli(grammar_dir, language, ext, lib_name)
+        return true
+      end
+
+      # Fallback: direct C compilation for grammars with pre-generated C sources
+      if compile_c_source(grammar_dir, language, ext, lib_name)
+        return true
+      end
+
+      false
+    end
+
+    private def compile_with_tree_sitter_cli(grammar_dir : String, language : String, ext : String, lib_name : String) : Bool
+      Dir.cd(grammar_dir) do
+        return false unless tree_sitter_cli_available?
+        return false unless File.exists?("grammar.js")
+
+        return false unless run_tree_sitter_generate
+        return false unless run_tree_sitter_build
+        rename_output(language, ext, lib_name)
+      end
+    end
+
+    private def tree_sitter_cli_available? : Bool
+      system("which tree-sitter > /dev/null 2>&1")
+    end
+
+    private def run_tree_sitter_generate : Bool
+      puts "Generating parser..." if @verbose
+      Process.run("tree-sitter", ["generate"],
+        output: redirect_flag, error: redirect_flag).success?
+    end
+
+    private def run_tree_sitter_build : Bool
+      puts "Building grammar..." if @verbose
+      Process.run("tree-sitter", ["build"],
+        output: redirect_flag, error: redirect_flag).success?
+    end
+
+    private def redirect_flag
+      @verbose ? Process::Redirect::Inherit : Process::Redirect::Pipe
+    end
+
+    private def rename_output(language : String, ext : String, lib_name : String) : Bool
+      source_lib = "#{language}.#{ext}"
+      if File.exists?(source_lib) && !File.exists?(lib_name)
+        File.rename(source_lib, lib_name)
+      end
+      File.exists?(lib_name)
+    end
+
+    private def compile_c_source(grammar_dir : String, language : String, ext : String, lib_name : String) : Bool
+      # Find src/ directory containing parser.c.  May be directly in grammar_dir
+      # or in a language subdirectory (e.g. tree-sitter-typescript/typescript/).
+      src_dir = find_src_dir(grammar_dir, language)
+      return false unless src_dir
+
+      parser_c = File.join(src_dir, "parser.c")
+      return false unless File.exists?(parser_c)
+
+      scanner_c = File.join(src_dir, "scanner.c")
+      scanner_exists = File.exists?(scanner_c)
+
+      inc = "-I#{src_dir}"
+      output = File.join(grammar_dir, lib_name)
+      sources = [parser_c]
+      sources << scanner_c if scanner_exists
+
+      puts "Compiling #{language} from C sources in #{src_dir}..." if @verbose
+
+      args = ["-shared", "-fPIC", "-o", output] + sources + [inc, "-O2"]
+      result = Process.run("gcc", args, output: @verbose ? Process::Redirect::Inherit : Process::Redirect::Pipe, error: @verbose ? Process::Redirect::Inherit : Process::Redirect::Pipe)
+
+      if result.success?
+        puts "Compiled #{lib_name}" if @verbose
+        true
+      else
+        puts "gcc compilation failed" if @verbose
+        false
+      end
+    end
+
+    # Find the src/ directory containing parser.c for a grammar.
+    # Checks: grammar_dir/src/ and grammar_dir/{language}/src/
+    private def find_src_dir(grammar_dir : String, language : String) : String?
+      # Direct src/ subdirectory
+      direct = File.join(grammar_dir, "src")
+      if Dir.exists?(direct) && File.exists?(File.join(direct, "parser.c"))
+        return direct
+      end
+
+      # Language-specific subdirectory (e.g. typescript/, tsx/)
+      sub = File.join(grammar_dir, language, "src")
+      if Dir.exists?(sub) && File.exists?(File.join(sub, "parser.c"))
+        return sub
+      end
+
+      nil
     end
 
     private def copy_to_cache(grammar_dir : String, language : String, cache_dir : String)
