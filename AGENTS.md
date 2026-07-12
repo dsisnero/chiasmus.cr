@@ -118,17 +118,19 @@ A ported unit is complete when:
 
 ## Vendor Directories (`vendor/`)
 
-| Directory | Description |
-|-----------|-------------|
-| `chiasmus/` | **Main upstream** — TypeScript MCP server for formal verification with Z3, Tau Prolog, tree-sitter source analysis. This is the source of truth for porting. |
-| `codeium-parse/` | CLI parsing tool built on tree-sitter with prepackaged grammars for many languages (C, C++, Go, Java, Python, TS, Ruby, PHP, Kotlin, Dart, Bash, Protobuf). |
-| `coderlm/` | CodeRLM — Rust server indexing codebases via tree-sitter, exposes JSON API for LLM agents (symbols, callers, tests, grep). |
-| `maki/` | Maki — Rust TUI AI coding agent optimised for minimal context token usage, using tree-sitter for compact file indexing. |
-| `merkletree/` | Minimal Go Merkle Tree implementation (SHA-256). |
-| `openapi_cr/` | Crystal port of Microsoft Kiota — OpenAPI parser, URL-tree resource grouper, codegen AST builder, Crystal API client generator. |
-| `syntastica/` | Rust syntax highlighting library using tree-sitter with three highlighting modes, theme system, query preprocessing, and Node.js bindings. |
+Use these with DeepWiki (`deepwiki_ask_question repoName: "owner/repo"`) to research implementation patterns:
 
-**When investigating tree-sitter grammar loading**: check `syntastica` (Rust reference) and `codeium-parse` (packaged grammars) for patterns. The main `chiasmus/` upstream is the porting source of truth.
+| Directory | DeepWiki Repo | Description |
+|-----------|---------------|-------------|
+| `chiasmus/` | `yogthos/chiasmus` | **Main upstream** — TypeScript MCP server for formal verification with Z3, Tau Prolog, tree-sitter source analysis. **This is the porting source of truth.** |
+| `codeium-parse/` | `Exafunction/codeium-parse` | CLI parsing tool built on tree-sitter with prepackaged grammars for many languages (C, C++, Go, Java, Python, TS, Ruby, PHP, Kotlin, Dart, Bash, Protobuf). |
+| `coderlm/` | `JaredStewart/coderlm` | CodeRLM — Rust server indexing codebases via tree-sitter, exposes JSON API for LLM agents (symbols, callers, tests, grep). |
+| `maki/` | `tontinton/maki` | Maki — Rust TUI AI coding agent optimised for minimal context token usage, using tree-sitter for compact file indexing. |
+| `merkletree/` | `pratikpandey21/merkletree` | Minimal Go Merkle Tree implementation (SHA-256). |
+| `openapi_cr/` | `dsisnero/openapi_cr` | Crystal port of Microsoft Kiota — OpenAPI parser, URL-tree resource grouper, codegen AST builder, Crystal API client generator. |
+| `syntastica/` | `RubixDev/syntastica` | Rust syntax highlighting library using tree-sitter with three highlighting modes, theme system, query preprocessing, and Node.js bindings. |
+
+**When investigating tree-sitter grammar loading**: query `RubixDev/syntastica` (Rust reference) and `Exafunction/codeium-parse` (packaged grammars) for patterns. The main `yogthos/chiasmus` upstream is the porting source of truth — query it first before other vendors.
 
 ## Getting Started
 
