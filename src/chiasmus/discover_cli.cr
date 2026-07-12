@@ -1,5 +1,6 @@
 require "./discovery"
 require "./utils/bounded_work"
+require "./index/fast_find"
 
 module Chiasmus
   module DiscoverCLI
@@ -113,8 +114,20 @@ module Chiasmus
 
     private def scan_files(language : String, dir : String) : Array(Tuple(String, String))
       extensions = LANGUAGE_EXTENSIONS[language]? || [".#{language}"]
-      paths = Dir.glob(File.join(dir, "**", "*")).select do |path|
-        File.file?(path) && extensions.any? { |ext| path.ends_with?(ext) }
+      paths = [] of String
+
+      config = FastFind::Config.new
+      config.ignore_hidden = true
+      config.follow_symlinks = false
+      config.max_depth = 50
+      walker = FastFind::Walker.new([dir], config)
+      queue = walker.walk
+      loop do
+        entry = queue.receive?
+        break if entry.nil?
+        next unless entry.file?
+        path = entry.path.to_s
+        paths << path if extensions.any? { |ext| path.ends_with?(ext) }
       end
 
       Utils::BoundedWork.map_ordered_or_raise(paths, scan_max_concurrent) do |path|

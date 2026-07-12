@@ -24,7 +24,11 @@ module Chiasmus
       kind : SymbolKind,
       line : Int32,
       end_line : Int32 = 0,
-      signature : String? = nil
+      signature : String? = nil do
+      def symbol_key : String
+        "#{file}::#{name}"
+      end
+    end
 
     record CallsFact,
       caller : String,

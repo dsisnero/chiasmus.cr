@@ -77,3 +77,6 @@
 [submodule "vendor/syntastica"]
 	path = vendor/syntastica
 	url = https://github.com/RubixDev/syntastica.git
+[submodule "vendor/coderlm"]
+	path = vendor/coderlm
+	url = https://github.com/JaredStewart/coderlm.git

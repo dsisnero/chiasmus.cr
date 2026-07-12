@@ -2,11 +2,7 @@ require "spec"
 require "file_utils"
 require "tree_sitter"
 require "tree-sitter-manager"
-require "tree-sitter-manager"
-require "tree-sitter-manager"
 require "../../../src/chiasmus/graph/types"
-require "tree-sitter-manager"
-require "tree-sitter-manager"
 require "../../../src/chiasmus/graph/parser"
 
 class TreeSitter::Config

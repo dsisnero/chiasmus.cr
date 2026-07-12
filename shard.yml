@@ -26,7 +26,7 @@ dependencies:
     github: dsisnero/crystal-tree-sitter
     branch: fix/windows-uint16-portability
   tree-sitter-manager:
-    path: lib/tree-sitter-manager
+    path: ../tree-sitter-manager
   z3:
     github: taw/crystal-z3
   crolog:

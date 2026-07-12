@@ -4,6 +4,7 @@ require "./discovery"
 require "./graph/ir"
 require "./graph/types"
 require "./utils/bounded_work"
+require "./index/fast_find"
 
 module Chiasmus
   module Parity
@@ -21,7 +22,7 @@ module Chiasmus
       "type",
     }
 
-    MAX_CONCURRENCY = Math.max(System.cpu_count, 2)
+    MAX_CONCURRENCY = Math.max(System.cpu_count, 2).to_i32
 
     record InventoryRow,
       source_id : String,
@@ -821,10 +822,19 @@ module Chiasmus
           abs_dir = File.expand_path(dir, absolute_root)
           next unless Dir.exists?(abs_dir)
 
-          Dir.glob(File.join(abs_dir, "**", "*.cr")).sort!.each do |path|
-            next unless File.file?(path)
+          config = FastFind::Config.new
+          config.ignore_hidden = true
+          config.follow_symlinks = false
+          config.max_depth = 50
+          walker = FastFind::Walker.new([abs_dir], config)
+          queue = walker.walk
+          loop do
+            entry = queue.receive?
+            break if entry.nil?
+            next unless entry.file?
+            path = entry.path.to_s
+            next unless path.ends_with?(".cr")
             next if appledouble_path?(path)
-
             files << path
           end
         end

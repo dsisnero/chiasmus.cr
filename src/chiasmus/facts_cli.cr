@@ -2,6 +2,7 @@ require "option_parser"
 require "./discovery"
 require "./graph/analyses"
 require "./graph/cache"
+require "./index/fast_find"
 
 module Chiasmus
   module FactsCLI
@@ -133,13 +134,21 @@ module Chiasmus
 
     private def scan_files(language : String, dir : String) : Array(String)
       extensions = LANGUAGE_EXTENSIONS[language]? || [".#{language}"]
-
       files = [] of String
-      Dir.glob(File.join(dir, "**", "*")).sort!.each do |path|
-        next unless File.file?(path)
-        next unless extensions.any? { |ext| path.ends_with?(ext) }
+
+      config = FastFind::Config.new
+      config.ignore_hidden = true
+      config.follow_symlinks = false
+      config.max_depth = 50
+      walker = FastFind::Walker.new([dir], config)
+      queue = walker.walk
+      loop do
+        entry = queue.receive?
+        break if entry.nil?
+        next unless entry.file?
+        path = entry.path.to_s
         next if path.split('/').any?(&.starts_with?("._"))
-        files << path
+        files << path if extensions.any? { |ext| path.ends_with?(ext) }
       end
       files
     end

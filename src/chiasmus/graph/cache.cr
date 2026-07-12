@@ -193,6 +193,51 @@ module Chiasmus
         end
       end
 
+      # Invalidate cache entries for specific file paths.
+      # Removes manifest entries and cached files so the next extraction
+      # will regenerate from scratch instead of returning stale data.
+      # Lock is held only for the manifest read-modify-write cycle (fast);
+      # cache file deletion happens outside the lock.
+      def invalidate_file_cache(
+        file_paths : Array(String),
+        cache_dir : String,
+        repo_key : String? = nil,
+      ) : Nil
+        stale_hashes = [] of String
+
+        @@mutex.synchronize do
+          paths = resolve_cache_paths(cache_dir, repo_key)
+          manifest = load_manifest(paths)
+          entries = manifest["entries"].as_h
+          modified = false
+
+          file_paths.each do |abs_path|
+            manifest_key = if ctx = git_repo_context_for(abs_path)
+                             repo_relative_path(ctx.repo_root, abs_path) || abs_path
+                           else
+                             abs_path
+                           end
+
+            if entry = entries.delete(manifest_key)
+              modified = true
+              if hash_val = entry["hash"]?.try(&.as_s?)
+                stale_hashes << hash_val
+              end
+            end
+          end
+
+          if modified
+            write_manifest(paths, manifest)
+          end
+        end
+
+        # Delete stale cache files outside the lock.
+        files_dir = resolve_cache_paths(cache_dir, repo_key)["files_dir"]
+        stale_hashes.each do |hash|
+          File.delete(File.join(files_dir, "#{hash}.json")) rescue nil
+        end
+      end
+
       # --- Snapshots ---
 
       def save_snapshot(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil

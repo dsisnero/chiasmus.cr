@@ -3,11 +3,7 @@ require "file_utils"
 require "process"
 require "path"
 require "tree-sitter-manager"
-require "tree-sitter-manager"
-require "tree-sitter-manager"
-require "tree-sitter-manager"
-require "tree-sitter-manager"
-require "tree-sitter-manager"
+require "./index/fast_find"
 
 module Chiasmus
   # CLI for managing tree-sitter grammars
@@ -272,7 +268,7 @@ module Chiasmus
     end
 
     private def list_available_grammars
-      languages = Graph::TreeSitterManager::LanguageRegistry.supported_languages
+      languages = TreeSitterManager::LanguageRegistry.supported_languages
       if languages.empty?
         puts "  No languages registered in LanguageRegistry"
       else
@@ -324,7 +320,18 @@ module Chiasmus
 
       # Remove all .dylib/.so files
       ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-      Dir.glob(File.join(cache_dir, "**", "*.#{ext}")).each do |lib_file|
+      config = FastFind::Config.new
+      config.ignore_hidden = true
+      config.follow_symlinks = false
+      config.max_depth = 50
+      walker = FastFind::Walker.new([cache_dir], config)
+      queue = walker.walk
+      loop do
+        entry = queue.receive?
+        break if entry.nil?
+        next unless entry.file?
+        lib_file = entry.path.to_s
+        next unless lib_file.ends_with?(".#{ext}")
         File.delete(lib_file)
         puts "Deleted: #{lib_file}" if @verbose
       end

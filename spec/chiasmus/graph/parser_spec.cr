@@ -1,7 +1,6 @@
 require "spec"
 require "tree_sitter"
 require "tree-sitter-manager"
-require "tree-sitter-manager"
 require "../../../src/chiasmus/graph/parser"
 
 private def build_test_language(name : String) : TreeSitter::Language

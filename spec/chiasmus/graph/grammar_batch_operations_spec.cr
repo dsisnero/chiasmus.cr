@@ -1,7 +1,6 @@
 require "spec"
 require "file_utils"
 require "tree-sitter-manager"
-require "tree-sitter-manager"
 
 describe TreeSitterManager::GrammarBatchOperations do
   describe ".resolve_dependencies" do

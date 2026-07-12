@@ -15,6 +15,8 @@ require "./tools/search"
 require "./tools/craft"
 require "./tools/review"
 require "./tools/crig"
+require "../index/watcher"
+require "../graph/cache"
 
 module Chiasmus
   module MCPServer
@@ -109,6 +111,7 @@ module Chiasmus
       @skill_learner : Skills::Learner?
       @tool_dispatcher : ToolDispatcher
       @tool_handlers : Hash(String, Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult))
+      @watcher : Index::Watcher?
 
       # Create a server instance with a specific agent
       def self.with_agent(agent : Crig::Agent(M), env_managed : Bool = false) forall M
@@ -134,6 +137,7 @@ module Chiasmus
         @formalization_engine = nil
         @tool_dispatcher = ToolDispatcher.new
         @tool_handlers = {} of String => Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult)
+        @watcher = nil
       end
 
       # Set the agent for formalization engine
@@ -274,8 +278,32 @@ module Chiasmus
           STDERR.puts "[Chiasmus] self healthcheck error — #{ex.message}"
         end
 
+        # Filesystem watcher: monitor CWD for changes and eagerly re-extract
+        project_root = Dir.current
+        cache_dir = Graph::GraphCache.default_cache_dir
+        repo_key = Graph::GraphCache.default_repo_key(project_root)
+        @watcher = Index::Watcher.new(project_root, interval: 2.0) do |path|
+          abs_path = File.join(project_root, path)
+          STDERR.puts "[Chiasmus] file changed: #{path} — re-extracting"
+          spawn do
+            Graph::Extractor.extract_and_cache_file(
+              abs_path,
+              cache_dir: cache_dir,
+              repo_key: repo_key,
+            )
+          end
+        end
+        wg.spawn do
+          sleep(2.seconds)
+          STDERR.puts "[Chiasmus] file watcher started for #{project_root}"
+          @watcher.try(&.run)
+        end
+
         wg.spawn { mcp.connect(MCP::Server::StdioServerTransport.new(STDIN, STDOUT)) }
         wg.wait
+
+        # Cleanup watcher on shutdown
+        @watcher.try(&.stop)
       end
 
       # Perform an in-memory healthcheck: MCP initialize + tools/list

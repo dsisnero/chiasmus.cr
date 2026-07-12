@@ -1,6 +1,7 @@
 require "tree-sitter-manager"
 require "./registry"
 require "../utils/bounded_work"
+require "../index/fast_find"
 
 module Chiasmus
   module Discovery
@@ -20,7 +21,7 @@ module Chiasmus
       @registry : ExtractorRegistry
       @max_concurrent : Int32
 
-      def initialize(extractors : Array(LanguageExtractor), @max_concurrent = System.cpu_count)
+      def initialize(extractors : Array(LanguageExtractor), @max_concurrent = System.cpu_count.to_i32)
         @registry = ExtractorRegistry.new(extractors)
       end
 
@@ -109,9 +110,22 @@ module Chiasmus
 
       private def scan_files(source_dir : String) : Array(Tuple(String, String))
         extensions = @registry.supported_extensions.to_set
-        paths = Dir.glob(File.join(source_dir, "**", "*")).select do |path|
-          File.file?(path) && extensions.any? { |ext| path.ends_with?(ext) }
+        paths = [] of String
+
+        config = FastFind::Config.new
+        config.ignore_hidden = true
+        config.follow_symlinks = false
+        config.max_depth = 50
+        walker = FastFind::Walker.new([source_dir], config)
+        queue = walker.walk
+        loop do
+          entry = queue.receive?
+          break if entry.nil?
+          next unless entry.file?
+          path = entry.path.to_s
+          paths << path if extensions.any? { |ext| path.ends_with?(ext) }
         end
+
         return [] of Tuple(String, String) if paths.empty?
 
         Utils::BoundedWork.map_ordered_or_raise(paths, @max_concurrent) do |path|

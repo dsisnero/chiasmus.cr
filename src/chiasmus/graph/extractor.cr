@@ -151,6 +151,36 @@ module Chiasmus
         crystal_only ? 1 : requested
       end
 
+      # Extract and cache a single file.
+      # Reads the file, parses it with tree-sitter, extracts the code graph,
+      # and saves to cache. Returns the extracted CodeGraph.
+      # Safe to call from any fiber.
+      def extract_and_cache_file(
+        file_path : String,
+        parser = Parser,
+        cache_dir : String? = nil,
+        repo_key : String? = nil,
+        max_bytes : Int32? = nil,
+      ) : CodeGraph?
+        content = File.read(file_path)
+        source_file = SourceFile.new(path: file_path, content: content)
+        graph = extract_single_file(source_file, parser)
+
+        if cache_dir && ((graph.files.try { |f| !f.empty? }) || !graph.defines.empty?)
+          GraphCache.save_file_cache(
+            [{path: file_path, content: content, graph: graph}],
+            cache_dir,
+            repo_key: repo_key,
+            max_bytes: max_bytes || GraphCache.default_max_bytes_per_repo,
+          )
+        end
+
+        graph
+      rescue ex
+        STDERR.puts "[Chiasmus] extract error for #{file_path}: #{ex.message}"
+        nil
+      end
+
       # Pure extraction: returns a CodeGraph for a single file without touching any shared state.
       private def extract_single_file(
         file : SourceFile,

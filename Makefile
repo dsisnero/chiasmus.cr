@@ -1,4 +1,4 @@
-.PHONY: help install update format lint test clean build build_release build-clis release dist setup-grammars warm-cache
+.PHONY: help install-deps install update format lint test clean build build_release build-clis release dist setup-grammars warm-cache
 
 # Default: show help.
 help:
@@ -15,15 +15,18 @@ help:
 	@echo "  format             auto-format src/ and spec/"
 	@echo ""
 	@echo "Dependencies:"
-	@echo "  install            shards install"
+	@echo "  install-deps       shards install"
 	@echo "  update             shards update"
 	@echo "  setup-grammars     install tree-sitter grammars"
+	@echo ""
+	@echo "Install:"
+	@echo "  install            build release binaries and copy to ~/.local/bin"
 	@echo ""
 	@echo "Other:"
 	@echo "  clean              remove bin/, .build/, .crystal-cache/, dist/"
 	@echo "  dist               create distribution tarball"
 
-install:
+install-deps:
 	shards install
 
 update:
@@ -71,11 +74,11 @@ build-clis:
 
 release:
 	mkdir -p bin
-	@if crystal build --release --static -o bin/chiasmus-static src/chiasmus_cli.cr 2>/dev/null; then \
+	@if crystal build --release -Dpreview_mt -Dexecution_context --static -o bin/chiasmus src/chiasmus_cli.cr 2>/dev/null; then \
 		echo "Built static binary"; \
 	else \
 		echo "Static linking failed, building dynamic binary"; \
-		crystal build --release -o bin/chiasmus-static src/chiasmus_cli.cr; \
+		crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus src/chiasmus_cli.cr; \
 	fi
 
 # Create distribution package with grammars
@@ -87,7 +90,7 @@ dist: release build-clis
 	@mkdir -p dist/chiasmus/grammars
 
 	# Copy binary
-	@cp bin/chiasmus-static dist/chiasmus/chiasmus
+	@cp bin/chiasmus dist/chiasmus/chiasmus
 	@cp bin/chiasmus-discover dist/chiasmus/chiasmus-discover
 	@cp bin/chiasmus-grammar dist/chiasmus/chiasmus-grammar
 	@cp bin/chiasmus-parity dist/chiasmus/chiasmus-parity
@@ -156,6 +159,17 @@ warm-cache: $(BUILD_DIR)/chiasmus_warmed
 $(BUILD_DIR)/chiasmus_warmed: $(BUILD_DIR)/chiasmus_release
 	@./scripts/warm_cache.cr
 	@touch $@
+
+# Install chiasmus binaries to ~/.local/bin for system-wide use
+install: release build-clis
+	@mkdir -p $(HOME)/.local/bin
+	@echo "Installing chiasmus binaries to $(HOME)/.local/bin..."
+	cp bin/chiasmus $(HOME)/.local/bin/chiasmus
+	cp bin/chiasmus-grammar $(HOME)/.local/bin/chiasmus-grammar
+	cp bin/chiasmus-discover $(HOME)/.local/bin/chiasmus-discover
+	cp bin/chiasmus-facts $(HOME)/.local/bin/chiasmus-facts
+	cp bin/chiasmus-agent $(HOME)/.local/bin/chiasmus-agent 2>/dev/null; true
+	@echo "Done. Ensure $(HOME)/.local/bin is on your PATH."
 
 clean:
 	rm -rf .crystal-cache

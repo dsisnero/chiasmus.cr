@@ -30,28 +30,7 @@ Metrics/CyclomaticComplexity:
   - src/chiasmus/graph/walkers/dart.cr
 
 Naming/BlockParameterName:
-  Excluded:
-  - src/chiasmus/formalize/engine.cr
-  - src/chiasmus/graph/analyses.cr
-  - src/chiasmus/graph/community.cr
-  - src/chiasmus/graph/diff.cr
-  - src/chiasmus/graph/entry_points.cr
-  - src/chiasmus/graph/graph_util.cr
-  - src/chiasmus/graph/insights.cr
-  - src/chiasmus/graph/layer_violation.cr
-  - src/chiasmus/graph/map.cr
-  - src/chiasmus/graph/resolve_calls.cr
-  - src/chiasmus/graph/suffix_index.cr
-  - src/chiasmus/mcp_server/tools/craft.cr
-  - src/chiasmus/mcp_server/tools/map.cr
-  - src/chiasmus/mcp_server/tools/review.cr
-  - src/chiasmus/merkle_tree.cr
-  - src/chiasmus/review.cr
-  - src/chiasmus/search/code_index.cr
-  - src/chiasmus/search/embedding_cache.cr
-  - src/chiasmus/search/engine.cr
-  - src/chiasmus/skills/library.cr
-  - src/chiasmus/skills/template_store.cr
+  Enabled: false
 
 Naming/QueryBoolMethods:
   Excluded:

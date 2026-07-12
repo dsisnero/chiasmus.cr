@@ -20,6 +20,18 @@ shards:
     git: https://github.com/dsisnero/bm25.git
     version: 0.1.0+git.commit.758c82971b4a7aee22f8bc48795cb47bff637bb4
 
+  bubbles:
+    git: https://github.com/dsisnero/bubbles.git
+    version: 2.1.0
+
+  bubbletea:
+    git: https://github.com/dsisnero/bubbletea.cr.git
+    version: 2.0.6
+
+  cancel_reader:
+    git: https://github.com/dsisnero/cancel_reader.git
+    version: 0.1.0+git.commit.c727d5163e61afa406a22f6daef4dbcc417adeef
+
   cellwrap:
     git: https://github.com/dsisnero/cellwrap.git
     version: 0.1.0+git.commit.d898f154af8cdf6ac85cfc72a24f4a354be3d88b
@@ -80,9 +92,17 @@ shards:
     git: https://github.com/shardlab/discordcr.git
     version: 0.4.1
 
+  easyclip:
+    git: https://github.com/kojix2/easyclip.git
+    version: 0.2.0
+
   golden:
     git: https://github.com/dsisnero/golden.git
     version: 0.1.0+git.commit.82c92f031cbd48f150d8c76d321b5f9211d6d440
+
+  harmonica:
+    git: https://github.com/dsisnero/harmonica.git
+    version: 0.8.0
 
   json-schema:
     git: https://github.com/spider-gazelle/json-schema.git
@@ -103,6 +123,10 @@ shards:
   nbchannel:
     git: https://github.com/wyhaines/nbchannel.cr.git
     version: 0.1.0
+
+  nucleoc:
+    git: https://github.com/dsisnero/nucleoc.git
+    version: 0.1.0+git.commit.2c822209690d1b82f5b7c8f0b13d433a1663b7ba
 
   opentelemetry-api:
     git: https://github.com/wyhaines/opentelemetry-api.cr.git
@@ -156,6 +180,10 @@ shards:
     git: https://github.com/dsisnero/sync-map.git
     version: 0.1.4
 
+  teatest:
+    git: https://github.com/dsisnero/teatest.git
+    version: 0.8.0
+
   terminfo:
     git: https://github.com/docelic/terminfo.git
     version: 0.8.1
@@ -168,9 +196,17 @@ shards:
     git: https://github.com/wyhaines/time-ext.cr.git
     version: 1.0.1
 
+  toml:
+    git: https://github.com/crystal-community/toml.cr.git
+    version: 0.8.1
+
   tracing:
     git: https://github.com/dsisnero/tracing.cr.git
     version: 0.5.1
+
+  tree-sitter-manager:
+    path: ../tree-sitter-manager
+    version: 0.1.0+git.commit.14d352b4cff3d6e56b86a766170e27eb5d0f9a69
 
   tree_sitter:
     git: https://github.com/dsisnero/crystal-tree-sitter.git
@@ -187,3 +223,4 @@ shards:
   z3:
     git: https://github.com/taw/crystal-z3.git
     version: 0.2.0+git.commit.8d7da29692b8e04a852c15be2eda5b49a31d1036
+

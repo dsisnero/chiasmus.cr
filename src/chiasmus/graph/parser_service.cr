@@ -1,10 +1,7 @@
 require "tree_sitter"
 require "tree-sitter-manager"
-require "tree-sitter-manager"
 require "./parser_language_resolver"
 require "./parser_environment"
-require "tree-sitter-manager"
-require "tree-sitter-manager"
 
 module Chiasmus
   module Graph
