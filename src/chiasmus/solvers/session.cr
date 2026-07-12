@@ -9,8 +9,10 @@ module Chiasmus
     PROLOG_QUERY_TIMEOUT = 30.seconds
 
     # Each SolverSession has a unique ID and spawns its own dispatch fiber.
-    # PrologRuntime is a shared singleton (SWI-Prolog is not thread-safe).
-    # Requests are serialized through the runtime's Mutex.
+    # PrologRuntime is a shared singleton (SWI-Prolog is not fiber-safe).
+    # All Prolog requests are serialised through a single dedicated worker
+    # fiber inside PrologRuntime so that every PL_* call originates from the
+    # same C-stack context.
     class SolverSession
       getter id : String
 
@@ -32,24 +34,25 @@ module Chiasmus
                  when "prolog" then PrologSolver.new
                  else               raise "Unknown solver type: #{type}"
                  end
+
         session = SolverSession.new(id, solver)
         session.start_worker if type.downcase == "prolog"
         session
       end
 
       # Spawn a dispatch fiber for this session.
-      # All Prolog calls go through the shared PrologRuntime (mutex-protected).
+      # Prolog calls are forwarded to the shared PrologRuntime's own worker
+      # fiber, which keeps all PL_* operations on a single C-stack.
       protected def start_worker : Nil
         chan = @channel || raise "Bug: channel not initialized"
         session_id = @id
 
         spawn(name: "chiasmus-session-#{session_id}") do
-          runtime = PrologRuntime.shared
           loop do
             request = chan.receive?
             break unless request
             begin
-              result = runtime.solve(request.program, request.query, request.explain)
+              result = PrologRuntime.shared.solve(request.program, request.query, request.explain)
               request.response.send(result)
             rescue ex
               request.response.send(ErrorResult.new(ex.message || ex.class.name))

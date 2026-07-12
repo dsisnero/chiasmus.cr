@@ -44,16 +44,23 @@ module Chiasmus
       MAX_INFERENCES    = PrologSolver::MAX_INFERENCES
       MAX_TRACE_ENTRIES = PrologSolver::MAX_TRACE_ENTRIES
 
-      @@init_lock = Mutex.new
-      @@initialized = false
       @@module_counter = Atomic(Int64).new(0_i64)
       @@shared : PrologRuntime?
       @@shared_lock = Mutex.new
-      @@solve_lock = Mutex.new
+
+      # All PL_* calls must originate from the same C stack or SWI-Prolog
+      # raises stack_avail___LD assertions.  We use a single dedicated worker
+      # fiber for the entire process lifetime.
+      record SolveRequest,
+        program : String,
+        query : String,
+        explain : Bool,
+        response : Channel(SolverResult)
+
+      @@worker_channel : Channel(SolveRequest)?
+      @@worker_channel_lock = Mutex.new
 
       # Thread-safe shared PrologRuntime singleton.
-      # SWI-Prolog is not fiber-safe so all access goes through one instance
-      # protected by a Mutex in SolverSession workers.
       def self.shared : PrologRuntime
         @@shared_lock.synchronize do
           @@shared ||= new
@@ -66,25 +73,47 @@ module Chiasmus
       end
 
       def initialize
-        self.class.ensure_initialized
+        ensure_worker
       end
 
-      def self.ensure_initialized : Nil
-        @@init_lock.synchronize do
-          return if @@initialized
+      # Start the worker fiber if not already running.
+      private def ensure_worker : Nil
+        @@worker_channel_lock.synchronize do
+          return unless @@worker_channel.nil?
 
-          Crolog.init_with_argv("chiasmus", "--quiet")
-          @@initialized = true
+          chan = Channel(SolveRequest).new(32)
+          @@worker_channel = chan
+
+          spawn(name: "chiasmus-prolog-worker") do
+            # Initialize SWI-Prolog on this fiber's stack.
+            # Every PL_* call will now come from this same stack.
+            Crolog.init_with_argv("chiasmus", "--quiet")
+
+            loop do
+              request = chan.receive?
+              break unless request
+
+              begin
+                result = solve_sync(request.program, request.query, request.explain)
+                request.response.send(result)
+              rescue ex
+                request.response.send(ErrorResult.new(ex.message || ex.class.name))
+              end
+            end
+          end
         end
       end
 
       def solve(program : String, query : String, explain : Bool) : SolverResult
-        @@solve_lock.synchronize do
-          solve_impl(program, query, explain)
-        end
+        chan = @@worker_channel
+        raise "PrologRuntime worker not started" unless chan
+
+        response = Channel(SolverResult).new(1)
+        chan.send(SolveRequest.new(program, query, explain, response))
+        response.receive
       end
 
-      private def solve_impl(program : String, query : String, explain : Bool) : SolverResult
+      private def solve_sync(program : String, query : String, explain : Bool) : SolverResult
         source = explain ? instrument_for_tracing(program) : program
         temp_file = write_program(source)
         temp_path = temp_file.path
@@ -103,8 +132,10 @@ module Chiasmus
         trace = explain ? collect_trace(module_name) : nil
         SuccessResult.new(answers, trace)
       ensure
-        unload_file(temp_path) if temp_path
-        temp_file.try(&.delete)
+        if temp_path
+          unload_file(temp_path)
+          File.delete(temp_path) if File.exists?(temp_path)
+        end
       end
 
       private struct QueryRowsResult
