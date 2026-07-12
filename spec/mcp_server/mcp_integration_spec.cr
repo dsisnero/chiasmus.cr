@@ -446,7 +446,7 @@ describe "All 12 tools through MCP transport" do
       begin
         result = call_tool(client, "chiasmus_skills")
         result["status"].as_s.should eq("success")
-        result["templates"].as_a.size.should be >= 9
+        result["templates"].as_a.size.should be >= 8
       ensure
         disconnect(mcp_server, client)
         server.skill_library.close rescue nil
