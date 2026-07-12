@@ -11,7 +11,7 @@ module Chiasmus
     class TestAdapter < LanguageAdapter
       def initialize(
         @language = "test-lang",
-        @extensions = [".tl"],
+        @extensions = [".testext"],
         @grammar_language = "javascript",
         @search_paths : Array(String)? = ["/nonexistent/path"],
       )
@@ -129,16 +129,16 @@ module Chiasmus
         adapter = TestAdapter.new
         AdapterRegistry.register_adapter(adapter)
 
-        AdapterRegistry.get_adapter_for_ext(".tl").should be(adapter)
-        AdapterRegistry.get_adapter_for_ext(".TL").should be(adapter)
-        AdapterRegistry.get_adapter_for_ext("tl").should be(adapter)
+        AdapterRegistry.get_adapter_for_ext(".testext").should be(adapter)
+        AdapterRegistry.get_adapter_for_ext(".TESTEXT").should be(adapter)
+        AdapterRegistry.get_adapter_for_ext("testext").should be(adapter)
         AdapterRegistry.get_adapter_for_ext(".xyz").should be_nil
       end
 
       it "lists adapter extensions" do
         AdapterRegistry.register_adapter(TestAdapter.new)
 
-        AdapterRegistry.adapter_extensions.should eq([".tl"])
+        AdapterRegistry.adapter_extensions.should eq([".testext"])
       end
 
       it "accepts adapters with search paths" do
@@ -292,7 +292,7 @@ module Chiasmus
       it "resolves adapter extensions for language lookup" do
         AdapterRegistry.register_adapter(TestAdapter.new)
 
-        Parser.get_language_for_file("foo.tl").should eq("test-lang")
+        Parser.get_language_for_file("foo.testext").should eq("test-lang")
       end
 
       it "keeps built-in extensions ahead of adapters" do
@@ -305,7 +305,7 @@ module Chiasmus
         AdapterRegistry.register_adapter(TestAdapter.new)
 
         exts = Parser.supported_extensions
-        exts.should contain(".tl")
+        exts.should contain(".testext")
         exts.should contain(".ts")
       end
     end
@@ -320,7 +320,7 @@ module Chiasmus
 
         graph = Extractor.extract_graph([
           SourceFile.new(
-            path: "test.tl",
+            path: "test.testext",
             content: "function hello() { world(); }\nfunction world() {}"
           ),
         ])
@@ -348,8 +348,8 @@ module Chiasmus
         AdapterRegistry.register_adapter(TestAdapter.new)
 
         graph = Extractor.extract_graph([
-          SourceFile.new(path: "a.tl", content: "function a() { shared(); }"),
-          SourceFile.new(path: "b.tl", content: "function b() { shared(); }"),
+          SourceFile.new(path: "a.testext", content: "function a() { shared(); }"),
+          SourceFile.new(path: "b.testext", content: "function b() { shared(); }"),
         ])
 
         graph.calls.map { |call| "#{call.caller}->#{call.callee}" }.should contain("a->shared")
@@ -363,7 +363,7 @@ module Chiasmus
         tree.should_not be_nil
 
         graph = Extractor.extract_graph(
-          [SourceFile.new(path: "virtual.tl", content: source)],
+          [SourceFile.new(path: "virtual.testext", content: source)],
           FakeParserClient.new("test-lang", tree)
         )
 

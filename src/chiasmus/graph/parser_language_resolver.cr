@@ -36,7 +36,8 @@ module Chiasmus
         end
 
         def supported_extensions : Array(String)
-          (TreeSitterManager::LanguageRegistry.supported_extensions + AdapterRegistry.adapter_extensions).uniq.sort!
+          bare_exts = TreeSitterManager::LanguageRegistry.supported_extensions.map { |e| e.starts_with?('.') ? e : ".#{e}" }
+          (bare_exts + AdapterRegistry.adapter_extensions).uniq.sort!
         end
 
         def supported_languages : Array(String)

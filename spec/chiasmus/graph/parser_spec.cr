@@ -189,13 +189,13 @@ module Chiasmus
 
       it "lists supported extensions" do
         exts = Parser.supported_extensions
-        exts.should contain "ts"
-        exts.should contain "js"
-        exts.should contain "tsx"
-        exts.should contain "py"
-        exts.should contain "go"
-        exts.should contain "clj"
-        exts.should contain "cr"
+        exts.should contain ".ts"
+        exts.should contain ".js"
+        exts.should contain ".tsx"
+        exts.should contain ".py"
+        exts.should contain ".go"
+        exts.should contain ".clj"
+        exts.should contain ".cr"
       end
 
       it "returns nil for unsupported files through the synchronous parser API" do
