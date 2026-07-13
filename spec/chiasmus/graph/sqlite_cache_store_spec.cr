@@ -96,8 +96,8 @@ describe GraphCache do
     path = "/abs/demo.cr"
 
     begin
-      original = CodeGraph.new(defines: [DefinesFact.new(file: path, name: "old", kind: SymbolKind::Method, line: 1)])
-      replacement = CodeGraph.new(defines: [DefinesFact.new(file: path, name: "new", kind: SymbolKind::Method, line: 1)])
+      original = CodeGraph.new(defines: [DefinesFact.new(file: path, name: "old", kind: SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1))])
+      replacement = CodeGraph.new(defines: [DefinesFact.new(file: path, name: "new", kind: SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1))])
 
       GraphCache.save_file_cache([{path: path, content: "old", graph: original}], dir, repo_key: "repo")
       GraphCache.check_file_cache([{path: path, content: "old"}], dir, repo_key: "repo")[:hits].first[:graph].should eq(original)

@@ -42,7 +42,7 @@ module Chiasmus
 
           enclosing_class = find_python_enclosing_class(node, source)
           kind = enclosing_class ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
           contains << ContainsFact.new(parent: enclosing_class, child: name) if enclosing_class
           with_scope(scope_stack, name) do
             walk_python_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
@@ -52,7 +52,7 @@ module Chiasmus
           name = node.child_by_field_name("name").try(&.text(source))
           return false unless name
 
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, span: Span.from_node(node))
           with_scope(scope_stack, name) do
             walk_python_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
           end

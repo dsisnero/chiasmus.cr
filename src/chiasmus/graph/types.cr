@@ -1,4 +1,5 @@
 require "tree_sitter"
+require "./span"
 
 module Chiasmus
   module Graph
@@ -22,8 +23,7 @@ module Chiasmus
       file : String,
       name : String,
       kind : SymbolKind,
-      line : Int32,
-      end_line : Int32 = 0,
+      span : Span,
       signature : String? = nil,
       qualified_name : String? = nil do
       def symbol_key : String

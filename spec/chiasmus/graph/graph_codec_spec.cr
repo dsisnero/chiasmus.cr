@@ -10,8 +10,7 @@ describe GraphCodec do
         file: "/repo/src/demo.cr",
         name: "run",
         kind: SymbolKind::Method,
-        line: 3,
-        end_line: 7,
+        span: Chiasmus::Graph::Span.line_range(3, 7),
         signature: "def run(value : String) : Nil",
         qualified_name: "Demo.run"
       )],

@@ -124,9 +124,9 @@ describe CallResolver do
     it "resolves this.method() to Class.method QN" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "test.ts", name: "Foo", kind: SymbolKind::Class, line: 1),
-          DefinesFact.new(file: "test.ts", name: "run", kind: SymbolKind::Method, line: 2),
-          DefinesFact.new(file: "test.ts", name: "worker", kind: SymbolKind::Method, line: 3),
+          DefinesFact.new(file: "test.ts", name: "Foo", kind: SymbolKind::Class, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "test.ts", name: "run", kind: SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(2)),
+          DefinesFact.new(file: "test.ts", name: "worker", kind: SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(3)),
         ],
         calls: [
           CallsFact.new(caller: "run", callee: "worker"),
@@ -166,9 +166,9 @@ describe CallResolver do
     it "resolves localVar.method() with explicit annotation" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "test.ts", name: "Svc", kind: SymbolKind::Class, line: 1),
-          DefinesFact.new(file: "test.ts", name: "f", kind: SymbolKind::Function, line: 4),
-          DefinesFact.new(file: "test.ts", name: "login", kind: SymbolKind::Method, line: 2),
+          DefinesFact.new(file: "test.ts", name: "Svc", kind: SymbolKind::Class, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "test.ts", name: "f", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(4)),
+          DefinesFact.new(file: "test.ts", name: "login", kind: SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [
           CallsFact.new(caller: "f", callee: "login"),
@@ -236,8 +236,8 @@ describe CallResolver do
     it "falls back to unique method owner when chain fails" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "test.ts", name: "Helper", kind: SymbolKind::Class, line: 1),
-          DefinesFact.new(file: "test.ts", name: "foo", kind: SymbolKind::Method, line: 2),
+          DefinesFact.new(file: "test.ts", name: "Helper", kind: SymbolKind::Class, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "test.ts", name: "foo", kind: SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [
           CallsFact.new(caller: "main", callee: "foo"),
@@ -273,10 +273,10 @@ describe CallResolver do
     it "leaves call unresolved when receiver is ambiguous" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "test.ts", name: "A", kind: SymbolKind::Class, line: 1),
-          DefinesFact.new(file: "test.ts", name: "B", kind: SymbolKind::Class, line: 2),
-          DefinesFact.new(file: "test.ts", name: "run", kind: SymbolKind::Method, line: 3),
-          DefinesFact.new(file: "test.ts", name: "f", kind: SymbolKind::Function, line: 4),
+          DefinesFact.new(file: "test.ts", name: "A", kind: SymbolKind::Class, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "test.ts", name: "B", kind: SymbolKind::Class, span: Chiasmus::Graph::Span.line_range(2)),
+          DefinesFact.new(file: "test.ts", name: "run", kind: SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(3)),
+          DefinesFact.new(file: "test.ts", name: "f", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(4)),
         ],
         calls: [
           CallsFact.new(caller: "f", callee: "run"),

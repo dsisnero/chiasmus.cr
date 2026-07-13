@@ -10,11 +10,11 @@ describe "parallel insight facts" do
   it "produces deterministic output with include_insights" do
     graph = CodeGraph.new(
       defines: [
-        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, line: 1),
-        DefinesFact.new(file: "t.cr", name: "b", kind: SymbolKind::Function, line: 2),
-        DefinesFact.new(file: "t.cr", name: "c", kind: SymbolKind::Function, line: 3),
-        DefinesFact.new(file: "t.cr", name: "hub", kind: SymbolKind::Function, line: 4),
-        DefinesFact.new(file: "t.cr", name: "bridge", kind: SymbolKind::Function, line: 5),
+        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        DefinesFact.new(file: "t.cr", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+        DefinesFact.new(file: "t.cr", name: "c", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
+        DefinesFact.new(file: "t.cr", name: "hub", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(4)),
+        DefinesFact.new(file: "t.cr", name: "bridge", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
       ],
       calls: [
         CallsFact.new(caller: "a", callee: "b"),

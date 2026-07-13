@@ -207,8 +207,7 @@ module Chiasmus
               file: file.path,
               name: defn[:name],
               kind: SymbolKind::Function,
-              line: form.line,
-              end_line: 0
+              span: Span.line_range(form.line)
             )
             exports << ExportsFact.new(file: file.path, name: defn[:name]) unless defn[:private]
           end

@@ -15,7 +15,7 @@ private def make_graph(defines : Array(NamedTuple(file: String, name: String, ki
         when "method" then SymbolKind::Method
         else               SymbolKind::Function
         end,
-        line: 1,
+        span: Chiasmus::Graph::Span.line_range(1),
       )
     },
     calls: calls.map { |(caller, callee)| CallsFact.new(caller: caller, callee: callee) },

@@ -11,8 +11,7 @@ module Chiasmus
         owner_name : String?,
         kind : SymbolKind,
         file : String,
-        line : Int32,
-        end_line : Int32 = 0,
+        span : Span,
         signature : String? = nil do
         def simple_name : String
           name
@@ -128,8 +127,7 @@ module Chiasmus
             owner_name: Lowering.owner_name(qualified_name),
             kind: symbol.kind,
             file: symbol.file,
-            line: symbol.line,
-            end_line: symbol.end_line,
+            span: symbol.span,
             signature: symbol.signature,
           )
         end
@@ -192,8 +190,7 @@ module Chiasmus
               owner_name: Lowering.owner_name(qualified_name),
               kind: symbol.kind,
               file: symbol.file,
-              line: symbol.line,
-              end_line: symbol.end_line,
+              span: symbol.span,
               signature: symbol.signature,
             )
           end
@@ -551,8 +548,7 @@ module Chiasmus
             owner_name: owner_name(fact.name),
             kind: fact.kind,
             file: fact.file,
-            line: fact.line,
-            end_line: fact.end_line,
+            span: fact.span,
             signature: fact.signature,
           )
         end
@@ -562,8 +558,7 @@ module Chiasmus
             file: symbol.file,
             name: symbol.qualified_name,
             kind: symbol.kind,
-            line: symbol.line,
-            end_line: symbol.end_line,
+            span: symbol.span,
             signature: symbol.signature,
           )
         end

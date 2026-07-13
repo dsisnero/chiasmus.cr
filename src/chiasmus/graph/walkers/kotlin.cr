@@ -40,11 +40,11 @@ module Chiasmus
           return false unless name
 
           if kotlin_find_child(node, "enum_class_body")
-            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, span: Span.from_node(node))
             kotlin_extract_enum_entries(node, source, file_path, defines)
             true
           else
-            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, span: Span.from_node(node))
             if enclosing = scope_stack.last?
               contains << ContainsFact.new(parent: enclosing, child: name)
             end
@@ -57,7 +57,7 @@ module Chiasmus
           name = kotlin_find_child(node, "simple_identifier").try(&.text(source))
           return false unless name
           kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -127,7 +127,7 @@ module Chiasmus
             next unless entry && entry.type == "enum_entry"
             entry_name = kotlin_find_child(entry, "simple_identifier").try(&.text(source))
             next unless entry_name
-            defines << DefinesFact.new(file: file_path, name: entry_name, kind: SymbolKind::Variable, line: entry.start_point.row.to_i + 1, end_line: entry.end_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: entry_name, kind: SymbolKind::Variable, span: Span.from_node(entry))
           end
         end
       end

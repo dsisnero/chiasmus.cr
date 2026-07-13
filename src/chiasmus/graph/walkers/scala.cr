@@ -38,7 +38,7 @@ module Chiasmus
         when "class_definition"
           name = scala_identifier_child(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -49,7 +49,7 @@ module Chiasmus
         when "object_definition"
           name = scala_identifier_child(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -57,7 +57,7 @@ module Chiasmus
         when "trait_definition"
           name = scala_identifier_child(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -66,7 +66,7 @@ module Chiasmus
           name = scala_identifier_child(node, source)
           return false unless name
           kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -77,7 +77,7 @@ module Chiasmus
         when "val_definition", "var_definition"
           name = scala_val_pattern(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, span: Span.from_node(node))
           true
         else
           false

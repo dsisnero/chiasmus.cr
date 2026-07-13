@@ -45,7 +45,7 @@ describe SearchEngine do
     it "creates entries for function defines" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 1),
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
       )
       files = {"a.ts" => "function foo() {\n  return 42;\n}"}
@@ -57,8 +57,8 @@ describe SearchEngine do
     it "skips non-callable defines" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "Foo", kind: SymbolKind::Class, line: 1),
-          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, line: 3),
+          DefinesFact.new(file: "a.ts", name: "Foo", kind: SymbolKind::Class, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
         ],
       )
       files = {"a.ts" => "class Foo {}\nfunction bar() {}"}
@@ -70,7 +70,7 @@ describe SearchEngine do
     it "skips defines with missing source files" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "missing.ts", name: "ghost", kind: SymbolKind::Function, line: 1),
+          DefinesFact.new(file: "missing.ts", name: "ghost", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
       )
       files = {} of String => String

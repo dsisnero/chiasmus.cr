@@ -5,10 +5,10 @@ require "json"
 private def minimal_go_graph
   Chiasmus::Graph::CodeGraph.new(
     defines: [
-      Chiasmus::Graph::DefinesFact.new(file: "main.go", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-      Chiasmus::Graph::DefinesFact.new(file: "main.go", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-      Chiasmus::Graph::DefinesFact.new(file: "main.go", name: "unused", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
-      Chiasmus::Graph::DefinesFact.new(file: "main.go", name: "Server", kind: Chiasmus::Graph::SymbolKind::Class, line: 3),
+      Chiasmus::Graph::DefinesFact.new(file: "main.go", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      Chiasmus::Graph::DefinesFact.new(file: "main.go", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+      Chiasmus::Graph::DefinesFact.new(file: "main.go", name: "unused", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
+      Chiasmus::Graph::DefinesFact.new(file: "main.go", name: "Server", kind: Chiasmus::Graph::SymbolKind::Class, span: Chiasmus::Graph::Span.line_range(3)),
     ],
     calls: [
       Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
@@ -231,9 +231,9 @@ describe Chiasmus::Graph::Analyses do
     it "detects cycles for cyclic graph" do
       graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "test.go", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "test.go", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, line: 2),
-          Chiasmus::Graph::DefinesFact.new(file: "test.go", name: "c", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "test.go", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "test.go", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+          Chiasmus::Graph::DefinesFact.new(file: "test.go", name: "c", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),

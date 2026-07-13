@@ -19,7 +19,7 @@ private def build_graph(
         when "class"  then SymbolKind::Class
         else               SymbolKind::Function
         end,
-        line: 1,
+        span: Chiasmus::Graph::Span.line_range(1),
       )
     },
     calls: calls.map { |(caller, callee)| CallsFact.new(caller: caller, callee: callee) },

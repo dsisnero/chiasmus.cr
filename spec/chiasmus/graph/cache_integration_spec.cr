@@ -175,7 +175,7 @@ describe "GraphCache integration with extract_graph" do
       run_git!(repo_dir, ["worktree", "add", worktree_dir, "-b", "cache-spec-worktree"])
 
       graph = CodeGraph.new(
-        defines: [DefinesFact.new(file: source_rel, name: "run", kind: SymbolKind::Function, line: 2)],
+        defines: [DefinesFact.new(file: source_rel, name: "run", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2))],
       )
 
       GraphCache.save_file_cache([
@@ -218,7 +218,7 @@ describe "GraphCache integration with extract_graph" do
       run_git!(repo_dir, ["worktree", "add", worktree_dir, "-b", "cache-spec-mod-worktree"])
 
       graph = CodeGraph.new(
-        defines: [DefinesFact.new(file: source_rel, name: "run", kind: SymbolKind::Function, line: 2)],
+        defines: [DefinesFact.new(file: source_rel, name: "run", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2))],
       )
 
       GraphCache.save_file_cache([
@@ -261,7 +261,7 @@ describe "GraphCache integration with extract_graph" do
       run_git!(repo_dir, ["worktree", "add", worktree_dir, "-b", "cache-spec-path-worktree"])
 
       graph = CodeGraph.new(
-        defines: [DefinesFact.new(file: source_path, name: "run", kind: SymbolKind::Function, line: 2)],
+        defines: [DefinesFact.new(file: source_path, name: "run", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2))],
         imports: [ImportsFact.new(file: source_path, name: "Demo", source: "demo")],
         exports: [ExportsFact.new(file: source_path, name: "run")],
         files: [FileNode.new(path: source_path, language: "crystal")],

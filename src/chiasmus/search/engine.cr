@@ -45,7 +45,7 @@ module Chiasmus
           content = files[d.file]?
           next unless content
 
-          snippet = snippet_around(content, d.line)
+          snippet = snippet_around(content, d.span.start_line)
           parts = [d.name] of String
           if doc = file_doc[d.file]?
             parts << doc
@@ -57,7 +57,7 @@ module Chiasmus
             id: make_entry_id(d),
             name: d.name,
             file: d.file,
-            line: d.line,
+            line: d.span.start_line,
             signature: nil,
             leading_doc: doc,
             text: text,
@@ -135,7 +135,7 @@ module Chiasmus
       end
 
       private def make_entry_id(d : Graph::DefinesFact) : String
-        "#{d.file}##{d.name}##{d.line}"
+        "#{d.file}##{d.name}##{d.span.start_line}"
       end
 
       private def snippet_around(source : String, start_line : Int32) : String

@@ -69,7 +69,7 @@ describe GraphCache do
     it "returns hits after saving" do
       with_temp_cache do |cache_dir|
         graph = CodeGraph.new(
-          defines: [DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 1)],
+          defines: [DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
         )
         GraphCache.save_file_cache([
           {path: "/abs/a.ts", content: "function foo() {}", graph: graph},
@@ -88,7 +88,7 @@ describe GraphCache do
     it "preserves qualified definition and call identities" do
       with_temp_cache do |cache_dir|
         graph = CodeGraph.new(
-          defines: [DefinesFact.new(file: "/abs/a.cr", name: "run", kind: SymbolKind::Function, line: 1, qualified_name: "Demo.Worker.run")],
+          defines: [DefinesFact.new(file: "/abs/a.cr", name: "run", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1), qualified_name: "Demo.Worker.run")],
           calls: [CallsFact.new(caller: "run", callee: "helper", caller_qn: "Demo.Worker.run", callee_qn: "Demo.Worker.helper")]
         )
         GraphCache.save_file_cache([
@@ -124,7 +124,7 @@ describe GraphCache do
     it "saves and loads snapshots" do
       with_temp_cache do |cache_dir|
         graph = CodeGraph.new(
-          defines: [DefinesFact.new(file: "a.ts", name: "main", kind: SymbolKind::Function, line: 1)],
+          defines: [DefinesFact.new(file: "a.ts", name: "main", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
         )
         GraphCache.save_snapshot("main", graph, cache_dir)
 
@@ -160,8 +160,8 @@ describe GraphCache do
 
     it "overwrites an existing snapshot with the same name" do
       with_temp_cache do |cache_dir|
-        graph1 = CodeGraph.new(defines: [DefinesFact.new(file: "a.ts", name: "old", kind: SymbolKind::Function, line: 1)])
-        graph2 = CodeGraph.new(defines: [DefinesFact.new(file: "a.ts", name: "new", kind: SymbolKind::Function, line: 1)])
+        graph1 = CodeGraph.new(defines: [DefinesFact.new(file: "a.ts", name: "old", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))])
+        graph2 = CodeGraph.new(defines: [DefinesFact.new(file: "a.ts", name: "new", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))])
 
         GraphCache.save_snapshot("main", graph1, cache_dir)
         GraphCache.save_snapshot("main", graph2, cache_dir)

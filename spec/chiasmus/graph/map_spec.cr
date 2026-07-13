@@ -14,7 +14,7 @@ private def make_graph(defines : Array(NamedTuple(name: String, file: String, ki
       when "class"    then SymbolKind::Class
       else                 SymbolKind::Type
       end,
-      line: defn[:line],
+      span: Chiasmus::Graph::Span.line_range(defn[:line]),
       signature: defn[:signature]?,
     )
   }
@@ -188,8 +188,8 @@ describe CodebaseMap do
     it "returns symbol detail with callers and callees" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "main", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "helper", kind: SymbolKind::Function, line: 3),
+          DefinesFact.new(file: "a.ts", name: "main", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "helper", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
         ],
         calls: [
           CallsFact.new(caller: "main", callee: "helper"),
@@ -225,8 +225,8 @@ describe CodebaseMap do
     it "JSON file detail includes line_end when end_line > 0" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 10, end_line: 25),
-          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, line: 30, end_line: 0),
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10, 25)),
+          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(30, 0)),
         ],
         files: [FileNode.new(path: "a.ts", language: "typescript")],
       )
@@ -251,8 +251,8 @@ describe CodebaseMap do
     it "markdown shows line range when end_line > 0" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 10, end_line: 25),
-          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, line: 30, end_line: 0),
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10, 25)),
+          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(30, 0)),
         ],
         files: [FileNode.new(path: "a.ts", language: "typescript")],
       )
@@ -268,7 +268,7 @@ describe CodebaseMap do
     it "symbol detail JSON includes defines with line_end" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 10, end_line: 25),
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10, 25)),
         ],
         calls: [CallsFact.new(caller: "main", callee: "foo")],
       )
@@ -285,7 +285,7 @@ describe CodebaseMap do
     it "symbol detail markdown shows line range" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 10, end_line: 25),
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10, 25)),
         ],
       )
       detail = CodebaseMap.build_symbol_detail(graph, "foo")

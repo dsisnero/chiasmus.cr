@@ -25,9 +25,9 @@ describe Chiasmus::Graph::Analyses do
   it "callers returns correct callers" do
     graph = make_graph(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, line: 2),
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "c", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "c", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),
@@ -51,9 +51,9 @@ describe Chiasmus::Graph::Analyses do
   it "callees returns correct callees" do
     graph = make_graph(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, line: 2),
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "c", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "c", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),
@@ -164,9 +164,9 @@ describe Chiasmus::Graph::Analyses do
   it "finds dead code from exported entry points" do
     graph = make_graph(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "used", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "unused", kind: Chiasmus::Graph::SymbolKind::Function, line: 10),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "used", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "unused", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "main", callee: "used"),
@@ -254,7 +254,7 @@ describe Chiasmus::Graph::Analyses do
   it "returns facts as a Prolog program" do
     graph = make_graph(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),
@@ -275,7 +275,7 @@ describe Chiasmus::Graph::Analyses do
   it "normalizes structural noise before returning facts analysis" do
     graph = make_graph(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "UserService.fetch", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "UserService.fetch", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       contains: [
         Chiasmus::Graph::ContainsFact.new(parent: "UserService", child: "UserService"),
@@ -297,7 +297,7 @@ describe Chiasmus::Graph::Analyses do
   it "returns the same facts when analysis runs from semantic ir" do
     graph = make_graph(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),
@@ -319,7 +319,7 @@ describe Chiasmus::Graph::Analyses do
   it "returns the same summary when analysis runs from semantic ir asynchronously" do
     graph = make_graph(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       exports: [
         Chiasmus::Graph::ExportsFact.new(file: "a.ts", name: "foo"),
@@ -345,9 +345,9 @@ describe Chiasmus::Graph::Analyses do
   it "returns summary counts" do
     graph = make_graph(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "b.ts", name: "bar", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "b.ts", name: "Svc", kind: Chiasmus::Graph::SymbolKind::Class, line: 5),
+        Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "b.ts", name: "bar", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "b.ts", name: "Svc", kind: Chiasmus::Graph::SymbolKind::Class, span: Chiasmus::Graph::Span.line_range(5)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "foo", callee: "bar"),
@@ -419,12 +419,12 @@ describe Chiasmus::Graph::Analyses do
       cache_dir = File.join(Dir.tempdir, "chiasmus-diff-#{Random::Secure.hex(8)}")
 
       before = Chiasmus::Graph::CodeGraph.new(
-        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.go", name: "oldFunc", kind: Chiasmus::Graph::SymbolKind::Function, line: 1)],
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.go", name: "oldFunc", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
       )
       Chiasmus::Graph::GraphCache.save_snapshot("base", before, cache_dir)
 
       after = make_graph(
-        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.go", name: "newFunc", kind: Chiasmus::Graph::SymbolKind::Function, line: 1)],
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.go", name: "newFunc", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
       )
 
       result = Chiasmus::Graph::Analyses.run_analysis_from_graph(

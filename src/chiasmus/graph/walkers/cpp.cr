@@ -60,7 +60,7 @@ module Chiasmus
       ) : Bool
         name = cpp_declaration_name(node, source)
         return false unless name
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, span: Span.from_node(node))
         with_scope(scope_stack, name) do
           walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
         end
@@ -79,7 +79,7 @@ module Chiasmus
       ) : Bool
         name = cpp_namespace_name(node, source)
         return false unless name
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Module, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Module, span: Span.from_node(node))
         with_scope(scope_stack, name) do
           walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
         end
@@ -109,7 +109,7 @@ module Chiasmus
           end
         end
         kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end
@@ -131,7 +131,7 @@ module Chiasmus
         calls : Array(CallsFact),
         call_set : Set(String),
       ) : Nil
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, span: Span.from_node(node))
         contains << ContainsFact.new(parent: enclosing, child: name)
         with_scope(scope_stack, name) do
           walk_cpp_children(node, source, file_path, scope_stack, defines, calls, [] of ImportsFact, [] of ExportsFact, contains, call_set)
@@ -161,7 +161,7 @@ module Chiasmus
         end
         return false unless mname
 
-        defines << DefinesFact.new(file: file_path, name: mname, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: mname, kind: SymbolKind::Method, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: mname)
         end
@@ -207,7 +207,7 @@ module Chiasmus
       ) : Bool
         name = cpp_declaration_name(node, source)
         return false unless name
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, span: Span.from_node(node))
 
         # Extract enumerator members from enumerator_list
         (0...node.named_child_count).each do |child_idx|
@@ -220,7 +220,7 @@ module Chiasmus
             next unless member.type == "enumerator"
             member_name = member.child_by_field_name("name").try(&.text(source))
             next unless member_name
-            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1, end_line: member.end_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, span: Span.from_node(member))
           end
         end
         true

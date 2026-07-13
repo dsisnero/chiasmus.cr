@@ -9,7 +9,7 @@ private def build_graph(calls : Array(Tuple(String, String))) : CodeGraph
   names = Set(String).new
   calls.each { |(caller, callee)| names << caller; names << callee }
   CodeGraph.new(
-    defines: names.map { |name| DefinesFact.new(file: "t.ts", name: name, kind: SymbolKind::Function, line: 1) },
+    defines: names.map { |name| DefinesFact.new(file: "t.ts", name: name, kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)) },
     calls: calls.map { |(caller, callee)| CallsFact.new(caller: caller, callee: callee) },
   )
 end

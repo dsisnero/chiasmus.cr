@@ -13,7 +13,7 @@ private def build_graph(calls : Array(Tuple(String, String)), defines : Array(St
     all_names << b
   end
   CodeGraph.new(
-    defines: all_names.map { |name| DefinesFact.new(file: "t.ts", name: name, kind: SymbolKind::Function, line: 1) },
+    defines: all_names.map { |name| DefinesFact.new(file: "t.ts", name: name, kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)) },
     calls: calls.map { |(caller, callee)| CallsFact.new(caller: caller, callee: callee) },
   )
 end

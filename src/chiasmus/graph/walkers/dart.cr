@@ -55,7 +55,7 @@ module Chiasmus
         when "class_definition"
           name = dart_name(node, source)
           return unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, span: Span.from_node(node))
           if scope_stack.size > 1 && (enclosing = scope_stack[-2]?)
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -68,7 +68,7 @@ module Chiasmus
           return unless name
           dart_pop_method_scope(scope_stack)
           kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -79,7 +79,7 @@ module Chiasmus
           name = dart_name(sig, source)
           return unless name
           dart_pop_method_scope(scope_stack)
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -177,7 +177,7 @@ module Chiasmus
       ) : Bool
         name = node.child_by_field_name("name").try(&.text(source))
         return false unless name
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, span: Span.from_node(node))
 
         enum_body = dart_find_child(node, "enum_body")
         if enum_body
@@ -186,7 +186,7 @@ module Chiasmus
             next unless constant && constant.type == "enum_constant"
             constant_name = constant.child_by_field_name("name").try(&.text(source))
             next unless constant_name
-            defines << DefinesFact.new(file: file_path, name: constant_name, kind: SymbolKind::Variable, line: constant.start_point.row.to_i + 1, end_line: constant.end_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: constant_name, kind: SymbolKind::Variable, span: Span.from_node(constant))
           end
         end
 
@@ -202,7 +202,7 @@ module Chiasmus
         contains : Array(ContainsFact),
       ) : Bool
         return false unless scope_stack.last?
-        defines << DefinesFact.new(file: file_path, name: ".ctor", kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: ".ctor", kind: SymbolKind::Method, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: ".ctor")
         end

@@ -473,8 +473,7 @@ module Chiasmus
             file: atom(args[0]),
             name: atom(args[1]),
             kind: parse_symbol_kind(atom(args[2])),
-            line: args[3].to_i,
-            end_line: args[4].to_i,
+            span: Graph::Span.line_range(args[3].to_i, args[4].to_i)
           )
         elsif stripped.starts_with?("calls_in(")
           args = parse_args(stripped["calls_in(".size...-2])
@@ -570,9 +569,8 @@ module Chiasmus
             file: symbol.file,
             name: symbol.id,
             kind: symbol.kind,
-            line: symbol.line,
-            end_line: symbol.end_line,
-            signature: symbol.signature,
+            span: symbol.span,
+            signature: symbol.signature
           )
         end,
         calls: resolve_semantic_calls(graph, index),

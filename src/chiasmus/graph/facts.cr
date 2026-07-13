@@ -75,7 +75,8 @@ module Chiasmus
         lines << ""
 
         graph.defines.each do |fact|
-          lines << "defines(#{escape_atom(fact.file)}, #{escape_atom(fact.name)}, #{escape_atom(fact.kind.to_prolog_atom)}, #{fact.line}, #{fact.end_line})."
+          span = fact.span
+          lines << "defines(#{escape_atom(fact.file)}, #{escape_atom(fact.name)}, #{escape_atom(fact.kind.to_prolog_atom)}, #{span.start_line}, #{span.end_line})."
         end
         lines << "" unless graph.defines.empty?
 

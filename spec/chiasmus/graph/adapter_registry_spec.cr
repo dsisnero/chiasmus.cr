@@ -44,7 +44,7 @@ module Chiasmus
             file: file_path,
             name: name,
             kind: SymbolKind::Function,
-            line: child.start_point.row.to_i + 1
+            span: Chiasmus::Graph::Span.line_range(child.start_point.row.to_i + 1),
           )
 
           walk_calls(child, source, name, calls, seen)

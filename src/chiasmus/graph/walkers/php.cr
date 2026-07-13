@@ -38,7 +38,7 @@ module Chiasmus
         when "class_declaration"
           name = php_declaration_name(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -49,7 +49,7 @@ module Chiasmus
         when "method_declaration"
           name = php_declaration_name(node, source)
           return false unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end
@@ -61,7 +61,7 @@ module Chiasmus
           name = php_declaration_name(node, source)
           return false unless name
           kind = scope_stack.last? ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: name)
           end

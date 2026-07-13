@@ -13,10 +13,10 @@ describe "parallel insights" do
     # Betweenness: b=4/6, c=4/6, a=0, d=0
     graph = CodeGraph.new(
       defines: [
-        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, line: 1),
-        DefinesFact.new(file: "t.cr", name: "b", kind: SymbolKind::Function, line: 2),
-        DefinesFact.new(file: "t.cr", name: "c", kind: SymbolKind::Function, line: 3),
-        DefinesFact.new(file: "t.cr", name: "d", kind: SymbolKind::Function, line: 4),
+        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        DefinesFact.new(file: "t.cr", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+        DefinesFact.new(file: "t.cr", name: "c", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
+        DefinesFact.new(file: "t.cr", name: "d", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(4)),
       ],
       calls: [
         CallsFact.new(caller: "a", callee: "b"),
@@ -39,10 +39,10 @@ describe "parallel insights" do
   it "detect_hubs returns consistent results" do
     graph = CodeGraph.new(
       defines: [
-        DefinesFact.new(file: "t.cr", name: "hub", kind: SymbolKind::Function, line: 1),
-        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, line: 2),
-        DefinesFact.new(file: "t.cr", name: "b", kind: SymbolKind::Function, line: 3),
-        DefinesFact.new(file: "t.cr", name: "c", kind: SymbolKind::Function, line: 4),
+        DefinesFact.new(file: "t.cr", name: "hub", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+        DefinesFact.new(file: "t.cr", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
+        DefinesFact.new(file: "t.cr", name: "c", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(4)),
       ],
       calls: [
         CallsFact.new(caller: "hub", callee: "a"),
@@ -62,10 +62,10 @@ describe "parallel insights" do
   it "detect_surprises produces deterministic output" do
     graph = CodeGraph.new(
       defines: [
-        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, line: 1),
-        DefinesFact.new(file: "t.cr", name: "hub", kind: SymbolKind::Function, line: 2),
-        DefinesFact.new(file: "t.cr", name: "leaf1", kind: SymbolKind::Function, line: 3),
-        DefinesFact.new(file: "t.cr", name: "leaf2", kind: SymbolKind::Function, line: 4),
+        DefinesFact.new(file: "t.cr", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        DefinesFact.new(file: "t.cr", name: "hub", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+        DefinesFact.new(file: "t.cr", name: "leaf1", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
+        DefinesFact.new(file: "t.cr", name: "leaf2", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(4)),
       ],
       calls: [
         CallsFact.new(caller: "a", callee: "hub"),

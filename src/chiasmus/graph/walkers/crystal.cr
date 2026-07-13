@@ -43,7 +43,7 @@ module Chiasmus
 
           kind = is_class_method ? SymbolKind::Method : SymbolKind::Function
           qualified_name = crystal_qualified_name(scope_stack, crystal_method_name)
-          defines << DefinesFact.new(file: file_path, name: crystal_method_name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1, qualified_name: qualified_name)
+          defines << DefinesFact.new(file: file_path, name: crystal_method_name, kind: kind, span: Span.from_node(node), qualified_name: qualified_name)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: crystal_method_name)
           end
@@ -100,7 +100,7 @@ module Chiasmus
         name = crystal_name_field(node, source)
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end
@@ -121,7 +121,7 @@ module Chiasmus
         name = crystal_name_field(node, source)
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end
@@ -132,12 +132,12 @@ module Chiasmus
           when "constant"
             child_name = child.text(source)
             next if child_name == name
-            defines << DefinesFact.new(file: file_path, name: child_name, kind: SymbolKind::Type, line: child.start_point.row.to_i + 1, end_line: child.end_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: child_name, kind: SymbolKind::Type, span: Span.from_node(child))
           when "union_type"
             child.children.each do |union_child|
               next unless union_child.type == "constant"
               union_name = union_child.text(source)
-              defines << DefinesFact.new(file: file_path, name: union_name, kind: SymbolKind::Type, line: union_child.start_point.row.to_i + 1, end_line: union_child.end_point.row.to_i + 1)
+              defines << DefinesFact.new(file: file_path, name: union_name, kind: SymbolKind::Type, span: Span.from_node(union_child))
             end
           end
         end
@@ -156,7 +156,7 @@ module Chiasmus
         name = crystal_name_field(node, source)
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end
@@ -176,7 +176,7 @@ module Chiasmus
                           end
             next unless member_name
             next if member_name == name
-            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, line: member.start_point.row.to_i + 1, end_line: member.end_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, span: Span.from_node(member))
           end
         end
 
@@ -199,7 +199,7 @@ module Chiasmus
         name = crystal_name_field(node, source)
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end
@@ -422,7 +422,7 @@ module Chiasmus
         return false unless name
         return false unless name.matches?(/^[A-Z][A-Z0-9_]*$/)
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end
@@ -441,7 +441,7 @@ module Chiasmus
         name = crystal_name_field(node, source)
         return false unless name
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end

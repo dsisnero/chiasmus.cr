@@ -9,10 +9,10 @@ include Chiasmus::Graph
 private def sample_plan_graph : CodeGraph
   CodeGraph.new(
     defines: [
-      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, line: 1),
-      DefinesFact.new(file: "src/core.ts", name: "hub", kind: SymbolKind::Function, line: 5),
-      DefinesFact.new(file: "src/leaf.ts", name: "leaf", kind: SymbolKind::Function, line: 10),
-      DefinesFact.new(file: "src/unused.ts", name: "unused", kind: SymbolKind::Function, line: 20),
+      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/core.ts", name: "hub", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+      DefinesFact.new(file: "src/leaf.ts", name: "leaf", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/unused.ts", name: "unused", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(20)),
     ],
     calls: [
       CallsFact.new(caller: "main", callee: "hub"),
@@ -29,9 +29,9 @@ end
 private def previous_plan_graph : CodeGraph
   CodeGraph.new(
     defines: [
-      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, line: 1),
-      DefinesFact.new(file: "src/leaf.ts", name: "leaf", kind: SymbolKind::Function, line: 10),
-      DefinesFact.new(file: "src/unused.ts", name: "unused", kind: SymbolKind::Function, line: 20),
+      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/leaf.ts", name: "leaf", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/unused.ts", name: "unused", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(20)),
     ],
     calls: [
       CallsFact.new(caller: "main", callee: "leaf"),
@@ -47,9 +47,9 @@ end
 private def duplicate_audit_plan_graph : CodeGraph
   CodeGraph.new(
     defines: [
-      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, line: 1),
-      DefinesFact.new(file: "src/app.ts", name: "helper", kind: SymbolKind::Function, line: 10),
-      DefinesFact.new(file: "src/util.ts", name: "helper", kind: SymbolKind::Function, line: 3),
+      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/app.ts", name: "helper", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/util.ts", name: "helper", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
     ],
     exports: [
       ExportsFact.new(file: "src/app.ts", name: "main"),
@@ -69,7 +69,7 @@ private def sample_semantic_plan_graph : Chiasmus::Graph::IR::SemanticGraph
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/app.ts",
-        line: 1
+        span: Chiasmus::Graph::Span.line_range(1),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/auth.ts::method::Auth.login",
@@ -78,7 +78,7 @@ private def sample_semantic_plan_graph : Chiasmus::Graph::IR::SemanticGraph
         owner_name: "Auth",
         kind: SymbolKind::Method,
         file: "src/auth.ts",
-        line: 10
+        span: Chiasmus::Graph::Span.line_range(10),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/auth.ts::method::Auth.logout",
@@ -87,7 +87,7 @@ private def sample_semantic_plan_graph : Chiasmus::Graph::IR::SemanticGraph
         owner_name: "Auth",
         kind: SymbolKind::Method,
         file: "src/auth.ts",
-        line: 20
+        span: Chiasmus::Graph::Span.line_range(20),
       ),
     ],
     calls: [
@@ -114,7 +114,7 @@ private def sample_semantic_duplicate_name_plan_graph : Chiasmus::Graph::IR::Sem
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/app.ts",
-        line: 1
+        span: Chiasmus::Graph::Span.line_range(1),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/app.ts::function::helper",
@@ -123,7 +123,7 @@ private def sample_semantic_duplicate_name_plan_graph : Chiasmus::Graph::IR::Sem
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/app.ts",
-        line: 10
+        span: Chiasmus::Graph::Span.line_range(10),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/util.ts::function::helper",
@@ -132,7 +132,7 @@ private def sample_semantic_duplicate_name_plan_graph : Chiasmus::Graph::IR::Sem
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/util.ts",
-        line: 3
+        span: Chiasmus::Graph::Span.line_range(3),
       ),
     ],
     calls: [
@@ -154,7 +154,7 @@ private def sample_semantic_duplicate_caller_plan_graph : Chiasmus::Graph::IR::S
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/app.ts",
-        line: 1
+        span: Chiasmus::Graph::Span.line_range(1),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/app.ts::function::helper",
@@ -163,7 +163,7 @@ private def sample_semantic_duplicate_caller_plan_graph : Chiasmus::Graph::IR::S
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/app.ts",
-        line: 10
+        span: Chiasmus::Graph::Span.line_range(10),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/app.ts::function::leaf",
@@ -172,7 +172,7 @@ private def sample_semantic_duplicate_caller_plan_graph : Chiasmus::Graph::IR::S
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/app.ts",
-        line: 20
+        span: Chiasmus::Graph::Span.line_range(20),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/util.ts::function::helper",
@@ -181,7 +181,7 @@ private def sample_semantic_duplicate_caller_plan_graph : Chiasmus::Graph::IR::S
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/util.ts",
-        line: 3
+        span: Chiasmus::Graph::Span.line_range(3),
       ),
     ],
     calls: [
@@ -204,7 +204,7 @@ private def sample_semantic_duplicate_entry_point_plan_graph : Chiasmus::Graph::
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/app.ts",
-        line: 1
+        span: Chiasmus::Graph::Span.line_range(1),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/app.ts::function::helper",
@@ -213,7 +213,7 @@ private def sample_semantic_duplicate_entry_point_plan_graph : Chiasmus::Graph::
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/app.ts",
-        line: 10
+        span: Chiasmus::Graph::Span.line_range(10),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/util.ts::function::main",
@@ -222,7 +222,7 @@ private def sample_semantic_duplicate_entry_point_plan_graph : Chiasmus::Graph::
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/util.ts",
-        line: 3
+        span: Chiasmus::Graph::Span.line_range(3),
       ),
       Chiasmus::Graph::IR::SymbolNode.new(
         id: "src/util.ts::function::orphan",
@@ -231,7 +231,7 @@ private def sample_semantic_duplicate_entry_point_plan_graph : Chiasmus::Graph::
         owner_name: nil,
         kind: SymbolKind::Function,
         file: "src/util.ts",
-        line: 12
+        span: Chiasmus::Graph::Span.line_range(12),
       ),
     ],
     calls: [

@@ -13,12 +13,11 @@ module Chiasmus
         getter file : String
         getter name : String
         getter kind : String
-        getter line : Int32
-        getter end_line : Int32 = 0
+        getter span : Span
         getter signature : String? = nil
         getter qualified_name : String? = nil
 
-        def initialize(@file, @name, @kind, @line, @end_line = 0, @signature = nil, @qualified_name = nil)
+        def initialize(@file, @name, @kind, @span, @signature = nil, @qualified_name = nil)
         end
       end
 
@@ -180,8 +179,7 @@ module Chiasmus
               definition.file,
               definition.name,
               definition.kind.to_s,
-              definition.line,
-              definition.end_line,
+              definition.span,
               definition.signature,
               definition.qualified_name
             )
@@ -212,8 +210,7 @@ module Chiasmus
               file: definition.file,
               name: definition.name,
               kind: SymbolKind.parse(definition.kind),
-              line: definition.line,
-              end_line: definition.end_line,
+              span: definition.span,
               signature: definition.signature,
               qualified_name: definition.qualified_name
             )

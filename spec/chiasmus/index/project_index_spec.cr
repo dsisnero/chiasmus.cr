@@ -3,7 +3,7 @@ require "../../spec_helper"
 module Chiasmus::Index
   def self.project_index_file_graph(path : String, name : String, callee : String) : Graph::CodeGraph
     Graph::CodeGraph.new(
-      defines: [Graph::DefinesFact.new(path, name, Graph::SymbolKind::Function, 1)],
+      defines: [Graph::DefinesFact.new(path, name, Graph::SymbolKind::Function, Graph::Span.line_range(1))],
       calls: [Graph::CallsFact.new(name, callee)],
       imports: [Graph::ImportsFact.new(path, "dep", "./dep")],
       exports: [Graph::ExportsFact.new(path, name)],

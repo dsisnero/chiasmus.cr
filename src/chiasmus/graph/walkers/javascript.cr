@@ -43,7 +43,7 @@ module Chiasmus
           name = node.child_by_field_name("name").try(&.text(source))
           return false unless name
 
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Function, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Function, span: Span.from_node(node))
           with_scope(scope_stack, name) do
             walk_children(node, source, file_path, language, scope_stack, defines, calls, imports, exports, contains, call_set)
           end
@@ -52,7 +52,7 @@ module Chiasmus
           name = node.child_by_field_name("name").try(&.text(source))
           return false unless name
 
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, span: Span.from_node(node))
           if class_name = find_enclosing_class_name(node, source)
             contains << ContainsFact.new(parent: class_name, child: name)
           end
@@ -88,7 +88,7 @@ module Chiasmus
           next unless name_node && value_node && value_node.type == "arrow_function"
 
           name = name_node.text(source)
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Function, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Function, span: Span.from_node(node))
           with_scope(scope_stack, name) do
             walk_children(node, source, file_path, language, scope_stack, defines, calls, imports, exports, contains, call_set)
           end
@@ -108,15 +108,15 @@ module Chiasmus
         when "class_declaration", "abstract_class_declaration"
           name = node.child_by_field_name("name").try(&.text(source))
           return unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Class, span: Span.from_node(node))
         when "interface_declaration"
           name = node.child_by_field_name("name").try(&.text(source))
           return unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Interface, span: Span.from_node(node))
         when "type_alias_declaration"
           name = node.child_by_field_name("name").try(&.text(source))
           return unless name
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Type, span: Span.from_node(node))
           # Extract union type members (handles nested union_type)
           (0...node.named_child_count).each do |child_idx|
             child = node.named_child(child_idx)
@@ -371,7 +371,7 @@ module Chiasmus
           else
             member_name = union_member_name(member, source)
             next unless member_name
-            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Type, line: member.start_point.row.to_i + 1, end_line: member.end_point.row.to_i + 1)
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Type, span: Span.from_node(member))
           end
         end
       end

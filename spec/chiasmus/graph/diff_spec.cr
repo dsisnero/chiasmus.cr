@@ -9,12 +9,12 @@ describe GraphDiffer do
     it "detects added and removed nodes" do
       before = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "oldFn", kind: SymbolKind::Function, line: 1),
+          DefinesFact.new(file: "a.ts", name: "oldFn", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
       )
       after = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "newFn", kind: SymbolKind::Function, line: 1),
+          DefinesFact.new(file: "a.ts", name: "newFn", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
       )
 
@@ -26,8 +26,8 @@ describe GraphDiffer do
     it "detects added and removed edges" do
       before = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, line: 2),
+          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [
           CallsFact.new(caller: "a", callee: "b"),
@@ -35,8 +35,8 @@ describe GraphDiffer do
       )
       after = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "c", kind: SymbolKind::Function, line: 3),
+          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "c", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
         ],
         calls: [
           CallsFact.new(caller: "a", callee: "c"),
@@ -55,7 +55,7 @@ describe GraphDiffer do
     it "returns 'no changes' for identical graphs" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "fn", kind: SymbolKind::Function, line: 1),
+          DefinesFact.new(file: "a.ts", name: "fn", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
         calls: [
           CallsFact.new(caller: "fn", callee: "fn"),
@@ -89,7 +89,7 @@ describe GraphDiffer do
       before = CodeGraph.new
       after = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "added", kind: SymbolKind::Function, line: 1),
+          DefinesFact.new(file: "a.ts", name: "added", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
       )
 
@@ -100,15 +100,15 @@ describe GraphDiffer do
     it "uses (source, target) as edge key for directed graphs" do
       before = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "t.ts", name: "a", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "t.ts", name: "b", kind: SymbolKind::Function, line: 2),
+          DefinesFact.new(file: "t.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "t.ts", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [CallsFact.new(caller: "a", callee: "b")],
       )
       after = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "t.ts", name: "a", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "t.ts", name: "b", kind: SymbolKind::Function, line: 2),
+          DefinesFact.new(file: "t.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "t.ts", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [CallsFact.new(caller: "b", callee: "a")],
       )
@@ -126,8 +126,8 @@ describe GraphDiffer do
       before = CodeGraph.new
       after = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, line: 2),
+          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
       )
 
@@ -138,15 +138,15 @@ describe GraphDiffer do
     it "handles complete replacement" do
       before = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "old1", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "old2", kind: SymbolKind::Function, line: 2),
+          DefinesFact.new(file: "a.ts", name: "old1", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "old2", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [CallsFact.new(caller: "old1", callee: "old2")],
       )
       after = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "b.ts", name: "new1", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "b.ts", name: "new2", kind: SymbolKind::Function, line: 2),
+          DefinesFact.new(file: "b.ts", name: "new1", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "b.ts", name: "new2", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [CallsFact.new(caller: "new1", callee: "new2")],
       )

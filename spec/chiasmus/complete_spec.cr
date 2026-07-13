@@ -54,10 +54,10 @@ TSV
 
   source_graph = Chiasmus::Graph::CodeGraph.new(
     defines: [
-      Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
-      Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "completeMe", kind: Chiasmus::Graph::SymbolKind::Function, line: 2, end_line: 2),
-      Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "needsTest", kind: Chiasmus::Graph::SymbolKind::Function, line: 3, end_line: 3),
-      Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "deadHelper", kind: Chiasmus::Graph::SymbolKind::Function, line: 4, end_line: 4),
+      Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+      Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "completeMe", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2, 2)),
+      Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "needsTest", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3, 3)),
+      Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "deadHelper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(4, 4)),
     ],
     calls: [
       Chiasmus::Graph::CallsFact.new(caller: "main", callee: "completeMe"),
@@ -70,9 +70,9 @@ TSV
 
   crystal_graph = Chiasmus::Graph::CodeGraph.new(
     defines: [
-      Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
-      Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "complete_me", kind: Chiasmus::Graph::SymbolKind::Function, line: 5, end_line: 5),
-      Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "needs_test", kind: Chiasmus::Graph::SymbolKind::Function, line: 8, end_line: 8),
+      Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+      Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "complete_me", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5, 5)),
+      Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "needs_test", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(8, 8)),
     ],
     calls: [
       Chiasmus::Graph::CallsFact.new(caller: "main", callee: "complete_me"),
@@ -244,8 +244,8 @@ TSV
 
       source_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 2, end_line: 2),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2, 2)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "loadConfig"),
@@ -257,8 +257,8 @@ TSV
 
       crystal_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "load_config", kind: Chiasmus::Graph::SymbolKind::Function, line: 5, end_line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "load_config", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5, 5)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "load_config"),
@@ -330,11 +330,11 @@ TSV
 
       source_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5, end_line: 5),
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9, end_line: 9),
-          Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 3, end_line: 3),
-          Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 7, end_line: 7),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5, 5)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9, 9)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3, 3)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(7, 7)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
@@ -347,9 +347,9 @@ TSV
 
       crystal_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5, end_line: 5),
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9, end_line: 9),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5, 5)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9, 9)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),

@@ -152,9 +152,9 @@ describe Chiasmus::Parity::Structural do
   it "reports structural_match when normalized direct callees align" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "parseConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-        Chiasmus::Graph::DefinesFact.new(file: "src/fs.ts", name: "readFile", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "parseConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/fs.ts", name: "readFile", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "loadConfig", callee: "parseConfig"),
@@ -167,9 +167,9 @@ describe Chiasmus::Parity::Structural do
 
     target_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "load_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "parse_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 5),
-        Chiasmus::Graph::DefinesFact.new(file: "src/fs.cr", name: "read_file", kind: Chiasmus::Graph::SymbolKind::Method, line: 9),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "load_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "parse_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(5)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/fs.cr", name: "read_file", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(9)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "load_config", callee: "parse_config"),
@@ -196,9 +196,9 @@ describe Chiasmus::Parity::Structural do
   it "reports structural_drift when target drops a normalized direct callee" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "parseConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-        Chiasmus::Graph::DefinesFact.new(file: "src/fs.ts", name: "readFile", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "parseConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/fs.ts", name: "readFile", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "loadConfig", callee: "parseConfig"),
@@ -211,8 +211,8 @@ describe Chiasmus::Parity::Structural do
 
     target_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "load_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "parse_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 5),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "load_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "parse_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(5)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "load_config", callee: "parse_config"),
@@ -238,9 +238,9 @@ describe Chiasmus::Parity::Structural do
   it "reports structural_drift when target drops a contained child" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "ConfigModule", kind: Chiasmus::Graph::SymbolKind::Module, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "parseConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-        Chiasmus::Graph::DefinesFact.new(file: "src/fs.ts", name: "readFile", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "ConfigModule", kind: Chiasmus::Graph::SymbolKind::Module, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "parseConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/fs.ts", name: "readFile", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       exports: [] of Chiasmus::Graph::ExportsFact,
@@ -253,8 +253,8 @@ describe Chiasmus::Parity::Structural do
 
     target_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "ConfigModule", kind: Chiasmus::Graph::SymbolKind::Module, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "parse_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 5),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "ConfigModule", kind: Chiasmus::Graph::SymbolKind::Module, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "parse_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(5)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       exports: [] of Chiasmus::Graph::ExportsFact,
@@ -280,7 +280,7 @@ describe Chiasmus::Parity::Structural do
   it "reports structural_drift when the target symbol is missing from the fact graph" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       exports: [] of Chiasmus::Graph::ExportsFact,
@@ -311,7 +311,7 @@ describe Chiasmus::Parity::Structural do
   it "reports structural_drift when export visibility differs" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       exports: [
@@ -323,7 +323,7 @@ describe Chiasmus::Parity::Structural do
 
     target_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "Demo.load_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "Demo.load_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       exports: [] of Chiasmus::Graph::ExportsFact,
@@ -346,7 +346,7 @@ describe Chiasmus::Parity::Structural do
   it "reports structural_drift when entry-point status differs" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       exports: [] of Chiasmus::Graph::ExportsFact,
@@ -356,7 +356,7 @@ describe Chiasmus::Parity::Structural do
 
     target_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/main.cr", name: "Demo.main", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/main.cr", name: "Demo.main", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       exports: [] of Chiasmus::Graph::ExportsFact,
@@ -381,7 +381,7 @@ describe Chiasmus::Parity::Structural do
   it "reports structural_drift when target drops a defining-file import" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       imports: [
@@ -393,7 +393,7 @@ describe Chiasmus::Parity::Structural do
 
     target_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "Demo.load_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "Demo.load_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       calls: [] of Chiasmus::Graph::CallsFact,
       imports: [] of Chiasmus::Graph::ImportsFact,
@@ -418,9 +418,9 @@ describe Chiasmus::Parity::Structural do
     source_facts = Chiasmus::Parity::StructuralFacts.new(
       graph: Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
@@ -441,11 +441,11 @@ describe Chiasmus::Parity::Structural do
     target_facts = Chiasmus::Parity::StructuralFacts.new(
       graph: Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
-          Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
-          Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 7),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(7)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
@@ -481,9 +481,9 @@ describe Chiasmus::Parity::Structural do
   it "does not borrow graph-only call structure from a duplicate target symbol in another file when file hints are provided" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
@@ -496,11 +496,11 @@ describe Chiasmus::Parity::Structural do
 
     target_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
-        Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
-        Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 7),
+        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(7)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
@@ -750,9 +750,9 @@ TSV
 
       source_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "buildGapCheck", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "parseConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-          Chiasmus::Graph::DefinesFact.new(file: "src/fs.ts", name: "readFile", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
+          Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "buildGapCheck", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "parseConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/fs.ts", name: "readFile", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "buildGapCheck", callee: "parseConfig"),
@@ -765,8 +765,8 @@ TSV
 
       crystal_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/engine.cr", name: "Demo.build_gap_check", kind: Chiasmus::Graph::SymbolKind::Method, line: 2),
-          Chiasmus::Graph::DefinesFact.new(file: "src/engine.cr", name: "Demo.parse_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 6),
+          Chiasmus::Graph::DefinesFact.new(file: "src/engine.cr", name: "Demo.build_gap_check", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(2)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/engine.cr", name: "Demo.parse_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(6)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "Demo.build_gap_check", callee: "Demo.parse_config"),
@@ -829,7 +829,7 @@ TSV
 
       source_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "buildGapCheck", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "buildGapCheck", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
         calls: [] of Chiasmus::Graph::CallsFact,
         exports: [
@@ -841,7 +841,7 @@ TSV
 
       crystal_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/engine.cr", name: "Demo.build_gap_check", kind: Chiasmus::Graph::SymbolKind::Method, line: 2),
+          Chiasmus::Graph::DefinesFact.new(file: "src/engine.cr", name: "Demo.build_gap_check", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [] of Chiasmus::Graph::CallsFact,
         exports: [] of Chiasmus::Graph::ExportsFact,
@@ -900,7 +900,7 @@ TSV
 
       source_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/main.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/main.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
         calls: [] of Chiasmus::Graph::CallsFact,
         exports: [] of Chiasmus::Graph::ExportsFact,
@@ -910,7 +910,7 @@ TSV
 
       crystal_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/main.cr", name: "Demo.main", kind: Chiasmus::Graph::SymbolKind::Method, line: 2),
+          Chiasmus::Graph::DefinesFact.new(file: "src/main.cr", name: "Demo.main", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [] of Chiasmus::Graph::CallsFact,
         exports: [] of Chiasmus::Graph::ExportsFact,
@@ -971,7 +971,7 @@ TSV
 
       source_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
         calls: [] of Chiasmus::Graph::CallsFact,
         imports: [
@@ -983,7 +983,7 @@ TSV
 
       crystal_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "Demo.load_config", kind: Chiasmus::Graph::SymbolKind::Method, line: 4),
+          Chiasmus::Graph::DefinesFact.new(file: "src/config.cr", name: "Demo.load_config", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(4)),
         ],
         calls: [] of Chiasmus::Graph::CallsFact,
         imports: [] of Chiasmus::Graph::ImportsFact,
@@ -1052,10 +1052,10 @@ TSV
 
       source_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "completeMe", kind: Chiasmus::Graph::SymbolKind::Function, line: 2, end_line: 2),
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "needsTest", kind: Chiasmus::Graph::SymbolKind::Function, line: 3, end_line: 3),
-          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "deadHelper", kind: Chiasmus::Graph::SymbolKind::Function, line: 4, end_line: 4),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "completeMe", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2, 2)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "needsTest", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3, 3)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "deadHelper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(4, 4)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "completeMe"),
@@ -1068,9 +1068,9 @@ TSV
 
       crystal_graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1, end_line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "complete_me", kind: Chiasmus::Graph::SymbolKind::Function, line: 2, end_line: 2),
-          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "needs_test", kind: Chiasmus::Graph::SymbolKind::Function, line: 3, end_line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "complete_me", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2, 2)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/port.cr", name: "needs_test", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3, 3)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "complete_me"),

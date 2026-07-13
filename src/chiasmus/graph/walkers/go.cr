@@ -36,14 +36,14 @@ module Chiasmus
           name = node.child_by_field_name("name").try(&.text(source))
           return unless name
 
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Function, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Function, span: Span.from_node(node))
           export_name_if_public(name, file_path, exports)
           extract_go_calls(node.child_by_field_name("body"), source, name, calls, call_set)
         when "method_declaration"
           name = node.child_by_field_name("name").try(&.text(source))
           return unless name
 
-          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Method, span: Span.from_node(node))
           receiver_type = extract_go_receiver_type(node.child_by_field_name("receiver"), source)
           contains << ContainsFact.new(parent: receiver_type, child: name) if receiver_type
           export_name_if_public(name, file_path, exports)
@@ -69,7 +69,7 @@ module Chiasmus
 
           name = name_node.text(source)
           kind = type_node.type == "interface_type" ? SymbolKind::Interface : SymbolKind::Class
-          defines << DefinesFact.new(file: file_path, name: name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
           export_name_if_public(name, file_path, exports)
         end
       end

@@ -13,8 +13,7 @@ class IRSuffixRefiner < Chiasmus::Graph::IR::Refiner
         owner_name: symbol.owner_name,
         kind: symbol.kind,
         file: symbol.file,
-        line: symbol.line,
-        end_line: symbol.end_line,
+        span: symbol.span,
         signature: symbol.signature,
       )
     end
@@ -56,8 +55,7 @@ describe Chiasmus::Graph::IR do
             file: "src/service.ts",
             name: "UserService.fetch",
             kind: Chiasmus::Graph::SymbolKind::Method,
-            line: 10,
-            end_line: 12
+            span: Chiasmus::Graph::Span.line_range(10, 12),
           ),
         ]
       )
@@ -78,15 +76,13 @@ describe Chiasmus::Graph::IR do
             file: "src/app.ts",
             name: "main",
             kind: Chiasmus::Graph::SymbolKind::Function,
-            line: 1,
-            end_line: 3
+            span: Chiasmus::Graph::Span.line_range(1, 3),
           ),
           Chiasmus::Graph::DefinesFact.new(
             file: "src/service.ts",
             name: "UserService.fetch",
             kind: Chiasmus::Graph::SymbolKind::Method,
-            line: 4,
-            end_line: 8,
+            span: Chiasmus::Graph::Span.line_range(4, 8),
             signature: "fetch(id: string)"
           ),
         ],
@@ -128,7 +124,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Function,
             file: "src/app.ts",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
         ]
       )
@@ -176,7 +172,7 @@ describe Chiasmus::Graph::IR do
           owner_name: nil,
           kind: Chiasmus::Graph::SymbolKind::Module,
           file: "src/demo_config.cr",
-          line: 1
+          span: Chiasmus::Graph::Span.line_range(1),
         ),
         Chiasmus::Graph::IR::SymbolNode.new(
           id: "demo-config",
@@ -185,7 +181,7 @@ describe Chiasmus::Graph::IR do
           owner_name: nil,
           kind: Chiasmus::Graph::SymbolKind::Class,
           file: "src/demo_config.cr",
-          line: 2
+          span: Chiasmus::Graph::Span.line_range(2),
         ),
         Chiasmus::Graph::IR::SymbolNode.new(
           id: "demo-load",
@@ -194,7 +190,7 @@ describe Chiasmus::Graph::IR do
           owner_name: nil,
           kind: Chiasmus::Graph::SymbolKind::Method,
           file: "src/demo_config.cr",
-          line: 4
+          span: Chiasmus::Graph::Span.line_range(4),
         ),
         Chiasmus::Graph::IR::SymbolNode.new(
           id: "service-module",
@@ -203,7 +199,7 @@ describe Chiasmus::Graph::IR do
           owner_name: nil,
           kind: Chiasmus::Graph::SymbolKind::Module,
           file: "src/service_config.cr",
-          line: 1
+          span: Chiasmus::Graph::Span.line_range(1),
         ),
         Chiasmus::Graph::IR::SymbolNode.new(
           id: "service-config",
@@ -212,7 +208,7 @@ describe Chiasmus::Graph::IR do
           owner_name: nil,
           kind: Chiasmus::Graph::SymbolKind::Class,
           file: "src/service_config.cr",
-          line: 2
+          span: Chiasmus::Graph::Span.line_range(2),
         ),
         Chiasmus::Graph::IR::SymbolNode.new(
           id: "service-load",
@@ -221,7 +217,7 @@ describe Chiasmus::Graph::IR do
           owner_name: nil,
           kind: Chiasmus::Graph::SymbolKind::Method,
           file: "src/service_config.cr",
-          line: 4
+          span: Chiasmus::Graph::Span.line_range(4),
         ),
       ]
 
@@ -256,7 +252,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/demo_config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-config",
@@ -265,7 +261,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/demo_config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-load",
@@ -274,7 +270,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/demo_config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service",
@@ -283,7 +279,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/service_config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-config",
@@ -292,7 +288,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/service_config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-load",
@@ -301,7 +297,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/service_config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
         ],
         calls: [
@@ -344,7 +340,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/service.ts",
-            line: 10
+            span: Chiasmus::Graph::Span.line_range(10),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "duplicate",
@@ -353,7 +349,7 @@ describe Chiasmus::Graph::IR do
             owner_name: "UserService",
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/service.ts",
-            line: 10
+            span: Chiasmus::Graph::Span.line_range(10),
           ),
         ],
         calls: [
@@ -391,7 +387,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "wrong-method",
@@ -400,7 +396,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
         ],
         calls: [
@@ -440,7 +436,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "config",
@@ -449,7 +445,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "load",
@@ -458,7 +454,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
         ],
         contains: [
@@ -490,7 +486,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/demo_config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-config",
@@ -499,7 +495,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/demo_config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-load",
@@ -508,7 +504,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/demo_config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service",
@@ -517,7 +513,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/service_config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-config",
@@ -526,7 +522,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/service_config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-load",
@@ -535,7 +531,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/service_config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
         ],
         contains: [
@@ -574,7 +570,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/demo_config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-config",
@@ -583,7 +579,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/demo_config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-load",
@@ -592,7 +588,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/demo_config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-helper",
@@ -601,7 +597,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/demo_config.cr",
-            line: 6
+            span: Chiasmus::Graph::Span.line_range(6),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service",
@@ -610,7 +606,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/service_config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-config",
@@ -619,7 +615,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/service_config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-load",
@@ -628,7 +624,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/service_config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-helper",
@@ -637,7 +633,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/service_config.cr",
-            line: 6
+            span: Chiasmus::Graph::Span.line_range(6),
           ),
         ],
         calls: [
@@ -672,7 +668,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/app.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "config-helper",
@@ -681,7 +677,7 @@ describe Chiasmus::Graph::IR do
             owner_name: "Demo.Config",
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/app.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-helper",
@@ -690,7 +686,7 @@ describe Chiasmus::Graph::IR do
             owner_name: "Demo.Service",
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/app.cr",
-            line: 3
+            span: Chiasmus::Graph::Span.line_range(3),
           ),
         ],
         contains: [
@@ -722,7 +718,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/demo_config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-config",
@@ -731,7 +727,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/demo_config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "demo-load",
@@ -740,7 +736,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/demo_config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service",
@@ -749,7 +745,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Module,
             file: "src/service_config.cr",
-            line: 1
+            span: Chiasmus::Graph::Span.line_range(1),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-config",
@@ -758,7 +754,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Class,
             file: "src/service_config.cr",
-            line: 2
+            span: Chiasmus::Graph::Span.line_range(2),
           ),
           Chiasmus::Graph::IR::SymbolNode.new(
             id: "service-load",
@@ -767,7 +763,7 @@ describe Chiasmus::Graph::IR do
             owner_name: nil,
             kind: Chiasmus::Graph::SymbolKind::Method,
             file: "src/service_config.cr",
-            line: 4
+            span: Chiasmus::Graph::Span.line_range(4),
           ),
         ],
         exports: [

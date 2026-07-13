@@ -9,8 +9,8 @@ describe GraphUtil do
     it "collects all nodes from defines and calls" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, line: 3),
+          DefinesFact.new(file: "a.ts", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "bar", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
         ],
         calls: [
           CallsFact.new(caller: "foo", callee: "bar"),
@@ -28,8 +28,8 @@ describe GraphUtil do
     it "builds symmetric adjacency list" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, line: 2),
+          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [
           CallsFact.new(caller: "a", callee: "b"),
@@ -43,7 +43,7 @@ describe GraphUtil do
     it "drops self-loops" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, line: 1),
+          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
         calls: [
           CallsFact.new(caller: "a", callee: "a"),
@@ -56,8 +56,8 @@ describe GraphUtil do
     it "deduplicates edges" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, line: 2),
+          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [
           CallsFact.new(caller: "a", callee: "b"),
@@ -73,9 +73,9 @@ describe GraphUtil do
     it "visits each undirected edge once" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, line: 2),
-          DefinesFact.new(file: "a.ts", name: "c", kind: SymbolKind::Function, line: 3),
+          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+          DefinesFact.new(file: "a.ts", name: "c", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
         ],
         calls: [
           CallsFact.new(caller: "a", callee: "b"),
@@ -93,9 +93,9 @@ describe GraphUtil do
     it "counts distinct neighbors per node" do
       graph = CodeGraph.new(
         defines: [
-          DefinesFact.new(file: "a.ts", name: "hub", kind: SymbolKind::Function, line: 1),
-          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, line: 2),
-          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, line: 3),
+          DefinesFact.new(file: "a.ts", name: "hub", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "a.ts", name: "a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+          DefinesFact.new(file: "a.ts", name: "b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
         ],
         calls: [
           CallsFact.new(caller: "hub", callee: "a"),

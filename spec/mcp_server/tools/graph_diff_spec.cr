@@ -32,7 +32,8 @@ describe "chiasmus_graph diff analysis via MCP" do
     graph_before = Chiasmus::Graph::CodeGraph.new(
       defines: [
         Chiasmus::Graph::DefinesFact.new(file: go_file, name: "original",
-          kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+          kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1),
+        ),
       ],
     )
     Chiasmus::Graph::GraphCache.save_snapshot("baseline", graph_before, cache_dir)

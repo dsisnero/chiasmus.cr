@@ -418,7 +418,7 @@ module Chiasmus
         end
 
         CodeGraph.new(
-          defines: graph.defines.map { |defn| defn.file == from_path ? DefinesFact.new(file: to_path, name: defn.name, kind: defn.kind, line: defn.line, end_line: defn.end_line, signature: defn.signature, qualified_name: defn.qualified_name) : defn },
+          defines: graph.defines.map { |defn| defn.file == from_path ? DefinesFact.new(file: to_path, name: defn.name, kind: defn.kind, span: defn.span, signature: defn.signature, qualified_name: defn.qualified_name) : defn },
           calls: graph.calls,
           imports: graph.imports.map { |imp| imp.file == from_path ? ImportsFact.new(file: to_path, name: imp.name, source: imp.source) : imp },
           exports: graph.exports.map { |exp| exp.file == from_path ? ExportsFact.new(file: to_path, name: exp.name) : exp },

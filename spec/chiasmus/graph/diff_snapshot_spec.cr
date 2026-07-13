@@ -10,11 +10,11 @@ include Chiasmus::Graph
 describe "Diff analysis with snapshots" do
   it "detects added nodes via GraphDiffer.diff" do
     graph_before = CodeGraph.new(defines: [
-      DefinesFact.new(file: "a.go", name: "foo", kind: SymbolKind::Function, line: 1),
+      DefinesFact.new(file: "a.go", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
     ])
     graph_after = CodeGraph.new(defines: [
-      DefinesFact.new(file: "a.go", name: "foo", kind: SymbolKind::Function, line: 1),
-      DefinesFact.new(file: "b.go", name: "baz", kind: SymbolKind::Function, line: 1),
+      DefinesFact.new(file: "a.go", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "b.go", name: "baz", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
     ])
     result = GraphDiffer.diff(graph_before, graph_after)
     result.added_nodes.should contain("baz")
@@ -22,11 +22,11 @@ describe "Diff analysis with snapshots" do
 
   it "detects removed nodes via GraphDiffer.diff" do
     graph_before = CodeGraph.new(defines: [
-      DefinesFact.new(file: "a.go", name: "oldFunc", kind: SymbolKind::Function, line: 1),
-      DefinesFact.new(file: "a.go", name: "kept", kind: SymbolKind::Function, line: 5),
+      DefinesFact.new(file: "a.go", name: "oldFunc", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "a.go", name: "kept", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
     ])
     graph_after = CodeGraph.new(defines: [
-      DefinesFact.new(file: "a.go", name: "kept", kind: SymbolKind::Function, line: 5),
+      DefinesFact.new(file: "a.go", name: "kept", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
     ])
     result = GraphDiffer.diff(graph_before, graph_after)
     result.removed_nodes.should contain("oldFunc")
@@ -35,7 +35,7 @@ describe "Diff analysis with snapshots" do
   it "round-trips snapshot through GraphCache" do
     cache_dir = File.join(Dir.tempdir, "chiasmus-diff-#{Random::Secure.hex(8)}")
     graph = CodeGraph.new(
-      defines: [DefinesFact.new(file: "a.go", name: "hello", kind: SymbolKind::Function, line: 1)],
+      defines: [DefinesFact.new(file: "a.go", name: "hello", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
     )
     GraphCache.save_snapshot("test-snap", graph, cache_dir)
     loaded = GraphCache.load_snapshot("test-snap", cache_dir)
@@ -52,7 +52,7 @@ describe "Diff analysis with snapshots" do
   it "run_analysis_from_graph with diff no longer returns stub error" do
     cache_dir = File.join(Dir.tempdir, "chiasmus-diff-#{Random::Secure.hex(8)}")
     graph = CodeGraph.new(
-      defines: [DefinesFact.new(file: "a.go", name: "foo", kind: SymbolKind::Function, line: 1)],
+      defines: [DefinesFact.new(file: "a.go", name: "foo", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
     )
     GraphCache.save_snapshot("base", graph, cache_dir)
     result = Analyses.run_analysis_from_graph(
@@ -100,7 +100,7 @@ describe "Diff analysis with snapshots" do
     it "list_snapshots returns saved snapshot names" do
       cache_dir = File.join(Dir.tempdir, "chiasmus-list-#{Random::Secure.hex(8)}")
       graph = CodeGraph.new(
-        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, line: 1)],
+        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
       )
       GraphCache.save_snapshot("snap1", graph, cache_dir)
       GraphCache.save_snapshot("snap2", graph, cache_dir)
@@ -119,7 +119,7 @@ describe "Diff analysis with snapshots" do
     it "delete_snapshot removes a saved snapshot" do
       cache_dir = File.join(Dir.tempdir, "chiasmus-del-#{Random::Secure.hex(8)}")
       graph = CodeGraph.new(
-        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, line: 1)],
+        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
       )
       GraphCache.save_snapshot("temp", graph, cache_dir)
 
@@ -142,7 +142,7 @@ describe "Diff analysis with snapshots" do
     it "clear_repo_cache removes all snapshots" do
       cache_dir = File.join(Dir.tempdir, "chiasmus-clear-#{Random::Secure.hex(8)}")
       graph = CodeGraph.new(
-        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, line: 1)],
+        defines: [DefinesFact.new(file: "a.go", name: "f", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
       )
       GraphCache.save_snapshot("s1", graph, cache_dir)
       GraphCache.save_snapshot("s2", graph, cache_dir)

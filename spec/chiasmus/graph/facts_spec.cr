@@ -36,13 +36,13 @@ describe Chiasmus::Graph::Facts do
           file: "test.ts",
           name: "main",
           kind: Chiasmus::Graph::SymbolKind::Function,
-          line: 1
+          span: Chiasmus::Graph::Span.line_range(1),
         ),
         Chiasmus::Graph::DefinesFact.new(
           file: "test.ts",
           name: "helper",
           kind: Chiasmus::Graph::SymbolKind::Function,
-          line: 5
+          span: Chiasmus::Graph::Span.line_range(5),
         ),
       ],
       calls: [
@@ -55,7 +55,7 @@ describe Chiasmus::Graph::Facts do
 
     program = Chiasmus::Graph::Facts.graph_to_prolog(graph)
 
-    program.should contain("defines('test.ts', main, function, 1, 0).")
+    program.should contain("defines('test.ts', main, function, 1, 1).")
     program.should contain("calls(main, helper).")
     program.should contain("calls_in('test.ts', main, helper).")
     program.should contain("exports('test.ts', main).")
@@ -68,7 +68,7 @@ describe Chiasmus::Graph::Facts do
   it "normalizes duplicate and self-referential contains edges before emitting facts" do
     graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "UserService.fetch", kind: Chiasmus::Graph::SymbolKind::Method, line: 1),
+        Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "UserService.fetch", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1)),
       ],
       contains: [
         Chiasmus::Graph::ContainsFact.new(parent: "UserService", child: "UserService"),
@@ -86,11 +86,11 @@ describe Chiasmus::Graph::Facts do
   it "does not over-assign scoped call facts across duplicate caller names" do
     graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
-        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 9),
-        Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
-        Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, line: 7),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(7)),
       ],
       calls: [
         Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
@@ -139,8 +139,8 @@ describe Chiasmus::Graph::Facts do
     it "produces queryable call facts" do
       graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, line: 2),
+          Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
         ],
         calls: [Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b")],
         imports: [] of Chiasmus::Graph::ImportsFact,
@@ -163,7 +163,7 @@ describe Chiasmus::Graph::Facts do
 
     it "handles file paths with slashes in atoms" do
       graph = Chiasmus::Graph::CodeGraph.new(
-        defines: [Chiasmus::Graph::DefinesFact.new(file: "src/server.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1)],
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "src/server.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
         calls: [] of Chiasmus::Graph::CallsFact,
         imports: [] of Chiasmus::Graph::ImportsFact,
         exports: [] of Chiasmus::Graph::ExportsFact,
@@ -186,8 +186,8 @@ describe Chiasmus::Graph::Facts do
     it "auto-detects entry points from exports" do
       graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "test.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
         ],
         calls: [] of Chiasmus::Graph::CallsFact,
         imports: [] of Chiasmus::Graph::ImportsFact,
@@ -212,9 +212,9 @@ describe Chiasmus::Graph::Facts do
     it "cycle-safe reachability works for transitive calls" do
       graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, line: 2),
-          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "c", kind: Chiasmus::Graph::SymbolKind::Function, line: 3),
+          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "a", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "b", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(2)),
+          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "c", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),
@@ -241,9 +241,9 @@ describe Chiasmus::Graph::Facts do
     it "dead code detection finds unreachable functions" do
       graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "used", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
-          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "unused", kind: Chiasmus::Graph::SymbolKind::Function, line: 10),
+          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "used", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+          Chiasmus::Graph::DefinesFact.new(file: "t.ts", name: "unused", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
         ],
         calls: [Chiasmus::Graph::CallsFact.new(caller: "main", callee: "used")],
         imports: [] of Chiasmus::Graph::ImportsFact,
@@ -268,26 +268,27 @@ describe Chiasmus::Graph::Facts do
     end
   end
 
-  describe "DefinesFact end_line" do
-    it "defaults end_line to 0 for backward compatibility" do
+  describe "DefinesFact span" do
+    it "represents a single-line definition as a span" do
       fact = Chiasmus::Graph::DefinesFact.new(
         file: "test.cr",
         name: "foo",
         kind: Chiasmus::Graph::SymbolKind::Function,
-        line: 10
+        span: Chiasmus::Graph::Span.line_range(10),
       )
-      fact.end_line.should eq(0)
+      fact.span.start_line.should eq(10)
+      fact.span.end_line.should eq(10)
     end
 
-    it "accepts explicit end_line" do
+    it "accepts a multi-line span" do
       fact = Chiasmus::Graph::DefinesFact.new(
         file: "test.cr",
         name: "bar",
         kind: Chiasmus::Graph::SymbolKind::Method,
-        line: 20,
-        end_line: 45
+        span: Chiasmus::Graph::Span.line_range(20, 45),
       )
-      fact.end_line.should eq(45)
+      fact.span.start_line.should eq(20)
+      fact.span.end_line.should eq(45)
     end
 
     it "emits defines/5 with end_line in Prolog facts" do
@@ -295,17 +296,17 @@ describe Chiasmus::Graph::Facts do
         defines: [
           Chiasmus::Graph::DefinesFact.new(
             file: "test.cr", name: "has_range", kind: Chiasmus::Graph::SymbolKind::Function,
-            line: 10, end_line: 25
+            span: Chiasmus::Graph::Span.line_range(10, 25),
           ),
           Chiasmus::Graph::DefinesFact.new(
             file: "test.cr", name: "no_range", kind: Chiasmus::Graph::SymbolKind::Function,
-            line: 30
+            span: Chiasmus::Graph::Span.line_range(30),
           ),
         ]
       )
       program = Chiasmus::Graph::Facts.graph_to_prolog(graph)
       program.should contain("defines('test.cr', has_range, function, 10, 25).")
-      program.should contain("defines('test.cr', no_range, function, 30, 0).")
+      program.should contain("defines('test.cr', no_range, function, 30, 30).")
       program.should contain(":- dynamic(defines/5).")
     end
 
@@ -326,8 +327,8 @@ describe Chiasmus::Graph::Facts do
         hello_def = graph.defines.find { |defn| defn.name == "hello" }
         hello_def.should_not be_nil
         if hello_def
-          hello_def.line.should eq(2)
-          hello_def.end_line.should be > hello_def.line
+          hello_def.span.start_line.should eq(2)
+          hello_def.span.end_line.should be > hello_def.span.start_line
         end
       ensure
         tmp.delete
@@ -338,7 +339,7 @@ describe Chiasmus::Graph::Facts do
   describe "include_insights" do
     it "omits insight facts by default" do
       graph = Chiasmus::Graph::CodeGraph.new(
-        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, line: 1)],
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1))],
       )
       program = Chiasmus::Graph::Facts.graph_to_prolog(graph)
       program.should_not contain("community(")
@@ -350,8 +351,8 @@ describe Chiasmus::Graph::Facts do
     it "emits community and cohesion facts when include_insights is true" do
       graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
-          Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "bar", kind: Chiasmus::Graph::SymbolKind::Function, line: 5),
+          Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "foo", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "a.ts", name: "bar", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "foo", callee: "bar"),
@@ -367,7 +368,7 @@ describe Chiasmus::Graph::Facts do
     it "emits the same program from semantic ir as from a code graph" do
       graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
-          Chiasmus::Graph::DefinesFact.new(file: "demo.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, line: 1),
+          Chiasmus::Graph::DefinesFact.new(file: "demo.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
         ],
         calls: [
           Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
