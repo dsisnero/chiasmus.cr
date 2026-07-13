@@ -13,6 +13,8 @@ module Chiasmus
     # Transactional per-file graph cache metadata and payload storage.
     # SQLite owns the B-tree/page cache; callers do not mirror the manifest.
     class SQLiteCacheStore
+      FETCH_BATCH_SIZE = 400
+
       getter path : String
       @db : DB::Database
 
@@ -23,15 +25,32 @@ module Chiasmus
       end
 
       def fetch(path : String, content_hash : String) : SQLiteCacheEntry?
-        @db.query_one?(
-          "SELECT path, content_hash, origin_path, payload, size, saved_at_ms FROM cache_entries WHERE path = ? AND content_hash = ?",
-          path,
-          content_hash,
-          as: {String, String, String, String, Int64, Int64},
-        ).try do |row|
-          @db.exec("UPDATE cache_entries SET saved_at_ms = ? WHERE path = ?", Time.utc.to_unix_ms, path)
-          SQLiteCacheEntry.new(row[0], row[1], row[2], row[3], row[4], row[5])
+        fetch_many([{path: path, content_hash: content_hash}]).first?
+      end
+
+      def fetch_many(
+        keys : Array(NamedTuple(path: String, content_hash: String)),
+      ) : Array(SQLiteCacheEntry?)
+        return [] of SQLiteCacheEntry? if keys.empty?
+
+        paths = keys.map(&.[:path]).uniq!
+        matches = {} of Tuple(String, String) => SQLiteCacheEntry
+
+        paths.each_slice(FETCH_BATCH_SIZE) do |batch|
+          placeholders = Array(String).new(batch.size, "?").join(',')
+          rows = @db.query_all(
+            "SELECT path, content_hash, origin_path, payload, size, saved_at_ms FROM cache_entries WHERE path IN (#{placeholders})",
+            args: batch,
+            as: {String, String, String, String, Int64, Int64},
+          )
+          rows.each do |row|
+            matches[{row[0], row[1]}] = SQLiteCacheEntry.new(row[0], row[1], row[2], row[3], row[4], row[5])
+          end
         end
+
+        results = keys.map { |key| matches[{key[:path], key[:content_hash]}]? }
+        touch(results.compact_map { |entry| entry.try(&.path) }.uniq!)
+        results
       end
 
       def apply_batch(upserts : Array(SQLiteCacheEntry), deletes : Array(String)) : Nil
@@ -91,6 +110,25 @@ module Chiasmus
 
       def close : Nil
         @db.close
+      end
+
+      private def touch(paths : Array(String)) : Nil
+        return if paths.empty?
+
+        now = Time.utc.to_unix_ms
+        @db.transaction do |transaction|
+          connection = transaction.connection
+          paths.each_slice(FETCH_BATCH_SIZE) do |batch|
+            placeholders = Array(String).new(batch.size, "?").join(',')
+            args = [] of DB::Any
+            args << now
+            batch.each { |path| args << path }
+            connection.exec(
+              "UPDATE cache_entries SET saved_at_ms = ? WHERE path IN (#{placeholders})",
+              args: args,
+            )
+          end
+        end
       end
 
       private def migrate : Nil

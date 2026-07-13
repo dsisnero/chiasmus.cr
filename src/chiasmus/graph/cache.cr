@@ -101,13 +101,15 @@ module Chiasmus
         paths = resolve_cache_paths(cache_dir, repo_key)
         identities = build_cache_identities(files)
         store = sqlite_store(paths["database_path"])
+        cached_entries = store.fetch_many(identities.map do |identity|
+          {path: identity.manifest_path, content_hash: identity.hash}
+        end)
 
         hits = [] of NamedTuple(path: String, graph: CodeGraph)
         misses = [] of NamedTuple(path: String, content: String)
 
         files.each_with_index do |file_info, index|
-          identity = identities[index]
-          if entry = store.fetch(identity.manifest_path, identity.hash)
+          if entry = cached_entries[index]
             begin
               graph = rewrite_cached_graph_paths(
                 GraphCodec.decode(entry.payload),

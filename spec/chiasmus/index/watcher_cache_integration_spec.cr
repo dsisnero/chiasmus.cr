@@ -111,8 +111,9 @@ describe "Watcher + Cache integration" do
         initial_facts.should contain(initial_helper)
 
         cache_paths = GraphCache.resolve_cache_paths(cache_dir, repo_key)
-        cache_store = SQLiteCacheStore.new(cache_paths["database_path"])
-        cache_store.paths.should contain(file_path)
+        store = SQLiteCacheStore.new(cache_paths["database_path"])
+        cache_store = store
+        store.paths.should contain(file_path)
         GraphCache.check_file_cache(
           [{path: file_path, content: initial_source}],
           cache_dir,
@@ -144,7 +145,7 @@ describe "Watcher + Cache integration" do
         wait_until do
           index.definitions_in_file(file_path).empty? &&
             index.callers_of(updated_helper).empty? &&
-            !cache_store.not_nil!.paths.includes?(file_path)
+            !store.paths.includes?(file_path)
         end.should be_true
 
         index.definitions_named(updated_entry).should be_empty

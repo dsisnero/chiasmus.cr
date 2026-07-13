@@ -54,6 +54,39 @@ describe SQLiteCacheStore do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "fetches matching entries in one batch and refreshes their LRU timestamps" do
+    dir = File.tempname("chiasmus-sqlite-cache-fetch-many")
+    Dir.mkdir_p(dir)
+    store = SQLiteCacheStore.new(File.join(dir, "graph-cache.sqlite3"))
+
+    begin
+      store.apply_batch([
+        SQLiteCacheEntry.new("src/a.cr", "hash-a", "/repo/src/a.cr", "graph-a", 7_i64, 1_i64),
+        SQLiteCacheEntry.new("src/b.cr", "hash-b", "/repo/src/b.cr", "graph-b", 7_i64, 1_i64),
+      ], [] of String)
+
+      matches = store.fetch_many([
+        {path: "src/a.cr", content_hash: "hash-a"},
+        {path: "src/a.cr", content_hash: "stale-a-hash"},
+        {path: "src/b.cr", content_hash: "stale-hash"},
+        {path: "src/missing.cr", content_hash: "hash-missing"},
+      ])
+
+      matched = matches[0] || raise "expected matching batch entry"
+      matched.payload.should eq("graph-a")
+      matches[1].should be_nil
+      matches[2].should be_nil
+      matches[3].should be_nil
+      refreshed = store.fetch("src/a.cr", "hash-a") || raise "expected refreshed entry"
+      untouched = store.fetch("src/b.cr", "hash-b") || raise "expected untouched entry"
+      refreshed.saved_at_ms.should be > 1_i64
+      untouched.saved_at_ms.should eq(1_i64)
+    ensure
+      store.close
+      FileUtils.rm_rf(dir)
+    end
+  end
 end
 
 describe GraphCache do
