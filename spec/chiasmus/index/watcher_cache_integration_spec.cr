@@ -1,8 +1,10 @@
 require "spec"
 require "file_utils"
+require "random/secure"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/cache"
 require "../../../src/chiasmus/graph/extractor"
+require "../../../src/chiasmus/graph/facts"
 require "../../../src/chiasmus/index/project_index"
 require "../../../src/chiasmus/index/watcher"
 
@@ -29,6 +31,144 @@ private def wait_until(timeout = 2.seconds, interval = 10.milliseconds, &conditi
 end
 
 describe "Watcher + Cache integration" do
+  it "adds, updates, and deletes a Crystal file across the index, facts, and SQLite cache" do
+    with_temp_dir do |dir|
+      src_dir = File.join(dir, "src")
+      Dir.mkdir(src_dir)
+
+      suffix = Random::Secure.hex(6)
+      baseline_path = File.join(src_dir, "watcher_baseline_#{suffix}.cr")
+      file_path = File.join(src_dir, "watcher_lifecycle_#{suffix}.cr")
+      initial_helper = "cache_initial_helper_#{suffix}"
+      initial_entry = "cache_initial_entry_#{suffix}"
+      updated_helper = "cache_updated_helper_#{suffix}"
+      updated_entry = "cache_updated_entry_#{suffix}"
+      initial_source = <<-CR
+        def #{initial_helper}
+          41
+        end
+
+        def #{initial_entry}
+          #{initial_helper}
+        end
+        CR
+      updated_source = <<-CR
+        def #{updated_helper}
+          42
+        end
+
+        def #{updated_entry}
+          #{updated_helper}
+        end
+        CR
+      File.write(baseline_path, "# watcher startup sentinel\n")
+
+      cache_dir = File.join(dir, ".cache")
+      repo_key = GraphCache.default_repo_key(dir)
+      index = ProjectIndex.new
+      cache_store : SQLiteCacheStore? = nil
+      added_paths = Channel(String).new(1)
+      watcher = Watcher.new(dir, interval: 0.02.seconds) do |changes|
+        changes.added.each { |path| added_paths.send(path) }
+        spawn do
+          deleted_paths = changes.deleted.map { |path| File.join(dir, path) }
+          graphs = changes.changed.compact_map do |path|
+            Extractor.extract_and_cache_file(
+              File.join(dir, path),
+              cache_dir: cache_dir,
+              repo_key: repo_key,
+            )
+          end
+
+          index.apply_batch(graphs, deleted_paths)
+          GraphCache.invalidate_file_cache(deleted_paths, cache_dir, repo_key: repo_key) unless deleted_paths.empty?
+        end
+      end
+
+      begin
+        spawn { watcher.run }
+        baseline_relative = Path.new(baseline_path).relative_to(dir).to_s
+        wait_until { watcher.watched_files.includes?(baseline_relative) }.should be_true
+
+        File.write(file_path, initial_source)
+        added_relative = select
+        when path = added_paths.receive
+          path
+        when timeout(2.seconds)
+          raise "watcher did not report the added Crystal file"
+        end
+        added_relative.should eq(Path.new(file_path).relative_to(dir).to_s)
+        wait_until { index.definitions_named(initial_entry).size == 1 }.should be_true
+
+        initial_graph = index.graph_for([file_path]) || raise "expected added file graph"
+        initial_graph.files.try(&.map(&.path)).should eq([file_path])
+        initial_graph.defines.map(&.name).should contain(initial_helper)
+        initial_graph.defines.map(&.name).should contain(initial_entry)
+        initial_graph.calls.any? { |call| call.caller == initial_entry && call.callee == initial_helper }.should be_true
+
+        initial_facts = Facts.graph_to_prolog(index.graph)
+        initial_facts.should contain(initial_entry)
+        initial_facts.should contain(initial_helper)
+
+        cache_paths = GraphCache.resolve_cache_paths(cache_dir, repo_key)
+        cache_store = SQLiteCacheStore.new(cache_paths["database_path"])
+        cache_store.paths.should contain(file_path)
+        GraphCache.check_file_cache(
+          [{path: file_path, content: initial_source}],
+          cache_dir,
+          repo_key: repo_key,
+        )[:hits].size.should eq(1)
+
+        File.write(file_path, updated_source)
+        wait_until do
+          index.definitions_named(updated_entry).size == 1 &&
+            index.definitions_named(initial_entry).empty?
+        end.should be_true
+
+        index.definitions_named(initial_helper).should be_empty
+        index.callers_of(initial_helper).should be_empty
+        index.callees_of(updated_entry).map(&.callee).should contain(updated_helper)
+
+        updated_facts = Facts.graph_to_prolog(index.graph)
+        updated_facts.should contain(updated_entry)
+        updated_facts.should contain(updated_helper)
+        updated_facts.should_not contain(initial_entry)
+        updated_facts.should_not contain(initial_helper)
+        GraphCache.check_file_cache(
+          [{path: file_path, content: updated_source}],
+          cache_dir,
+          repo_key: repo_key,
+        )[:hits].size.should eq(1)
+
+        File.delete(file_path)
+        wait_until do
+          index.definitions_in_file(file_path).empty? &&
+            index.callers_of(updated_helper).empty? &&
+            !cache_store.not_nil!.paths.includes?(file_path)
+        end.should be_true
+
+        index.definitions_named(updated_entry).should be_empty
+        index.definitions_named(updated_helper).should be_empty
+        (index.graph.files || [] of FileNode).map(&.path).should_not contain(file_path)
+
+        deleted_facts = Facts.graph_to_prolog(index.graph)
+        deleted_facts.should_not contain(updated_entry)
+        deleted_facts.should_not contain(updated_helper)
+        GraphCache.check_file_cache(
+          [{path: file_path, content: updated_source}],
+          cache_dir,
+          repo_key: repo_key,
+        )[:misses].size.should eq(1)
+      ensure
+        watcher.stop
+        watcher.wait
+        index.close
+        cache_store.try(&.close)
+        GraphCache.close_file_cache_stores_for_test
+      end
+    end
+  end
+
   it "extract_and_cache_file saves graph and returns it" do
     with_temp_dir do |dir|
       file_path = File.join(dir, "test.cr")
