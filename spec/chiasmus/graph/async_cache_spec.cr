@@ -11,7 +11,6 @@ describe "async cache persistence" do
   it "extract_graph returns before cache persistence completes, then flush writes the cache" do
     tmpdir = File.join(Dir.tempdir, "async-cache-#{Random::Secure.hex(8)}")
     cache_dir = File.join(tmpdir, "cache")
-    repo_key = GraphCache.default_repo_key(Dir.current)
     Dir.mkdir_p(cache_dir)
 
     file_path = File.join(tmpdir, "test.cr")
@@ -43,16 +42,17 @@ describe "async cache persistence" do
       names = cached_graph.defines.map(&.name).to_set
       names.should contain("X")
 
-      cache_files = Dir.glob(File.join(cache_dir, repo_key, "files", "*.json"))
-      cache_files.should be_empty
+      before_flush = GraphCache.check_file_cache([{path: file_path, content: File.read(file_path)}], cache_dir)
+      before_flush[:hits].should be_empty
 
       release.send(true)
       GraphCache.flush_async_writes
 
-      cache_files = Dir.glob(File.join(cache_dir, repo_key, "files", "*.json"))
-      cache_files.should_not be_empty
+      after_flush = GraphCache.check_file_cache([{path: file_path, content: File.read(file_path)}], cache_dir)
+      after_flush[:hits].size.should eq(1)
     ensure
       GraphCache.clear_before_file_cache_write_hook_for_test
+      GraphCache.close_file_cache_stores_for_test
       FileUtils.rm_rf(tmpdir)
     end
   end

@@ -43,9 +43,11 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
         Chiasmus::Graph::GraphCache.flush_async_writes
 
         paths = Chiasmus::Graph::GraphCache.resolve_cache_paths(cache_dir)
-        File.exists?(paths["manifest_path"]).should be_true
+        File.exists?(paths["database_path"]).should be_true
+        File.exists?(paths["manifest_path"]).should be_false
       end
     ensure
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
       File.delete(file) if File.exists?(file)
       FileUtils.rm_rf(cache_dir)
     end

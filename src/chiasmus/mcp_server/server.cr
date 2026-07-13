@@ -257,6 +257,7 @@ module Chiasmus
         mcp.on_close do
           STDERR.puts "[Chiasmus] MCP server shutting down"
           Graph::GraphCache.flush_async_writes rescue nil
+          Graph::GraphCache.close_file_cache_stores rescue nil
           @skill_library.close rescue nil
           @project_index.close rescue nil
           wg.done

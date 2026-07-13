@@ -1,18 +1,17 @@
 # Ported from vendor/chiasmus/src/graph/cache.ts
 #
-# On-disk cache for per-file CodeGraph extraction results.
-# SHA-256 content+path keying, atomic writes, LRU eviction by mtime.
-# Single-process (no file locking).
+# SQLite WAL cache for per-file CodeGraph extraction results, plus atomic JSON
+# files for named snapshots. SHA-256 content/path identities preserve worktree
+# reuse while SQLite transactions replace the former manifest/blob protocol.
 
 require "openssl"
-require "json"
 require "./types"
+require "./graph_codec"
+require "./sqlite_cache_store"
 require "tree-sitter-manager"
 
 module Chiasmus
   module Graph
-    CACHE_SCHEMA_VERSION = "5"
-
     DEFAULT_MAX_BYTES = 64 * 1024 * 1024 # 64 MB
 
     module GraphCache
@@ -50,6 +49,8 @@ module Chiasmus
       @@write_channel : Channel(AsyncWriteRequest)? = nil
       @@before_file_cache_write_hook : Proc(Nil)? = nil
       @@before_snapshot_write_hook : Proc(Nil)? = nil
+      @@store_mutex = Mutex.new
+      @@stores = Hash(String, SQLiteCacheStore).new
 
       # SHA-256(content + \0 + path) → hex digest
       def file_hash(content : String, abs_path : String) : String
@@ -86,6 +87,7 @@ module Chiasmus
           "repo_dir"      => repo_dir,
           "files_dir"     => File.join(repo_dir, "files"),
           "manifest_path" => File.join(repo_dir, "manifest.json"),
+          "database_path" => File.join(repo_dir, "graph-cache.sqlite3"),
         }
       end
 
@@ -97,27 +99,21 @@ module Chiasmus
         repo_key : String? = nil,
       ) : NamedTuple(hits: Array(NamedTuple(path: String, graph: CodeGraph)), misses: Array(NamedTuple(path: String, content: String)))
         paths = resolve_cache_paths(cache_dir, repo_key)
-        manifest = load_manifest(paths)
         identities = build_cache_identities(files)
+        store = sqlite_store(paths["database_path"])
 
         hits = [] of NamedTuple(path: String, graph: CodeGraph)
         misses = [] of NamedTuple(path: String, content: String)
 
         files.each_with_index do |file_info, index|
           identity = identities[index]
-          entry = manifest["entries"].as_h[identity.manifest_path]?
-          entry_hash = entry.try(&.["hash"].as_s)
-          if entry_hash && entry_hash == identity.hash
-            cache_path = File.join(paths["files_dir"], "#{identity.hash}.json")
+          if entry = store.fetch(identity.manifest_path, identity.hash)
             begin
-              raw = File.read(cache_path)
               graph = rewrite_cached_graph_paths(
-                code_graph_from_json(raw),
-                entry_origin_path(entry) || identity.origin_path,
+                GraphCodec.decode(entry.payload),
+                entry.origin_path,
                 file_info[:path]
               )
-              # Best-effort mtime bump for LRU
-              File.utime(Time.utc, Time.utc, cache_path) rescue nil
               hits << {path: file_info[:path], graph: graph}
             rescue
               misses << file_info
@@ -139,44 +135,17 @@ module Chiasmus
       ) : Nil
         return if items.empty?
         before_file_cache_write_hook.try(&.call)
-        superseded_hashes = [] of String
-        @@mutex.synchronize do
-          paths = resolve_cache_paths(cache_dir, repo_key)
-          Dir.mkdir_p(paths["files_dir"])
-
-          manifest = load_manifest(paths)
-          identities = build_cache_identities(items.map { |item| {path: item[:path], content: item[:content]} })
-
-          items.each_with_index do |item, index|
-            identity = identities[index]
-            entry = manifest["entries"].as_h
-            if previous = entry[identity.manifest_path]?
-              previous_hash = previous["hash"]?.try(&.as_s?)
-              superseded_hashes << previous_hash if previous_hash && previous_hash != identity.hash
-            end
-
-            serialized = code_graph_to_json(item[:graph])
-            cache_path = File.join(paths["files_dir"], "#{identity.hash}.json")
-            tmp = unique_tmp_path(cache_path)
-            File.write(tmp, serialized)
-            File.rename(tmp, cache_path)
-
-            entry[identity.manifest_path] = JSON.parse({
-              "hash"       => identity.hash,
-              "size"       => serialized.bytesize.to_s,
-              "savedAt"    => Time.utc.to_unix_ms.to_s,
-              "originPath" => identity.origin_path,
-            }.to_json)
-          end
-
-          write_manifest(paths, manifest)
-          evict_if_over_budget(paths, manifest, max_bytes)
+        paths = resolve_cache_paths(cache_dir, repo_key)
+        identities = build_cache_identities(items.map { |item| {path: item[:path], content: item[:content]} })
+        now = Time.utc.to_unix_ms
+        entries = items.map_with_index do |item, index|
+          identity = identities[index]
+          payload = GraphCodec.encode(item[:graph])
+          SQLiteCacheEntry.new(identity.manifest_path, identity.hash, identity.origin_path, payload, payload.bytesize.to_i64, now)
         end
-
-        files_dir = resolve_cache_paths(cache_dir, repo_key)["files_dir"]
-        superseded_hashes.uniq!.each do |hash|
-          File.delete(File.join(files_dir, "#{hash}.json")) rescue nil
-        end
+        store = sqlite_store(paths["database_path"])
+        store.apply_batch(entries, [] of String)
+        store.evict_over_budget(max_bytes)
       end
 
       def save_file_cache_async(
@@ -190,18 +159,13 @@ module Chiasmus
       end
 
       def evict_lru(cache_dir : String, repo_key : String? = nil, max_bytes : Int32 = DEFAULT_MAX_BYTES) : Nil
-        @@mutex.synchronize do
-          paths = resolve_cache_paths(cache_dir, repo_key)
-          manifest = load_manifest(paths)
-          evict_if_over_budget(paths, manifest, max_bytes)
-        end
+        sqlite_store(resolve_cache_paths(cache_dir, repo_key)["database_path"]).evict_over_budget(max_bytes)
       end
 
       def clear_repo_cache(cache_dir : String, repo_key : String? = nil) : Nil
-        @@mutex.synchronize do
-          paths = resolve_cache_paths(cache_dir, repo_key)
-          FileUtils.rm_rf(paths["repo_dir"]) rescue nil
-        end
+        paths = resolve_cache_paths(cache_dir, repo_key)
+        close_sqlite_store(paths["database_path"])
+        FileUtils.rm_rf(paths["repo_dir"]) rescue nil
       end
 
       # Invalidate cache entries for specific file paths.
@@ -214,40 +178,15 @@ module Chiasmus
         cache_dir : String,
         repo_key : String? = nil,
       ) : Nil
-        stale_hashes = [] of String
-
-        @@mutex.synchronize do
-          paths = resolve_cache_paths(cache_dir, repo_key)
-          manifest = load_manifest(paths)
-          entries = manifest["entries"].as_h
-          modified = false
-
-          file_paths.each do |abs_path|
-            manifest_key = if ctx = git_repo_context_for(abs_path)
-                             repo_relative_path(ctx.repo_root, abs_path) || abs_path
-                           else
-                             abs_path
-                           end
-
-            if entry = entries.delete(manifest_key)
-              modified = true
-              if hash_val = entry["hash"]?.try(&.as_s?)
-                stale_hashes << hash_val
-              end
-            end
+        paths = resolve_cache_paths(cache_dir, repo_key)
+        keys = file_paths.map do |abs_path|
+          if context = git_repo_context_for(abs_path)
+            repo_relative_path(context.repo_root, abs_path) || abs_path
+          else
+            abs_path
           end
-
-          if modified
-            write_manifest(paths, manifest)
-          end
-          prune_orphaned_file_cache(paths, entries)
         end
-
-        # Delete stale cache files outside the lock.
-        files_dir = resolve_cache_paths(cache_dir, repo_key)["files_dir"]
-        stale_hashes.each do |hash|
-          File.delete(File.join(files_dir, "#{hash}.json")) rescue nil
-        end
+        sqlite_store(paths["database_path"]).apply_batch([] of SQLiteCacheEntry, keys)
       end
 
       # --- Snapshots ---
@@ -263,7 +202,7 @@ module Chiasmus
 
           target = File.join(snap_dir, "#{name}.json")
           tmp = unique_tmp_path(target)
-          File.write(tmp, code_graph_to_json(graph))
+          File.write(tmp, GraphCodec.encode(graph))
           File.rename(tmp, target)
         end
       end
@@ -283,7 +222,7 @@ module Chiasmus
         paths = resolve_cache_paths(cache_dir, repo_key)
         target = File.join(paths["repo_dir"], "snapshots", "#{name}.json")
         return nil unless File.exists?(target)
-        code_graph_from_json(File.read(target))
+        GraphCodec.decode(File.read(target))
       rescue
         nil
       end
@@ -324,7 +263,31 @@ module Chiasmus
         @@writer_mutex.synchronize { @@before_snapshot_write_hook = nil }
       end
 
+      def close_file_cache_stores : Nil
+        stores = @@store_mutex.synchronize do
+          values = @@stores.values
+          @@stores.clear
+          values
+        end
+        stores.each(&.close)
+      end
+
+      def close_file_cache_stores_for_test : Nil
+        close_file_cache_stores
+      end
+
       # --- Private helpers ---
+
+      private def sqlite_store(database_path : String) : SQLiteCacheStore
+        @@store_mutex.synchronize do
+          @@stores[database_path] ||= SQLiteCacheStore.new(database_path)
+        end
+      end
+
+      private def close_sqlite_store(database_path : String) : Nil
+        store = @@store_mutex.synchronize { @@stores.delete(database_path) }
+        store.try(&.close)
+      end
 
       private def async_write_channel : Channel(AsyncWriteRequest)
         @@writer_mutex.synchronize do
@@ -425,10 +388,6 @@ module Chiasmus
 
       private def git_blob_hash(blob_oid : String, logical_path : String) : String
         OpenSSL::Digest.new("SHA256").update(blob_oid).update("\u0000").update(logical_path).final.hexstring
-      end
-
-      private def entry_origin_path(entry : JSON::Any?) : String?
-        entry.try(&.as_h["originPath"]?).try(&.as_s?)
       end
 
       private def rewrite_cached_graph_paths(graph : CodeGraph, from_path : String, to_path : String) : CodeGraph
@@ -579,242 +538,8 @@ module Chiasmus
         nil
       end
 
-      private def load_manifest(paths : Hash(String, String)) : Hash(String, JSON::Any)
-        unless File.exists?(paths["manifest_path"])
-          return Hash(String, JSON::Any).new.tap { |hash|
-            hash["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION)
-            hash["entries"] = JSON.parse(%({}))
-          }
-        end
-        raw = File.read(paths["manifest_path"]) rescue return Hash(String, JSON::Any).new.tap { |hash| hash["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION); hash["entries"] = JSON.parse(%({})) }
-        parsed = JSON.parse(raw).as_h
-        schema = parsed["schemaVersion"]?
-        unless schema && schema.raw.is_a?(String) && schema.raw.as(String) == CACHE_SCHEMA_VERSION
-          return Hash(String, JSON::Any).new.tap { |hash|
-            hash["schemaVersion"] = JSON::Any.new(CACHE_SCHEMA_VERSION)
-            hash["entries"] = JSON.parse(%({}))
-          }
-        end
-        parsed
-      end
-
-      private def write_manifest(paths : Hash(String, String), manifest : Hash(String, JSON::Any)) : Nil
-        tmp = unique_tmp_path(paths["manifest_path"])
-        File.write(tmp, manifest.to_json)
-        File.rename(tmp, paths["manifest_path"])
-      end
-
-      private def fresh_manifest : JSON::Any
-        JSON.parse({
-          "schemaVersion" => CACHE_SCHEMA_VERSION,
-          "entries"       => {} of String => Hash(String, JSON::Any),
-        }.to_json)
-      end
-
-      private def code_graph_to_json(graph : CodeGraph) : String
-        json = {
-          "defines" => graph.defines.map { |defn|
-            h = {"file" => defn.file, "name" => defn.name, "kind" => defn.kind.to_s, "line" => defn.line}
-            h = h.merge({"end_line" => defn.end_line}) if defn.end_line > 0
-            h = h.merge({"qualified_name" => defn.qualified_name}) if defn.qualified_name
-            h
-          },
-          "calls" => graph.calls.map { |call_fact|
-            h = {"caller" => call_fact.caller, "callee" => call_fact.callee}
-            callee_qn = call_fact.callee_qn
-            h = h.merge({"callee_qn" => callee_qn}) if callee_qn
-            caller_qn = call_fact.caller_qn
-            h = h.merge({"caller_qn" => caller_qn}) if caller_qn
-            h
-          },
-          "imports"  => graph.imports.map { |i| {"file" => i.file, "name" => i.name, "source" => i.source} },
-          "exports"  => graph.exports.map { |e| {"file" => e.file, "name" => e.name} },
-          "contains" => graph.contains.map { |cont| {"parent" => cont.parent, "child" => cont.child} },
-        }
-        graph.files.try do |fns|
-          json = json.merge({
-            "files" => fns.map { |file_node|
-              h = {"path" => file_node.path, "language" => file_node.language}
-              h = h.merge({"line_count" => file_node.line_count}) if file_node.line_count
-              h = h.merge({"token_estimate" => file_node.token_estimate}) if file_node.token_estimate
-              h = h.merge({"file_doc" => file_node.file_doc}) if file_node.file_doc
-              h
-            },
-          })
-        end
-        graph.type_info.try do |type_inf|
-          json = json.merge({
-            "_typeInfo" => type_inf.map { |type_entry|
-              h = {"file" => type_entry.file}
-              h = h.merge({"class_fields" => type_entry.class_fields.map { |class_field|
-                {"class_name" => class_field.class_name, "fields" => class_field.fields}
-              }})
-              h = h.merge({"class_methods" => type_entry.class_methods.try(&.map { |class_meth|
-                {"class_name" => class_meth.class_name, "methods" => class_meth.methods}
-              })}) if type_entry.class_methods
-              h = h.merge({"class_extends" => type_entry.class_extends.try(&.map { |class_ext|
-                {"class_name" => class_ext.class_name, "parent" => class_ext.parent}
-              })}) if type_entry.class_extends
-              h = h.merge({"pending_calls" => type_entry.pending_calls.map { |pending|
-                {
-                  "caller"          => pending.caller,
-                  "callee"          => pending.callee,
-                  "receiver_chain"  => pending.receiver_chain,
-                  "enclosing_class" => pending.enclosing_class,
-                  "var_types"       => pending.var_types,
-                }
-              }})
-              h
-            },
-          })
-        end
-        json.to_json
-      end
-
-      private def code_graph_from_json(raw : String) : CodeGraph
-        parsed = JSON.parse(raw)
-        files = parsed["files"]?.try do |fns|
-          fns.as_a.map { |file_node|
-            h = file_node.as_h
-            FileNode.new(
-              path: h["path"].as_s,
-              language: h["language"].as_s,
-              line_count: h["line_count"]?.try(&.as_i?),
-              token_estimate: h["token_estimate"]?.try(&.as_i?),
-              file_doc: h["file_doc"]?.try(&.as_s?),
-            )
-          }
-        end
-        type_info = parsed["_typeInfo"]?.try do |entries|
-          entries.as_a.map do |type_entry|
-            h = type_entry.as_h
-            FileTypeInfo.new(
-              file: h["file"].as_s,
-              class_fields: h["class_fields"]?.try(&.as_a.map { |class_field|
-                field_hash = class_field.as_h
-                ClassFieldEntry.new(
-                  class_name: field_hash["class_name"].as_s,
-                  fields: field_hash["fields"].as_h.transform_values(&.as_s)
-                )
-              }) || [] of ClassFieldEntry,
-              class_methods: h["class_methods"]?.try(&.as_a.map { |class_method|
-                method_hash = class_method.as_h
-                ClassMethodEntry.new(
-                  class_name: method_hash["class_name"].as_s,
-                  methods: method_hash["methods"].as_a.map(&.as_s)
-                )
-              }),
-              class_extends: h["class_extends"]?.try(&.as_a.map { |class_extend|
-                extend_hash = class_extend.as_h
-                ClassExtendsEntry.new(
-                  class_name: extend_hash["class_name"].as_s,
-                  parent: extend_hash["parent"].as_s
-                )
-              }),
-              pending_calls: h["pending_calls"]?.try(&.as_a.map { |pending_call|
-                pending_hash = pending_call.as_h
-                PendingCall.new(
-                  caller: pending_hash["caller"].as_s,
-                  callee: pending_hash["callee"].as_s,
-                  receiver_chain: pending_hash["receiver_chain"]?.try(&.as_a.map(&.as_s)) || [] of String,
-                  enclosing_class: pending_hash["enclosing_class"]?.try(&.as_s?),
-                  var_types: pending_hash["var_types"]?.try(&.as_h.transform_values(&.as_s)) || Hash(String, String).new
-                )
-              }) || [] of PendingCall
-            )
-          end
-        end
-        CodeGraph.new(
-          defines: parsed["defines"].as_a.map { |defn|
-            DefinesFact.new(file: defn["file"].as_s, name: defn["name"].as_s, kind: SymbolKind.parse(defn["kind"].as_s), line: defn["line"].as_i, end_line: defn["end_line"]?.try(&.as_i?) || 0, qualified_name: defn["qualified_name"]?.try(&.as_s?))
-          },
-          calls: parsed["calls"].as_a.map { |call_fact|
-            CallsFact.new(caller: call_fact["caller"].as_s, callee: call_fact["callee"].as_s, callee_qn: call_fact["callee_qn"]?.try(&.as_s?), caller_qn: call_fact["caller_qn"]?.try(&.as_s?))
-          },
-          imports: parsed["imports"].as_a.map { |i|
-            ImportsFact.new(file: i["file"].as_s, name: i["name"].as_s, source: i["source"].as_s)
-          },
-          exports: parsed["exports"].as_a.map { |e|
-            ExportsFact.new(file: e["file"].as_s, name: e["name"].as_s)
-          },
-          contains: parsed["contains"].as_a.map { |cont|
-            ContainsFact.new(parent: cont["parent"].as_s, child: cont["child"].as_s)
-          },
-          files: files,
-          type_info: type_info,
-        )
-      end
-
-      private def write_manifest(paths : Hash(String, String), manifest : JSON::Any) : Nil
-        tmp = unique_tmp_path(paths["manifest_path"])
-        File.write(tmp, manifest.to_json)
-        File.rename(tmp, paths["manifest_path"])
-      end
-
-      # Remove content-addressed graph blobs no longer reachable from the
-      # manifest. Deletion invalidation calls this while holding @@mutex, so an
-      # async writer cannot publish a new blob between the reference snapshot
-      # and the sweep.
-      private def prune_orphaned_file_cache(paths : Hash(String, String), entries : Hash(String, JSON::Any)) : Nil
-        files_dir = paths["files_dir"]
-        return unless Dir.exists?(files_dir)
-
-        referenced = entries.values.compact_map { |entry| entry["hash"]?.try(&.as_s?) }.to_set
-        Dir.children(files_dir).each do |name|
-          next unless name.ends_with?(".json")
-          next if referenced.includes?(name.rchop(".json"))
-
-          File.delete(File.join(files_dir, name)) rescue nil
-        end
-      end
-
       private def unique_tmp_path(path : String) : String
         "#{path}.tmp.#{Random::Secure.hex(8)}"
-      end
-
-      private def evict_if_over_budget(paths : Hash(String, String), manifest : Hash(String, JSON::Any), budget : Int32) : Nil
-        entries = manifest["entries"].as_h
-        manifest_total = entries.values.sum(&.["size"].as_s.to_i)
-        return if manifest_total <= budget
-
-        files_dir = paths["files_dir"]
-        return unless Dir.exists?(files_dir)
-
-        disk_entries = [] of NamedTuple(name: String, size: Int64, mtime: Time, path: String)
-        Dir.children(files_dir).each do |name|
-          next unless name.ends_with?(".json")
-          p = File.join(files_dir, name)
-          begin
-            st = File.info(p)
-            disk_entries << {name: name, size: st.size, mtime: st.modification_time, path: p}
-          rescue
-          end
-        end
-
-        total = disk_entries.sum(&.[:size]).to_i
-        return if total <= budget
-
-        disk_entries.sort_by!(&.[:mtime])
-
-        # Build hash→filePath index
-        hash_to_path = Hash(String, String).new
-        entries.each { |file_path, entry| hash_to_path[entry["hash"].as_s] = file_path }
-
-        changed = false
-        disk_entries.each do |e|
-          break if total <= budget
-          begin
-            File.delete(e[:path])
-            total -= e[:size].to_i.to_i32
-            h = e[:name].sub(/\.json$/, "")
-            fp = hash_to_path[h]?
-            entries.delete(fp) if fp
-            changed = true
-          rescue
-          end
-        end
-
-        write_manifest(paths, manifest) if changed
       end
     end
   end

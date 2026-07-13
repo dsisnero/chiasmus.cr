@@ -26,20 +26,30 @@ roughly 290 MiB before cache work could start. The project Worktrunk hooks now:
 Runtime grammar libraries should be supplied through XDG or
 `CHIASMUS_GRAMMAR_DIR`; a grammar source submodule is not a runtime dependency.
 
-## Migration still required
+## Integrated design
 
-The prototype deliberately does not route the existing `GraphCache` public API
-through SQLite yet. Before changing the default backend:
+- `GraphCodec` uses `JSON::Serializable` wire DTOs and is shared by SQLite
+  entries and named snapshots. The wire schema is isolated from runtime graph
+  records and preserves signatures and qualified names.
+- `check_file_cache`, `save_file_cache`, `invalidate_file_cache`, and LRU
+  eviction now use `SQLiteCacheStore`; no in-memory manifest mirror exists.
+- One transaction applies each cache batch. A small crystal-db connection pool
+  permits overlapping readers while WAL and the busy timeout coordinate writes.
+- Named snapshots remain atomic JSON files because they are immutable named
+  artifacts rather than mutable cache rows.
+- The migration intentionally starts a fresh `graph-cache.sqlite3` and leaves
+  old `manifest.json` caches untouched. No importer is planned unless users
+  report that preserving warm caches is worth the extra one-time code.
+- Watcher deletion removes the corresponding primary-key row, so superseded or
+  deleted graph payloads cannot remain as unreachable blob files.
 
-1. Move `CodeGraph` serialization behind a backend-neutral codec.
-2. Adapt `check_file_cache`, `save_file_cache`, and
-   `invalidate_file_cache` to `SQLiteCacheStore` batch calls.
-3. Keep named snapshots separate initially; migrate them only after per-file
-   cache parity is proven.
-4. Add a one-time `manifest.json` importer or deliberately start with a fresh
-   `graph-cache.sqlite3` and leave the old cache untouched.
-5. Add byte-budget eviction ordered by `accessed_at_ms` and WAL checkpointing.
-6. Measure cold extraction, warm lookup, watcher bursts, and concurrent MCP
-   reads before making SQLite the default.
+## Remaining validation
+
+1. Measure cold extraction, warm lookup, watcher bursts, and concurrent MCP
+   reads before merging the prototype branch.
+2. Add explicit WAL checkpoint policy only if measurements show uncontrolled
+   WAL growth during long server sessions.
+3. Consider a separate snapshot table only if atomic JSON snapshot management
+   becomes a demonstrated bottleneck.
 
 Arrow IPC or Parquet remain export/snapshot formats, not mutable cache stores.

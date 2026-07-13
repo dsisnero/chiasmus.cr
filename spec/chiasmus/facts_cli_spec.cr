@@ -46,13 +46,13 @@ describe Chiasmus::FactsCLI do
       result.receive.should eq(0)
 
       paths = Chiasmus::Graph::GraphCache.resolve_cache_paths(cache_dir)
-      Dir.exists?(paths["files_dir"]).should be_true
-      File.exists?(paths["manifest_path"]).should be_true
-      Dir.children(paths["files_dir"]).should_not be_empty
+      File.exists?(paths["database_path"]).should be_true
+      File.exists?(paths["manifest_path"]).should be_false
     ensure
       release.send(true) rescue nil
       Chiasmus::Graph::GraphCache.clear_before_file_cache_write_hook_for_test
       Chiasmus::Graph::GraphCache.flush_async_writes
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
       FileUtils.rm_rf(dir)
     end
   end

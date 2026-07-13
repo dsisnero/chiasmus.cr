@@ -202,32 +202,29 @@ describe GraphCache do
       end
     end
 
-    it "leaves no .tmp files after save" do
+    it "leaves no temporary files after save" do
       with_temp_cache do |cache_dir|
         GraphCache.save_file_cache([
           {path: "/abs/a.ts", content: "v1", graph: CodeGraph.new},
         ], cache_dir)
         paths = GraphCache.resolve_cache_paths(cache_dir)
-        files_dir = paths["files_dir"]
-        if Dir.exists?(files_dir)
-          Dir.children(files_dir).each do |entry|
-            entry.ends_with?(".tmp").should be_false
-          end
-        end
+        Dir.children(paths["repo_dir"]).none?(&.ends_with?(".tmp")).should be_true
       end
     end
 
-    it "manifest carries current schema version" do
+    it "creates a versioned SQLite database without a manifest" do
       with_temp_cache do |cache_dir|
         GraphCache.save_file_cache([
           {path: "/abs/a.ts", content: "v1", graph: CodeGraph.new},
         ], cache_dir)
         paths = GraphCache.resolve_cache_paths(cache_dir)
-        manifest_path = paths["manifest_path"]
-        if File.exists?(manifest_path)
-          manifest = JSON.parse(File.read(manifest_path))
-          manifest["schemaVersion"]?.should_not be_nil
+        store = SQLiteCacheStore.new(paths["database_path"])
+        begin
+          store.schema_version.should eq(1)
+        ensure
+          store.close
         end
+        File.exists?(paths["manifest_path"]).should be_false
       end
     end
 

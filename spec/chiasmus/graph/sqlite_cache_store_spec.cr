@@ -1,5 +1,6 @@
 require "../../spec_helper"
 require "../../../src/chiasmus/graph/sqlite_cache_store"
+require "../../../src/chiasmus/graph/cache"
 
 include Chiasmus::Graph
 
@@ -11,6 +12,7 @@ describe SQLiteCacheStore do
 
     begin
       store.journal_mode.downcase.should eq("wal")
+      store.schema_version.should eq(1)
       first = SQLiteCacheEntry.new("src/a.cr", "hash-a1", "/repo/src/a.cr", %({"defines":["old"]}), 19_i64, 1_i64)
       deleted = SQLiteCacheEntry.new("src/deleted.cr", "hash-d", "/repo/src/deleted.cr", %({"defines":["gone"]}), 20_i64, 1_i64)
       store.apply_batch([first, deleted], [] of String)
@@ -49,6 +51,37 @@ describe SQLiteCacheStore do
         reopened.close
       end
     ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+end
+
+describe GraphCache do
+  it "persists, replaces, and invalidates file graphs through SQLite" do
+    dir = File.tempname("chiasmus-graph-cache-sqlite")
+    Dir.mkdir_p(dir)
+    path = "/abs/demo.cr"
+
+    begin
+      original = CodeGraph.new(defines: [DefinesFact.new(file: path, name: "old", kind: SymbolKind::Method, line: 1)])
+      replacement = CodeGraph.new(defines: [DefinesFact.new(file: path, name: "new", kind: SymbolKind::Method, line: 1)])
+
+      GraphCache.save_file_cache([{path: path, content: "old", graph: original}], dir, repo_key: "repo")
+      GraphCache.check_file_cache([{path: path, content: "old"}], dir, repo_key: "repo")[:hits].first[:graph].should eq(original)
+
+      GraphCache.save_file_cache([{path: path, content: "new", graph: replacement}], dir, repo_key: "repo")
+      GraphCache.check_file_cache([{path: path, content: "old"}], dir, repo_key: "repo")[:misses].size.should eq(1)
+      GraphCache.check_file_cache([{path: path, content: "new"}], dir, repo_key: "repo")[:hits].first[:graph].should eq(replacement)
+
+      paths = GraphCache.resolve_cache_paths(dir, "repo")
+      File.exists?(paths["database_path"]).should be_true
+      File.exists?(paths["manifest_path"]).should be_false
+      Dir.exists?(paths["files_dir"]).should be_false
+
+      GraphCache.invalidate_file_cache([path], dir, repo_key: "repo")
+      GraphCache.check_file_cache([{path: path, content: "new"}], dir, repo_key: "repo")[:misses].size.should eq(1)
+    ensure
+      GraphCache.close_file_cache_stores_for_test
       FileUtils.rm_rf(dir)
     end
   end

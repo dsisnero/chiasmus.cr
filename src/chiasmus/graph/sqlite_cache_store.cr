@@ -18,7 +18,7 @@ module Chiasmus
 
       def initialize(@path : String)
         Dir.mkdir_p(File.dirname(@path))
-        @db = DB.open("sqlite3:#{@path}?journal_mode=wal&synchronous=normal&busy_timeout=5000")
+        @db = DB.open("sqlite3:#{@path}?journal_mode=wal&synchronous=normal&busy_timeout=5000&max_pool_size=4&max_idle_pool_size=4")
         migrate
       end
 
@@ -29,6 +29,7 @@ module Chiasmus
           content_hash,
           as: {String, String, String, String, Int64, Int64},
         ).try do |row|
+          @db.exec("UPDATE cache_entries SET saved_at_ms = ? WHERE path = ?", Time.utc.to_unix_ms, path)
           SQLiteCacheEntry.new(row[0], row[1], row[2], row[3], row[4], row[5])
         end
       end
@@ -62,8 +63,30 @@ module Chiasmus
         @db.scalar("SELECT COUNT(*) FROM cache_entries").as(Int64)
       end
 
+      # Evict least-recently-read entries until the payload byte budget fits.
+      # fetch updates saved_at_ms, so it doubles as the LRU access timestamp.
+      def evict_over_budget(max_bytes : Int32) : Nil
+        @db.transaction do |transaction|
+          connection = transaction.connection
+          total = connection.scalar("SELECT COALESCE(SUM(size), 0) FROM cache_entries").as(Int64)
+          while total > max_bytes
+            oldest = connection.query_one?(
+              "SELECT path, size FROM cache_entries ORDER BY saved_at_ms, path LIMIT 1",
+              as: {String, Int64},
+            )
+            break unless oldest
+            connection.exec("DELETE FROM cache_entries WHERE path = ?", oldest[0])
+            total -= oldest[1]
+          end
+        end
+      end
+
       def journal_mode : String
         @db.scalar("PRAGMA journal_mode").as(String)
+      end
+
+      def schema_version : Int64
+        @db.scalar("PRAGMA user_version").as(Int64)
       end
 
       def close : Nil
@@ -81,6 +104,7 @@ module Chiasmus
             saved_at_ms INTEGER NOT NULL
           )
           SQL
+        @db.exec("PRAGMA user_version = 1")
       end
     end
   end

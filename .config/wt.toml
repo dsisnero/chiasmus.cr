@@ -5,6 +5,7 @@
 [pre-start]
 sync-submodule-urls = "git submodule sync --recursive"
 share-shards = "test -e lib || ln -s {{ primary_worktree_path }}/lib lib"
+share-codeium-fixtures = "test -e vendor/codeium-parse/test_files || { mkdir -p vendor/codeium-parse; ln -s {{ primary_worktree_path }}/vendor/codeium-parse/test_files vendor/codeium-parse/test_files; }"
 
 # Build products and compiler caches remain worktree-local.
 [[post-start]]
@@ -13,9 +14,9 @@ prepare-cache = "mkdir -p .crystal-cache bin"
 [[post-start]]
 build-chiasmus = "CRYSTAL_CACHE_DIR=$PWD/.crystal-cache make build"
 
-# Grammar and vendor submodules are initialized on demand. Normal source,
-# cache, and MCP work uses installed grammar libraries through XDG or
-# CHIASMUS_GRAMMAR_DIR and does not need every source checkout.
+# Grammar and vendor source submodules are initialized on demand. The small,
+# read-only codeium-parse golden fixture directory is shared from the primary
+# checkout; normal cache and MCP work still avoids every source checkout.
 [post-switch]
 submodules = "git submodule sync --recursive"
 
