@@ -12,6 +12,27 @@ private def typescript_language : TreeSitter::Language?
   TreeSitterManager::GrammarLoader.load_language("typescript")
 end
 
+private struct CacheKeyExtractor < Chiasmus::Discovery::QueryExtractor
+  def initialize(@query_src : String)
+  end
+
+  def language : String
+    "cache-key"
+  end
+
+  def extensions : Array(String)
+    [".cache-key"]
+  end
+
+  def grammar_language : String
+    "typescript"
+  end
+
+  def queries : Hash(String, String)
+    {"symbol" => @query_src}
+  end
+end
+
 describe Chiasmus::Discovery::LanguageExtractor do
   it "concrete extractor implements required interface" do
     extractor = Chiasmus::Discovery::TestExtractor.new
@@ -95,6 +116,26 @@ describe Chiasmus::Discovery::QueryExtractor do
     first_counts[:languages].should be > 0
     first_counts[:queries].should be > 0
     second_counts.should eq(first_counts)
+  end
+
+  it "caches distinct query sources independently for the same grammar and kind" do
+    source = <<-TS
+      class MyService {}
+      function hello() {}
+    TS
+
+    lang = typescript_language
+    next pending "typescript grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    tree = parser.parse(nil, source)
+
+    class_extractor = CacheKeyExtractor.new("(class_declaration name: (type_identifier) @name) @def")
+    function_extractor = CacheKeyExtractor.new("(function_declaration name: (identifier) @name) @def")
+    class_extractor.clear_caches_for_test
+
+    class_extractor.extract(tree.root_node, source, "cache.ts").map(&.name).should eq(["MyService"])
+    function_extractor.extract(tree.root_node, source, "cache.ts").map(&.name).should eq(["hello"])
+    function_extractor.cache_counts_for_test[:queries].should eq(2)
   end
 end
 

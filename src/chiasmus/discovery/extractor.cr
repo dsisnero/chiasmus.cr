@@ -33,7 +33,7 @@ module Chiasmus
     abstract struct QueryExtractor < LanguageExtractor
       @@cache_mutex = Mutex.new
       @@language_cache = {} of String => TreeSitter::Language?
-      @@compiled_query_cache = {} of String => TreeSitter::Query
+      @@compiled_query_cache = {} of Tuple(String, String) => TreeSitter::Query
 
       abstract def queries : Hash(String, String)
 
@@ -313,7 +313,7 @@ module Chiasmus
       private def load_compiled_query(lang : TreeSitter::Language, query_src : String) : TreeSitter::Query?
         return TreeSitter::Query.new(lang, query_src) if isolated_query_instance_required?
 
-        cache_key = "#{grammar_language}\u0000#{query_src}"
+        cache_key = {grammar_language, query_src}
         @@cache_mutex.synchronize do
           if cached = @@compiled_query_cache[cache_key]?
             return cached
