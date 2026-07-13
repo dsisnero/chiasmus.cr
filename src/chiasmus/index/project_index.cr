@@ -31,9 +31,10 @@ module Chiasmus
       private record UpsertRequest, graph : Graph::CodeGraph, reply : Channel(Bool)
       private record UpsertManyRequest, graphs : Array(Graph::CodeGraph), reply : Channel(Bool)
       private record RemoveRequest, path : String, reply : Channel(Bool)
+      private record ApplyBatchRequest, graphs : Array(Graph::CodeGraph), deleted_paths : Array(String), reply : Channel(Bool)
       private record CloseRequest, reply : Channel(Bool)
 
-      private alias Request = SnapshotRequest | UpsertRequest | UpsertManyRequest | RemoveRequest | CloseRequest
+      private alias Request = SnapshotRequest | UpsertRequest | UpsertManyRequest | RemoveRequest | ApplyBatchRequest | CloseRequest
 
       @requests = Channel(Request).new
       @closed = Atomic(Bool).new(false)
@@ -190,6 +191,12 @@ module Chiasmus
         reply.receive
       end
 
+      def apply_batch(graphs : Array(Graph::CodeGraph), deleted_paths : Array(String)) : Bool
+        reply = Channel(Bool).new(1)
+        @requests.send(ApplyBatchRequest.new(graphs, deleted_paths, reply))
+        reply.receive
+      end
+
       def close : Nil
         return if closed?
         reply = Channel(Bool).new(1)
@@ -240,12 +247,33 @@ module Chiasmus
                 current = build_snapshot(per_file, generation)
               end
               request.reply.send(removed)
+            when ApplyBatchRequest
+              changed = apply_batch_to(per_file, request)
+              if changed
+                generation += 1
+                current = build_snapshot(per_file, generation)
+              end
+              request.reply.send(changed)
             when CloseRequest
               request.reply.send(true)
               break
             end
           end
         end
+      end
+
+      private def apply_batch_to(per_file : Hash(String, Graph::CodeGraph), request : ApplyBatchRequest) : Bool
+        changed = false
+        request.deleted_paths.each do |deleted_path|
+          changed = true unless per_file.delete(deleted_path).nil?
+        end
+        request.graphs.each do |graph|
+          if graph_path = graph_file_path(graph)
+            per_file[graph_path] = graph
+            changed = true
+          end
+        end
+        changed
       end
 
       private def graph_file_path(graph : Graph::CodeGraph) : String?

@@ -5,6 +5,19 @@ require "./file_discovery"
 
 module Chiasmus
   module Index
+    record ChangeSet,
+      added : Array(String),
+      modified : Array(String),
+      deleted : Array(String) do
+      def empty? : Bool
+        added.empty? && modified.empty? && deleted.empty?
+      end
+
+      def changed : Array(String)
+        added + modified
+      end
+    end
+
     # Polling-based filesystem watcher.
     #
     # Spawn a fiber, call `run`, and it periodically checks
@@ -15,12 +28,12 @@ module Chiasmus
     class Watcher
       @root : String
       @interval : Time::Span
-      @callback : String ->
+      @callback : ChangeSet ->
       @timestamps = Sync::Map(String, Time).new
       @running = false
       @done = Channel(Bool).new(1)
 
-      def initialize(@root, interval : Time::Span | Float64 = 1.0, &@callback : String ->)
+      def initialize(@root, interval : Time::Span | Float64 = 1.0, &@callback : ChangeSet ->)
         @interval = interval.is_a?(Time::Span) ? interval : interval.seconds
       end
 
@@ -31,7 +44,7 @@ module Chiasmus
 
         while @running
           changes = scan_changes
-          changes.each { |path| @callback.call(path) }
+          @callback.call(changes) unless changes.empty?
           sleep(@interval)
         end
       rescue
@@ -62,8 +75,10 @@ module Chiasmus
         end
       end
 
-      private def scan_changes : Array(String)
-        changed = [] of String
+      private def scan_changes : ChangeSet
+        added = [] of String
+        modified = [] of String
+        deleted = [] of String
         seen = Set(String).new
 
         each_file_entry(@root) do |relative, mtime|
@@ -71,9 +86,9 @@ module Chiasmus
           prev, found = @timestamps.load(relative)
 
           if found && prev != mtime
-            changed << relative
+            modified << relative
           elsif !found
-            changed << relative
+            added << relative
           end
           @timestamps.store(relative, mtime)
         end
@@ -81,11 +96,11 @@ module Chiasmus
         @timestamps.each_key do |key|
           unless seen.includes?(key)
             @timestamps.delete(key)
-            changed << key
+            deleted << key
           end
         end
 
-        changed
+        ChangeSet.new(added.sort!, modified.sort!, deleted.sort!)
       end
 
       # Use the same Git-aware discovery rules as initial project indexing.

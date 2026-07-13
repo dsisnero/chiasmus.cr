@@ -1,22 +1,23 @@
-# Keep git submodules materialized at the recorded commit in every worktree.
-#
-# pre-start:  blocking — submodule sync before worktree is usable.
-# post-start: background — copy gitignored files from primary, then build.
-# post-switch / post-merge: repair submodule SHAs after branch changes.
+# Keep worktree startup small. Dependency sources are immutable shard
+# checkouts, so normal worktrees share `lib` from the primary worktree. A task
+# that patches a shard must replace the symlink with a local `shards install`.
 
 [pre-start]
-submodules = "git submodule sync --recursive && git submodule update --init --recursive --checkout"
+sync-submodule-urls = "git submodule sync --recursive"
+share-shards = "test -e lib || ln -s {{ primary_worktree_path }}/lib lib"
 
-# Pipeline: copy gitignored build/config files from primary worktree first,
-# then build the chiasmus binary (needs submodules already materialized).
+# Build products and compiler caches remain worktree-local.
 [[post-start]]
-copy-ignored = "wt step copy-ignored"
+prepare-cache = "mkdir -p .crystal-cache bin"
 
 [[post-start]]
 build-chiasmus = "CRYSTAL_CACHE_DIR=$PWD/.crystal-cache make build"
 
+# Grammar and vendor submodules are initialized on demand. Normal source,
+# cache, and MCP work uses installed grammar libraries through XDG or
+# CHIASMUS_GRAMMAR_DIR and does not need every source checkout.
 [post-switch]
-submodules = "git submodule sync --recursive && git submodule update --init --recursive --checkout"
+submodules = "git submodule sync --recursive"
 
 [post-merge]
-submodules = "git submodule sync --recursive && git submodule update --init --recursive --checkout"
+submodules = "git submodule sync --recursive"

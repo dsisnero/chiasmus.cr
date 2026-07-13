@@ -15,17 +15,40 @@ private def with_temp_dir(& : String ->)
 end
 
 describe Watcher do
+  it "publishes one classified batch for changes observed in the same scan" do
+    with_temp_dir do |dir|
+      batches = Channel(ChangeSet).new(1)
+      watcher = Watcher.new(dir, interval: 0.05.seconds) { |batch| batches.send(batch) }
+      spawn { watcher.run }
+      sleep(0.12.seconds)
+
+      File.write(File.join(dir, "a.ts"), "a")
+      File.write(File.join(dir, "b.ts"), "b")
+      batch = select
+      when value = batches.receive
+        value
+      when timeout(1.second)
+        raise "watcher did not publish change batch"
+      end
+
+      watcher.stop
+      batch.added.sort!.should eq(["a.ts", "b.ts"])
+      batch.modified.should be_empty
+      batch.deleted.should be_empty
+    end
+  end
+
   it "detects new file creation" do
     with_temp_dir do |dir|
-      changed = [] of String
-      watcher = Watcher.new(dir, interval: 0.05.seconds) { |p| changed << p }
+      changes = [] of ChangeSet
+      watcher = Watcher.new(dir, interval: 0.05.seconds) { |batch| changes << batch }
       spawn { watcher.run }
       sleep(0.15.seconds)
       File.write(File.join(dir, "new_file.ts"), "hello")
       sleep(0.15.seconds)
       watcher.stop
       sleep(0.05.seconds)
-      changed.any?(&.ends_with?("new_file.ts")).should be_true
+      changes.any?(&.added.includes?("new_file.ts")).should be_true
     end
   end
 
@@ -33,15 +56,15 @@ describe Watcher do
     with_temp_dir do |dir|
       path = File.join(dir, "test.ts")
       File.write(path, "v1")
-      changed = [] of String
-      watcher = Watcher.new(dir, interval: 0.05.seconds) { |p| changed << p }
+      changes = [] of ChangeSet
+      watcher = Watcher.new(dir, interval: 0.05.seconds) { |batch| changes << batch }
       spawn { watcher.run }
       sleep(0.15.seconds)
       File.write(path, "v2")
       sleep(0.15.seconds)
       watcher.stop
       sleep(0.05.seconds)
-      changed.any?(&.ends_with?("test.ts")).should be_true
+      changes.any?(&.modified.includes?("test.ts")).should be_true
     end
   end
 

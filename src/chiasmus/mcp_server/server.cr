@@ -291,21 +291,21 @@ module Chiasmus
         project_root = Dir.current
         cache_dir = Graph::GraphCache.default_cache_dir
         repo_key = Graph::GraphCache.default_repo_key(project_root)
-        @watcher = Index::Watcher.new(project_root, interval: 2.0) do |path|
-          abs_path = File.join(project_root, path)
-          deleted = !File.exists?(abs_path)
-          STDERR.puts "[Chiasmus] file #{deleted ? "deleted" : "changed"}: #{path}"
+        @watcher = Index::Watcher.new(project_root, interval: 2.0) do |changes|
+          STDERR.puts "[Chiasmus] files changed: +#{changes.added.size} ~#{changes.modified.size} -#{changes.deleted.size}"
           spawn do
-            if deleted
-              @project_index.remove_file(abs_path)
-              Graph::GraphCache.invalidate_file_cache([abs_path], cache_dir, repo_key: repo_key)
-            elsif graph = Graph::Extractor.extract_and_cache_file(
-                    abs_path,
-                    cache_dir: cache_dir,
-                    repo_key: repo_key,
-                  )
-              @project_index.upsert_file(graph)
-            end
+            deleted_paths = changes.deleted.map { |path| File.join(project_root, path) }
+            changed_paths = changes.changed.map { |path| File.join(project_root, path) }
+            graphs = Utils::BoundedWork.map_ordered(changed_paths) do |abs_path|
+              Graph::Extractor.extract_and_cache_file(
+                abs_path,
+                cache_dir: cache_dir,
+                repo_key: repo_key,
+              )
+            end.compact_map(&.itself)
+
+            @project_index.apply_batch(graphs, deleted_paths)
+            Graph::GraphCache.invalidate_file_cache(deleted_paths, cache_dir, repo_key: repo_key) unless deleted_paths.empty?
           end
         end
         wg.spawn do

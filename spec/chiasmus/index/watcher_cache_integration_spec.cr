@@ -75,15 +75,17 @@ describe "Watcher + Cache integration" do
 
       # Watcher with eager re-extraction callback
       changed = [] of String
-      watcher = Watcher.new(dir, interval: 0.05.seconds) do |rel_path|
-        changed << rel_path
-        abs_path = File.join(dir, rel_path)
-        spawn do
-          Extractor.extract_and_cache_file(
-            abs_path,
-            cache_dir: cache_dir,
-            repo_key: repo_key,
-          )
+      watcher = Watcher.new(dir, interval: 0.05.seconds) do |changes|
+        changed.concat(changes.changed)
+        changes.changed.each do |rel_path|
+          abs_path = File.join(dir, rel_path)
+          spawn do
+            Extractor.extract_and_cache_file(
+              abs_path,
+              cache_dir: cache_dir,
+              repo_key: repo_key,
+            )
+          end
         end
       end
       spawn { watcher.run }
@@ -110,13 +112,15 @@ describe "Watcher + Cache integration" do
       index.upsert_file(first || raise "expected initial graph")
       GraphCache.flush_async_writes
 
-      watcher = Watcher.new(dir, interval: 0.02.seconds) do |rel_path|
-        abs_path = File.join(dir, rel_path)
-        if File.exists?(abs_path)
+      watcher = Watcher.new(dir, interval: 0.02.seconds) do |changes|
+        changes.changed.each do |rel_path|
+          abs_path = File.join(dir, rel_path)
           if graph = Extractor.extract_and_cache_file(abs_path, cache_dir: cache_dir, repo_key: repo_key)
             index.upsert_file(graph)
           end
-        else
+        end
+        changes.deleted.each do |rel_path|
+          abs_path = File.join(dir, rel_path)
           index.remove_file(abs_path)
           GraphCache.invalidate_file_cache([abs_path], cache_dir, repo_key: repo_key)
         end

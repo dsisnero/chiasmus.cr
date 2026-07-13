@@ -108,6 +108,29 @@ module Chiasmus::Index
       end
     end
 
+    it "applies a watcher batch in one actor generation" do
+      old = project_index_file_graph("src/old.cr", "old", "target")
+      changed = project_index_file_graph("src/changed.cr", "before", "target")
+      index = ProjectIndex.new([old, changed])
+
+      begin
+        before = index.snapshot.generation
+        replacement = project_index_file_graph("src/changed.cr", "after", "target")
+        added = project_index_file_graph("src/added.cr", "added", "target")
+
+        index.apply_batch([replacement, added], ["src/old.cr"]).should be_true
+        state = index.snapshot
+
+        state.generation.should eq(before + 1)
+        state.graphs_by_file.keys.sort!.should eq(["src/added.cr", "src/changed.cr"])
+        index.definitions_named("old").should be_empty
+        index.definitions_named("before").should be_empty
+        index.definitions_named("after").size.should eq(1)
+      ensure
+        index.close
+      end
+    end
+
     it "rejects a resident graph when an indexed file changes on disk" do
       dir = File.tempname("project-index-freshness")
       Dir.mkdir(dir)
