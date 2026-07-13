@@ -9,10 +9,10 @@ class Chiasmus::MCPServer::Tools::SearchTool
   end
 end
 
-private def make_item(id, kind, name, file, scope = "source", byte_start = nil, byte_end = nil)
+private def make_item(id, kind, name, file, scope = "source", span = nil)
   Chiasmus::Discovery::Item.new(
     id: id, kind: kind, scope: scope, name: name, file: file,
-    byte_start: byte_start, byte_end: byte_end,
+    span: span,
   )
 end
 

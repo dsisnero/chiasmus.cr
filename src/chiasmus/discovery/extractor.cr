@@ -216,8 +216,7 @@ module Chiasmus
             scope: scope,
             name: filtered,
             file: file,
-            byte_start: def_node.try &.start_byte.to_i32,
-            byte_end: def_node.try &.end_byte.to_i32,
+            span: def_node.try { |n| Graph::Span.from_node(n) },
           )
         end
       end
@@ -291,8 +290,7 @@ module Chiasmus
             scope: scope,
             name: filtered,
             file: file,
-            byte_start: def_node.try &.start_byte.to_i32,
-            byte_end: def_node.try &.end_byte.to_i32,
+            span: def_node.try { |n| Graph::Span.from_node(n) },
           )
         end
       end

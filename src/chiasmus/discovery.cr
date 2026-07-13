@@ -1,5 +1,6 @@
 require "tree_sitter"
 require "tree-sitter-manager"
+require "./graph/span"
 require "./discovery/predicate_evaluator"
 require "./discovery/extractor"
 require "./discovery/registry"
@@ -20,13 +21,12 @@ module Chiasmus
 
     # Represents a discovered symbol.
     record Item,
-      id : String,               # e.g. "src/app.ts::class::MyService"
-      kind : String,             # class, interface, type, function, method, const, test
-      scope : String,            # source or test
-      name : String,             # Simple name (may be qualified for methods)
-      file : String,             # Relative file path
-      byte_start : Int32? = nil, # Start offset in source (for AST chunking)
-      byte_end : Int32? = nil    # End offset in source (for AST chunking)
+      id : String,              # e.g. "src/app.ts::class::MyService"
+      kind : String,            # class, interface, type, function, method, const, test
+      scope : String,           # source or test
+      name : String,            # Simple name (may be qualified for methods)
+      file : String,            # Relative file path
+      span : Graph::Span? = nil # Source location (byte offsets + line/col)
 
     # Result of a discovery operation.
     record Result,
