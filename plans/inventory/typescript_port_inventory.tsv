@@ -39,7 +39,7 @@ benchmark/traditional/p3-taint.ts::function::reachableFrom	function	ported	src/b
 benchmark/traditional/p3-taint.ts::interface::TaintResult	interface	ported	src/benchmark/traditional/p3_taint.cr:3	Benchmark::Traditional::TaintResult	-	Ported as Benchmark::Traditional::TaintResult
 benchmark/traditional/p4-workflow.ts::interface::WorkflowResult	interface	ported	src/benchmark/traditional/p4_workflow.cr:3	Benchmark::Traditional::WorkflowResult	-	Ported as Benchmark::Traditional::WorkflowResult
 benchmark/traditional/p5-validation.ts::interface::ValidationGapResult	interface	ported	src/benchmark/traditional/p5_validation.cr:4	Benchmark::Traditional::ValidationGapResult	-	Ported as Benchmark::Traditional::ValidationGapResult
-src/config.ts::function::loadConfig	function	ported	src/chiasmus/utils/config.cr:43	Chiasmus::Utils::Config.load	-	Ported as Chiasmus::Utils::Config.load with upstream adapterDiscovery compatibility
+src/config.ts::function::loadConfig	function	ported	src/chiasmus/utils/config.cr:22	Chiasmus::Utils::Config.load	-	Ported as Chiasmus::Utils::Config.load; obsolete adapterDiscovery is intentionally ignored because Crystal adapters are compiled and registered statically
 src/config.ts::interface::ChiasmusConfig	interface	ported	src/chiasmus/utils/config.cr:7	Chiasmus::Utils::Config::ChiasmusConfig	-	Ported as Chiasmus::Utils::Config::ChiasmusConfig
 src/formalize/engine.ts::class::FormalizationEngine	class	ported	src/chiasmus/formalize/engine.cr:30	Chiasmus::Formalize::Engine	-	Ported as Chiasmus::Formalize::Engine with direct formalize and solve coverage.
 src/formalize/engine.ts::const::FIX_SYSTEM	const	ported	src/chiasmus/formalize/engine.cr:20	Chiasmus::Formalize::FIX_SYSTEM	-	Ported as Chiasmus::Formalize::FIX_SYSTEM.
@@ -56,9 +56,9 @@ src/graph/adapter-registry.ts::function::clearAdapters	function	ported	src/chias
 src/graph/adapter-registry.ts::function::getAdapter	function	ported	src/chiasmus/graph/adapter_registry.cr:21	AdapterRegistry.get_adapter	-	Ported as AdapterRegistry.get_adapter
 src/graph/adapter-registry.ts::function::getAdapterExtensions	function	ported	src/chiasmus/graph/adapter_registry.cr:34	AdapterRegistry.adapter_extensions	-	Ported as AdapterRegistry.adapter_extensions
 src/graph/adapter-registry.ts::function::getAdapterForExt	function	ported	src/chiasmus/graph/adapter_registry.cr:25	AdapterRegistry.get_adapter_for_ext	-	Ported as AdapterRegistry.get_adapter_for_ext
-src/graph/adapter-registry.ts::function::isLanguageAdapter	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:123	JSON	-	Node.js duck-typed runtime guard is replaced by JSON descriptor validation plus AdapterFactory typing
+src/graph/adapter-registry.ts::function::isLanguageAdapter	function	intentional_divergence	-	-	-	Node.js runtime module validation is omitted because Crystal adapters are compiled types registered through AdapterRegistry.register_adapter
 src/graph/adapter-registry.ts::function::registerAdapter	function	ported	src/chiasmus/graph/adapter_registry.cr:13	AdapterRegistry.register_adapter	-	Ported as AdapterRegistry.register_adapter
-src/graph/adapter-registry.ts::function::registerFromModule	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:74	-	-	Node.js dynamic module loading is replaced by idempotent manifest discovery and registered AdapterFactory entrypoints
+src/graph/adapter-registry.ts::function::registerFromModule	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:12	AdapterRegistry.register_adapter	-	Node.js dynamic module loading has no viable Crystal runtime equivalent; adapters must be compiled and registered explicitly
 src/graph/analyses.ts::function::buildSummary	function	ported	src/chiasmus/graph/analyses.cr:1	-	-	Ported in-memory graph summary generation
 src/graph/analyses.ts::interface::AnalysisRequest	interface	ported	src/chiasmus/graph/analyses.cr:1	Crystal	-	Ported as Crystal record
 src/graph/analyses.ts::interface::AnalysisResult	interface	ported	src/chiasmus/graph/analyses.cr:1	Crystal	-	Ported as Crystal record
@@ -178,7 +178,7 @@ src/solvers/z3-solver.ts::function::sanitizeSmtlib	function	ported	src/chiasmus/
 tests/config.test.ts::test::falls back to defaults for invalid JSON	test	ported	spec/chiasmus/utils/config_spec.cr:28	-	spec/chiasmus/utils/config_spec.cr:28	Ported invalid JSON fallback coverage
 tests/config.test.ts::test::ignores unknown keys and wrong types	test	ported	spec/chiasmus/utils/config_spec.cr:37	-	spec/chiasmus/utils/config_spec.cr:37	Ported wrong-type and unknown-key handling coverage
 tests/config.test.ts::test::loadConfig	test	ported	spec/chiasmus/utils/config_spec.cr:11	-	spec/chiasmus/utils/config_spec.cr:11	Covered by the Crystal config load spec group
-tests/config.test.ts::test::reads adapterDiscovery from config.json	test	ported	spec/chiasmus/utils/config_spec.cr:19	-	spec/chiasmus/utils/config_spec.cr:19	Ported camelCase adapterDiscovery config key coverage
+tests/config.test.ts::test::reads adapterDiscovery from config.json	test	intentional_divergence	-	-	-	Obsolete Node.js adapter auto-discovery option is intentionally ignored; Crystal adapters are compiled and registered statically
 tests/config.test.ts::test::returns defaults when config.json does not exist	test	ported	spec/chiasmus/utils/config_spec.cr:12	-	spec/chiasmus/utils/config_spec.cr:12	Ported missing config file fallback coverage
 tests/correction-loop.test.ts::test::Correction Loop	test	ported	spec/chiasmus/solvers/correction_loop_spec.cr:9	-	spec/chiasmus/solvers/correction_loop_spec.cr:9	Covered by the Crystal correction_loop spec group.
 tests/correction-loop.test.ts::test::Prolog	test	ported	spec/chiasmus/solvers/correction_loop_spec.cr:140	-	spec/chiasmus/solvers/correction_loop_spec.cr:140	Ported Prolog pass-through coverage.

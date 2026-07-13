@@ -431,12 +431,12 @@ Acceptance:
 
 Why this matters:
 
-- Chiasmus has several intentional replacement layers: Crig for LLMs, crolog/SWI-Prolog for Tau Prolog, BM25 shard for upstream BM25, and Crystal-specific adapter discovery.
+- Chiasmus has several intentional replacement layers: Crig for LLMs, crolog/SWI-Prolog for Tau Prolog, BM25 shard for upstream BM25, and explicit registration for adapters compiled into the Crystal binary.
 - These are easier to audit as facts than as prose scattered across inventory notes.
 
 Implementation:
 
-- `plans/inventory/conversion_rules.tsv` — 18 conversion rules mapping upstream TypeScript patterns to Crystal replacements across 6 subsystems (LLM adapters, Prolog, BM25, adapter discovery, tree-sitter, Z3).
+- `plans/inventory/conversion_rules.tsv` — 18 conversion rules mapping upstream TypeScript patterns to Crystal replacements across 6 subsystems (LLM adapters, Prolog, BM25, adapter registration, tree-sitter, Z3).
 - `scripts/generate_inventory_facts.rb` — Deterministic Ruby script that reads port inventory, source parity, test parity, and conversion rules to produce Prolog facts.
 - `plans/inventory/parity_facts.pl` — 2,073 Prolog facts including:
   - `inventory_item/5` — all 505 tracked items with kind, status, refs, notes.
@@ -728,7 +728,7 @@ Acceptance:
 - `[x]` Core MCP verify behavior, including Prolog batch queries, is ported.
 - `[x]` Graph/session/solver behavior has direct Crystal specs.
 - `[x]` Vendor pull drift can identify changed same-ID upstream items.
-- `[x]` Crystal-native dynamic adapter discovery exists.
+- `[x]` Node.js dynamic adapter discovery is an intentional divergence; Crystal adapters are compiled and registered explicitly.
 - `[x]` Clojure runtime parser behavior is executable or explicitly deferred with parser-independent coverage.
 - `[x]` Inventory can be exported to Prolog facts for conversion-rule audits (P4).
 - `[x]` Tree-sitter-backed discovery for TypeScript with regex fallback and parser mode reporting (P3).

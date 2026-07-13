@@ -15,7 +15,7 @@ typescript	crystal	PrologSubstitution		crolog substitution		Tau Prolog replaced 
 typescript	crystal	PrologTerm		crolog term		Tau Prolog replaced by crolog/SWI-Prolog for Prolog queries
 typescript	crystal	BM25Index		Bm25::SearchEngine		Upstream BM25 index replaced by dsisnero/bm25 shard with Porter2 + stopwords
 typescript	crystal	DocEntry		Bm25::Document		Upstream document entry type replaced by Bm25::Document
-typescript	crystal	registerFromModule	adapter manifest discovery		Node.js dynamic module loading replaced by idempotent JSON manifest discovery + AdapterFactory
+typescript	crystal	registerFromModule	explicit AdapterRegistry.register_adapter		Node.js dynamic module loading is intentionally omitted because Crystal adapters must be compiled into the binary
 typescript	crystal	isLanguageAdapter	descriptor validation		Node.js duck-typed runtime guard replaced by JSON descriptor validation
 typescript	crystal	getNativeParser	tree_sitter shard		Tree-sitter initialization handled by tree_sitter shard at compile time
 typescript	crystal	WASMParser		source-form extractor		Clojure WASM parser deferred; Crystal uses ClojureSourceExtractor as parser-independent path

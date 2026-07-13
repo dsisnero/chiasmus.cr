@@ -102,38 +102,22 @@ describe Chiasmus::Utils::Config do
   describe ".load" do
     it "returns defaults when config.json does not exist" do
       config = Chiasmus::Utils::Config.load("/nonexistent/path")
-      config.adapter_discovery.should be_false
-    end
-
-    it "reads adapterDiscovery from config.json" do
-      with_tmp_dir do |dir|
-        write_config(dir, %({"adapterDiscovery":true}))
-        config = Chiasmus::Utils::Config.load(dir)
-        config.adapter_discovery.should be_true
-      end
+      config.should be_a(Chiasmus::Utils::Config::ChiasmusConfig)
     end
 
     it "falls back to defaults for invalid JSON" do
       with_tmp_dir do |dir|
         write_config(dir, "not valid json {{{")
         config = Chiasmus::Utils::Config.load(dir)
-        config.adapter_discovery.should be_false
+        config.should be_a(Chiasmus::Utils::Config::ChiasmusConfig)
       end
     end
 
     it "ignores unknown keys and wrong types" do
       with_tmp_dir do |dir|
-        write_config(dir, %({"adapterDiscovery":"yes","unknownKey":42}))
+        write_config(dir, %({"unknownKey":42}))
         config = Chiasmus::Utils::Config.load(dir)
-        config.adapter_discovery.should be_false
-      end
-    end
-
-    it "returns defaults when config.json contains null for adapterDiscovery" do
-      with_tmp_dir do |dir|
-        write_config(dir, %({"adapterDiscovery":null}))
-        config = Chiasmus::Utils::Config.load(dir)
-        config.adapter_discovery.should be_false
+        config.should be_a(Chiasmus::Utils::Config::ChiasmusConfig)
       end
     end
 
@@ -141,15 +125,7 @@ describe Chiasmus::Utils::Config do
       with_tmp_dir do |dir|
         write_config(dir, "{}")
         config = Chiasmus::Utils::Config.load(dir)
-        config.adapter_discovery.should be_false
-      end
-    end
-
-    it "returns defaults when adapterDiscovery key is missing" do
-      with_tmp_dir do |dir|
-        write_config(dir, %({"someOtherKey":123}))
-        config = Chiasmus::Utils::Config.load(dir)
-        config.adapter_discovery.should be_false
+        config.should be_a(Chiasmus::Utils::Config::ChiasmusConfig)
       end
     end
 
@@ -157,25 +133,18 @@ describe Chiasmus::Utils::Config do
       with_tmp_dir do |dir|
         write_config(dir, "   \n  \t  ")
         config = Chiasmus::Utils::Config.load(dir)
-        config.adapter_discovery.should be_false
+        config.should be_a(Chiasmus::Utils::Config::ChiasmusConfig)
       end
-    end
-
-    it "returns fresh copies from DEFAULTS.dup" do
-      config1 = Chiasmus::Utils::Config.load("/nonexistent/path")
-      config2 = Chiasmus::Utils::Config.load("/nonexistent/path")
-      config1.adapter_discovery.should be_false
-      config2.adapter_discovery.should be_false
     end
   end
 
   describe ".save" do
-    it "writes valid JSON with the correct key to config.json" do
+    it "writes valid JSON to config.json" do
       with_tmp_dir do |dir|
-        config = Chiasmus::Utils::Config::ChiasmusConfig.new(adapter_discovery: true)
+        config = Chiasmus::Utils::Config::ChiasmusConfig.new
         Chiasmus::Utils::Config.save(config, dir)
         raw = File.read(File.join(dir, "config.json"))
-        JSON.parse(raw)["adapterDiscovery"].as_bool.should be_true
+        JSON.parse(raw).as_h.should be_empty
       end
     end
 
@@ -191,42 +160,20 @@ describe Chiasmus::Utils::Config do
 
     it "round-trips: save then load returns identical config" do
       with_tmp_dir do |dir|
-        original = Chiasmus::Utils::Config::ChiasmusConfig.new(adapter_discovery: true)
+        original = Chiasmus::Utils::Config::ChiasmusConfig.new
         Chiasmus::Utils::Config.save(original, dir)
         loaded = Chiasmus::Utils::Config.load(dir)
-        loaded.adapter_discovery.should be_true
-      end
-    end
-
-    it "round-trips default config (false)" do
-      with_tmp_dir do |dir|
-        original = Chiasmus::Utils::Config::ChiasmusConfig.new(adapter_discovery: false)
-        Chiasmus::Utils::Config.save(original, dir)
-        loaded = Chiasmus::Utils::Config.load(dir)
-        loaded.adapter_discovery.should be_false
+        loaded.should eq(original)
       end
     end
 
     it "overwrites existing config.json" do
       with_tmp_dir do |dir|
-        write_config(dir, %({"adapterDiscovery":false}))
-        config = Chiasmus::Utils::Config::ChiasmusConfig.new(adapter_discovery: true)
+        write_config(dir, %({"obsolete":true}))
+        config = Chiasmus::Utils::Config::ChiasmusConfig.new
         Chiasmus::Utils::Config.save(config, dir)
-        loaded = Chiasmus::Utils::Config.load(dir)
-        loaded.adapter_discovery.should be_true
+        JSON.parse(File.read(File.join(dir, "config.json"))).as_h.should be_empty
       end
-    end
-  end
-
-  describe Chiasmus::Utils::Config::ChiasmusConfig do
-    it "defaults adapter_discovery to false" do
-      config = Chiasmus::Utils::Config::ChiasmusConfig.new
-      config.adapter_discovery.should be_false
-    end
-
-    it "can be constructed with adapter_discovery: true" do
-      config = Chiasmus::Utils::Config::ChiasmusConfig.new(adapter_discovery: true)
-      config.adapter_discovery.should be_true
     end
   end
 end
