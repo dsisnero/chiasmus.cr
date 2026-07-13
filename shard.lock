@@ -110,7 +110,7 @@ shards:
 
   lipgloss:
     git: https://github.com/dsisnero/lipgloss.git
-    version: 2.0.1
+    version: 2.0.2
 
   mcp:
     git: https://github.com/dsisnero/mcp.cr.git
@@ -205,8 +205,8 @@ shards:
     version: 0.5.1
 
   tree-sitter-manager:
-    path: ../tree-sitter-manager
-    version: 0.1.0+git.commit.14d352b4cff3d6e56b86a766170e27eb5d0f9a69
+    git: https://github.com/dsisnero/tree-sitter-manager.git
+    version: 0.1.0+git.commit.2c1e4d8d9f1673022fdd87885c8b378ee5ba74b0
 
   tree_sitter:
     git: https://github.com/dsisnero/crystal-tree-sitter.git
