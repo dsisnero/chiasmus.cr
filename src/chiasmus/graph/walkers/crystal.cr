@@ -42,7 +42,8 @@ module Chiasmus
           return false unless crystal_method_name
 
           kind = is_class_method ? SymbolKind::Method : SymbolKind::Function
-          defines << DefinesFact.new(file: file_path, name: crystal_method_name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1)
+          qualified_name = crystal_qualified_name(scope_stack, crystal_method_name)
+          defines << DefinesFact.new(file: file_path, name: crystal_method_name, kind: kind, line: node.start_point.row.to_i + 1, end_line: node.end_point.row.to_i + 1, qualified_name: qualified_name)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: crystal_method_name)
           end
@@ -250,7 +251,7 @@ module Chiasmus
           return true
         end
 
-        record_call(scope_stack.last?, callee, calls, call_set)
+        record_crystal_call(scope_stack, callee, calls, call_set, qualify_callee: crystal_call_without_receiver?(node))
         false
       end
 
@@ -287,7 +288,7 @@ module Chiasmus
         return if skip_crystal_identifier_parent?(parent)
 
         text = node.text(source)
-        record_call(scope_stack.last?, text, calls, call_set)
+        record_crystal_call(scope_stack, text, calls, call_set, qualify_callee: true)
       end
 
       private def skip_crystal_identifier_parent?(parent : TreeSitter::Node) : Bool
@@ -360,6 +361,37 @@ module Chiasmus
         end
 
         nil
+      end
+
+      private def crystal_call_without_receiver?(call_node : TreeSitter::Node) : Bool
+        call_node.child_by_field_name("object").nil? &&
+          call_node.child_by_field_name("receiver").nil?
+      end
+
+      private def crystal_qualified_name(scope_stack : Array(String), name : String) : String
+        return name if scope_stack.empty?
+        "#{scope_stack.join('.')}.#{name}"
+      end
+
+      private def record_crystal_call(
+        scope_stack : Array(String),
+        callee : String?,
+        calls : Array(CallsFact),
+        call_set : Set(String),
+        qualify_callee : Bool,
+      ) : Nil
+        caller = scope_stack.last?
+        return unless caller && callee
+
+        caller_qn = scope_stack.join('.')
+        callee_qn = if qualify_callee && scope_stack.size > 1
+                      "#{scope_stack[0...-1].join('.')}.#{callee}"
+                    end
+        key = "#{caller}\u0000#{callee}\u0000#{caller_qn}\u0000#{callee_qn}"
+        return if call_set.includes?(key)
+
+        call_set.add(key)
+        calls << CallsFact.new(caller: caller, callee: callee, callee_qn: callee_qn, caller_qn: caller_qn)
       end
 
       private def find_crystal_enclosing_class(node : TreeSitter::Node, source : String) : String?

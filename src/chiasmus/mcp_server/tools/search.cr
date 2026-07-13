@@ -8,6 +8,7 @@ require "../../search/embedding_cache"
 require "../../graph/extractor"
 require "../../utils/config"
 require "../../utils/bounded_work"
+require "tracing"
 
 module Chiasmus
   module MCPServer
@@ -21,6 +22,9 @@ module Chiasmus
           content : String? = nil,
           warning : String? = nil
 
+        def initialize(@project_index : Index::ProjectIndex? = nil)
+        end
+
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           args = Types::SearchInput.from_json(arguments.to_json)
 
@@ -31,13 +35,12 @@ module Chiasmus
 
           file_contents, warnings = read_search_files(args.files)
 
-          if file_contents.empty?
-            return Types::ErrorResponse.new("No readable files in `files`. Warnings: #{warnings.join("; ")}") unless warnings.empty?
-            return Types::ErrorResponse.new("No readable files in `files`.")
+          if error = validate_search_files(file_contents, warnings)
+            return error
           end
 
           source_files = file_contents.map { |path, content| Graph::SourceFile.new(path: path, content: content) }
-          graph = Graph::Extractor.extract_graph_async(source_files).receive
+          graph = load_search_graph(source_files) || return Types::ErrorResponse.new("Unable to index all requested files")
 
           corpus = Search::SearchEngine.build_search_corpus(graph, file_contents)
 
@@ -82,6 +85,24 @@ module Chiasmus
           Types::SearchResponse.new(hits: result, warnings: warnings.empty? ? nil : warnings)
         rescue ex
           Types::ErrorResponse.new("#{ex.class}: #{ex.message || "(no message)"}")
+        end
+
+        private def validate_search_files(file_contents : Hash(String, String), warnings : Array(String)) : Types::ErrorResponse?
+          return nil unless file_contents.empty?
+          return Types::ErrorResponse.new("No readable files in `files`. Warnings: #{warnings.join("; ")}") unless warnings.empty?
+          Types::ErrorResponse.new("No readable files in `files`.")
+        end
+
+        private def load_search_graph(source_files : Array(Graph::SourceFile)) : Graph::CodeGraph?
+          if index = @project_index
+            lookup = index.lookup(source_files.map(&.path))
+            Tracing.info("chiasmus.search.cache", cache_status: lookup.status, files: source_files.size)
+            return lookup.graph if lookup.graph
+          end
+
+          graph = Graph::Extractor.extract_graph_async(source_files, cache_dir: Graph::GraphCache.default_cache_dir).receive
+          @project_index.try(&.upsert_graph(graph))
+          graph
         end
 
         private def read_search_files(files : Array(String), max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT) : {Hash(String, String), Array(String)}

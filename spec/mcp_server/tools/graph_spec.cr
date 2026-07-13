@@ -28,6 +28,29 @@ private def invoke_graph(args : Hash(String, JSON::Any)) : Chiasmus::MCPServer::
 end
 
 describe Chiasmus::MCPServer::Tools::GraphTool do
+  it "uses the default extraction cache when cache options are omitted" do
+    cache_dir = File.tempname("chiasmus-default-cache")
+    file = File.tempname("default-cache", ".go")
+    File.write(file, "package main\nfunc cached() {}\n")
+
+    begin
+      with_env({"CHIASMUS_CACHE_DIR" => cache_dir}) do
+        result = Chiasmus::MCPServer::Tools::GraphTool.new.invoke({
+          "files"    => JSON.parse([file].to_json),
+          "analysis" => JSON::Any.new("summary"),
+        })
+        result.status.should eq("success")
+        Chiasmus::Graph::GraphCache.flush_async_writes
+
+        paths = Chiasmus::Graph::GraphCache.resolve_cache_paths(cache_dir)
+        File.exists?(paths["manifest_path"]).should be_true
+      end
+    ensure
+      File.delete(file) if File.exists?(file)
+      FileUtils.rm_rf(cache_dir)
+    end
+  end
+
   describe "tool metadata" do
     it "has correct tool name" do
       Chiasmus::MCPServer::Tools::GraphTool.tool_name.should eq("chiasmus_graph")

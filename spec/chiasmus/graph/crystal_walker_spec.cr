@@ -3,10 +3,49 @@ require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/parser"
 require "../../../src/chiasmus/graph/walkers"
 require "../../../src/chiasmus/graph/extractor"
+require "../../../src/chiasmus/graph/analyses"
 
 include Chiasmus::Graph
 
 describe "Crystal walker call extraction" do
+  it "keeps same-named methods in separate module and class scopes" do
+    cr = <<-CR
+      module Demo
+        class Alpha
+          def run
+            helper
+          end
+
+          def helper
+            run
+          end
+        end
+
+        class Beta
+          def run
+            helper
+          end
+
+          def helper
+          end
+        end
+      end
+    CR
+
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/scoped_methods.cr", content: cr)])
+
+    graph.defines.compact_map(&.qualified_name).should contain("Demo.Alpha.run")
+    graph.defines.compact_map(&.qualified_name).should contain("Demo.Beta.run")
+    graph.calls.map { |fact| {fact.caller_qn, fact.callee_qn} }.should contain({"Demo.Alpha.run", "Demo.Alpha.helper"})
+    graph.calls.map { |fact| {fact.caller_qn, fact.callee_qn} }.should contain({"Demo.Beta.run", "Demo.Beta.helper"})
+
+    result = Analyses.run_analysis_from_graph(
+      graph,
+      AnalysisRequest.new(analysis: AnalysisType::Cycles)
+    )
+    result.result.as(Array(String)).to_set.should eq(Set{"Demo.Alpha.run", "Demo.Alpha.helper"})
+  end
+
   it "does not treat local variables as function calls" do
     cr = <<-CR
       def calculate(x, y)

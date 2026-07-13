@@ -64,4 +64,25 @@ describe Watcher do
       watcher.watched_files.should contain("a.ts")
     end
   end
+
+  it "excludes gitignored files from watched state" do
+    with_temp_dir do |dir|
+      Process.run("git", ["init", "-q", dir]).success?.should be_true
+      File.write(File.join(dir, ".gitignore"), "ignored.ts\n")
+      File.write(File.join(dir, "tracked.ts"), "tracked")
+      File.write(File.join(dir, "ignored.ts"), "ignored")
+      File.write(File.join(dir, ".hidden.ts"), "hidden")
+      File.write(File.join(dir, "oversized.ts"), "x" * (FileDiscovery::MAX_FILE_SIZE + 1).to_i)
+
+      watcher = Watcher.new(dir, interval: 0.05.seconds) { }
+      spawn { watcher.run }
+      sleep(0.15.seconds)
+      watcher.stop
+
+      watcher.watched_files.should contain("tracked.ts")
+      watcher.watched_files.should_not contain("ignored.ts")
+      watcher.watched_files.should_not contain(".hidden.ts")
+      watcher.watched_files.should_not contain("oversized.ts")
+    end
+  end
 end

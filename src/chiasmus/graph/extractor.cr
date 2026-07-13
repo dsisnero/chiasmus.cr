@@ -7,6 +7,7 @@ require "./resolve_calls"
 require "./cache"
 require "./parallel_io"
 require "../utils/bounded_work"
+require "tracing"
 
 module Chiasmus
   module Graph
@@ -21,21 +22,35 @@ module Chiasmus
         files : Array(SourceFile),
         parser = Parser,
         cache_dir : String? = nil,
+        repo_key : String? = nil,
         max_bytes : Int32? = nil,
         max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT,
         parallel_cpu : Bool = parallel_cpu_enabled?,
       ) : CodeGraph
+        started_at = Time.instant
+        telemetry_span = Tracing.span(Tracing::Level::INFO, "chiasmus.graph.extract", files: files.size)
         to_extract = files
         cached = [] of NamedTuple(path: String, graph: CodeGraph)
 
         if cache_dir
           check_result = GraphCache.check_file_cache(
             files.map { |file_info| {path: file_info.path, content: file_info.content} },
-            cache_dir
+            cache_dir,
+            repo_key: repo_key,
           )
           cached = check_result[:hits]
           to_extract = check_result[:misses].map { |miss| SourceFile.new(path: miss[:path], content: miss[:content]) }
         end
+
+        cache_status = if cache_dir.nil?
+                         "disabled"
+                       elsif cached.size == files.size
+                         "disk_hit"
+                       elsif cached.empty?
+                         "extracted"
+                       else
+                         "partial_hit"
+                       end
 
         effective_max_concurrent = extraction_max_concurrent(to_extract, parser, max_concurrent, parallel_cpu)
 
@@ -73,7 +88,7 @@ module Chiasmus
         if cache_dir && !fresh_graphs.empty?
           dir = cache_dir
           limit = max_bytes || GraphCache.default_max_bytes_per_repo
-          GraphCache.save_file_cache_async(fresh_graphs, dir, max_bytes: limit)
+          GraphCache.save_file_cache_async(fresh_graphs, dir, repo_key: repo_key, max_bytes: limit)
         end
 
         # Merge cached graphs
@@ -81,7 +96,7 @@ module Chiasmus
           merge_cached_graph(entry[:graph], defines, calls, imports, exports, contains, file_nodes, type_info, call_set)
         end
 
-        CodeGraph.new(
+        graph = CodeGraph.new(
           defines: defines,
           calls: calls,
           imports: imports,
@@ -90,12 +105,27 @@ module Chiasmus
           files: file_nodes.empty? ? nil : file_nodes,
           type_info: type_info.empty? ? nil : type_info
         )
+        telemetry_span.record(
+          cache_status: cache_status,
+          disk_hits: cached.size,
+          files_reindexed: to_extract.size,
+          extraction_ms: (Time.instant - started_at).total_milliseconds,
+        )
+        Tracing.info(
+          "chiasmus.graph.extract.complete",
+          cache_status: cache_status,
+          disk_hits: cached.size,
+          files_reindexed: to_extract.size,
+          extraction_ms: (Time.instant - started_at).total_milliseconds,
+        )
+        graph
       end
 
       def extract_graph_async(
         files : Array(SourceFile),
         parser = Parser,
         cache_dir : String? = nil,
+        repo_key : String? = nil,
         max_bytes : Int32? = nil,
         max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT,
         parallel_cpu : Bool = parallel_cpu_enabled?,
@@ -108,6 +138,7 @@ module Chiasmus
               files,
               parser,
               cache_dir: cache_dir,
+              repo_key: repo_key,
               max_bytes: max_bytes,
               max_concurrent: max_concurrent,
               parallel_cpu: parallel_cpu
@@ -167,12 +198,16 @@ module Chiasmus
         graph = extract_single_file(source_file, parser)
 
         if cache_dir && ((graph.files.try { |f| !f.empty? }) || !graph.defines.empty?)
-          GraphCache.save_file_cache(
-            [{path: file_path, content: content, graph: graph}],
-            cache_dir,
-            repo_key: repo_key,
-            max_bytes: max_bytes || GraphCache.default_max_bytes_per_repo,
-          )
+          begin
+            GraphCache.save_file_cache(
+              [{path: file_path, content: content, graph: graph}],
+              cache_dir,
+              repo_key: repo_key,
+              max_bytes: max_bytes || GraphCache.default_max_bytes_per_repo,
+            )
+          rescue ex
+            STDERR.puts "[Chiasmus] cache write failed for #{file_path}: #{ex.message}"
+          end
         end
 
         graph
@@ -235,6 +270,10 @@ module Chiasmus
               Set(String).new
             )
           end
+
+          # TreeSitter::Node does not retain its owning Tree. Keep the tree live
+          # through the complete adapter/walker traversal in optimized builds.
+          tree.root_node
         end
 
         CodeGraph.new(
@@ -263,7 +302,7 @@ module Chiasmus
         @@merge_mutex.synchronize do
           defines.concat(graph.defines)
           graph.calls.each do |call_fact|
-            key = "#{call_fact.caller}->#{call_fact.callee}"
+            key = "#{call_fact.caller_qn || call_fact.caller}->#{call_fact.callee_qn || call_fact.callee}"
             next if call_set.includes?(key)
             call_set.add(key)
             calls << call_fact
@@ -289,7 +328,7 @@ module Chiasmus
       ) : Nil
         defines.concat(graph.defines)
         graph.calls.each do |call_fact|
-          key = "#{call_fact.caller}->#{call_fact.callee}"
+          key = "#{call_fact.caller_qn || call_fact.caller}->#{call_fact.callee_qn || call_fact.callee}"
           next if call_set.includes?(key)
           call_set.add(key)
           calls << call_fact
@@ -312,7 +351,7 @@ module Chiasmus
       ) : Nil
         defines.concat(partial.defines)
         partial.calls.each do |call_fact|
-          key = "#{call_fact.caller}->#{call_fact.callee}"
+          key = "#{call_fact.caller_qn || call_fact.caller}->#{call_fact.callee_qn || call_fact.callee}"
           next if call_set.includes?(key)
 
           call_set.add(key)

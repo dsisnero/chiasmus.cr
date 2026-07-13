@@ -11,7 +11,7 @@ require "tree-sitter-manager"
 
 module Chiasmus
   module Graph
-    CACHE_SCHEMA_VERSION = "4"
+    CACHE_SCHEMA_VERSION = "5"
 
     DEFAULT_MAX_BYTES = 64 * 1024 * 1024 # 64 MB
 
@@ -139,6 +139,7 @@ module Chiasmus
       ) : Nil
         return if items.empty?
         before_file_cache_write_hook.try(&.call)
+        superseded_hashes = [] of String
         @@mutex.synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
           Dir.mkdir_p(paths["files_dir"])
@@ -148,13 +149,18 @@ module Chiasmus
 
           items.each_with_index do |item, index|
             identity = identities[index]
+            entry = manifest["entries"].as_h
+            if previous = entry[identity.manifest_path]?
+              previous_hash = previous["hash"]?.try(&.as_s?)
+              superseded_hashes << previous_hash if previous_hash && previous_hash != identity.hash
+            end
+
             serialized = code_graph_to_json(item[:graph])
             cache_path = File.join(paths["files_dir"], "#{identity.hash}.json")
             tmp = unique_tmp_path(cache_path)
             File.write(tmp, serialized)
             File.rename(tmp, cache_path)
 
-            entry = manifest["entries"].as_h
             entry[identity.manifest_path] = JSON.parse({
               "hash"       => identity.hash,
               "size"       => serialized.bytesize.to_s,
@@ -165,6 +171,11 @@ module Chiasmus
 
           write_manifest(paths, manifest)
           evict_if_over_budget(paths, manifest, max_bytes)
+        end
+
+        files_dir = resolve_cache_paths(cache_dir, repo_key)["files_dir"]
+        superseded_hashes.uniq!.each do |hash|
+          File.delete(File.join(files_dir, "#{hash}.json")) rescue nil
         end
       end
 
@@ -229,6 +240,7 @@ module Chiasmus
           if modified
             write_manifest(paths, manifest)
           end
+          prune_orphaned_file_cache(paths, entries)
         end
 
         # Delete stale cache files outside the lock.
@@ -329,13 +341,19 @@ module Chiasmus
 
       private def process_async_writes(channel : Channel(AsyncWriteRequest)) : Nil
         while request = channel.receive?
-          case request
-          when FileCacheWriteRequest
-            save_file_cache(request.items, request.cache_dir, repo_key: request.repo_key, max_bytes: request.max_bytes)
-          when SnapshotWriteRequest
-            save_snapshot(request.name, request.graph, request.cache_dir, repo_key: request.repo_key)
-          when FlushRequest
-            request.ack.send(true)
+          begin
+            case request
+            when FileCacheWriteRequest
+              save_file_cache(request.items, request.cache_dir, repo_key: request.repo_key, max_bytes: request.max_bytes)
+            when SnapshotWriteRequest
+              save_snapshot(request.name, request.graph, request.cache_dir, repo_key: request.repo_key)
+            when FlushRequest
+              request.ack.send(true)
+            end
+          rescue ex
+            # A removed repository/cache directory must not kill the singleton
+            # writer and strand every later snapshot or flush request.
+            STDERR.puts "[Chiasmus] async cache write failed: #{ex.message}"
           end
         end
       end
@@ -439,7 +457,7 @@ module Chiasmus
         end
 
         CodeGraph.new(
-          defines: graph.defines.map { |defn| defn.file == from_path ? DefinesFact.new(file: to_path, name: defn.name, kind: defn.kind, line: defn.line, end_line: defn.end_line, signature: defn.signature) : defn },
+          defines: graph.defines.map { |defn| defn.file == from_path ? DefinesFact.new(file: to_path, name: defn.name, kind: defn.kind, line: defn.line, end_line: defn.end_line, signature: defn.signature, qualified_name: defn.qualified_name) : defn },
           calls: graph.calls,
           imports: graph.imports.map { |imp| imp.file == from_path ? ImportsFact.new(file: to_path, name: imp.name, source: imp.source) : imp },
           exports: graph.exports.map { |exp| exp.file == from_path ? ExportsFact.new(file: to_path, name: exp.name) : exp },
@@ -456,7 +474,9 @@ module Chiasmus
           git_entry = File.join(current, ".git")
           if Dir.exists?(git_entry)
             git_dir = canonical_path(git_entry)
-            return GitRepoContext.new(repo_root: current, common_dir: git_common_dir_for(git_dir))
+            if File.file?(File.join(git_dir, "HEAD"))
+              return GitRepoContext.new(repo_root: current, common_dir: git_common_dir_for(git_dir))
+            end
           end
 
           if File.file?(git_entry)
@@ -593,11 +613,18 @@ module Chiasmus
 
       private def code_graph_to_json(graph : CodeGraph) : String
         json = {
-          "defines" => graph.defines.map { |defn| h = {"file" => defn.file, "name" => defn.name, "kind" => defn.kind.to_s, "line" => defn.line}; h = h.merge({"end_line" => defn.end_line}) if defn.end_line > 0; h },
-          "calls"   => graph.calls.map { |call_fact|
+          "defines" => graph.defines.map { |defn|
+            h = {"file" => defn.file, "name" => defn.name, "kind" => defn.kind.to_s, "line" => defn.line}
+            h = h.merge({"end_line" => defn.end_line}) if defn.end_line > 0
+            h = h.merge({"qualified_name" => defn.qualified_name}) if defn.qualified_name
+            h
+          },
+          "calls" => graph.calls.map { |call_fact|
             h = {"caller" => call_fact.caller, "callee" => call_fact.callee}
             callee_qn = call_fact.callee_qn
             h = h.merge({"callee_qn" => callee_qn}) if callee_qn
+            caller_qn = call_fact.caller_qn
+            h = h.merge({"caller_qn" => caller_qn}) if caller_qn
             h
           },
           "imports"  => graph.imports.map { |i| {"file" => i.file, "name" => i.name, "source" => i.source} },
@@ -699,10 +726,10 @@ module Chiasmus
         end
         CodeGraph.new(
           defines: parsed["defines"].as_a.map { |defn|
-            DefinesFact.new(file: defn["file"].as_s, name: defn["name"].as_s, kind: SymbolKind.parse(defn["kind"].as_s), line: defn["line"].as_i, end_line: defn["end_line"]?.try(&.as_i?) || 0)
+            DefinesFact.new(file: defn["file"].as_s, name: defn["name"].as_s, kind: SymbolKind.parse(defn["kind"].as_s), line: defn["line"].as_i, end_line: defn["end_line"]?.try(&.as_i?) || 0, qualified_name: defn["qualified_name"]?.try(&.as_s?))
           },
           calls: parsed["calls"].as_a.map { |call_fact|
-            CallsFact.new(caller: call_fact["caller"].as_s, callee: call_fact["callee"].as_s, callee_qn: call_fact["callee_qn"]?.try(&.as_s?))
+            CallsFact.new(caller: call_fact["caller"].as_s, callee: call_fact["callee"].as_s, callee_qn: call_fact["callee_qn"]?.try(&.as_s?), caller_qn: call_fact["caller_qn"]?.try(&.as_s?))
           },
           imports: parsed["imports"].as_a.map { |i|
             ImportsFact.new(file: i["file"].as_s, name: i["name"].as_s, source: i["source"].as_s)
@@ -722,6 +749,23 @@ module Chiasmus
         tmp = unique_tmp_path(paths["manifest_path"])
         File.write(tmp, manifest.to_json)
         File.rename(tmp, paths["manifest_path"])
+      end
+
+      # Remove content-addressed graph blobs no longer reachable from the
+      # manifest. Deletion invalidation calls this while holding @@mutex, so an
+      # async writer cannot publish a new blob between the reference snapshot
+      # and the sweep.
+      private def prune_orphaned_file_cache(paths : Hash(String, String), entries : Hash(String, JSON::Any)) : Nil
+        files_dir = paths["files_dir"]
+        return unless Dir.exists?(files_dir)
+
+        referenced = entries.values.compact_map { |entry| entry["hash"]?.try(&.as_s?) }.to_set
+        Dir.children(files_dir).each do |name|
+          next unless name.ends_with?(".json")
+          next if referenced.includes?(name.rchop(".json"))
+
+          File.delete(File.join(files_dir, name)) rescue nil
+        end
       end
 
       private def unique_tmp_path(path : String) : String

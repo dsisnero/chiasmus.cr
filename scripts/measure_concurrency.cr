@@ -14,13 +14,14 @@ end
 module ConcurrencyPerf
   extend self
 
-  RELEASE_BUILD = {{ flag?(:release) }}
-  PREVIEW_MT_BUILD = {{ flag?(:preview_mt) }}
+  RELEASE_BUILD           = {{ flag?(:release) }}
+  PREVIEW_MT_BUILD        = {{ flag?(:preview_mt) }}
   EXECUTION_CONTEXT_BUILD = {{ flag?(:execution_context) }}
-  FILE_COUNT = env_int("CHIASMUS_BENCH_FILE_COUNT", 40)
-  METHOD_COUNT = env_int("CHIASMUS_BENCH_METHOD_COUNT", 20)
-  RUNS = env_int("CHIASMUS_BENCH_RUNS", 3)
-  SECTIONS = (ENV["CHIASMUS_BENCH_SECTIONS"]? || "file-io,search-prep,discover,extract,async-cache").split(',').map(&.strip)
+  FILE_COUNT              = env_int("CHIASMUS_BENCH_FILE_COUNT", 40)
+  METHOD_COUNT            = env_int("CHIASMUS_BENCH_METHOD_COUNT", 20)
+  RUNS                    = env_int("CHIASMUS_BENCH_RUNS", 3)
+  SOURCE_DIR              = ENV["CHIASMUS_BENCH_SOURCE_DIR"]?
+  SECTIONS                = (ENV["CHIASMUS_BENCH_SECTIONS"]? || "file-io,search-prep,discover,extract,crystal-strategies,async-cache").split(',').map(&.strip)
 
   record Measurement,
     label : String,
@@ -33,11 +34,12 @@ module ConcurrencyPerf
     Dir.mkdir_p(tmpdir)
 
     begin
-      paths = build_fixture_repo(tmpdir)
+      paths = SOURCE_DIR ? source_paths(SOURCE_DIR.not_nil!) : build_fixture_repo(tmpdir)
       file_tuples = paths.map { |path| {path, File.read(path)} }
 
       puts "# Concurrency Benchmark"
-      puts "files=#{paths.size} methods_per_file=#{METHOD_COUNT} cpus=#{System.cpu_count}"
+      workload = SOURCE_DIR ? "source_dir=#{SOURCE_DIR}" : "methods_per_file=#{METHOD_COUNT}"
+      puts "files=#{paths.size} #{workload} cpus=#{System.cpu_count}"
       puts "sections=#{SECTIONS.join(",")}"
       puts "release=#{RELEASE_BUILD} preview_mt=#{PREVIEW_MT_BUILD} execution_context=#{EXECUTION_CONTEXT_BUILD}"
       puts
@@ -47,6 +49,7 @@ module ConcurrencyPerf
       results.concat(benchmark_search_prep(paths)) if section_enabled?("search-prep")
       results.concat(benchmark_discovery(file_tuples)) if section_enabled?("discover") && discovery_benchmark_enabled?
       results.concat(benchmark_extract_graph(paths)) if section_enabled?("extract")
+      results.concat(benchmark_crystal_strategies(file_tuples)) if section_enabled?("crystal-strategies")
       results.concat(benchmark_async_cache(paths)) if section_enabled?("async-cache")
 
       puts
@@ -129,6 +132,53 @@ module ConcurrencyPerf
     results
   end
 
+  private def benchmark_crystal_strategies(files : Array(Tuple(String, String))) : Array(Measurement)
+    puts
+    puts "## Crystal Strategies (same parsed source workload)"
+    sources = files.map { |path, content| Chiasmus::Graph::SourceFile.new(path: path, content: content) }
+
+    query_result = discover_sequential(files)
+    walker_graph = Chiasmus::Graph::Extractor.extract_graph(sources, max_concurrent: 1)
+    report_strategy_coverage(query_result, walker_graph)
+
+    [
+      measure("Crystal SCM queries sequential") { discover_sequential(files) },
+      measure("Crystal graph walker sequential") do
+        Chiasmus::Graph::Extractor.extract_graph(sources, max_concurrent: 1)
+      end,
+    ]
+  end
+
+  private def report_strategy_coverage(
+    query_result : Chiasmus::Discovery::Result,
+    walker_graph : Chiasmus::Graph::CodeGraph,
+  ) : Nil
+    query_definitions = query_result.items.reject do |item|
+      item.kind.starts_with?("reference.") || item.kind.in?("params", "return_type", "definition.import", "definition.module")
+    end
+    query_references = query_result.items.select(&.kind.starts_with?("reference."))
+    query_imports = query_result.items.count(&.kind.==("definition.import"))
+
+    query_keys = query_definitions.map { |item| {item.file, item.name.split('.').last} }.to_set
+    walker_keys = walker_graph.defines.map { |fact| {fact.file, fact.name.split('.').last} }.to_set
+    shared = query_keys & walker_keys
+    union = query_keys | walker_keys
+    overlap = union.empty? ? 1.0 : shared.size.to_f / union.size
+
+    puts "  query output: definitions=#{query_keys.size} raw_definition_rows=#{query_definitions.size} references=#{query_references.size} imports=#{query_imports}"
+    puts "  walker output: definitions=#{walker_graph.defines.size} calls=#{walker_graph.calls.size} imports=#{walker_graph.imports.size} contains=#{walker_graph.contains.size}"
+    printf "  definition key overlap: %d/%d (%0.1f%%)\n", shared.size, union.size, overlap * 100.0
+    puts "  query-only definition keys (first 10): #{format_keys(query_keys - walker_keys)}"
+    puts "  walker-only definition keys (first 10): #{format_keys(walker_keys - query_keys)}"
+    puts "  downstream relationships: queries=unscoped references; walker=caller→callee and parent→child facts"
+  end
+
+  private def format_keys(keys : Set(Tuple(String, String))) : String
+    keys.to_a.sort_by { |file, name| {file, name} }.first(10).map do |file, name|
+      "#{File.basename(file)}::#{name}"
+    end.join(", ")
+  end
+
   private def sequential_read(paths : Array(String)) : Array(Chiasmus::Graph::SourceFile)
     paths.map do |path|
       Chiasmus::Graph::SourceFile.new(path: path, content: File.read(path))
@@ -142,14 +192,16 @@ module ConcurrencyPerf
 
   private def discover_sequential(files : Array(Tuple(String, String))) : Chiasmus::Discovery::Result
     extractor = Chiasmus::Discovery::CrystalExtractor.new
-    language = Chiasmus::Discovery::GrammarLoader.load_language(extractor.grammar_language)
+    language = TreeSitterManager::GrammarLoader.load_language(extractor.grammar_language)
     raise "crystal grammar not available for benchmark" unless language
 
     all_items = [] of Chiasmus::Discovery::Item
     files.each do |file_path, content|
       parser = TreeSitter::Parser.new(language: language)
       tree = parser.parse(nil, content)
-      all_items.concat(extractor.extract(tree.root_node, content, file_path))
+      root = tree.root_node
+      all_items.concat(extractor.extract(root, content, file_path))
+      tree.root_node
     rescue
     end
 
@@ -170,6 +222,13 @@ module ConcurrencyPerf
     end
 
     paths
+  end
+
+  private def source_paths(source_dir : String) : Array(String)
+    paths = Dir.glob(File.join(source_dir, "**", "*.cr")).sort
+    raise "no Crystal files found under #{source_dir}" if paths.empty?
+
+    paths.first(FILE_COUNT)
   end
 
   private def crystal_fixture(index : Int32) : String
@@ -203,7 +262,7 @@ module ConcurrencyPerf
   end
 
   private def worker_count(paths : Array(String)) : Int32
-    Math.max(2, Math.min(System.cpu_count, paths.size))
+    Math.max(2, Math.min(System.cpu_count, paths.size)).to_i32
   end
 
   private def ensure_release_build! : Nil
@@ -244,7 +303,7 @@ module ConcurrencyPerf
 
     private def benchmark_extract_graph_with_execution_context(
       sources : Array(Chiasmus::Graph::SourceFile),
-      worker_count : Int32
+      worker_count : Int32,
     ) : Array(Measurement)
       [
         measure("extract graph x#{worker_count} parallel_cpu") do
@@ -266,7 +325,7 @@ module ConcurrencyPerf
 
     private def benchmark_extract_graph_with_execution_context(
       sources : Array(Chiasmus::Graph::SourceFile),
-      worker_count : Int32
+      worker_count : Int32,
     ) : Array(Measurement)
       [] of Measurement
     end

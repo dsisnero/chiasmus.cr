@@ -8,6 +8,9 @@
 #   --parser MODE      Parser mode: auto|tree-sitter|regex (default: auto)
 #   --tsv              Output TSV format (default)
 
+# Prevent tree-sitter-manager from consuming this binary's arguments.
+ENV["TREE_SITTER_MANAGER_NO_AUTO_RUN"] = "1"
+
 require "./chiasmus/discover_cli"
 
 exit Chiasmus::DiscoverCLI.run(ARGV)

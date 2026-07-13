@@ -3,11 +3,15 @@ require "mcp"
 require "../types"
 require "../tool_schemas"
 require "../../graph/analyses"
+require "tracing"
 
 module Chiasmus
   module MCPServer
     module Tools
       class GraphTool
+        def initialize(@project_index : Index::ProjectIndex? = nil)
+        end
+
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           args = Types::GraphInput.from_json(arguments.to_json)
 
@@ -31,20 +35,10 @@ module Chiasmus
             include_insights: args.include_insights?
           )
 
-          cache_dir = if cache_opts = args.cache
-                        cache_opts.cache_dir || Graph::GraphCache.default_cache_dir
-                      end
+          cache_dir = args.cache.try(&.cache_dir) || Graph::GraphCache.default_cache_dir
           repo_key = args.cache.try(&.repo_key)
           max_bytes = args.cache.try(&.max_bytes_per_repo)
-          result = Graph::Analyses.run_analysis_async(
-            absolute_files,
-            request,
-            cache_dir: cache_dir,
-            snapshot_cache_dir: cache_dir,
-            repo_key: repo_key,
-            max_bytes: max_bytes,
-            save_snapshot: args.save_snapshot
-          ).receive
+          result = run_indexed_analysis(absolute_files, request, cache_dir, repo_key, max_bytes, args.save_snapshot)
 
           if error = result.error
             return Types::ErrorResponse.new(error)
@@ -66,6 +60,95 @@ module Chiasmus
           Types::ErrorResponse.new("File not found: #{ex.message}")
         rescue ex
           Types::ErrorResponse.new(ex.message || ex.class.name)
+        end
+
+        private def run_indexed_analysis(
+          files : Array(String),
+          request : Graph::AnalysisRequest,
+          cache_dir : String?,
+          repo_key : String?,
+          max_bytes : Int32?,
+          save_snapshot : String?,
+        ) : Graph::Analyses::AsyncAnalysisResult
+          index = @project_index
+          return run_extracted_analysis(files, request, cache_dir, repo_key, max_bytes, save_snapshot) unless index
+          return run_extracted_analysis(files, request, cache_dir, repo_key, max_bytes, save_snapshot) if save_snapshot
+
+          lookup = index.lookup(files)
+          graph = lookup.graph
+          Tracing.info("chiasmus.graph.cache", cache_status: lookup.status, files: files.size)
+          return run_and_index_analysis(index, files, request, cache_dir, repo_key, max_bytes) unless graph
+
+          started_at = Time.instant
+          value = Graph::Analyses.run_analysis_from_graph(
+            graph,
+            request,
+            snapshot_cache_dir: cache_dir,
+            repo_key: repo_key,
+          )
+          Tracing.info(
+            "chiasmus.graph.analysis",
+            analysis: request.analysis.to_s,
+            analysis_ms: (Time.instant - started_at).total_milliseconds,
+          )
+          Graph::Analyses::AsyncAnalysisResult.new(value: value)
+        end
+
+        private def run_and_index_analysis(
+          index : Index::ProjectIndex,
+          files : Array(String),
+          request : Graph::AnalysisRequest,
+          cache_dir : String?,
+          repo_key : String?,
+          max_bytes : Int32?,
+        ) : Graph::Analyses::AsyncAnalysisResult
+          source_files = Graph::FileIO.read_source_files_or_raise(files)
+          graph = Graph::Extractor.extract_graph_async(
+            source_files,
+            cache_dir: cache_dir,
+            repo_key: repo_key,
+            max_bytes: max_bytes,
+          ).receive
+          index.upsert_graph(graph)
+          started_at = Time.instant
+          value = Graph::Analyses.run_analysis_from_graph(
+            graph,
+            request,
+            snapshot_cache_dir: cache_dir,
+            repo_key: repo_key,
+          )
+          Tracing.info(
+            "chiasmus.graph.analysis",
+            analysis: request.analysis.to_s,
+            analysis_ms: (Time.instant - started_at).total_milliseconds,
+          )
+          Graph::Analyses::AsyncAnalysisResult.new(value: value)
+        rescue ex
+          Graph::Analyses::AsyncAnalysisResult.new(error: ex.message || ex.class.name)
+        end
+
+        private def run_extracted_analysis(
+          files : Array(String),
+          request : Graph::AnalysisRequest,
+          cache_dir : String?,
+          repo_key : String?,
+          max_bytes : Int32?,
+          save_snapshot : String?,
+        ) : Graph::Analyses::AsyncAnalysisResult
+          result = Graph::Analyses.run_analysis_async(
+            files,
+            request,
+            cache_dir: cache_dir,
+            snapshot_cache_dir: cache_dir,
+            repo_key: repo_key,
+            max_bytes: max_bytes,
+            save_snapshot: save_snapshot
+          ).receive
+          # Analyses deliberately persists asynchronously. At the MCP tool
+          # boundary, make a named snapshot observable before returning so an
+          # immediate follow-up diff cannot race the writer.
+          Graph::GraphCache.flush_async_writes if save_snapshot && cache_dir
+          result
         end
 
         def self.tool_name : String

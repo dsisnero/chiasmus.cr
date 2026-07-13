@@ -161,7 +161,7 @@ module Chiasmus
 
         files = FileIO.read_source_files_or_raise(file_paths)
 
-        graph = Extractor.extract_graph(files, cache_dir: cache_dir, max_bytes: max_bytes)
+        graph = Extractor.extract_graph(files, cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes)
 
         if save_snapshot && cache_dir
           snap_name = save_snapshot
@@ -403,7 +403,10 @@ module Chiasmus
       end
 
       private def cycle_nodes(graph : CodeGraph) : Array(String)
-        adjacency = adjacency_map(graph)
+        adjacency = Hash(String, Set(String)).new { |hash, key| hash[key] = Set(String).new }
+        graph.calls.each do |fact|
+          adjacency[fact.caller_qn || fact.caller].add(fact.callee_qn || fact.callee)
+        end
         nodes = [] of String
 
         adjacency.keys.each do |node|

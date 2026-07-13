@@ -1,7 +1,7 @@
 require "file_utils"
 require "wait_group"
 require "sync-map"
-require "./fast_find"
+require "./file_discovery"
 
 module Chiasmus
   module Index
@@ -88,25 +88,12 @@ module Chiasmus
         changed
       end
 
-      # Walk directory using FastFind's concurrent Walker.
-      # Yields (relative_path, modification_time) for each file.
+      # Use the same Git-aware discovery rules as initial project indexing.
+      # Yields (relative_path, modification_time) for each supported source file.
       private def each_file_entry(root : String, & : String, Time ->)
-        config = FastFind::Config.new
-        config.ignore_hidden = true
-        config.follow_symlinks = false
-        config.max_depth = 50
-
-        walker = FastFind::Walker.new([root], config)
-        queue = walker.walk
-
-        loop do
-          entry = queue.receive?
-          break if entry.nil?
-          next unless entry.file?
-          next unless entry.metadata
-
-          if md = entry.metadata
-            relative = entry.path.relative_to(root).to_s
+        FileDiscovery.paths(root).each do |path|
+          if md = File.info?(path)
+            relative = Path.new(path).relative_to(root).to_s
             yield relative, md.modification_time
           end
         end

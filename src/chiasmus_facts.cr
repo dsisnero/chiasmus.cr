@@ -20,6 +20,9 @@
 #   chiasmus-facts --language typescript --dir vendor/chiasmus/src > vendor.pl
 #   chiasmus-facts --language crystal    --dir src                 > port.pl
 
+# Prevent tree-sitter-manager from consuming this binary's arguments.
+ENV["TREE_SITTER_MANAGER_NO_AUTO_RUN"] = "1"
+
 require "./chiasmus/facts_cli"
 
 exit Chiasmus::FactsCLI.run(ARGV)

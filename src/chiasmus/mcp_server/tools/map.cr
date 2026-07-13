@@ -5,18 +5,22 @@ require "../tool_schemas"
 require "../../graph/map"
 require "../../graph/extractor"
 require "../../graph/parallel_io"
+require "tracing"
 
 module Chiasmus
   module MCPServer
     module Tools
       class MapTool
+        def initialize(@project_index : Index::ProjectIndex? = nil)
+        end
+
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           args = Types::MapInput.from_json(arguments.to_json)
 
           return Types::ErrorResponse.new("'files' (non-empty string[]) is required") if args.files.empty?
 
-          source_files = Graph::FileIO.read_source_files_or_raise(args.files)
-          graph = Graph::Extractor.extract_graph_async(source_files, cache_dir: args.cache).receive
+          paths = args.files.map { |path| File.expand_path(path) }
+          graph = load_graph(paths, args.cache || Graph::GraphCache.default_cache_dir) || return Types::ErrorResponse.new("Unable to index all requested files")
 
           map = case args.mode
                 when "file"
@@ -37,6 +41,19 @@ module Chiasmus
           Types::MapResponse.new(content: rendered)
         rescue ex
           Types::ErrorResponse.new(ex.message || ex.class.name)
+        end
+
+        private def load_graph(paths : Array(String), cache_dir : String?) : Graph::CodeGraph?
+          if index = @project_index
+            lookup = index.lookup(paths)
+            Tracing.info("chiasmus.map.cache", cache_status: lookup.status, files: paths.size)
+            return lookup.graph if lookup.graph
+          end
+
+          source_files = Graph::FileIO.read_source_files_or_raise(paths)
+          graph = Graph::Extractor.extract_graph_async(source_files, cache_dir: cache_dir).receive
+          @project_index.try(&.upsert_graph(graph))
+          graph
         end
 
         def self.tool_name : String

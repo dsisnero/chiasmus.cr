@@ -85,6 +85,26 @@ describe GraphCache do
       end
     end
 
+    it "preserves qualified definition and call identities" do
+      with_temp_cache do |cache_dir|
+        graph = CodeGraph.new(
+          defines: [DefinesFact.new(file: "/abs/a.cr", name: "run", kind: SymbolKind::Function, line: 1, qualified_name: "Demo.Worker.run")],
+          calls: [CallsFact.new(caller: "run", callee: "helper", caller_qn: "Demo.Worker.run", callee_qn: "Demo.Worker.helper")]
+        )
+        GraphCache.save_file_cache([
+          {path: "/abs/a.cr", content: "class Worker; end", graph: graph},
+        ], cache_dir)
+
+        hit = GraphCache.check_file_cache([
+          {path: "/abs/a.cr", content: "class Worker; end"},
+        ], cache_dir)[:hits].first[:graph]
+
+        hit.defines.first.qualified_name.should eq("Demo.Worker.run")
+        hit.calls.first.caller_qn.should eq("Demo.Worker.run")
+        hit.calls.first.callee_qn.should eq("Demo.Worker.helper")
+      end
+    end
+
     it "returns miss when content changed" do
       with_temp_cache do |cache_dir|
         GraphCache.save_file_cache([

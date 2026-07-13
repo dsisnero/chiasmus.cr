@@ -16,6 +16,23 @@ private def run_git!(repo : String, args : Array(String)) : String
 end
 
 describe "GraphCache integration with extract_graph" do
+  it "emits structured extraction cache telemetry through tracing" do
+    file = File.join(Dir.tempdir, "traced-cache-#{Random::Secure.hex(8)}.go")
+    File.write(file, "package main\nfunc traced() {}\n")
+    mock = Tracing::MockSubscriber.new
+
+    begin
+      Tracing::Dispatch.with_default(Tracing::Dispatch.new(mock)) do
+        Extractor.extract_graph([SourceFile.new(file, File.read(file))])
+      end
+
+      mock.spans.map { |attrs, _| attrs.metadata.name }.should contain("chiasmus.graph.extract")
+      mock.events.map(&.metadata.name).should contain("chiasmus.graph.extract.complete")
+    ensure
+      File.delete(file) if File.exists?(file)
+    end
+  end
+
   it "skips re-extraction for cache-hit files (2nd call is identical)" do
     tmpdir = Dir.tempdir
     cache_dir = File.join(tmpdir, "chiasmus-cache-spec-#{Random::Secure.hex(8)}")

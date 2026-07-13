@@ -16,6 +16,7 @@ require "./tools/craft"
 require "./tools/review"
 require "./tools/crig"
 require "../index/watcher"
+require "../index/project_index"
 require "../graph/cache"
 
 module Chiasmus
@@ -55,6 +56,7 @@ module Chiasmus
     abstract class BaseServer
       abstract def skill_library : Skills::Library
       abstract def skill_learner : Skills::Learner?
+      abstract def project_index : Index::ProjectIndex
       abstract def refreshable_from_env? : Bool
       abstract def formalize(problem : String) : Formalize::FormalizeResult?
       abstract def formalize_async(problem : String) : Channel(AsyncCallResult(Formalize::FormalizeResult))
@@ -112,6 +114,11 @@ module Chiasmus
       @tool_dispatcher : ToolDispatcher
       @tool_handlers : Hash(String, Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult))
       @watcher : Index::Watcher?
+      @project_index = Index::ProjectIndex.new
+
+      def project_index : Index::ProjectIndex
+        @project_index
+      end
 
       # Create a server instance with a specific agent
       def self.with_agent(agent : Crig::Agent(M), env_managed : Bool = false) forall M
@@ -249,7 +256,9 @@ module Chiasmus
 
         mcp.on_close do
           STDERR.puts "[Chiasmus] MCP server shutting down"
+          Graph::GraphCache.flush_async_writes rescue nil
           @skill_library.close rescue nil
+          @project_index.close rescue nil
           wg.done
         end
 
@@ -266,7 +275,7 @@ module Chiasmus
         # Async self-healthcheck: validates server tools and state after startup
         # without blocking the MCP client connection. Uses in-memory transport
         # so stdout (reserved for JSON-RPC) is never touched.
-        wg.spawn do
+        spawn do
           sleep(500.milliseconds)
           result = healthcheck
           if result[:success]
@@ -284,13 +293,19 @@ module Chiasmus
         repo_key = Graph::GraphCache.default_repo_key(project_root)
         @watcher = Index::Watcher.new(project_root, interval: 2.0) do |path|
           abs_path = File.join(project_root, path)
-          STDERR.puts "[Chiasmus] file changed: #{path} — re-extracting"
+          deleted = !File.exists?(abs_path)
+          STDERR.puts "[Chiasmus] file #{deleted ? "deleted" : "changed"}: #{path}"
           spawn do
-            Graph::Extractor.extract_and_cache_file(
-              abs_path,
-              cache_dir: cache_dir,
-              repo_key: repo_key,
-            )
+            if deleted
+              @project_index.remove_file(abs_path)
+              Graph::GraphCache.invalidate_file_cache([abs_path], cache_dir, repo_key: repo_key)
+            elsif graph = Graph::Extractor.extract_and_cache_file(
+                    abs_path,
+                    cache_dir: cache_dir,
+                    repo_key: repo_key,
+                  )
+              @project_index.upsert_file(graph)
+            end
           end
         end
         wg.spawn do
@@ -403,7 +418,16 @@ module Chiasmus
         end
 
         gated.each do |(tool_class, name, description, input_schema)|
-          tool_instance = tool_class.new
+          tool_instance = case name
+                          when Tools::GraphTool.tool_name
+                            Tools::GraphTool.new(@project_index)
+                          when Tools::MapTool.tool_name
+                            Tools::MapTool.new(@project_index)
+                          when Tools::SearchTool.tool_name
+                            Tools::SearchTool.new(@project_index)
+                          else
+                            tool_class.new
+                          end
           @tool_handlers[name] = ->(arguments : Hash(String, JSON::Any)) do
             build_call_tool_result(safely_invoke_tool(tool_instance, arguments))
           end

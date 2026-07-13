@@ -15,3 +15,17 @@ describe "shard.yml CLI targets" do
     targets["chiasmus-facts"].["main"].as_s.should eq("src/chiasmus_facts.cr")
   end
 end
+
+describe "tree-sitter CLI entrypoints" do
+  it "disables tree-sitter-manager argument interception before requiring application code" do
+    %w[src/chiasmus_discover.cr src/chiasmus_facts.cr].each do |path|
+      source = File.read(path)
+      guard_offset = source.index(%(ENV["TREE_SITTER_MANAGER_NO_AUTO_RUN"] = "1"))
+      require_offset = source.index(/^require /m)
+
+      guard_position = guard_offset || fail("missing tree-sitter-manager guard in #{path}")
+      require_position = require_offset || fail("missing application require in #{path}")
+      guard_position.should be < require_position
+    end
+  end
+end

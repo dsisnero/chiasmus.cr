@@ -102,8 +102,14 @@ module Chiasmus
 
         parser = TreeSitter::Parser.new(language: lang)
         tree = parser.parse(nil, content)
+        root = tree.root_node
+        items = extractor.extract(root, content, file_path)
 
-        extractor.extract(tree.root_node, content, file_path)
+        # TreeSitter::Node is a value wrapper and does not retain its owning Tree.
+        # Touch the tree after query traversal so release-build liveness analysis
+        # cannot finalize it while the extractor still uses `root`.
+        tree.root_node
+        items
       rescue ex
         [] of Item
       end
