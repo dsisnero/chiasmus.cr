@@ -129,8 +129,9 @@ Use these with DeepWiki (`deepwiki_ask_question repoName: "owner/repo"`) to rese
 | `merkletree/` | `pratikpandey21/merkletree` | Minimal Go Merkle Tree implementation (SHA-256). |
 | `openapi_cr/` | `dsisnero/openapi_cr` | Crystal port of Microsoft Kiota — OpenAPI parser, URL-tree resource grouper, codegen AST builder, Crystal API client generator. |
 | `syntastica/` | `RubixDev/syntastica` | Rust syntax highlighting library using tree-sitter with three highlighting modes, theme system, query preprocessing, and Node.js bindings. |
+| — | `xberg-io/tree-sitter-language-pack` | Monorepo of tree-sitter grammars for 30+ languages with consistent npm/shared-obj publishing, WASM builds, and metadata. Useful for borrowing grammar loading patterns, WASM integration, and parser lifecycle approaches. |
 
-**When investigating tree-sitter grammar loading**: query `RubixDev/syntastica` (Rust reference) and `Exafunction/codeium-parse` (packaged grammars) for patterns. The main `yogthos/chiasmus` upstream is the porting source of truth — query it first before other vendors.
+**When investigating tree-sitter grammar loading**: query `RubixDev/syntastica` (Rust reference), `Exafunction/codeium-parse` (packaged grammars), and `xberg-io/tree-sitter-language-pack` (grammar monorepo patterns) for ideas. The main `yogthos/chiasmus` upstream is the porting source of truth — query it first before other vendors.
 
 ## Getting Started
 
