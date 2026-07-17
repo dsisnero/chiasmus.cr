@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "tree-sitter-javascript": "^0.25.0"
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-markdown": "^0.7.1",
+    "tree-sitter-perl": "^1.2.1"
   }
 }

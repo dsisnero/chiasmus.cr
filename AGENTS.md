@@ -72,6 +72,10 @@ make test      # crystal spec
 3. **Test parity**: Port upstream tests as Crystal specs early in the process
 4. **Continuous verification**: Run quality gates frequently during development
 
+## Agent Execution
+
+- For all coding tasks, use judgment to choose an appropriate lower-power model and run that work in a subagent first.
+
 ## Implementation Skills
 
 Use these skills for different aspects of the port:
