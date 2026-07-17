@@ -1,6 +1,5 @@
 require "option_parser"
 require "./parity"
-require "./solvers/prolog_solver"
 
 module Chiasmus
   module Complete
@@ -32,6 +31,7 @@ module Chiasmus
       rules_path : String? = nil,
       parser_mode : String? = nil,
     ) : Evaluation
+      parity_config = Utils::Config.load_repo_config(root_dir).parity
       analysis = if parity_report_path
                    Parity::Loader.read_report(parity_report_path)
                  else
@@ -48,36 +48,45 @@ module Chiasmus
                  end
       inventory = Parity::Loader.read_inventory(inventory_path)
       source_facts = Parity::Structural.load_facts(source_facts_path)
-      program = IO::Memory.new
-      Parity::Completion.render(program, inventory, analysis, source_facts)
-
-      solver = Solvers::PrologSolver.new
-      begin
-        complete_ids = query_ids(solver, program.to_s, "complete(Id)")
-        incomplete_ids = query_ids(solver, program.to_s, "incomplete(Id)")
-      ensure
-        solver.dispose
-      end
+      status = Parity::Completion.evaluate(inventory, analysis, source_facts, parity_config: parity_config, root_dir: root_dir)
 
       Evaluation.new(
         analysis: analysis,
-        complete_ids: complete_ids,
-        incomplete_ids: incomplete_ids,
+        complete_ids: status.complete_ids,
+        incomplete_ids: status.incomplete_ids,
       )
     end
 
-    private def query_ids(solver : Solvers::PrologSolver, program : String, query : String) : Array(String)
-      result = solver.solve(program, query)
-      case result
-      when Solvers::SuccessResult
-        ids = result.answers.compact_map { |answer| answer.bindings["Id"]? }
-        ids.sort!
-        ids
-      when Solvers::ErrorResult
-        raise result.error
-      else
-        raise "Unexpected Prolog result for #{query}"
+    def render_status(output : IO, evaluation : Evaluation) : Nil
+      output.puts "status\t#{evaluation.incomplete_ids.empty? ? "complete" : "incomplete"}"
+      output.puts "complete_count\t#{evaluation.complete_ids.size}"
+      output.puts "incomplete_count\t#{evaluation.incomplete_ids.size}"
+    end
+
+    def render_rows(output : IO, evaluation : Evaluation, ids : Array(String), format : OutputFormat) : Nil
+      case format
+      in .ids?
+        ids.each { |id| output.puts id }
+      in .tsv?
+        rows = select_rows(evaluation.analysis.rows, ids)
+        output.puts "# source_id\tkind\tinventory_status\tmatch_status\tstructural_status\tcrystal_path\tnotes"
+        rows.each do |row|
+          output.puts [
+            row.source_id,
+            row.kind,
+            row.inventory_status,
+            row.match_status,
+            row.structural_status,
+            row.crystal_path,
+            row.notes,
+          ].join('\t')
+        end
       end
+    end
+
+    private def select_rows(rows : Array(Parity::ReportRow), ids : Array(String)) : Array(Parity::ReportRow)
+      ids_set = ids.to_set
+      rows.select { |row| ids_set.includes?(row.source_id) }
     end
 
     module CLI
@@ -157,13 +166,13 @@ module Chiasmus
 
         case query_mode
         in .status?
-          render_status(output, evaluation)
+          Complete.render_status(output, evaluation)
           evaluation.incomplete_ids.empty? ? 0 : 2
         in .complete?
-          render_rows(output, evaluation, evaluation.complete_ids, format)
+          Complete.render_rows(output, evaluation, evaluation.complete_ids, format)
           0
         in .incomplete?
-          render_rows(output, evaluation, evaluation.incomplete_ids, format)
+          Complete.render_rows(output, evaluation, evaluation.incomplete_ids, format)
           0
         end
       rescue ex
@@ -188,38 +197,6 @@ module Chiasmus
         else
           raise "Unsupported format: #{value}"
         end
-      end
-
-      private def render_status(output : IO, evaluation : Evaluation) : Nil
-        output.puts "status\t#{evaluation.incomplete_ids.empty? ? "complete" : "incomplete"}"
-        output.puts "complete_count\t#{evaluation.complete_ids.size}"
-        output.puts "incomplete_count\t#{evaluation.incomplete_ids.size}"
-      end
-
-      private def render_rows(output : IO, evaluation : Evaluation, ids : Array(String), format : OutputFormat) : Nil
-        case format
-        in .ids?
-          ids.each { |id| output.puts id }
-        in .tsv?
-          rows = select_rows(evaluation.analysis.rows, ids)
-          output.puts "# source_id\tkind\tinventory_status\tmatch_status\tstructural_status\tcrystal_path\tnotes"
-          rows.each do |row|
-            output.puts [
-              row.source_id,
-              row.kind,
-              row.inventory_status,
-              row.match_status,
-              row.structural_status,
-              row.crystal_path,
-              row.notes,
-            ].join('\t')
-          end
-        end
-      end
-
-      private def select_rows(rows : Array(Parity::ReportRow), ids : Array(String)) : Array(Parity::ReportRow)
-        ids_set = ids.to_set
-        rows.select { |row| ids_set.includes?(row.source_id) }
       end
     end
   end

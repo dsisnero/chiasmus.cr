@@ -65,6 +65,24 @@ describe Chiasmus::Graph::Facts do
     program.should contain("dead(Name)")
   end
 
+  it "emits qualified_name facts when a define carries one" do
+    graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(
+          file: "src/session.cr",
+          name: "run",
+          kind: Chiasmus::Graph::SymbolKind::Method,
+          span: Chiasmus::Graph::Span.line_range(3),
+          qualified_name: "SolverSession.run",
+        ),
+      ],
+    )
+
+    program = Chiasmus::Graph::Facts.graph_to_prolog(graph)
+
+    program.should contain("qualified_name('src/session.cr', run, 'SolverSession.run').")
+  end
+
   it "normalizes duplicate and self-referential contains edges before emitting facts" do
     graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
@@ -102,6 +120,101 @@ describe Chiasmus::Graph::Facts do
     )
 
     program = Chiasmus::Graph::Facts.graph_to_prolog(graph, ["main"])
+
+    program.should contain("calls_in('src/app.ts', main, helper).")
+    program.should contain("calls_in('src/app.ts', helper, leaf).")
+    program.should_not contain("calls_in('src/util.ts', helper, leaf).")
+  end
+
+  it "uses caller_qn when present to avoid duplicate caller blow-up across files" do
+    graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "App.run", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1), qualified_name: "App.run"),
+        Chiasmus::Graph::DefinesFact.new(file: "src/app.cr", name: "App.helper", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(5), qualified_name: "App.helper"),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "Util.run", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1), qualified_name: "Util.run"),
+        Chiasmus::Graph::DefinesFact.new(file: "src/util.cr", name: "Util.helper", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(5), qualified_name: "Util.helper"),
+      ],
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "run", callee: "helper", callee_qn: "App.helper", caller_qn: "App.run"),
+      ],
+      exports: [
+        Chiasmus::Graph::ExportsFact.new(file: "src/app.cr", name: "App.run"),
+      ],
+      contains: [
+        Chiasmus::Graph::ContainsFact.new(parent: "App", child: "App.run"),
+        Chiasmus::Graph::ContainsFact.new(parent: "App", child: "App.helper"),
+        Chiasmus::Graph::ContainsFact.new(parent: "Util", child: "Util.run"),
+        Chiasmus::Graph::ContainsFact.new(parent: "Util", child: "Util.helper"),
+      ],
+    )
+
+    program = Chiasmus::Graph::Facts.graph_to_prolog(graph, ["App.run"])
+
+    program.should contain("calls_in('src/app.cr', 'App.run', 'App.helper').")
+    program.should_not contain("calls_in('src/util.cr', 'Util.run', 'Util.helper').")
+  end
+
+  it "uses normalized semantic scoped calls instead of reconstructing them from the global call graph" do
+    semantic = Chiasmus::Graph::IR::SemanticGraph.new(
+      symbols: [
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "src/app.ts::function::main",
+          name: "main",
+          qualified_name: "main",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Function,
+          file: "src/app.ts",
+          span: Chiasmus::Graph::Span.line_range(1),
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "src/app.ts::function::helper",
+          name: "helper",
+          qualified_name: "helper",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Function,
+          file: "src/app.ts",
+          span: Chiasmus::Graph::Span.line_range(5),
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "src/app.ts::function::leaf",
+          name: "leaf",
+          qualified_name: "leaf",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Function,
+          file: "src/app.ts",
+          span: Chiasmus::Graph::Span.line_range(9),
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "src/util.ts::function::helper",
+          name: "helper",
+          qualified_name: "helper",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Function,
+          file: "src/util.ts",
+          span: Chiasmus::Graph::Span.line_range(3),
+        ),
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "src/util.ts::function::leaf",
+          name: "leaf",
+          qualified_name: "leaf",
+          owner_name: nil,
+          kind: Chiasmus::Graph::SymbolKind::Function,
+          file: "src/util.ts",
+          span: Chiasmus::Graph::Span.line_range(7),
+        ),
+      ],
+      calls: [] of Chiasmus::Graph::IR::CallEdge,
+      exports: [
+        Chiasmus::Graph::IR::ExportEdge.new(file: "src/app.ts", name: "main"),
+      ],
+      scoped_calls: [
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/app.ts", "main", "helper"),
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/app.ts", "helper", "leaf"),
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/util.ts", "helper", "leaf"),
+      ],
+    )
+
+    program = Chiasmus::Graph::Facts.graph_to_prolog(semantic, ["main"])
 
     program.should contain("calls_in('src/app.ts', main, helper).")
     program.should contain("calls_in('src/app.ts', helper, leaf).")

@@ -2,6 +2,7 @@ require "option_parser"
 require "./discovery"
 require "./graph/analyses"
 require "./graph/cache"
+require "./graph/facts_snapshot"
 require "./index/fast_find"
 
 module Chiasmus
@@ -35,6 +36,7 @@ module Chiasmus
       dir = "."
       entry_points = [] of String
       insights = false
+      profile = ENV["CHIASMUS_FACTS_PROFILE"]? == "1"
       help_requested = false
       cache_dir = ENV["CHIASMUS_FACTS_CACHE_DIR"]? || ENV["CHIASMUS_CACHE_DIR"]?
       repo_key = ENV["CHIASMUS_FACTS_REPO_KEY"]?
@@ -46,6 +48,7 @@ module Chiasmus
         opts.on("--dir DIR", "Source directory to scan (default: .)") { |v| dir = v }
         opts.on("--entry-point NAME", "Entry point for reachability/dead-code (repeatable)") { |v| entry_points << v }
         opts.on("--insights", "Also emit community/2, cohesion/2, hub/2, bridge/2 facts") { insights = true }
+        opts.on("--profile", "Emit timing profile to stderr") { profile = true }
         opts.on("--cache-dir DIR", "Enable persistent per-file extraction cache in DIR") { |v| cache_dir = v }
         opts.on("--repo-key KEY", "Override cache repo key (defaults to current working directory hash)") { |v| repo_key = v }
         opts.on("--cache-max-bytes BYTES", "Maximum bytes to retain in the cache repo") { |v| cache_max_bytes = v.to_i32 }
@@ -68,6 +71,7 @@ module Chiasmus
 
       register_grammar_directories(dir)
 
+      started_at = Time.instant
       files = scan_files(language, dir)
       if files.empty?
         error.puts "No #{language} files found in #{dir}"
@@ -80,17 +84,55 @@ module Chiasmus
         include_insights: insights,
       )
 
-      analysis_result = Graph::Analyses.run_analysis(
-        files,
-        request,
+      read_started_at = Time.instant
+      source_files = Graph::FileIO.read_source_files_or_raise(files)
+      read_files_ms = elapsed_ms(read_started_at)
+
+      extract_started_at = Time.instant
+      graph = Graph::Extractor.extract_graph(
+        source_files,
         cache_dir: cache_dir,
         repo_key: repo_key,
         max_bytes: cache_max_bytes
       )
+      extract_graph_ms = elapsed_ms(extract_started_at)
+
+      snapshot_metadata = nil.as(Graph::FactsSnapshot::Metadata?)
+      if effective_cache_dir = cache_dir
+        effective_repo_key = (repo_key || Graph::GraphCache.default_repo_key).to_s
+        snapshot_name = Graph::FactsSnapshot.snapshot_name(language, dir, entry_points, insights)
+        Graph::GraphCache.save_snapshot_async(snapshot_name, graph, effective_cache_dir, repo_key: effective_repo_key)
+        snapshot_metadata = Graph::FactsSnapshot::Metadata.new(
+          cache_dir: effective_cache_dir,
+          repo_key: effective_repo_key,
+          snapshot: snapshot_name,
+        )
+      end
+
+      facts_started_at = Time.instant
+      analysis_result = Graph::Analyses.run_analysis_from_graph(graph, request)
+      facts_render_ms = elapsed_ms(facts_started_at)
+
+      flush_started_at = Time.instant
       Graph::GraphCache.flush_async_writes if cache_dir
+      flush_cache_ms = elapsed_ms(flush_started_at)
+      total_ms = elapsed_ms(started_at)
 
       output.puts "% chiasmus-facts language=#{language} dir=#{dir} files=#{files.size}"
+      output.puts Graph::FactsSnapshot.metadata_line(snapshot_metadata) if snapshot_metadata
       output.puts analysis_result.result.as(String)
+      if profile
+        error.puts profile_line(
+          language: language,
+          dir: dir,
+          files: files.size,
+          read_files_ms: read_files_ms,
+          extract_graph_ms: extract_graph_ms,
+          facts_render_ms: facts_render_ms,
+          flush_cache_ms: flush_cache_ms,
+          total_ms: total_ms
+        )
+      end
       0
     rescue ex
       error.puts ex.message || ex.class.name
@@ -151,6 +193,30 @@ module Chiasmus
         files << path if extensions.any? { |ext| path.ends_with?(ext) }
       end
       files
+    end
+
+    private def elapsed_ms(started_at : Time::Instant) : Float64
+      (Time.instant - started_at).total_milliseconds
+    end
+
+    private def profile_line(
+      *,
+      language : String,
+      dir : String,
+      files : Int32,
+      read_files_ms : Float64,
+      extract_graph_ms : Float64,
+      facts_render_ms : Float64,
+      flush_cache_ms : Float64,
+      total_ms : Float64,
+    ) : String
+      "[chiasmus-facts profile] language=#{language} dir=#{dir} files=#{files} read_files_ms=%.2f extract_graph_ms=%.2f facts_render_ms=%.2f flush_cache_ms=%.2f total_ms=%.2f" % {
+        read_files_ms,
+        extract_graph_ms,
+        facts_render_ms,
+        flush_cache_ms,
+        total_ms,
+      }
     end
   end
 end

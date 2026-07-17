@@ -170,6 +170,162 @@ describe Chiasmus::Complete::CLI do
     end
   end
 
+  it "uses repo parity vendor_src to normalize reachable source ids from source facts" do
+    dir = File.join(Dir.tempdir, "chiasmus-complete-vendor-src-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(File.join(dir, "src"))
+    Dir.mkdir_p(File.join(dir, "spec"))
+    Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+
+    File.write(File.join(dir, "src", "port.cr"), <<-CR)
+def complete_me
+end
+CR
+
+    File.write(File.join(dir, "spec", "complete_me_spec.cr"), <<-CR)
+describe "complete_me" do
+  it "is covered" do
+    true.should be_true
+  end
+end
+CR
+
+    inventory_path = File.join(dir, "plans", "inventory", "port.tsv")
+    File.write(inventory_path, <<-TSV)
+# source_id	kind	status	crystal_refs	notes
+src/app.ts::function::completeMe	function	ported	src/port.cr:1,spec/complete_me_spec.cr:1	Covered by spec ref
+TSV
+
+    source_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: "./vendor/chiasmus/src/app.ts", name: "completeMe", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+      ],
+      calls: [] of Chiasmus::Graph::CallsFact,
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [
+        Chiasmus::Graph::ExportsFact.new(file: "./vendor/chiasmus/src/app.ts", name: "completeMe"),
+      ],
+      contains: [] of Chiasmus::Graph::ContainsFact,
+    )
+
+    source_facts_path = File.join(dir, "source.pl")
+    parity_report_path = File.join(dir, "parity.tsv")
+    File.write(source_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(source_graph, ["completeMe"]))
+    File.write(parity_report_path, <<-TSV)
+# parser_mode=spec
+# source_id	kind	inventory_status	match_status	confidence	crystal_name	crystal_kind	crystal_path	basis	structural_status	structural_details	notes
+src/app.ts::function::completeMe	function	ported	curated_alias	100	complete_me	function	src/port.cr	ref_path	structural_match	-	-
+TSV
+
+    Chiasmus::Utils::Config.ensure_repo_parity_config(
+      vendor_src: "vendor/chiasmus",
+      target_src: ["src"],
+      repo_root: dir
+    )
+
+    begin
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Complete::CLI.run(
+        [
+          "--inventory", inventory_path,
+          "--root", dir,
+          "--source-facts", source_facts_path,
+          "--parity-report", parity_report_path,
+        ],
+        output,
+        error
+      )
+
+      exit_code.should eq(0), error.to_s
+      output.to_s.should contain("status\tcomplete")
+      output.to_s.should contain("complete_count\t1")
+      output.to_s.should contain("incomplete_count\t0")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "normalizes absolute vendor source paths from cached source facts" do
+    dir = File.join(Dir.tempdir, "chiasmus-complete-abs-vendor-src-#{Random::Secure.hex(8)}")
+    vendor_file = File.join(dir, "vendor", "chiasmus", "src", "app.ts")
+    Dir.mkdir_p(File.join(dir, "src"))
+    Dir.mkdir_p(File.join(dir, "spec"))
+    Dir.mkdir_p(File.join(dir, "plans", "inventory"))
+    Dir.mkdir_p(File.dirname(vendor_file))
+
+    File.write(File.join(dir, "src", "port.cr"), <<-CR)
+def complete_me
+end
+CR
+
+    File.write(File.join(dir, "spec", "complete_me_spec.cr"), <<-CR)
+describe "complete_me" do
+  it "is covered" do
+    true.should be_true
+  end
+end
+CR
+
+    File.write(vendor_file, <<-TS)
+export function completeMe() {}
+TS
+
+    inventory_path = File.join(dir, "plans", "inventory", "port.tsv")
+    File.write(inventory_path, <<-TSV)
+# source_id	kind	status	crystal_refs	notes
+src/app.ts::function::completeMe	function	ported	src/port.cr:1,spec/complete_me_spec.cr:1	Covered by spec ref
+TSV
+
+    source_graph = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(file: vendor_file, name: "completeMe", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1, 1)),
+      ],
+      calls: [] of Chiasmus::Graph::CallsFact,
+      imports: [] of Chiasmus::Graph::ImportsFact,
+      exports: [
+        Chiasmus::Graph::ExportsFact.new(file: vendor_file, name: "completeMe"),
+      ],
+      contains: [] of Chiasmus::Graph::ContainsFact,
+    )
+
+    source_facts_path = File.join(dir, "source.pl")
+    parity_report_path = File.join(dir, "parity.tsv")
+    File.write(source_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(source_graph, ["completeMe"]))
+    File.write(parity_report_path, <<-TSV)
+# parser_mode=spec
+# source_id	kind	inventory_status	match_status	confidence	crystal_name	crystal_kind	crystal_path	basis	structural_status	structural_details	notes
+src/app.ts::function::completeMe	function	ported	curated_alias	100	complete_me	function	src/port.cr	ref_path	structural_match	-	-
+TSV
+
+    Chiasmus::Utils::Config.ensure_repo_parity_config(
+      vendor_src: "vendor/chiasmus",
+      target_src: ["src"],
+      repo_root: dir
+    )
+
+    begin
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Complete::CLI.run(
+        [
+          "--inventory", inventory_path,
+          "--root", dir,
+          "--source-facts", source_facts_path,
+          "--parity-report", parity_report_path,
+        ],
+        output,
+        error
+      )
+
+      exit_code.should eq(0), error.to_s
+      output.to_s.should contain("status\tcomplete")
+      output.to_s.should contain("complete_count\t1")
+      output.to_s.should contain("incomplete_count\t0")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "reuses a precomputed parity report instead of requiring crystal facts" do
     dir = build_completion_gate_fixture(mark_needs_test_complete: true)
 

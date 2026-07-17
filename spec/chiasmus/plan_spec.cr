@@ -1,6 +1,7 @@
 require "spec"
 require "file_utils"
 require "../../src/chiasmus/plan"
+require "../../src/chiasmus/parity"
 require "../../src/chiasmus/graph/facts"
 require "../../src/chiasmus/graph/ir"
 
@@ -53,6 +54,163 @@ private def duplicate_audit_plan_graph : CodeGraph
     ],
     exports: [
       ExportsFact.new(file: "src/app.ts", name: "main"),
+    ],
+    contains: [] of ContainsFact,
+    imports: [] of ImportsFact,
+  )
+end
+
+private def declarative_surface_plan_graph : CodeGraph
+  CodeGraph.new(
+    defines: [
+      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/app.ts", name: "helper", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+      DefinesFact.new(file: "src/api.ts", name: "ApiShape", kind: SymbolKind::Interface, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/api.ts", name: "ApiAlias", kind: SymbolKind::Type, span: Chiasmus::Graph::Span.line_range(8)),
+      DefinesFact.new(file: "src/unused.ts", name: "unused_impl", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(20)),
+    ],
+    calls: [
+      CallsFact.new(caller: "main", callee: "helper"),
+    ],
+    exports: [
+      ExportsFact.new(file: "src/app.ts", name: "main"),
+      ExportsFact.new(file: "src/api.ts", name: "ApiShape"),
+      ExportsFact.new(file: "src/api.ts", name: "ApiAlias"),
+    ],
+    contains: [] of ContainsFact,
+    imports: [] of ImportsFact,
+  )
+end
+
+private def multi_file_cleanup_plan_graph : CodeGraph
+  CodeGraph.new(
+    defines: [
+      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/app.ts", name: "helper", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+      DefinesFact.new(file: "src/cleanup_a.ts", name: "unused_a", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/cleanup_b.ts", name: "unused_b", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(20)),
+    ],
+    calls: [
+      CallsFact.new(caller: "main", callee: "helper"),
+    ],
+    exports: [
+      ExportsFact.new(file: "src/app.ts", name: "main"),
+    ],
+    contains: [] of ContainsFact,
+    imports: [] of ImportsFact,
+  )
+end
+
+private def multi_file_safe_parallel_plan_graph : CodeGraph
+  CodeGraph.new(
+    defines: [
+      DefinesFact.new(file: "src/app.ts", name: "main", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/app.ts", name: "helper", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+      DefinesFact.new(file: "src/api_a.ts", name: "ApiShapeA", kind: SymbolKind::Interface, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/api_b.ts", name: "ApiShapeB", kind: SymbolKind::Interface, span: Chiasmus::Graph::Span.line_range(20)),
+    ],
+    calls: [
+      CallsFact.new(caller: "main", callee: "helper"),
+    ],
+    exports: [
+      ExportsFact.new(file: "src/app.ts", name: "main"),
+      ExportsFact.new(file: "src/api_a.ts", name: "ApiShapeA"),
+      ExportsFact.new(file: "src/api_b.ts", name: "ApiShapeB"),
+    ],
+    contains: [] of ContainsFact,
+    imports: [] of ImportsFact,
+  )
+end
+
+private def exported_surface_vs_helper_plan_graph : CodeGraph
+  CodeGraph.new(
+    defines: [
+      DefinesFact.new(file: "src/api.ts", name: "api_one", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/api.ts", name: "api_two", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/api.ts", name: "api_three", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(20)),
+      DefinesFact.new(file: "src/helpers.ts", name: "normalize_leaf", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+    ],
+    calls: [
+      CallsFact.new(caller: "api_one", callee: "normalize_leaf"),
+      CallsFact.new(caller: "api_two", callee: "normalize_leaf"),
+      CallsFact.new(caller: "api_three", callee: "normalize_leaf"),
+    ],
+    exports: [
+      ExportsFact.new(file: "src/api.ts", name: "api_one"),
+      ExportsFact.new(file: "src/api.ts", name: "api_two"),
+      ExportsFact.new(file: "src/api.ts", name: "api_three"),
+    ],
+    contains: [] of ContainsFact,
+    imports: [] of ImportsFact,
+  )
+end
+
+private def high_centrality_helper_plan_graph : CodeGraph
+  CodeGraph.new(
+    defines: [
+      DefinesFact.new(file: "src/api.ts", name: "api_one", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/api.ts", name: "api_two", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/api.ts", name: "api_three", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(20)),
+      DefinesFact.new(file: "src/api.ts", name: "api_four", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(30)),
+      DefinesFact.new(file: "src/api.ts", name: "api_five", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(40)),
+      DefinesFact.new(file: "src/api.ts", name: "api_six", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(50)),
+      DefinesFact.new(file: "src/helpers.ts", name: "normalize_leaf", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+    ],
+    calls: [
+      CallsFact.new(caller: "api_one", callee: "normalize_leaf"),
+      CallsFact.new(caller: "api_two", callee: "normalize_leaf"),
+      CallsFact.new(caller: "api_three", callee: "normalize_leaf"),
+      CallsFact.new(caller: "api_four", callee: "normalize_leaf"),
+      CallsFact.new(caller: "api_five", callee: "normalize_leaf"),
+      CallsFact.new(caller: "api_six", callee: "normalize_leaf"),
+    ],
+    exports: [
+      ExportsFact.new(file: "src/api.ts", name: "api_one"),
+      ExportsFact.new(file: "src/api.ts", name: "api_two"),
+      ExportsFact.new(file: "src/api.ts", name: "api_three"),
+      ExportsFact.new(file: "src/api.ts", name: "api_four"),
+      ExportsFact.new(file: "src/api.ts", name: "api_five"),
+      ExportsFact.new(file: "src/api.ts", name: "api_six"),
+    ],
+    contains: [] of ContainsFact,
+    imports: [] of ImportsFact,
+  )
+end
+
+private def inventory_priority_plan_graph : CodeGraph
+  CodeGraph.new(
+    defines: [
+      DefinesFact.new(file: "src/api.ts", name: "missing_api", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/api.ts", name: "ported_api", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/helpers.ts", name: "shared_leaf", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+    ],
+    calls: [
+      CallsFact.new(caller: "missing_api", callee: "shared_leaf"),
+      CallsFact.new(caller: "ported_api", callee: "shared_leaf"),
+    ],
+    exports: [
+      ExportsFact.new(file: "src/api.ts", name: "missing_api"),
+      ExportsFact.new(file: "src/api.ts", name: "ported_api"),
+    ],
+    contains: [] of ContainsFact,
+    imports: [] of ImportsFact,
+  )
+end
+
+private def structural_drift_priority_plan_graph : CodeGraph
+  CodeGraph.new(
+    defines: [
+      DefinesFact.new(file: "src/api.ts", name: "alpha", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+      DefinesFact.new(file: "src/api.ts", name: "beta", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+      DefinesFact.new(file: "src/helpers.ts", name: "shared_leaf", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+    ],
+    calls: [
+      CallsFact.new(caller: "alpha", callee: "shared_leaf"),
+      CallsFact.new(caller: "beta", callee: "shared_leaf"),
+    ],
+    exports: [
+      ExportsFact.new(file: "src/api.ts", name: "alpha"),
+      ExportsFact.new(file: "src/api.ts", name: "beta"),
     ],
     contains: [] of ContainsFact,
     imports: [] of ImportsFact,
@@ -459,6 +617,210 @@ describe Chiasmus::Plan do
     unused.reasons.join(" ").downcase.should contain("dead")
   end
 
+  it "keeps exported reachable surface ahead of private leaf helpers in rank output" do
+    reports = Chiasmus::Plan.rank(exported_surface_vs_helper_plan_graph, entry_points: ["api_one", "api_two", "api_three"])
+
+    helper_index = reports.index! { |report| report.name == "normalize_leaf" }
+    reports.index! { |report| report.name == "api_one" }.should be < helper_index
+    reports.index! { |report| report.name == "api_two" }.should be < helper_index
+    reports.index! { |report| report.name == "api_three" }.should be < helper_index
+
+    helper = reports[helper_index]
+    helper.reachable_from_entry.should be_true
+    helper.recommendation.should eq("feature")
+  end
+
+  it "keeps heavily shared private leaf helpers below exported API roots even when centrality is high" do
+    reports = Chiasmus::Plan.rank(
+      high_centrality_helper_plan_graph,
+      entry_points: ["api_one", "api_two", "api_three", "api_four", "api_five", "api_six"]
+    )
+
+    helper_index = reports.index! { |report| report.name == "normalize_leaf" }
+    reports.first(6).all? { |report| report.file == "src/api.ts" }.should be_true
+    helper_index.should eq(6)
+  end
+
+  it "prioritizes missing exported inventory rows over shared private helpers" do
+    inventory_rows = [
+      Chiasmus::Parity::InventoryRow.new(
+        source_id: "src/api.ts::function::missing_api",
+        kind: "function",
+        status: "missing",
+        crystal_refs: "-",
+        notes: "Still missing"
+      ),
+      Chiasmus::Parity::InventoryRow.new(
+        source_id: "src/api.ts::function::ported_api",
+        kind: "function",
+        status: "ported",
+        crystal_refs: "src/api.cr:10",
+        notes: "Already ported"
+      ),
+    ]
+
+    reports = Chiasmus::Plan.rank(
+      inventory_priority_plan_graph,
+      entry_points: ["missing_api", "ported_api"],
+      inventory_rows: inventory_rows
+    )
+
+    missing_index = reports.index! { |report| report.name == "missing_api" }
+    ported_index = reports.index! { |report| report.name == "ported_api" }
+    helper_index = reports.index! { |report| report.name == "shared_leaf" }
+
+    missing_index.should be < helper_index
+    missing_index.should be < ported_index
+  end
+
+  it "prioritizes structurally drifting ported rows over structurally matched peers when parity data is available" do
+    inventory_rows = [
+      Chiasmus::Parity::InventoryRow.new(
+        source_id: "src/api.ts::function::alpha",
+        kind: "function",
+        status: "ported",
+        crystal_refs: "src/api.cr:1",
+        notes: "Ported"
+      ),
+      Chiasmus::Parity::InventoryRow.new(
+        source_id: "src/api.ts::function::beta",
+        kind: "function",
+        status: "ported",
+        crystal_refs: "src/api.cr:10",
+        notes: "Ported"
+      ),
+    ]
+    parity_rows = [
+      Chiasmus::Parity::ReportRow.new(
+        source_id: "src/api.ts::function::alpha",
+        kind: "function",
+        inventory_status: "ported",
+        match_status: "curated_alias",
+        confidence: 98,
+        crystal_name: "alpha",
+        crystal_kind: "method",
+        crystal_path: "src/api.cr",
+        basis: "target_symbol",
+        structural_status: "structural_drift",
+        structural_details: "missing_calls=shared_leaf",
+        notes: "Needs follow-up"
+      ),
+      Chiasmus::Parity::ReportRow.new(
+        source_id: "src/api.ts::function::beta",
+        kind: "function",
+        inventory_status: "ported",
+        match_status: "curated_alias",
+        confidence: 98,
+        crystal_name: "beta",
+        crystal_kind: "method",
+        crystal_path: "src/api.cr",
+        basis: "target_symbol",
+        structural_status: "structural_match",
+        structural_details: "-",
+        notes: "Looks good"
+      ),
+    ]
+
+    reports = Chiasmus::Plan.rank(
+      structural_drift_priority_plan_graph,
+      entry_points: ["alpha", "beta"],
+      inventory_rows: inventory_rows,
+      parity_rows: parity_rows
+    )
+
+    alpha_index = reports.index! { |report| report.name == "alpha" }
+    beta_index = reports.index! { |report| report.name == "beta" }
+
+    alpha_index.should be < beta_index
+  end
+
+  it "uses repo parity vendor_src to align planner inventory and parity lookups with vendor-prefixed facts" do
+    graph = CodeGraph.new(
+      defines: [
+        DefinesFact.new(file: "./vendor/chiasmus/src/api.ts", name: "alpha", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+        DefinesFact.new(file: "./vendor/chiasmus/src/api.ts", name: "beta", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+        DefinesFact.new(file: "./vendor/chiasmus/src/helpers.ts", name: "shared_leaf", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+      ],
+      calls: [
+        CallsFact.new(caller: "alpha", callee: "shared_leaf"),
+        CallsFact.new(caller: "beta", callee: "shared_leaf"),
+      ],
+      exports: [
+        ExportsFact.new(file: "./vendor/chiasmus/src/api.ts", name: "alpha"),
+        ExportsFact.new(file: "./vendor/chiasmus/src/api.ts", name: "beta"),
+      ],
+      contains: [] of ContainsFact,
+      imports: [] of ImportsFact,
+    )
+    inventory_rows = [
+      Chiasmus::Parity::InventoryRow.new(
+        source_id: "src/api.ts::function::alpha",
+        kind: "function",
+        status: "ported",
+        crystal_refs: "src/api.cr:1",
+        notes: "Ported"
+      ),
+      Chiasmus::Parity::InventoryRow.new(
+        source_id: "src/api.ts::function::beta",
+        kind: "function",
+        status: "ported",
+        crystal_refs: "src/api.cr:10",
+        notes: "Ported"
+      ),
+    ]
+    parity_rows = [
+      Chiasmus::Parity::ReportRow.new(
+        source_id: "src/api.ts::function::alpha",
+        kind: "function",
+        inventory_status: "ported",
+        match_status: "curated_alias",
+        confidence: 98,
+        crystal_name: "alpha",
+        crystal_kind: "method",
+        crystal_path: "src/api.cr",
+        basis: "target_symbol",
+        structural_status: "structural_drift",
+        structural_details: "missing_calls=shared_leaf",
+        notes: "Needs follow-up"
+      ),
+      Chiasmus::Parity::ReportRow.new(
+        source_id: "src/api.ts::function::beta",
+        kind: "function",
+        inventory_status: "ported",
+        match_status: "curated_alias",
+        confidence: 98,
+        crystal_name: "beta",
+        crystal_kind: "method",
+        crystal_path: "src/api.cr",
+        basis: "target_symbol",
+        structural_status: "structural_match",
+        structural_details: "-",
+        notes: "Looks good"
+      ),
+    ]
+    parity_config = Chiasmus::Utils::Config::RepoParityConfig.new(
+      vendor_src: "vendor/chiasmus"
+    )
+
+    reports = Chiasmus::Plan.rank(
+      graph,
+      entry_points: ["alpha", "beta"],
+      inventory_rows: inventory_rows,
+      parity_rows: parity_rows,
+      parity_config: parity_config
+    )
+    expected = Chiasmus::Plan.rank(
+      structural_drift_priority_plan_graph,
+      entry_points: ["alpha", "beta"],
+      inventory_rows: inventory_rows,
+      parity_rows: parity_rows
+    )
+
+    reports.map { |report| {report.name, report.priority_score} }.should eq(
+      expected.map { |report| {report.name, report.priority_score} }
+    )
+  end
+
   it "groups reports into foundational, feature, and cleanup slices" do
     slices = Chiasmus::Plan.slice(sample_plan_graph, entry_points: ["main"])
 
@@ -476,6 +838,54 @@ describe Chiasmus::Plan do
 
     feature = slices.find { |slice| slice.slice_kind == "feature" } || raise "missing feature slice"
     feature.members.map(&.name).should eq(["leaf", "main"])
+  end
+
+  it "does not classify declarative interface and type surface as cleanup solely because they are isolated" do
+    reports = Chiasmus::Plan.safe(declarative_surface_plan_graph, entry_points: ["main"])
+
+    api_shape = reports.find { |report| report.name == "ApiShape" } || raise "missing ApiShape report"
+    api_alias = reports.find { |report| report.name == "ApiAlias" } || raise "missing ApiAlias report"
+    unused_impl = reports.find { |report| report.name == "unused_impl" } || raise "missing unused_impl report"
+
+    api_shape.dead_code.should be_false
+    api_shape.recommendation.should eq("safe_parallel")
+    api_alias.dead_code.should be_false
+    api_alias.recommendation.should eq("safe_parallel")
+    unused_impl.dead_code.should be_true
+    unused_impl.recommendation.should eq("cleanup")
+
+    slices = Chiasmus::Plan.slice(declarative_surface_plan_graph, entry_points: ["main"])
+    cleanup = slices.find { |slice| slice.slice_kind == "cleanup" } || raise "missing cleanup slice"
+    cleanup.members.map(&.name).should eq(["unused_impl"])
+
+    safe_parallel = slices.find { |slice| slice.slice_kind == "safe_parallel" } || raise "missing safe parallel slice"
+    safe_parallel.members.map(&.name).should eq(["ApiAlias", "ApiShape"])
+  end
+
+  it "splits cleanup work into file-sized slices instead of one giant dead-code bucket" do
+    slices = Chiasmus::Plan.slice(multi_file_cleanup_plan_graph, entry_points: ["main"])
+    cleanup = slices.select { |slice| slice.slice_kind == "cleanup" }
+
+    cleanup.map(&.slice_id).sort!.should eq([
+      "cleanup:file:src/cleanup_a.ts",
+      "cleanup:file:src/cleanup_b.ts",
+    ])
+
+    cleanup.find(&.slice_id.==("cleanup:file:src/cleanup_a.ts")).not_nil!.members.map(&.name).should eq(["unused_a"])
+    cleanup.find(&.slice_id.==("cleanup:file:src/cleanup_b.ts")).not_nil!.members.map(&.name).should eq(["unused_b"])
+  end
+
+  it "splits safe parallel work into file-sized slices instead of one giant batch" do
+    slices = Chiasmus::Plan.slice(multi_file_safe_parallel_plan_graph, entry_points: ["main"])
+    safe_parallel = slices.select { |slice| slice.slice_kind == "safe_parallel" }
+
+    safe_parallel.map(&.slice_id).sort!.should eq([
+      "safe-parallel:file:src/api_a.ts",
+      "safe-parallel:file:src/api_b.ts",
+    ])
+
+    safe_parallel.find(&.slice_id.==("safe-parallel:file:src/api_a.ts")).not_nil!.members.map(&.name).should eq(["ApiShapeA"])
+    safe_parallel.find(&.slice_id.==("safe-parallel:file:src/api_b.ts")).not_nil!.members.map(&.name).should eq(["ApiShapeB"])
   end
 
   it "generates a markdown seed parity plan from slices" do
@@ -642,9 +1052,41 @@ describe Chiasmus::Plan do
     helper.reachable_from_entry.should be_true
     orphan.reachable_from_entry.should be_false
   end
-end
+  end
 
-describe Chiasmus::Plan::CLI do
+  it "normalizes semantic graphs only once when seeding a parity plan" do
+    semantic = Chiasmus::Graph::IR::SemanticGraph.new(
+      symbols: [
+        Chiasmus::Graph::IR::SymbolNode.new(
+          id: "src/app.ts::function::main",
+          name: "main",
+          qualified_name: "main",
+          owner_name: nil,
+          kind: SymbolKind::Function,
+          file: "src/app.ts",
+          span: Chiasmus::Graph::Span.line_range(1),
+        ),
+      ],
+      exports: [
+        Chiasmus::Graph::IR::ExportEdge.new(file: "src/app.ts", name: "main"),
+      ],
+    )
+
+    normalize_count = 0
+    begin
+      Chiasmus::Graph::IR.set_before_normalize_semantic_hook_for_test do
+        normalize_count += 1
+      end
+
+      seed = Chiasmus::Plan.seed_parity(semantic, ["main"], 10)
+      seed.should contain("# Seed Parity Plan")
+      normalize_count.should eq(1)
+    ensure
+      Chiasmus::Graph::IR.clear_before_normalize_semantic_hook_for_test
+    end
+  end
+
+  describe Chiasmus::Plan::CLI do
   it "reads facts and emits ranked TSV output for planner modes" do
     dir = File.join(Dir.tempdir, "chiasmus-plan-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)
@@ -926,6 +1368,110 @@ describe Chiasmus::Plan::CLI do
       util_helper.as_h["callee_count"].as_i.should eq(0)
       app_leaf.as_h["caller_count"].as_i.should eq(1)
       util_leaf.as_h["caller_count"].as_i.should eq(0)
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "uses inventory and parity report input to reprioritize structurally drifting rows in CLI rank output" do
+    dir = File.join(Dir.tempdir, "chiasmus-plan-cli-parity-rank-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+
+    begin
+      facts_path = File.join(dir, "vendor.pl")
+      inventory_path = File.join(dir, "inventory.tsv")
+      parity_path = File.join(dir, "parity.tsv")
+
+      File.write(facts_path, Chiasmus::Graph::Facts.graph_to_prolog(structural_drift_priority_plan_graph, ["alpha", "beta"], include_insights: true))
+      File.write(inventory_path, <<-TSV)
+# source_id	kind	status	crystal_refs	target_symbol	test_refs	notes
+src/api.ts::function::alpha	function	ported	src/api.cr:1	alpha	-	Ported
+src/api.ts::function::beta	function	ported	src/api.cr:10	beta	-	Ported
+TSV
+      File.write(parity_path, <<-TSV)
+# parser_mode=regex
+# source_id	kind	inventory_status	match_status	confidence	crystal_name	crystal_kind	crystal_path	basis	structural_status	structural_details	notes
+src/api.ts::function::alpha	function	ported	curated_alias	98	alpha	method	src/api.cr	target_symbol	structural_drift	missing_calls=shared_leaf	Needs follow-up
+src/api.ts::function::beta	function	ported	curated_alias	98	beta	method	src/api.cr	target_symbol	structural_match	-	Looks good
+TSV
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Plan::CLI.run(
+        ["rank", "--facts", facts_path, "--inventory", inventory_path, "--parity-report", parity_path, "--format", "json"],
+        output,
+        error
+      )
+
+      exit_code.should eq(0), error.to_s
+
+      reports = JSON.parse(output.to_s).as_h["reports"].as_a
+      reports[0].as_h["name"].as_s.should eq("alpha")
+      reports[1].as_h["name"].as_s.should eq("beta")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "uses repo parity vendor_src config through an explicit CLI --root when facts use vendor-prefixed paths" do
+    dir = File.join(Dir.tempdir, "chiasmus-plan-cli-root-#{Random::Secure.hex(8)}")
+    repo_root = File.join(dir, "repo")
+    facts_path = File.join(dir, "vendor.pl")
+    inventory_path = File.join(dir, "inventory.tsv")
+    parity_path = File.join(dir, "parity.tsv")
+    Dir.mkdir_p(repo_root)
+
+    begin
+      graph = CodeGraph.new(
+        defines: [
+          DefinesFact.new(file: "./vendor/chiasmus/src/api.ts", name: "alpha", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          DefinesFact.new(file: "./vendor/chiasmus/src/api.ts", name: "beta", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(10)),
+          DefinesFact.new(file: "./vendor/chiasmus/src/helpers.ts", name: "shared_leaf", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+        ],
+        calls: [
+          CallsFact.new(caller: "alpha", callee: "shared_leaf"),
+          CallsFact.new(caller: "beta", callee: "shared_leaf"),
+        ],
+        exports: [
+          ExportsFact.new(file: "./vendor/chiasmus/src/api.ts", name: "alpha"),
+          ExportsFact.new(file: "./vendor/chiasmus/src/api.ts", name: "beta"),
+        ],
+        contains: [] of ContainsFact,
+        imports: [] of ImportsFact,
+      )
+
+      File.write(facts_path, Chiasmus::Graph::Facts.graph_to_prolog(graph, ["alpha", "beta"], include_insights: true))
+      File.write(inventory_path, <<-TSV)
+# source_id	kind	status	crystal_refs	target_symbol	test_refs	notes
+src/api.ts::function::alpha	function	ported	src/api.cr:1	alpha	-	Ported
+src/api.ts::function::beta	function	ported	src/api.cr:10	beta	-	Ported
+TSV
+      File.write(parity_path, <<-TSV)
+# parser_mode=regex
+# source_id	kind	inventory_status	match_status	confidence	crystal_name	crystal_kind	crystal_path	basis	structural_status	structural_details	notes
+src/api.ts::function::alpha	function	ported	curated_alias	98	alpha	method	src/api.cr	target_symbol	structural_drift	missing_calls=shared_leaf	Needs follow-up
+src/api.ts::function::beta	function	ported	curated_alias	98	beta	method	src/api.cr	target_symbol	structural_match	-	Looks good
+TSV
+
+      Chiasmus::Utils::Config.ensure_repo_parity_config(
+        vendor_src: "vendor/chiasmus",
+        target_src: ["src"],
+        repo_root: repo_root
+      )
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      exit_code = Chiasmus::Plan::CLI.run(
+        ["rank", "--facts", facts_path, "--inventory", inventory_path, "--parity-report", parity_path, "--root", repo_root, "--format", "json"],
+        output,
+        error
+      )
+
+      exit_code.should eq(0), error.to_s
+
+      reports = JSON.parse(output.to_s).as_h["reports"].as_a
+      reports[0].as_h["name"].as_s.should eq("alpha")
+      reports[1].as_h["name"].as_s.should eq("beta")
     ensure
       FileUtils.rm_rf(dir)
     end

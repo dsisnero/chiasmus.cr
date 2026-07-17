@@ -1,10 +1,14 @@
 require "json"
 require "option_parser"
+require "./parity"
+require "./graph/facts_snapshot"
 require "./graph/ir"
 require "./graph/types"
 require "./graph/graph_util"
 require "./graph/insights"
 require "./graph/community"
+require "./utils/atomic_file"
+require "./utils/config"
 
 module Chiasmus
   module Plan
@@ -30,7 +34,10 @@ module Chiasmus
       bridge_scores : Hash(String, Float64),
       community_by_node : Hash(String, Graph::Community),
       children_by_parent : Hash(String, Int32),
-      exported : Set(String)
+      exported : Set(String),
+      inventory_status_by_source_id : Hash(String, String),
+      parity_by_source_id : Hash(String, Parity::ReportRow),
+      parity_config : Utils::Config::RepoParityConfig? = nil
 
     record Report,
       name : String,
@@ -82,8 +89,10 @@ module Chiasmus
 
     record CLIOptions,
       facts_path : String,
+      root_dir : String,
       format : String,
       inventory_path : String,
+      parity_report_path : String,
       out_path : String,
       parity_plan_path : String,
       previous_facts_path : String,
@@ -146,8 +155,15 @@ module Chiasmus
       end
     end
 
-    def rank(graph : Graph::CodeGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
-      reports = analyze(graph, entry_points)
+    def rank(
+      graph : Graph::CodeGraph,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Array(Report)
+      reports = analyze(graph, entry_points, inventory_rows, parity_rows, parity_config)
       ranked = reports.sort do |a, b|
         cmp = b.priority_score <=> a.priority_score
         cmp == 0 ? a.name <=> b.name : cmp
@@ -155,8 +171,15 @@ module Chiasmus
       top_n ? ranked.first(top_n) : ranked
     end
 
-    def rank(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
-      reports = analyze(graph, entry_points)
+    def rank(
+      graph : Graph::IR::SemanticGraph,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Array(Report)
+      reports = analyze(graph, entry_points, inventory_rows, parity_rows, parity_config)
       ranked = reports.sort do |a, b|
         cmp = b.priority_score <=> a.priority_score
         cmp == 0 ? a.name <=> b.name : cmp
@@ -164,8 +187,15 @@ module Chiasmus
       top_n ? ranked.first(top_n) : ranked
     end
 
-    def safe(graph : Graph::CodeGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
-      reports = analyze(graph, entry_points)
+    def safe(
+      graph : Graph::CodeGraph,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Array(Report)
+      reports = analyze(graph, entry_points, inventory_rows, parity_rows, parity_config)
       ranked = reports.sort do |a, b|
         cmp = b.safety_score <=> a.safety_score
         cmp == 0 ? a.name <=> b.name : cmp
@@ -173,8 +203,15 @@ module Chiasmus
       top_n ? ranked.first(top_n) : ranked
     end
 
-    def safe(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Report)
-      reports = analyze(graph, entry_points)
+    def safe(
+      graph : Graph::IR::SemanticGraph,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Array(Report)
+      reports = analyze(graph, entry_points, inventory_rows, parity_rows, parity_config)
       ranked = reports.sort do |a, b|
         cmp = b.safety_score <=> a.safety_score
         cmp == 0 ? a.name <=> b.name : cmp
@@ -182,27 +219,54 @@ module Chiasmus
       top_n ? ranked.first(top_n) : ranked
     end
 
-    def slice(graph : Graph::CodeGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Slice)
-      reports = analyze(graph, entry_points)
+    def slice(
+      graph : Graph::CodeGraph,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Array(Slice)
+      reports = analyze(graph, entry_points, inventory_rows, parity_rows, parity_config)
       ordered_slices = order_slices_by_priority!(build_slices(reports))
       top_n ? ordered_slices.first(top_n) : ordered_slices
     end
 
-    def slice(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : Array(Slice)
-      reports = analyze(graph, entry_points)
+    def slice(
+      graph : Graph::IR::SemanticGraph,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Array(Slice)
+      reports = analyze(graph, entry_points, inventory_rows, parity_rows, parity_config)
       ordered_slices = order_slices_by_priority!(build_slices(reports))
       top_n ? ordered_slices.first(top_n) : ordered_slices
     end
 
-    def seed_parity(graph : Graph::CodeGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : String
-      slices = slice(graph, entry_points: entry_points, top_n: top_n)
+    def seed_parity(
+      graph : Graph::CodeGraph,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : String
+      slices = slice(graph, entry_points: entry_points, top_n: top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
       render_seed_markdown(slices, entry_points || graph.exports.map(&.name))
     end
 
-    def seed_parity(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil, top_n : Int32? = nil) : String
-      normalized = Graph::IR.normalize(graph)
-      slices = slice(normalized, entry_points: entry_points, top_n: top_n)
-      effective_entry_points = entry_points || normalized.exports.map(&.name)
+    def seed_parity(
+      graph : Graph::IR::SemanticGraph,
+      entry_points : Array(String)? = nil,
+      top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : String
+      slices = slice(graph, entry_points: entry_points, top_n: top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
+      effective_entry_points = entry_points || graph.exports.map(&.name)
       render_seed_markdown(slices, effective_entry_points)
     end
 
@@ -211,9 +275,12 @@ module Chiasmus
       parity_plan_path : String? = nil,
       entry_points : Array(String)? = nil,
       top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
     ) : Array(TrackedSlice)
       statuses = parse_parity_plan_statuses(parity_plan_path)
-      slice(graph, entry_points: entry_points, top_n: top_n).map do |work_slice|
+      slice(graph, entry_points: entry_points, top_n: top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config).map do |work_slice|
         TrackedSlice.new(
           slice_id: work_slice.slice_id,
           slice_kind: work_slice.slice_kind,
@@ -231,9 +298,12 @@ module Chiasmus
       parity_plan_path : String? = nil,
       entry_points : Array(String)? = nil,
       top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
     ) : Array(TrackedSlice)
       statuses = parse_parity_plan_statuses(parity_plan_path)
-      slice(graph, entry_points: entry_points, top_n: top_n).map do |work_slice|
+      slice(graph, entry_points: entry_points, top_n: top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config).map do |work_slice|
         TrackedSlice.new(
           slice_id: work_slice.slice_id,
           slice_kind: work_slice.slice_kind,
@@ -282,14 +352,20 @@ module Chiasmus
       parity_plan_path : String? = nil,
       entry_points : Array(String)? = nil,
       top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
     ) : Array(RefreshedSlice)
       current = track(
         graph,
         parity_plan_path: parity_plan_path,
         entry_points: entry_points,
         top_n: top_n,
+        inventory_rows: inventory_rows,
+        parity_rows: parity_rows,
+        parity_config: parity_config,
       )
-      previous = slice(previous_graph, entry_points: entry_points, top_n: top_n)
+      previous = slice(previous_graph, entry_points: entry_points, top_n: top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
       previous_by_id = previous.to_h { |slice| {slice.slice_id, slice} }
 
       current.compact_map do |current_slice|
@@ -317,14 +393,20 @@ module Chiasmus
       parity_plan_path : String? = nil,
       entry_points : Array(String)? = nil,
       top_n : Int32? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
     ) : Array(RefreshedSlice)
       current = track(
         graph,
         parity_plan_path: parity_plan_path,
         entry_points: entry_points,
         top_n: top_n,
+        inventory_rows: inventory_rows,
+        parity_rows: parity_rows,
+        parity_config: parity_config,
       )
-      previous = slice(previous_graph, entry_points: entry_points, top_n: top_n)
+      previous = slice(previous_graph, entry_points: entry_points, top_n: top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
       previous_by_id = previous.to_h { |slice| {slice.slice_id, slice} }
 
       current.compact_map do |current_slice|
@@ -389,28 +471,60 @@ module Chiasmus
       cleanup = ordered_reports_by_name(reports.select(&.recommendation.==("cleanup")))
       return if cleanup.empty?
 
-      slices << Slice.new(
-        slice_id: "cleanup:dead-code",
-        slice_kind: "cleanup",
-        members: cleanup,
-        priority_score: cleanup.sum(&.safety_score),
-        parallel_safe: true,
-        reasons: ["dead or unreachable code can be deferred or cleaned up"],
-      )
+      grouped = cleanup.group_by(&.file)
+      if grouped.size == 1
+        slices << Slice.new(
+          slice_id: "cleanup:dead-code",
+          slice_kind: "cleanup",
+          members: cleanup,
+          priority_score: cleanup.sum(&.safety_score),
+          parallel_safe: true,
+          reasons: ["dead or unreachable code can be deferred or cleaned up"],
+        )
+        return
+      end
+
+      grouped.keys.sort.each do |file|
+        members = ordered_reports_by_name(grouped[file])
+        slices << Slice.new(
+          slice_id: "cleanup:file:#{file}",
+          slice_kind: "cleanup",
+          members: members,
+          priority_score: members.sum(&.safety_score),
+          parallel_safe: true,
+          reasons: ["dead or unreachable code can be deferred or cleaned up within #{file}"],
+        )
+      end
     end
 
     private def append_safe_parallel_slice(slices : Array(Slice), reports : Array(Report)) : Nil
       safe_parallel = ordered_reports_by_name(reports.select { |report| report.recommendation == "safe_parallel" })
       return if safe_parallel.empty?
 
-      slices << Slice.new(
-        slice_id: "safe-parallel:batch-1",
-        slice_kind: "safe_parallel",
-        members: safe_parallel,
-        priority_score: safe_parallel.sum(&.safety_score),
-        parallel_safe: true,
-        reasons: ["low-blast-radius work suitable for parallel execution"],
-      )
+      grouped = safe_parallel.group_by(&.file)
+      if grouped.size == 1
+        slices << Slice.new(
+          slice_id: "safe-parallel:batch-1",
+          slice_kind: "safe_parallel",
+          members: safe_parallel,
+          priority_score: safe_parallel.sum(&.safety_score),
+          parallel_safe: true,
+          reasons: ["low-blast-radius work suitable for parallel execution"],
+        )
+        return
+      end
+
+      grouped.keys.sort.each do |file|
+        members = ordered_reports_by_name(grouped[file])
+        slices << Slice.new(
+          slice_id: "safe-parallel:file:#{file}",
+          slice_kind: "safe_parallel",
+          members: members,
+          priority_score: members.sum(&.safety_score),
+          parallel_safe: true,
+          reasons: ["low-blast-radius work suitable for parallel execution within #{file}"],
+        )
+      end
     end
 
     private def append_feature_slices(slices : Array(Slice), reports : Array(Report)) : Nil
@@ -455,10 +569,11 @@ module Chiasmus
     end
 
     def load_facts(path : String) : ParsedFacts
-      defines = [] of Graph::DefinesFact
-      calls = [] of Graph::CallsFact
-      exports = [] of Graph::ExportsFact
-      contains = [] of Graph::ContainsFact
+      graph = Graph::FactsSnapshot.load_graph_from_facts(path)
+      defines = graph ? nil : ([] of Graph::DefinesFact)
+      calls = graph ? nil : ([] of Graph::CallsFact)
+      exports = graph ? nil : ([] of Graph::ExportsFact)
+      contains = graph ? nil : ([] of Graph::ContainsFact)
       scoped_calls = [] of Graph::IR::ScopedCallEdge
       entry_points = [] of String
       entry_point_files = [] of Tuple(String, String)
@@ -468,6 +583,7 @@ module Chiasmus
         next if skip_line?(stripped)
 
         if stripped.starts_with?("defines(")
+          next unless defines
           args = parse_args(stripped["defines(".size...-2])
           defines << Graph::DefinesFact.new(
             file: atom(args[0]),
@@ -483,18 +599,21 @@ module Chiasmus
             callee: atom(args[2]),
           )
         elsif stripped.starts_with?("calls(")
+          next unless calls
           args = parse_args(stripped["calls(".size...-2])
           calls << Graph::CallsFact.new(
             caller: atom(args[0]),
             callee: atom(args[1]),
           )
         elsif stripped.starts_with?("exports(")
+          next unless exports
           args = parse_args(stripped["exports(".size...-2])
           exports << Graph::ExportsFact.new(
             file: atom(args[0]),
             name: atom(args[1]),
           )
         elsif stripped.starts_with?("contains(")
+          next unless contains
           args = parse_args(stripped["contains(".size...-2])
           contains << Graph::ContainsFact.new(
             parent: atom(args[0]),
@@ -509,11 +628,11 @@ module Chiasmus
         end
       end
 
-      graph = Graph::CodeGraph.new(
-        defines: defines,
-        calls: calls,
-        exports: exports,
-        contains: contains,
+      graph ||= Graph::CodeGraph.new(
+        defines: defines || ([] of Graph::DefinesFact),
+        calls: calls || ([] of Graph::CallsFact),
+        exports: exports || ([] of Graph::ExportsFact),
+        contains: contains || ([] of Graph::ContainsFact),
         imports: [] of Graph::ImportsFact,
       )
 
@@ -548,15 +667,27 @@ module Chiasmus
       resolved
     end
 
-    private def analyze(graph : Graph::CodeGraph, entry_points : Array(String)? = nil) : Array(Report)
-      context = build_analysis_context(graph, entry_points)
+    private def analyze(
+      graph : Graph::CodeGraph,
+      entry_points : Array(String)? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Array(Report)
+      context = build_analysis_context(graph, entry_points, inventory_rows, parity_rows, parity_config)
       graph.defines.map { |fact| analyze_fact(fact, context) }
     end
 
-    private def analyze(graph : Graph::IR::SemanticGraph, entry_points : Array(String)? = nil) : Array(Report)
+    private def analyze(
+      graph : Graph::IR::SemanticGraph,
+      entry_points : Array(String)? = nil,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Array(Report)
       normalized = Graph::IR.normalize(graph)
       analysis_graph = build_semantic_analysis_graph(normalized)
-      context = build_analysis_context(analysis_graph, resolve_semantic_entry_points(normalized, entry_points))
+      context = build_analysis_context(analysis_graph, resolve_semantic_entry_points(normalized, entry_points), inventory_rows, parity_rows, parity_config)
       normalized.symbols.map { |symbol| analyze_symbol(symbol, context, symbol.id) }
     end
 
@@ -728,7 +859,13 @@ module Chiasmus
       contains.select { |edge| seen.add?("#{edge.parent}\u0000#{edge.child}") }
     end
 
-    private def build_analysis_context(graph : Graph::CodeGraph, entry_points : Array(String)?) : AnalysisContext
+    private def build_analysis_context(
+      graph : Graph::CodeGraph,
+      entry_points : Array(String)?,
+      inventory_rows : Array(Parity::InventoryRow)? = nil,
+      parity_rows : Array(Parity::ReportRow)? = nil,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : AnalysisContext
       forward = adjacency(graph.calls, forward: true)
       reverse = adjacency(graph.calls, forward: false)
       AnalysisContext.new(
@@ -740,7 +877,36 @@ module Chiasmus
         community_by_node: build_community_by_node(graph),
         children_by_parent: build_children_by_parent(graph),
         exported: graph.exports.map(&.name).to_set,
+        inventory_status_by_source_id: build_inventory_status_by_source_id(inventory_rows, parity_config),
+        parity_by_source_id: build_parity_by_source_id(parity_rows, parity_config),
+        parity_config: parity_config,
       )
+    end
+
+    private def build_inventory_status_by_source_id(
+      inventory_rows : Array(Parity::InventoryRow)?,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Hash(String, String)
+      statuses = Hash(String, String).new
+      return statuses unless inventory_rows
+
+      inventory_rows.each do |row|
+        statuses[canonical_source_id(row.source_id, parity_config)] = row.status
+      end
+      statuses
+    end
+
+    private def build_parity_by_source_id(
+      parity_rows : Array(Parity::ReportRow)?,
+      parity_config : Utils::Config::RepoParityConfig? = nil,
+    ) : Hash(String, Parity::ReportRow)
+      rows = Hash(String, Parity::ReportRow).new
+      return rows unless parity_rows
+
+      parity_rows.each do |row|
+        rows[canonical_source_id(row.source_id, parity_config)] = row
+      end
+      rows
     end
 
     private def effective_roots(graph : Graph::CodeGraph, entry_points : Array(String)?) : Array(String)
@@ -786,8 +952,14 @@ module Chiasmus
       community_size = community.try(&.members.size) || 1
       contains_count = context.children_by_parent[fact.name]? || 0
       exported = context.exported.includes?(fact.name)
-      dead_code = !reachable_from_entry && caller_count == 0
+      source_id = canonical_source_id(source_id_for(fact), context.parity_config)
+      inventory_status = context.inventory_status_by_source_id[source_id]?
+      parity_row = context.parity_by_source_id[source_id]?
+      dead_code = !reachable_from_entry && caller_count == 0 && !declarative_surface_kind?(fact.kind)
       priority_score = priority_score_for(reachable_from_entry, exported, impact_count, caller_count, hub_degree, bridge_score, contains_count, community_size)
+      priority_score -= private_leaf_helper_priority_penalty(reachable_from_entry, exported, caller_count, callee_count, contains_count, impact_count)
+      priority_score += inventory_priority_bonus(inventory_status, reachable_from_entry, exported)
+      priority_score += parity_priority_bonus(parity_row, reachable_from_entry, exported)
       safety_score = safety_score_for(reachable_from_entry, dead_code, impact_count, caller_count, hub_degree, bridge_score, community_size, callee_count)
       reasons = report_reasons(reachable_from_entry, exported, impact_count, hub_degree, bridge_score, dead_code, community_size)
       recommendation = recommendation_for(dead_code, reachable_from_entry, callee_count, hub_degree, bridge_score, contains_count, safety_score)
@@ -831,8 +1003,14 @@ module Chiasmus
       community_size = community.try(&.members.size) || 1
       contains_count = context.children_by_parent[analysis_key]? || 0
       exported = context.exported.includes?(analysis_key)
-      dead_code = !reachable_from_entry && caller_count == 0
+      source_id = canonical_source_id(analysis_key, context.parity_config)
+      inventory_status = context.inventory_status_by_source_id[source_id]?
+      parity_row = context.parity_by_source_id[source_id]?
+      dead_code = !reachable_from_entry && caller_count == 0 && !declarative_surface_kind?(symbol.kind)
       priority_score = priority_score_for(reachable_from_entry, exported, impact_count, caller_count, hub_degree, bridge_score, contains_count, community_size)
+      priority_score -= private_leaf_helper_priority_penalty(reachable_from_entry, exported, caller_count, callee_count, contains_count, impact_count)
+      priority_score += inventory_priority_bonus(inventory_status, reachable_from_entry, exported)
+      priority_score += parity_priority_bonus(parity_row, reachable_from_entry, exported)
       safety_score = safety_score_for(reachable_from_entry, dead_code, impact_count, caller_count, hub_degree, bridge_score, community_size, callee_count)
       reasons = report_reasons(reachable_from_entry, exported, impact_count, hub_degree, bridge_score, dead_code, community_size)
       recommendation = recommendation_for(dead_code, reachable_from_entry, callee_count, hub_degree, bridge_score, contains_count, safety_score)
@@ -888,6 +1066,98 @@ module Chiasmus
       score += contains_count * 2
       score += 10 if community_size > 1
       score
+    end
+
+    private def declarative_surface_kind?(kind : Graph::SymbolKind) : Bool
+      kind.in?(Graph::SymbolKind::Interface, Graph::SymbolKind::Type)
+    end
+
+    private def source_id_for(fact : Graph::DefinesFact) : String
+      Graph::IR::Lowering.symbol_id(fact.file, fact.kind, fact.name)
+    end
+
+    private def canonical_source_id(
+      source_id : String,
+      parity_config : Utils::Config::RepoParityConfig?,
+    ) : String
+      parts = source_id.split("::", 3)
+      return source_id if parts.size < 3
+
+      "#{canonical_source_file(parts[0], parity_config)}::#{parts[1]}::#{parts[2]}"
+    end
+
+    private def canonical_source_file(
+      file : String,
+      parity_config : Utils::Config::RepoParityConfig?,
+    ) : String
+      normalized = file.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
+      vendor_src = parity_config.try(&.vendor_src).try(&.strip)
+      return normalized if vendor_src.nil? || vendor_src.not_nil!.empty?
+
+      vendor_prefix = vendor_src.not_nil!.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
+      return normalized unless normalized == vendor_prefix || normalized.starts_with?("#{vendor_prefix}/")
+
+      suffix = normalized[vendor_prefix.size..]
+      suffix = suffix[1..] if suffix.starts_with?('/')
+      suffix.empty? ? normalized : suffix
+    end
+
+    private def private_leaf_helper_priority_penalty(
+      reachable_from_entry : Bool,
+      exported : Bool,
+      caller_count : Int32,
+      callee_count : Int32,
+      contains_count : Int32,
+      impact_count : Int32,
+    ) : Int32
+      return 0 unless reachable_from_entry
+      return 0 if exported
+      return 0 if caller_count == 0
+      return 0 unless callee_count == 0
+      return 0 unless contains_count == 0
+
+      60 + caller_count * 10 + impact_count * 5
+    end
+
+    private def inventory_priority_bonus(
+      inventory_status : String?,
+      reachable_from_entry : Bool,
+      exported : Bool,
+    ) : Int32
+      return 0 if inventory_status.nil? || inventory_status.not_nil!.empty?
+
+      case inventory_status
+      when "missing"
+        return 0 unless reachable_from_entry
+        exported ? 120 : 80
+      when "partial", "in_progress"
+        return 0 unless reachable_from_entry
+        exported ? 70 : 45
+      when "ported"
+        reachable_from_entry ? -20 : 0
+      when "intentional_divergence", "skipped"
+        -40
+      else
+        0
+      end
+    end
+
+    private def parity_priority_bonus(
+      parity_row : Parity::ReportRow?,
+      reachable_from_entry : Bool,
+      exported : Bool,
+    ) : Int32
+      return 0 unless parity_row
+
+      case parity_row.not_nil!.structural_status
+      when "structural_drift"
+        return 0 unless reachable_from_entry
+        exported ? 90 : 60
+      when "structural_match"
+        parity_row.not_nil!.inventory_status == "ported" ? -10 : 0
+      else
+        0
+      end
     end
 
     private def safety_score_for(
@@ -1196,8 +1466,10 @@ module Chiasmus
 
       private def parse_cli_options(args : Array(String), error : IO) : Tuple(CLIOptions?, OptionParser)
         facts_path = ""
+        root_dir = "."
         format = "tsv"
         inventory_path = ""
+        parity_report_path = ""
         out_path = ""
         parity_plan_path = ""
         previous_facts_path = ""
@@ -1210,8 +1482,10 @@ module Chiasmus
         parser = OptionParser.new do |opts|
           opts.banner = "Usage: chiasmus-plan <rank|safe|slice|seed-parity|track|audit|refresh> --facts FILE [options]"
           opts.on("--facts FILE", "Path to layer-A Prolog facts emitted by chiasmus-facts") { |value| facts_path = value }
+          opts.on("--root DIR", "Repo root for loading parity config (default: .)") { |value| root_dir = value }
           opts.on("--format FORMAT", "Output format: tsv|json (default: tsv)") { |value| format = value }
           opts.on("--inventory FILE", "Path to curated parity inventory TSV") { |value| inventory_path = value }
+          opts.on("--parity-report FILE", "Path to parity report TSV") { |value| parity_report_path = value }
           opts.on("--out FILE", "Write Markdown seed output to FILE") { |value| out_path = value }
           opts.on("--parity-plan FILE", "Path to curated parity Markdown plan") { |value| parity_plan_path = value }
           opts.on("--previous-facts FILE", "Path to previous layer-A Prolog facts for refresh") { |value| previous_facts_path = value }
@@ -1233,8 +1507,10 @@ module Chiasmus
         {
           CLIOptions.new(
             facts_path: facts_path,
+            root_dir: root_dir,
             format: format,
             inventory_path: inventory_path,
+            parity_report_path: parity_report_path,
             out_path: out_path,
             parity_plan_path: parity_plan_path,
             previous_facts_path: previous_facts_path,
@@ -1261,22 +1537,25 @@ module Chiasmus
                                  else
                                    options.entry_points
                                  end
+        inventory_rows = options.inventory_path.empty? ? nil : Parity::Loader.read_inventory(options.inventory_path)
+        parity_rows = options.parity_report_path.empty? ? nil : Parity::Loader.read_report(options.parity_report_path).rows
+        parity_config = Utils::Config.load_repo_config(options.root_dir).parity
 
         case mode
         when "rank"
-          execute_rank_mode(mode, options, parsed, effective_entry_points, output)
+          execute_rank_mode(mode, options, parsed, effective_entry_points, inventory_rows, parity_rows, parity_config, output)
         when "safe"
-          execute_safe_mode(mode, options, parsed, effective_entry_points, output)
+          execute_safe_mode(mode, options, parsed, effective_entry_points, inventory_rows, parity_rows, parity_config, output)
         when "seed-parity"
-          execute_seed_parity_mode(options, parsed, effective_entry_points, output)
+          execute_seed_parity_mode(options, parsed, effective_entry_points, inventory_rows, parity_rows, parity_config, output)
         when "track"
-          execute_track_mode(mode, options, parsed, effective_entry_points, output)
+          execute_track_mode(mode, options, parsed, effective_entry_points, inventory_rows, parity_rows, parity_config, output)
         when "audit"
           execute_audit_mode(mode, options, parser, parsed, effective_entry_points, output, error)
         when "refresh"
-          execute_refresh_mode(mode, options, parser, parsed, effective_entry_points, output, error)
+          execute_refresh_mode(mode, options, parser, parsed, effective_entry_points, inventory_rows, parity_rows, parity_config, output, error)
         else
-          execute_slice_mode(mode, options, parsed, effective_entry_points, output)
+          execute_slice_mode(mode, options, parsed, effective_entry_points, inventory_rows, parity_rows, parity_config, output)
         end
       end
 
@@ -1285,12 +1564,15 @@ module Chiasmus
         options : CLIOptions,
         parsed : ParsedFacts,
         effective_entry_points : Array(String),
+        inventory_rows : Array(Parity::InventoryRow)?,
+        parity_rows : Array(Parity::ReportRow)?,
+        parity_config : Utils::Config::RepoParityConfig?,
         output : IO,
       ) : Int32
         reports = if semantic_graph = parsed.semantic_graph
-                    Plan.rank(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n)
+                    Plan.rank(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
                   else
-                    Plan.rank(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+                    Plan.rank(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
                   end
         render_report_output(output, mode, options.format, reports)
       end
@@ -1300,12 +1582,15 @@ module Chiasmus
         options : CLIOptions,
         parsed : ParsedFacts,
         effective_entry_points : Array(String),
+        inventory_rows : Array(Parity::InventoryRow)?,
+        parity_rows : Array(Parity::ReportRow)?,
+        parity_config : Utils::Config::RepoParityConfig?,
         output : IO,
       ) : Int32
         reports = if semantic_graph = parsed.semantic_graph
-                    Plan.safe(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n)
+                    Plan.safe(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
                   else
-                    Plan.safe(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+                    Plan.safe(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
                   end
         render_report_output(output, mode, options.format, reports)
       end
@@ -1314,17 +1599,20 @@ module Chiasmus
         options : CLIOptions,
         parsed : ParsedFacts,
         effective_entry_points : Array(String),
+        inventory_rows : Array(Parity::InventoryRow)?,
+        parity_rows : Array(Parity::ReportRow)?,
+        parity_config : Utils::Config::RepoParityConfig?,
         output : IO,
       ) : Int32
         seed = if semantic_graph = parsed.semantic_graph
-                 Plan.seed_parity(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n)
+                 Plan.seed_parity(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
                else
-                 Plan.seed_parity(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+                 Plan.seed_parity(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
                end
         if options.out_path.empty?
           output.print seed
         else
-          File.write(options.out_path, seed)
+          Utils::AtomicFile.write(options.out_path, seed)
         end
         0
       end
@@ -1334,6 +1622,9 @@ module Chiasmus
         options : CLIOptions,
         parsed : ParsedFacts,
         effective_entry_points : Array(String),
+        inventory_rows : Array(Parity::InventoryRow)?,
+        parity_rows : Array(Parity::ReportRow)?,
+        parity_config : Utils::Config::RepoParityConfig?,
         output : IO,
       ) : Int32
         tracked = if semantic_graph = parsed.semantic_graph
@@ -1342,6 +1633,9 @@ module Chiasmus
                       parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
                       entry_points: effective_entry_points,
                       top_n: options.top_n,
+                      inventory_rows: inventory_rows,
+                      parity_rows: parity_rows,
+                      parity_config: parity_config,
                     )
                   else
                     Plan.track(
@@ -1349,6 +1643,9 @@ module Chiasmus
                       parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
                       entry_points: effective_entry_points,
                       top_n: options.top_n,
+                      inventory_rows: inventory_rows,
+                      parity_rows: parity_rows,
+                      parity_config: parity_config,
                     )
                   end
         if options.format == "json"
@@ -1403,6 +1700,9 @@ module Chiasmus
         parser : OptionParser,
         parsed : ParsedFacts,
         effective_entry_points : Array(String),
+        inventory_rows : Array(Parity::InventoryRow)?,
+        parity_rows : Array(Parity::ReportRow)?,
+        parity_config : Utils::Config::RepoParityConfig?,
         output : IO,
         error : IO,
       ) : Int32
@@ -1421,6 +1721,9 @@ module Chiasmus
                         parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
                         entry_points: effective_entry_points,
                         top_n: options.top_n,
+                        inventory_rows: inventory_rows,
+                        parity_rows: parity_rows,
+                        parity_config: parity_config,
                       )
                     else
                       Plan.refresh(
@@ -1429,6 +1732,9 @@ module Chiasmus
                         parity_plan_path: options.parity_plan_path.empty? ? nil : options.parity_plan_path,
                         entry_points: effective_entry_points,
                         top_n: options.top_n,
+                        inventory_rows: inventory_rows,
+                        parity_rows: parity_rows,
+                        parity_config: parity_config,
                       )
                     end
         if options.format == "json"
@@ -1444,12 +1750,15 @@ module Chiasmus
         options : CLIOptions,
         parsed : ParsedFacts,
         effective_entry_points : Array(String),
+        inventory_rows : Array(Parity::InventoryRow)?,
+        parity_rows : Array(Parity::ReportRow)?,
+        parity_config : Utils::Config::RepoParityConfig?,
         output : IO,
       ) : Int32
         slices = if semantic_graph = parsed.semantic_graph
-                   Plan.slice(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n)
+                   Plan.slice(semantic_graph, entry_points: effective_entry_points, top_n: options.top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
                  else
-                   Plan.slice(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n)
+                   Plan.slice(parsed.graph, entry_points: effective_entry_points, top_n: options.top_n, inventory_rows: inventory_rows, parity_rows: parity_rows, parity_config: parity_config)
                  end
         if options.format == "json"
           render_slice_json(output, mode, slices)

@@ -69,7 +69,7 @@ describe Chiasmus::Graph::IR do
       symbol.owner_name.should eq("UserService")
     end
 
-    it "round-trips CodeGraph through the semantic graph without losing facts" do
+    it "round-trips CodeGraph through the semantic graph into canonical qualified-name form" do
       graph = Chiasmus::Graph::CodeGraph.new(
         defines: [
           Chiasmus::Graph::DefinesFact.new(
@@ -109,7 +109,43 @@ describe Chiasmus::Graph::IR do
       semantic = Chiasmus::Graph::IR::Lowering.from_code_graph(graph)
       round_trip = Chiasmus::Graph::IR::Lowering.to_code_graph(semantic)
 
-      round_trip.should eq(graph)
+      round_trip.should eq(Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(
+            file: "src/app.ts",
+            name: "main",
+            kind: Chiasmus::Graph::SymbolKind::Function,
+            span: Chiasmus::Graph::Span.line_range(1, 3),
+            qualified_name: "main",
+          ),
+          Chiasmus::Graph::DefinesFact.new(
+            file: "src/service.ts",
+            name: "fetch",
+            kind: Chiasmus::Graph::SymbolKind::Method,
+            span: Chiasmus::Graph::Span.line_range(4, 8),
+            signature: "fetch(id: string)",
+            qualified_name: "UserService.fetch"
+          ),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new("main", "UserService.fetch", "UserService.fetch"),
+        ],
+        imports: [
+          Chiasmus::Graph::ImportsFact.new("src/app.ts", "UserService", "./service"),
+        ],
+        exports: [
+          Chiasmus::Graph::ExportsFact.new("src/app.ts", "main"),
+        ],
+        contains: [
+          Chiasmus::Graph::ContainsFact.new("UserService", "UserService.fetch"),
+        ],
+        files: [
+          Chiasmus::Graph::FileNode.new("src/app.ts", "typescript", 20, 80, "entry point"),
+        ],
+        type_info: [
+          Chiasmus::Graph::FileTypeInfo.new("src/app.ts"),
+        ]
+      ))
     end
   end
 
@@ -237,6 +273,30 @@ describe Chiasmus::Graph::IR do
   end
 
   describe ".normalize" do
+    it "preserves derived scoped calls for duplicate names across files" do
+      graph = Chiasmus::Graph::CodeGraph.new(
+        defines: [
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "main", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(5)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/app.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(9)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "helper", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3)),
+          Chiasmus::Graph::DefinesFact.new(file: "src/util.ts", name: "leaf", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(7)),
+        ],
+        calls: [
+          Chiasmus::Graph::CallsFact.new(caller: "main", callee: "helper"),
+          Chiasmus::Graph::CallsFact.new(caller: "helper", callee: "leaf"),
+        ],
+      )
+
+      normalized = Chiasmus::Graph::IR.normalize(graph)
+
+      normalized.scoped_calls.should eq([
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/app.ts", "helper", "leaf"),
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/app.ts", "main", "helper"),
+        Chiasmus::Graph::IR::ScopedCallEdge.new("src/util.ts", "helper", "leaf"),
+      ])
+    end
+
     it "matches the explicit staged normalization pipeline" do
       graph = Chiasmus::Graph::IR::SemanticGraph.new(
         files: [
@@ -653,8 +713,8 @@ describe Chiasmus::Graph::IR do
       normalized = Chiasmus::Graph::IR.normalize(graph)
 
       normalized.calls.should eq([
-        Chiasmus::Graph::IR::CallEdge.new("Demo.Config.load", "Demo.Config.helper"),
-        Chiasmus::Graph::IR::CallEdge.new("Service.Config.load", "Service.Config.helper"),
+        Chiasmus::Graph::IR::CallEdge.new("Demo.Config.load", "Demo.Config.helper", nil, "Demo.Config.load"),
+        Chiasmus::Graph::IR::CallEdge.new("Service.Config.load", "Service.Config.helper", nil, "Service.Config.load"),
       ])
     end
 

@@ -28,7 +28,8 @@ module Chiasmus
       record CallEdge,
         caller : String,
         callee : String,
-        callee_qn : String? = nil
+        callee_qn : String? = nil,
+        caller_qn : String? = nil
 
       record ImportEdge,
         file : String,
@@ -256,7 +257,7 @@ module Chiasmus
         end
 
         private def lift_scoped_calls(calls : Array(ScopedCallEdge)) : Array(CallEdge)
-          calls.map { |edge| CallEdge.new(edge.caller, edge.callee, edge.callee_qn) }
+          calls.map { |edge| CallEdge.new(edge.caller, edge.callee, edge.callee_qn, edge.caller) }
         end
 
         private def rewrite_calls(
@@ -269,6 +270,7 @@ module Chiasmus
               rewrite_name(edge.caller, rename_by_file, rename_global),
               rewrite_name(edge.callee, rename_by_file, rename_global),
               edge.callee_qn.try { |name| rewrite_name(name, rename_by_file, rename_global) },
+              edge.caller_qn.try { |name| rewrite_name(name, rename_by_file, rename_global) },
             )
           end
         end
@@ -347,11 +349,19 @@ module Chiasmus
         end
 
         private def scoped_call_candidates(index : ScopedSymbolIndex, edge : CallEdge) : Array(ScopedCallEdge)
-          callers = index.symbols_named(edge.caller)
+          callers = if caller_qn = edge.caller_qn
+                      index.symbols_named(caller_qn)
+                    else
+                      index.symbols_named(edge.caller)
+                    end
 
           candidates = [] of ScopedCallEdge
           callers.each do |caller|
-            callees = index.symbols_in_file(caller.file, edge.callee)
+            callee_lookup = edge.callee_qn || edge.callee
+            callees = index.symbols_in_file(caller.file, callee_lookup)
+            if callees.empty? && edge.callee_qn
+              callees = index.symbols_in_file(caller.file, edge.callee)
+            end
             next unless callees.size == 1
 
             callee_qn = edge.callee_qn
@@ -394,24 +404,25 @@ module Chiasmus
         include NormalizationSupport
 
         def refine(graph : SemanticGraph) : SemanticGraph
-          scoped_calls = scope_calls(graph.symbols, graph.calls)
+          scoped_calls = graph.scoped_calls.empty? ? scope_calls(graph.symbols, graph.calls) : graph.scoped_calls
           unresolved_call_edges = unresolved_calls(graph.symbols, graph.calls)
           scoped_contains = scope_contains(graph.symbols, graph.contains)
           unresolved_containment = unresolved_contains(graph.symbols, graph.contains)
           qualified_symbols, qualified_scoped_contains = qualify_contained_symbols(graph.symbols, scoped_contains)
           rename_by_file, rename_global = rename_maps(graph.symbols, qualified_symbols)
+          rewritten_scoped_calls = rewrite_scoped_calls(scoped_calls, rename_by_file)
 
           SemanticGraph.new(
             files: graph.files,
             symbols: qualified_symbols,
-            calls: lift_scoped_calls(rewrite_scoped_calls(scoped_calls, rename_by_file)) +
+            calls: lift_scoped_calls(rewritten_scoped_calls) +
                    rewrite_calls(unresolved_call_edges, rename_by_file, rename_global),
             imports: graph.imports,
             exports: rewrite_exports(graph.exports, rename_by_file, rename_global),
             contains: lift_scoped_contains(qualified_scoped_contains) +
                       rewrite_contains(unresolved_containment, rename_by_file, rename_global)
                         .reject { |edge| edge.parent == edge.child },
-            scoped_calls: graph.scoped_calls,
+            scoped_calls: rewritten_scoped_calls,
             type_info: graph.type_info,
           )
         end
@@ -424,9 +435,9 @@ module Chiasmus
           deduplicated_symbols = deduplicate(graph.symbols, &.id)
           normalized_files = deduplicate(graph.files, &.path)
           normalized_calls = deduplicate(graph.calls) do |edge|
-            "#{edge.caller}\u0000#{edge.callee}\u0000#{edge.callee_qn || ""}"
+            "#{edge.caller}\u0000#{edge.callee}\u0000#{edge.callee_qn || ""}\u0000#{edge.caller_qn || ""}"
           end
-          normalized_calls.sort_by! { |edge| {edge.caller, edge.callee, edge.callee_qn || ""} }
+          normalized_calls.sort_by! { |edge| {edge.caller, edge.callee, edge.callee_qn || "", edge.caller_qn || ""} }
           normalized_imports = deduplicate(graph.imports) { |edge| "#{edge.file}\u0000#{edge.name}\u0000#{edge.source}" }
           normalized_exports = deduplicate(graph.exports) { |edge| "#{edge.file}\u0000#{edge.name}" }
           normalized_contains = deduplicate(graph.contains.reject { |edge| edge.parent == edge.child }) do |edge|
@@ -484,6 +495,8 @@ module Chiasmus
 
       extend self
 
+      @@before_normalize_semantic_hook = nil.as((-> Nil)?)
+
       def default_pipeline : Pipeline
         Pipeline.new([
           SymbolCanonicalizationRefiner.new,
@@ -497,7 +510,16 @@ module Chiasmus
       end
 
       def normalize(graph : SemanticGraph) : SemanticGraph
+        @@before_normalize_semantic_hook.try(&.call)
         default_pipeline.refine(graph)
+      end
+
+      def set_before_normalize_semantic_hook_for_test(&block : ->) : Nil
+        @@before_normalize_semantic_hook = block
+      end
+
+      def clear_before_normalize_semantic_hook_for_test : Nil
+        @@before_normalize_semantic_hook = nil
       end
 
       module Lowering
@@ -507,7 +529,7 @@ module Chiasmus
           SemanticGraph.new(
             files: lower_files(graph.files),
             symbols: graph.defines.map { |fact| lower_symbol(fact) },
-            calls: graph.calls.map { |fact| CallEdge.new(fact.caller, fact.callee, fact.callee_qn) },
+            calls: graph.calls.map { |fact| CallEdge.new(fact.caller, fact.callee, fact.callee_qn, fact.caller_qn) },
             imports: graph.imports.map { |fact| ImportEdge.new(fact.file, fact.name, fact.source) },
             exports: graph.exports.map { |fact| ExportEdge.new(fact.file, fact.name) },
             contains: graph.contains.map { |fact| ContainsEdge.new(fact.parent, fact.child) },
@@ -519,7 +541,7 @@ module Chiasmus
         def to_code_graph(graph : SemanticGraph) : CodeGraph
           CodeGraph.new(
             defines: graph.symbols.map { |symbol| lift_symbol(symbol) },
-            calls: graph.calls.map { |edge| CallsFact.new(edge.caller, edge.callee, edge.callee_qn) },
+            calls: graph.calls.map { |edge| CallsFact.new(edge.caller, edge.callee, edge.callee_qn, edge.caller_qn) },
             imports: graph.imports.map { |edge| ImportsFact.new(edge.file, edge.name, edge.source) },
             exports: graph.exports.map { |edge| ExportsFact.new(edge.file, edge.name) },
             contains: graph.contains.map { |edge| ContainsFact.new(edge.parent, edge.child) },
@@ -541,11 +563,13 @@ module Chiasmus
         end
 
         private def lower_symbol(fact : DefinesFact) : SymbolNode
+          qualified_name = fact.qualified_name || fact.name
+
           SymbolNode.new(
-            id: symbol_id(fact.file, fact.kind, fact.name),
-            name: simple_name(fact.name),
-            qualified_name: fact.name,
-            owner_name: owner_name(fact.name),
+            id: symbol_id(fact.file, fact.kind, qualified_name),
+            name: simple_name(qualified_name),
+            qualified_name: qualified_name,
+            owner_name: owner_name(qualified_name),
             kind: fact.kind,
             file: fact.file,
             span: fact.span,
@@ -556,10 +580,11 @@ module Chiasmus
         private def lift_symbol(symbol : SymbolNode) : DefinesFact
           DefinesFact.new(
             file: symbol.file,
-            name: symbol.qualified_name,
+            name: symbol.name,
             kind: symbol.kind,
             span: symbol.span,
             signature: symbol.signature,
+            qualified_name: symbol.qualified_name,
           )
         end
 

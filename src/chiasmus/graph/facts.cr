@@ -45,6 +45,15 @@ module Chiasmus
       end
 
       def graph_to_prolog(graph : CodeGraph, entry_points : Array(String)? = nil, include_insights : Bool = false) : String
+        if scoped_calls = direct_scoped_calls(graph)
+          return render_prolog(
+            graph,
+            entry_points,
+            include_insights,
+            scoped_calls: scoped_calls,
+          )
+        end
+
         normalized = IR.normalize(graph)
         render_prolog(IR::Lowering.to_code_graph(normalized), entry_points, include_insights, normalized)
       end
@@ -59,12 +68,14 @@ module Chiasmus
         entry_points : Array(String)? = nil,
         include_insights : Bool = false,
         semantic_graph : IR::SemanticGraph? = nil,
+        scoped_calls : Array(Tuple(String, String, String))? = nil,
       ) : String
         lines = [] of String
         effective_entry_points = entry_points || graph.exports.map(&.name).uniq!
         entry_point_files = resolve_entry_point_files(graph, effective_entry_points)
 
         lines << ":- dynamic(defines/5)."
+        lines << ":- dynamic(qualified_name/3)."
         lines << ":- dynamic(calls/2)."
         lines << ":- dynamic(calls_in/3)."
         lines << ":- dynamic(imports/3)."
@@ -78,15 +89,18 @@ module Chiasmus
           span = fact.span
           lines << "defines(#{escape_atom(fact.file)}, #{escape_atom(fact.name)}, #{escape_atom(fact.kind.to_prolog_atom)}, #{span.start_line}, #{span.end_line})."
         end
+        graph.defines.each do |fact|
+          next unless qualified_name = fact.qualified_name
+          lines << "qualified_name(#{escape_atom(fact.file)}, #{escape_atom(fact.name)}, #{escape_atom(qualified_name)})."
+        end
         lines << "" unless graph.defines.empty?
 
         graph.calls.each do |fact|
           lines << "calls(#{escape_atom(fact.caller)}, #{escape_atom(fact.callee)})."
         end
-        semantic_graph.try do |semantic|
-          resolve_scoped_calls(semantic, entry_point_files).each do |file, caller, callee|
-            lines << "calls_in(#{escape_atom(file)}, #{escape_atom(caller)}, #{escape_atom(callee)})."
-          end
+        scoped_call_facts = scoped_calls || semantic_graph.try { |semantic| scoped_calls_for_facts(semantic, entry_point_files) }
+        scoped_call_facts.try &.each do |file, caller, callee|
+          lines << "calls_in(#{escape_atom(file)}, #{escape_atom(caller)}, #{escape_atom(callee)})."
         end
         lines << "" unless graph.calls.empty?
 
@@ -139,6 +153,39 @@ module Chiasmus
         resolved.uniq
       end
 
+      private def direct_scoped_calls(graph : CodeGraph) : Array(Tuple(String, String, String))?
+        return nil if graph.calls.empty?
+
+        caller_files = qualified_define_file_map(graph)
+        scoped_calls = graph.calls.compact_map do |call|
+          caller_qn = call.caller_qn
+          next unless caller_qn
+
+          caller_file = caller_files[caller_qn]?
+          next unless caller_file
+
+          {caller_file, caller_qn, call.callee_qn || call.callee}
+        end.uniq
+
+        scoped_calls.empty? ? nil : scoped_calls
+      end
+
+      private def qualified_define_file_map(graph : CodeGraph) : Hash(String, String)
+        graph.defines.each_with_object(Hash(String, String).new) do |fact, map|
+          next unless qualified_name = fact.qualified_name
+          map[qualified_name] = fact.file
+        end
+      end
+
+      private def scoped_calls_for_facts(
+        graph : IR::SemanticGraph,
+        entry_point_files : Array(Tuple(String, String)),
+      ) : Array(Tuple(String, String, String))
+        return reachable_scoped_calls(graph, entry_point_files) unless graph.scoped_calls.empty?
+
+        resolve_scoped_calls(graph, entry_point_files)
+      end
+
       private def resolve_scoped_calls(
         graph : IR::SemanticGraph,
         entry_point_files : Array(Tuple(String, String)),
@@ -172,6 +219,51 @@ module Chiasmus
         resolved
       end
 
+      private def reachable_scoped_calls(
+        graph : IR::SemanticGraph,
+        entry_point_files : Array(Tuple(String, String)),
+      ) : Array(Tuple(String, String, String))
+        return graph.scoped_calls.map { |edge| {edge.file, edge.caller, edge.callee} }.uniq if entry_point_files.empty?
+
+        index = IR::ScopedSymbolIndex.new(graph.symbols)
+        by_caller = Hash(Tuple(String, String), Array(IR::ScopedCallEdge)).new do |hash, key|
+          hash[key] = [] of IR::ScopedCallEdge
+        end
+        graph.scoped_calls.each do |edge|
+          by_caller[{edge.file, edge.caller}] << edge
+        end
+
+        reachable = Set(Tuple(String, String)).new
+        queue = [] of Tuple(String, String)
+
+        entry_point_files.each do |file, name|
+          index.symbols_in_file(file, name).each do |symbol|
+            key = {symbol.file, symbol.qualified_name}
+            next unless reachable.add?(key)
+
+            queue << key
+          end
+        end
+
+        cursor = 0
+        while cursor < queue.size
+          current = queue[cursor]
+          cursor += 1
+
+          by_caller[current]?.try &.each do |edge|
+            callee_key = {edge.file, edge.callee}
+            next unless reachable.add?(callee_key)
+
+            queue << callee_key
+          end
+        end
+
+        graph.scoped_calls
+          .select { |edge| reachable.includes?({edge.file, edge.caller}) }
+          .map { |edge| {edge.file, edge.caller, edge.callee} }
+          .uniq
+      end
+
       private def resolve_reachable_scoped_callers(
         index : IR::ScopedSymbolIndex,
         candidates : Array(ScopedCallCandidate),
@@ -196,8 +288,10 @@ module Chiasmus
           end
         end
 
-        until queue.empty?
-          current = queue.shift
+        cursor = 0
+        while cursor < queue.size
+          current = queue[cursor]
+          cursor += 1
           by_caller[current]?.try &.each do |candidate|
             callee_key = {candidate[:callee_file], candidate[:callee]}
             next unless reachable.add?(callee_key)

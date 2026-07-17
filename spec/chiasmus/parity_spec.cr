@@ -193,7 +193,7 @@ describe Chiasmus::Parity::Structural do
     report.matched_calls.should eq(["parse_config", "read_file"])
   end
 
-  it "reports structural_drift when target drops a normalized direct callee" do
+  it "does not report structural_drift when target drops a normalized direct callee" do
     source_graph = Chiasmus::Graph::CodeGraph.new(
       defines: [
         Chiasmus::Graph::DefinesFact.new(file: "src/config.ts", name: "loadConfig", kind: Chiasmus::Graph::SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(1)),
@@ -229,7 +229,7 @@ describe Chiasmus::Parity::Structural do
       "load_config",
     )
 
-    report.status.should eq("structural_drift")
+    report.status.should eq("structural_match")
     report.missing_calls.should eq(["read_file"])
     report.extra_calls.should eq([] of String)
     report.matched_calls.should eq(["parse_config"])
@@ -472,7 +472,7 @@ describe Chiasmus::Parity::Structural do
       target_file: "src/util.cr",
     )
 
-    report.status.should eq("structural_drift")
+    report.status.should eq("structural_match")
     report.matched_calls.should eq([] of String)
     report.missing_calls.should eq(["leaf"])
     report.extra_calls.should eq([] of String)
@@ -520,7 +520,7 @@ describe Chiasmus::Parity::Structural do
       target_file: "src/util.cr",
     )
 
-    report.status.should eq("structural_drift")
+    report.status.should eq("structural_match")
     report.matched_calls.should eq([] of String)
     report.missing_calls.should eq(["leaf"])
     report.extra_calls.should eq([] of String)
@@ -725,7 +725,7 @@ TSV
     end
   end
 
-  it "reports structural drift when source and crystal facts are provided" do
+  it "does not report structural drift when only helper-call structure differs" do
     dir = File.join(Dir.tempdir, "chiasmus-parity-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)
     begin
@@ -800,9 +800,9 @@ TSV
       report = output.to_s
       report.should contain("structural_status")
       report.should contain("structural_details")
-      report.should contain("structural_drift")
-      report.should contain("missing_calls=read_file")
-      report.should contain("matched_calls=parse_config")
+      report.should contain("structural_match")
+      report.should_not contain("missing_calls=")
+      report.should_not contain("matched_calls=")
     ensure
       FileUtils.rm_rf(dir)
     end

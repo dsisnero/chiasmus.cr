@@ -1,9 +1,12 @@
 require "option_parser"
 require "set"
 require "./discovery"
+require "./graph/facts_snapshot"
 require "./graph/ir"
+require "./graph/parallel_io"
 require "./graph/types"
 require "./utils/bounded_work"
+require "./utils/config"
 require "./index/fast_find"
 
 module Chiasmus
@@ -87,6 +90,10 @@ module Chiasmus
       entry_points : Array(String),
       scoped_calls : Array(Graph::IR::ScopedCallEdge) = [] of Graph::IR::ScopedCallEdge,
       entry_point_files : Array(Tuple(String, String)) = [] of Tuple(String, String)
+
+    record StructuralSymbol,
+      name : String,
+      qualified_name : String? = nil
 
     record StructuralReport,
       source_symbol : String,
@@ -250,18 +257,20 @@ module Chiasmus
         source_file : String? = nil,
         target_file : String? = nil,
       ) : StructuralReport
-        source_defined = defined?(source_graph, source_symbol, source_file)
-        target_defined = defined?(target_graph, target_symbol, target_file)
-        source_exported = exported?(source_graph, source_symbol, source_file)
-        target_exported = exported?(target_graph, target_symbol, target_file)
-        source_entry_point = entry_point?(source_symbol, source_entry_points, source_file: source_file)
-        target_entry_point = entry_point?(target_symbol, target_entry_points, target_file: target_file)
-        source_imports = normalized_imports(source_graph, source_symbol, source_file)
-        target_imports = normalized_imports(target_graph, target_symbol, target_file)
-        source_callees = normalized_callees(source_graph, source_symbol, source_file)
-        target_callees = normalized_callees(target_graph, target_symbol, target_file)
-        source_contains = normalized_contains(source_graph, source_symbol, source_file)
-        target_contains = normalized_contains(target_graph, target_symbol, target_file)
+        resolved_source_symbol = resolved_structural_symbol(source_graph, source_symbol, source_file)
+        resolved_target_symbol = resolved_structural_symbol(target_graph, target_symbol, target_file)
+        source_defined = defined?(source_graph, resolved_source_symbol, source_file)
+        target_defined = defined?(target_graph, resolved_target_symbol, target_file)
+        source_exported = exported?(source_graph, resolved_source_symbol, source_file)
+        target_exported = exported?(target_graph, resolved_target_symbol, target_file)
+        source_entry_point = entry_point?(entry_point_lookup_name(resolved_source_symbol), source_entry_points, source_file: source_file)
+        target_entry_point = entry_point?(entry_point_lookup_name(resolved_target_symbol), target_entry_points, target_file: target_file)
+        source_imports = normalized_imports(source_graph, resolved_source_symbol, source_file)
+        target_imports = normalized_imports(target_graph, resolved_target_symbol, target_file)
+        source_callees = normalized_callees(source_graph, resolved_source_symbol, source_file)
+        target_callees = normalized_callees(target_graph, resolved_target_symbol, target_file)
+        source_contains = normalized_contains(source_graph, resolved_source_symbol, source_file)
+        target_contains = normalized_contains(target_graph, resolved_target_symbol, target_file)
 
         build_structural_report(
           source_symbol: source_symbol,
@@ -289,18 +298,20 @@ module Chiasmus
         source_file : String? = nil,
         target_file : String? = nil,
       ) : StructuralReport
-        source_defined = defined?(source_facts.graph, source_symbol, source_file)
-        target_defined = defined?(target_facts.graph, target_symbol, target_file)
-        source_exported = exported?(source_facts.graph, source_symbol, source_file)
-        target_exported = exported?(target_facts.graph, target_symbol, target_file)
-        source_entry_point = entry_point?(source_symbol, source_facts.entry_points, source_file: source_file, entry_point_files: source_facts.entry_point_files)
-        target_entry_point = entry_point?(target_symbol, target_facts.entry_points, target_file: target_file, entry_point_files: target_facts.entry_point_files)
-        source_imports = normalized_imports(source_facts.graph, source_symbol, source_file)
-        target_imports = normalized_imports(target_facts.graph, target_symbol, target_file)
-        source_callees = normalized_callees(source_facts, source_symbol, source_file)
-        target_callees = normalized_callees(target_facts, target_symbol, target_file)
-        source_contains = normalized_contains(source_facts.graph, source_symbol, source_file)
-        target_contains = normalized_contains(target_facts.graph, target_symbol, target_file)
+        resolved_source_symbol = resolved_structural_symbol(source_facts.graph, source_symbol, source_file)
+        resolved_target_symbol = resolved_structural_symbol(target_facts.graph, target_symbol, target_file)
+        source_defined = defined?(source_facts.graph, resolved_source_symbol, source_file)
+        target_defined = defined?(target_facts.graph, resolved_target_symbol, target_file)
+        source_exported = exported?(source_facts.graph, resolved_source_symbol, source_file)
+        target_exported = exported?(target_facts.graph, resolved_target_symbol, target_file)
+        source_entry_point = entry_point?(entry_point_lookup_name(resolved_source_symbol), source_facts.entry_points, source_file: source_file, entry_point_files: source_facts.entry_point_files)
+        target_entry_point = entry_point?(entry_point_lookup_name(resolved_target_symbol), target_facts.entry_points, target_file: target_file, entry_point_files: target_facts.entry_point_files)
+        source_imports = normalized_imports(source_facts.graph, resolved_source_symbol, source_file)
+        target_imports = normalized_imports(target_facts.graph, resolved_target_symbol, target_file)
+        source_callees = normalized_callees(source_facts, resolved_source_symbol, source_file)
+        target_callees = normalized_callees(target_facts, resolved_target_symbol, target_file)
+        source_contains = normalized_contains(source_facts.graph, resolved_source_symbol, source_file)
+        target_contains = normalized_contains(target_facts.graph, resolved_target_symbol, target_file)
 
         build_structural_report(
           source_symbol: source_symbol,
@@ -352,8 +363,6 @@ module Chiasmus
           source_entry_point == target_entry_point &&
           missing_imports.empty? &&
           extra_imports.empty? &&
-          missing_calls.empty? &&
-          extra_calls.empty? &&
           missing_contains.empty? &&
           extra_contains.empty?
         ) ? "structural_match" : "structural_drift"
@@ -381,12 +390,14 @@ module Chiasmus
       end
 
       def load_facts(path : String) : StructuralFacts
-        defines = [] of Graph::DefinesFact
-        calls = [] of Graph::CallsFact
+        graph = Graph::FactsSnapshot.load_graph_from_facts(path)
+        defines = graph ? nil : ([] of Graph::DefinesFact)
+        calls = graph ? nil : ([] of Graph::CallsFact)
         scoped_calls = [] of Graph::IR::ScopedCallEdge
-        imports = [] of Graph::ImportsFact
-        exports = [] of Graph::ExportsFact
-        contains = [] of Graph::ContainsFact
+        imports = graph ? nil : ([] of Graph::ImportsFact)
+        exports = graph ? nil : ([] of Graph::ExportsFact)
+        contains = graph ? nil : ([] of Graph::ContainsFact)
+        qualified_names = [] of Tuple(String, String, String)
         entry_points = [] of String
         entry_point_files = [] of Tuple(String, String)
 
@@ -394,6 +405,7 @@ module Chiasmus
           stripped = line.strip
           next if stripped.empty? || stripped.starts_with?('%') || stripped.starts_with?(":-")
           if stripped.starts_with?("defines(")
+            next unless defines
             args = parse_args(stripped["defines(".size...-2])
             defines << Graph::DefinesFact.new(
               file: atom(args[0]),
@@ -401,6 +413,9 @@ module Chiasmus
               kind: parse_symbol_kind(atom(args[2])),
               span: Graph::Span.line_range(args[3].to_i, args[4].to_i)
             )
+          elsif stripped.starts_with?("qualified_name(")
+            args = parse_args(stripped["qualified_name(".size...-2])
+            qualified_names << {atom(args[0]), atom(args[1]), atom(args[2])}
           elsif stripped.starts_with?("calls_in(")
             args = parse_args(stripped["calls_in(".size...-2])
             scoped_calls << Graph::IR::ScopedCallEdge.new(
@@ -409,12 +424,14 @@ module Chiasmus
               callee: atom(args[2]),
             )
           elsif stripped.starts_with?("calls(")
+            next unless calls
             args = parse_args(stripped["calls(".size...-2])
             calls << Graph::CallsFact.new(
               caller: atom(args[0]),
               callee: atom(args[1]),
             )
           elsif stripped.starts_with?("imports(")
+            next unless imports
             args = parse_args(stripped["imports(".size...-2])
             imports << Graph::ImportsFact.new(
               file: atom(args[0]),
@@ -422,12 +439,14 @@ module Chiasmus
               source: atom(args[2]),
             )
           elsif stripped.starts_with?("exports(")
+            next unless exports
             args = parse_args(stripped["exports(".size...-2])
             exports << Graph::ExportsFact.new(
               file: atom(args[0]),
               name: atom(args[1]),
             )
           elsif stripped.starts_with?("contains(")
+            next unless contains
             args = parse_args(stripped["contains(".size...-2])
             contains << Graph::ContainsFact.new(
               parent: atom(args[0]),
@@ -442,14 +461,17 @@ module Chiasmus
           end
         end
 
+        graph ||= Graph::CodeGraph.new(
+          defines: defines || ([] of Graph::DefinesFact),
+          calls: calls || ([] of Graph::CallsFact),
+          imports: imports || ([] of Graph::ImportsFact),
+          exports: exports || ([] of Graph::ExportsFact),
+          contains: contains || ([] of Graph::ContainsFact),
+        )
+        attach_qualified_names!(graph, qualified_names) unless qualified_names.empty?
+
         StructuralFacts.new(
-          graph: Graph::CodeGraph.new(
-            defines: defines,
-            calls: calls,
-            imports: imports,
-            exports: exports,
-            contains: contains,
-          ),
+          graph: graph,
           entry_points: normalized_entry_points(entry_points),
           scoped_calls: scoped_calls,
           entry_point_files: entry_point_files,
@@ -460,14 +482,14 @@ module Chiasmus
         load_facts(path).graph
       end
 
-      private def defined?(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Bool
-        graph.defines.any? { |fact| fact.name == symbol && (file.nil? || fact.file == file) }
+      private def defined?(graph : Graph::CodeGraph, symbol : StructuralSymbol, file : String? = nil) : Bool
+        graph.defines.any? { |fact| define_matches?(fact, symbol) && (file.nil? || fact.file == file) }
       end
 
-      private def exported?(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Bool
-        normalized_symbol = Naming.normalized_simple(symbol)
+      private def exported?(graph : Graph::CodeGraph, symbol : StructuralSymbol, file : String? = nil) : Bool
+        normalized_symbol = normalized_symbol_candidates(symbol)
         graph.exports.any? do |fact|
-          Naming.normalized_simple(fact.name) == normalized_symbol &&
+          normalized_symbol.includes?(Naming.normalized_simple(fact.name)) &&
             (file.nil? || fact.file == file)
         end
       end
@@ -493,7 +515,7 @@ module Chiasmus
         entry_points.any? { |name| Naming.normalized_simple(name) == normalized_symbol }
       end
 
-      private def normalized_imports(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Array(String)
+      private def normalized_imports(graph : Graph::CodeGraph, symbol : StructuralSymbol, file : String? = nil) : Array(String)
         file = file || defining_file(graph, symbol)
         return [] of String unless file
 
@@ -505,8 +527,8 @@ module Chiasmus
         imports
       end
 
-      private def defining_file(graph : Graph::CodeGraph, symbol : String) : String?
-        graph.defines.find { |fact| fact.name == symbol }.try(&.file)
+      private def defining_file(graph : Graph::CodeGraph, symbol : StructuralSymbol) : String?
+        graph.defines.find { |fact| define_matches?(fact, symbol) }.try(&.file)
       end
 
       private def normalized_import_target(fact : Graph::ImportsFact) : String
@@ -525,12 +547,12 @@ module Chiasmus
         leaf
       end
 
-      private def normalized_callees(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Array(String)
+      private def normalized_callees(graph : Graph::CodeGraph, symbol : StructuralSymbol, file : String? = nil) : Array(String)
         if file && ambiguous_definition?(graph, symbol, file)
           return [] of String
         end
 
-        callees = graph.calls.select { |fact| fact.caller == symbol }
+        callees = graph.calls.select { |fact| call_matches?(fact, symbol) }
           .map { |fact| Naming.normalized_simple(fact.callee) }
           .reject(&.empty?)
         callees.uniq!
@@ -538,18 +560,18 @@ module Chiasmus
         callees
       end
 
-      private def ambiguous_definition?(graph : Graph::CodeGraph, symbol : String, file : String) : Bool
-        matching_defines = graph.defines.select { |fact| fact.name == symbol }
+      private def ambiguous_definition?(graph : Graph::CodeGraph, symbol : StructuralSymbol, file : String) : Bool
+        matching_defines = graph.defines.select { |fact| define_matches?(fact, symbol) }
         return false if matching_defines.empty?
         return false if matching_defines.size == 1
 
         matching_defines.any? { |fact| fact.file == file }
       end
 
-      private def normalized_callees(facts : StructuralFacts, symbol : String, file : String? = nil) : Array(String)
+      private def normalized_callees(facts : StructuralFacts, symbol : StructuralSymbol, file : String? = nil) : Array(String)
         return normalized_callees(facts.graph, symbol, file) if file.nil? || facts.scoped_calls.empty?
 
-        callees = facts.scoped_calls.select { |edge| edge.file == file && edge.caller == symbol }
+        callees = facts.scoped_calls.select { |edge| edge.file == file && structural_symbol_matches?(edge.caller, symbol) }
           .map { |edge| Naming.normalized_simple(edge.callee) }
           .reject(&.empty?)
         callees.uniq!
@@ -557,12 +579,14 @@ module Chiasmus
         callees
       end
 
-      private def normalized_contains(graph : Graph::CodeGraph, symbol : String, file : String? = nil) : Array(String)
+      private def normalized_contains(graph : Graph::CodeGraph, symbol : StructuralSymbol, file : String? = nil) : Array(String)
         contained = graph.contains.select do |fact|
-          next false unless fact.parent == symbol
+          next false unless structural_symbol_matches?(fact.parent, symbol)
           next true if file.nil?
 
-          graph.defines.any? { |define| define.file == file && define.name == fact.child }
+          graph.defines.any? do |define|
+            define.file == file && (define.name == fact.child || define.qualified_name == fact.child)
+          end
         end
           .map { |fact| Naming.normalized_simple(fact.child) }
           .reject(&.empty?)
@@ -629,6 +653,89 @@ module Chiasmus
         final = current.to_s.strip
         args << final unless final.empty?
         args
+      end
+
+      private def resolved_structural_symbol(graph : Graph::CodeGraph, symbol : String, file : String?) : StructuralSymbol
+        normalized_symbol = normalize_structural_lookup(symbol)
+        candidates = graph.defines.select { |fact| file.nil? || fact.file == file }
+
+        if exact = candidates.find { |fact| fact.name == normalized_symbol || fact.qualified_name == normalized_symbol }
+          return StructuralSymbol.new(name: exact.name, qualified_name: exact.qualified_name)
+        end
+
+        normalized_key = Naming.normalized_key(normalized_symbol)
+        normalized_simple = Naming.normalized_simple(normalized_symbol)
+        normalized_owner = Naming.normalized_owner(normalized_symbol)
+
+        if qualified = candidates.find { |fact| fact.qualified_name && Naming.normalized_key(fact.qualified_name.not_nil!) == normalized_key }
+          return StructuralSymbol.new(name: qualified.name, qualified_name: qualified.qualified_name)
+        end
+
+        if !normalized_owner.empty?
+          if owner_match = candidates.find { |fact| fact.qualified_name && Naming.normalized_simple(fact.qualified_name.not_nil!) == normalized_simple && Naming.normalized_owner(fact.qualified_name.not_nil!) == normalized_owner }
+            return StructuralSymbol.new(name: owner_match.name, qualified_name: owner_match.qualified_name)
+          end
+        end
+
+        if simple = candidates.find { |fact| Naming.normalized_simple(fact.name) == normalized_simple }
+          return StructuralSymbol.new(name: simple.name, qualified_name: simple.qualified_name)
+        end
+
+        StructuralSymbol.new(name: normalized_symbol)
+      end
+
+      private def attach_qualified_names!(graph : Graph::CodeGraph, qualified_names : Array(Tuple(String, String, String))) : Nil
+        lookup = qualified_names.to_h do |file, name, qualified_name|
+          { {file, name}, qualified_name }
+        end
+        graph.defines.map! do |fact|
+          qualified_name = lookup[{fact.file, fact.name}]?
+          qualified_name ? fact.copy_with(qualified_name: qualified_name) : fact
+        end
+      end
+
+      private def normalize_structural_lookup(symbol : String) : String
+        symbol.gsub('#', '.').strip
+      end
+
+      private def normalized_symbol_candidates(symbol : StructuralSymbol) : Set(String)
+        values = Set(String).new
+        values << Naming.normalized_simple(symbol.name)
+        if qualified_name = symbol.qualified_name
+          values << Naming.normalized_simple(qualified_name)
+        end
+        values
+      end
+
+      private def entry_point_lookup_name(symbol : StructuralSymbol) : String
+        symbol.qualified_name || symbol.name
+      end
+
+      private def define_matches?(fact : Graph::DefinesFact, symbol : StructuralSymbol) : Bool
+        return true if fact.name == symbol.name
+
+        qualified_name = symbol.qualified_name
+        return false unless qualified_name
+
+        fact.qualified_name == qualified_name
+      end
+
+      private def call_matches?(fact : Graph::CallsFact, symbol : StructuralSymbol) : Bool
+        return true if structural_symbol_matches?(fact.caller, symbol)
+
+        qualified_name = symbol.qualified_name
+        return false unless qualified_name
+
+        fact.caller_qn == qualified_name
+      end
+
+      private def structural_symbol_matches?(value : String, symbol : StructuralSymbol) : Bool
+        return true if value == symbol.name
+
+        qualified_name = symbol.qualified_name
+        return false unless qualified_name
+
+        value == qualified_name
       end
     end
 
@@ -699,15 +806,13 @@ module Chiasmus
         absolute_root = File.expand_path(root_dir)
         paths = crystal_file_paths(absolute_root, dirs)
 
-        Utils::BoundedWork.map_ordered(paths, collect_file_max_concurrency) do |path|
-          rel = relative_to_root(path, absolute_root)
-          begin
-            run_before_collect_file_read_hook(path)
-            {rel, File.read(path)}
-          rescue ex
-            nil
-          end
-        end.compact_map(&.itself)
+        source_files = Graph::FileIO.read_source_files_parallel(paths, collect_file_max_concurrency) do |path|
+          run_before_collect_file_read_hook(path)
+          File.read(path)
+        end
+        source_files.map do |source_file|
+          {relative_to_root(source_file.path, absolute_root), source_file.content}
+        end
       end
 
       private def self.relative_to_root(path : String, absolute_root : String) : String
@@ -846,6 +951,8 @@ module Chiasmus
     end
 
     class Matcher
+      @equivalences : Array(Utils::Config::RepoParityConfig::RepoParityEquivalence)
+
       def initialize(
         @symbols : Array(SymbolItem),
         @rules : Array(ConversionRule),
@@ -855,12 +962,16 @@ module Chiasmus
         @crystal_entry_points : Array(String)? = nil,
         @source_facts : StructuralFacts? = nil,
         @crystal_facts : StructuralFacts? = nil,
+        @parity_config : Utils::Config::RepoParityConfig? = nil,
       )
         @symbols_by_file = Hash(String, Array(SymbolItem)).new { |hash, key| hash[key] = [] of SymbolItem }
         @rules_by_upstream = Hash(String, Array(ConversionRule)).new { |hash, key| hash[key] = [] of ConversionRule }
+        @equivalences = usable_equivalences(@parity_config)
 
         @symbols.each do |symbol|
-          @symbols_by_file[symbol.file] << symbol
+          index_paths_for(symbol.file).each do |path|
+            @symbols_by_file[path] << symbol
+          end
         end
 
         @rules.each do |rule|
@@ -1015,13 +1126,15 @@ module Chiasmus
       private def crystal_ref_paths(refs : String) : Array(String)
         return [] of String if refs == "-"
 
-        refs.split(/[\s,]+/).compact_map do |token|
+        paths = refs.split(/[\s,]+/).compact_map do |token|
           stripped = token.strip
           next if stripped.empty? || stripped == "-"
           path = stripped.split(":").first
           next unless path.ends_with?(".cr")
           path
         end
+        paths.uniq!
+        paths
       end
 
       private def symbols_for_paths(paths : Array(String)) : Array(SymbolItem)
@@ -1067,6 +1180,8 @@ module Chiasmus
 
       private def structural_fields(row : InventoryRow, symbol : SymbolItem, inventory_status : String) : Tuple(String, String)
         return {"-", "-"} if inventory_status == "intentional_divergence"
+        source_file = resolved_source_graph_file(row.source_file)
+        target_file = resolved_target_graph_file(symbol.file)
         report = if source_facts = @source_facts
                    if crystal_facts = @crystal_facts
                      Structural.compare(
@@ -1074,8 +1189,8 @@ module Chiasmus
                        row.source_name,
                        crystal_facts,
                        symbol.name,
-                       source_file: row.source_file,
-                       target_file: symbol.file,
+                       source_file: source_file,
+                       target_file: target_file,
                      )
                    else
                      return {"-", "-"}
@@ -1092,8 +1207,8 @@ module Chiasmus
                      symbol.name,
                      source_entry_points: @source_entry_points,
                      target_entry_points: @crystal_entry_points,
-                     source_file: row.source_file,
-                     target_file: symbol.file,
+                     source_file: source_file,
+                     target_file: target_file,
                    )
                  end
         details = structural_detail_lines(report)
@@ -1104,7 +1219,6 @@ module Chiasmus
         details = [] of String
         append_presence_details(details, report)
         append_relation_details(details, "imports", report.matched_imports, report.missing_imports, report.extra_imports)
-        append_relation_details(details, "calls", report.matched_calls, report.missing_calls, report.extra_calls)
         append_relation_details(details, "contains", report.matched_contains, report.missing_contains, report.extra_contains)
         details
       end
@@ -1139,21 +1253,75 @@ module Chiasmus
       end
 
       private def ranked_matches(row : InventoryRow, symbols : Array(SymbolItem)) : Array(Match)
-        matches = symbols.compact_map do |symbol|
-          score_match(row, symbol)
-        end
+        matches = if explicit_target_symbol?(row)
+                    symbols.compact_map do |symbol|
+                      score_target_symbol(row, symbol)
+                    end
+                  else
+                    symbols.compact_map do |symbol|
+                      score_match(row, symbol)
+                    end
+                  end
         matches.sort_by! { |match| {-match.score, match.symbol.file, match.symbol.name} }
         matches
       end
 
+      private def explicit_target_symbol?(row : InventoryRow) : Bool
+        target = row.target_symbol.strip
+        !target.empty? && target != "-"
+      end
+
+      private def score_target_symbol(row : InventoryRow, symbol : SymbolItem) : Match?
+        equivalence = matching_equivalence(row.source_file, symbol.file)
+        raw_target_symbol = normalized_target_symbol(row.target_symbol)
+        target_symbol = normalized_target_symbol(normalized_target_name(row.target_symbol, equivalence))
+        normalized_symbol_name = normalized_symbol_name(symbol.name, equivalence)
+        target_key = Naming.normalized_key(target_symbol)
+        target_simple = Naming.normalized_simple(target_symbol)
+        target_owner = Naming.normalized_owner(target_symbol)
+        symbol_key = Naming.normalized_key(normalized_symbol_name)
+        symbol_simple = Naming.normalized_simple(normalized_symbol_name)
+        symbol_owner = Naming.normalized_owner(normalized_symbol_name)
+
+        return nil if target_simple.empty? || symbol_simple.empty?
+
+        score, basis =
+          if raw_target_symbol == symbol.name
+            {100, "target_symbol"}
+          elsif target_key == symbol_key
+            {98, "target_symbol"}
+          elsif target_simple == symbol_simple && !target_owner.empty? && target_owner == symbol_owner
+            {94, "target_symbol"}
+          elsif target_simple == symbol_simple
+            {90, "target_symbol"}
+          else
+            {0, "target_symbol"}
+          end
+
+        return nil if score == 0
+
+        score += compatible_kind?(row.kind, symbol.kind) ? 2 : -10
+        score = 100 if score > 100
+        return nil if score < 80
+
+        Match.new(symbol: symbol, score: score, basis: basis)
+      end
+
+      private def normalized_target_symbol(value : String) : String
+        value.gsub('#', '.').strip
+      end
+
       private def score_match(row : InventoryRow, symbol : SymbolItem) : Match?
-        source_name = row.source_name
+        equivalence = matching_equivalence(row.source_file, symbol.file)
+        raw_source_name = row.source_name
+        source_name = normalized_source_name(raw_source_name, equivalence)
+        symbol_name = normalized_symbol_name(symbol.name, equivalence)
         source_key = Naming.normalized_key(source_name)
         source_simple = Naming.normalized_simple(source_name)
         source_owner = Naming.normalized_owner(source_name)
-        symbol_key = Naming.normalized_key(symbol.name)
-        symbol_simple = Naming.normalized_simple(symbol.name)
-        symbol_owner = Naming.normalized_owner(symbol.name)
+        symbol_key = Naming.normalized_key(symbol_name)
+        symbol_simple = Naming.normalized_simple(symbol_name)
+        symbol_owner = Naming.normalized_owner(symbol_name)
 
         return nil if source_simple.empty? || symbol_simple.empty?
 
@@ -1161,7 +1329,7 @@ module Chiasmus
           return match
         end
 
-        score, basis = name_score(row, symbol, source_name, source_key, source_simple, source_owner, symbol_key, symbol_simple, symbol_owner)
+        score, basis = name_score(row, symbol, raw_source_name, source_name, source_key, source_simple, source_owner, symbol_name, symbol_key, symbol_simple, symbol_owner)
 
         return nil if score == 0
 
@@ -1186,10 +1354,12 @@ module Chiasmus
       private def name_score(
         row : InventoryRow,
         symbol : SymbolItem,
+        raw_source_name : String,
         source_name : String,
         source_key : String,
         source_simple : String,
         source_owner : String,
+        symbol_name : String,
         symbol_key : String,
         symbol_simple : String,
         symbol_owner : String,
@@ -1199,7 +1369,7 @@ module Chiasmus
           return {0, "simple_name"}
         end
 
-        return {100, "exact"} if source_name == symbol.name
+        return {100, "exact"} if raw_source_name == symbol.name
         return {96, "normalized"} if source_key == symbol_key
         return {94, "qualified_suffix"} if source_simple == symbol_simple && !source_owner.empty? && source_owner == symbol_owner
         return {88, "simple_name"} if source_simple == symbol_simple
@@ -1227,20 +1397,155 @@ module Chiasmus
           crystal_kind == source_kind
         end
       end
+
+      private def usable_equivalences(config : Utils::Config::RepoParityConfig?) : Array(Utils::Config::RepoParityConfig::RepoParityEquivalence)
+        return [] of Utils::Config::RepoParityConfig::RepoParityEquivalence unless config
+
+        config.equivalences.try(&.select do |equivalence|
+          source_path = normalized_path_prefix(equivalence.source_path)
+          target_path = normalized_path_prefix(equivalence.target_path)
+          !source_path.empty? && !target_path.empty?
+        end) || [] of Utils::Config::RepoParityConfig::RepoParityEquivalence
+      end
+
+      private def resolved_source_graph_file(file : String?) : String?
+        return nil unless file
+
+        graph = @source_facts.try(&.graph) || @source_graph
+        return file unless graph
+
+        resolve_graph_file(graph, file, source_graph_file_candidates(file))
+      end
+
+      private def source_graph_file_candidates(file : String) : Array(String)
+        candidates = [normalize_path(file)]
+        vendor_src = normalized_path_prefix(@parity_config.try(&.vendor_src))
+        candidates << normalize_path(File.join(vendor_src, file)) unless vendor_src.empty?
+        candidates.uniq!
+        candidates
+      end
+
+      private def resolved_target_graph_file(file : String?) : String?
+        return nil unless file
+
+        graph = @crystal_facts.try(&.graph) || @crystal_graph
+        return file unless graph
+
+        resolve_graph_file(graph, file, [normalize_path(file)])
+      end
+
+      private def resolve_graph_file(graph : Graph::CodeGraph, original_file : String, candidates : Array(String)) : String
+        graph.defines.each do |fact|
+          return fact.file if candidates.includes?(normalize_path(fact.file))
+        end
+
+        original_file
+      end
+
+      private def index_paths_for(path : String) : Array(String)
+        keys = [normalize_path(path)]
+        @equivalences.each do |equivalence|
+          source_path = normalized_path_prefix(equivalence.source_path)
+          target_path = normalized_path_prefix(equivalence.target_path)
+          alias_path = rewrite_path_prefix(path, target_path, source_path)
+          keys << alias_path unless alias_path.empty?
+        end
+        keys.uniq!
+        keys
+      end
+
+      private def matching_equivalence(source_file : String?, target_file : String?) : Utils::Config::RepoParityConfig::RepoParityEquivalence?
+        return nil unless source_file && target_file
+
+        normalized_source = normalize_path(source_file)
+        normalized_target = normalize_path(target_file)
+        @equivalences.find do |equivalence|
+          source_path = normalized_path_prefix(equivalence.source_path)
+          target_path = normalized_path_prefix(equivalence.target_path)
+          path_matches_prefix?(normalized_source, source_path) &&
+            path_matches_prefix?(normalized_target, target_path)
+        end
+      end
+
+      private def normalized_source_name(name : String, equivalence : Utils::Config::RepoParityConfig::RepoParityEquivalence?) : String
+        strip_namespace_prefix(name, equivalence.try(&.source_namespace))
+      end
+
+      private def normalized_target_name(name : String, equivalence : Utils::Config::RepoParityConfig::RepoParityEquivalence?) : String
+        strip_namespace_prefix(name, equivalence.try(&.target_namespace))
+      end
+
+      private def normalized_symbol_name(name : String, equivalence : Utils::Config::RepoParityConfig::RepoParityEquivalence?) : String
+        normalized_target_name(name, equivalence)
+      end
+
+      private def strip_namespace_prefix(name : String, prefix : String?) : String
+        return name if prefix.nil?
+
+        normalized_prefix = prefix.not_nil!.strip
+        return name if normalized_prefix.empty?
+
+        variants = [normalized_prefix, normalized_prefix.gsub("::", ".")]
+        variants.each do |candidate|
+          if name == candidate
+            return ""
+          end
+
+          ["::", "."].each do |separator|
+            prefix_with_separator = "#{candidate}#{separator}"
+            return name[prefix_with_separator.size..] if name.starts_with?(prefix_with_separator)
+          end
+        end
+
+        name
+      end
+
+      private def normalize_path(path : String) : String
+        path.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
+      end
+
+      private def normalized_path_prefix(path : String?) : String
+        return "" unless path
+
+        normalize_path(path.not_nil!)
+      end
+
+      private def path_matches_prefix?(path : String, prefix : String) : Bool
+        return false if prefix.empty?
+
+        path == prefix || path.starts_with?("#{prefix}/")
+      end
+
+      private def rewrite_path_prefix(path : String, from_prefix : String, to_prefix : String) : String
+        return "" if from_prefix.empty? || to_prefix.empty?
+
+        normalized_path = normalize_path(path)
+        return "" unless path_matches_prefix?(normalized_path, from_prefix)
+
+        suffix = normalized_path.size == from_prefix.size ? "" : normalized_path[(from_prefix.size + 1)..]
+        suffix.empty? ? to_prefix : File.join(to_prefix, suffix).gsub('\\', '/')
+      end
     end
 
     def self.analyze(
       inventory_path : String,
       root_dir : String = ".",
-      crystal_dirs : Array(String) = ["src"],
+      crystal_dirs : Array(String) = [] of String,
       rules_path : String? = nil,
       parser_mode : String? = nil,
       source_facts_path : String? = nil,
       crystal_facts_path : String? = nil,
+      repo_parity_config : Utils::Config::RepoParityConfig? = nil,
     ) : AnalysisResult
+      parity_config = repo_parity_config || Utils::Config.load_repo_config(root_dir).parity
+      effective_dirs = if crystal_dirs.empty?
+                         parity_config.try(&.target_src) || ["src", "spec"]
+                       else
+                         crystal_dirs
+                       end
       inventory = Loader.read_inventory(inventory_path)
       rules = Loader.read_rules(rules_path)
-      symbols, parser = CrystalScanner.scan(root_dir, crystal_dirs, parser_mode)
+      symbols, parser = CrystalScanner.scan(root_dir, effective_dirs, parser_mode)
       source_facts = source_facts_path ? Structural.load_facts(source_facts_path) : nil
       crystal_facts = crystal_facts_path ? Structural.load_facts(crystal_facts_path) : nil
       matcher = Matcher.new(
@@ -1252,6 +1557,7 @@ module Chiasmus
         crystal_entry_points: crystal_facts.try(&.entry_points),
         source_facts: source_facts,
         crystal_facts: crystal_facts,
+        parity_config: parity_config,
       )
       AnalysisResult.new(rows: matcher.analyze(inventory), parser_mode: parser)
     end
@@ -1259,8 +1565,63 @@ module Chiasmus
     module Completion
       extend self
 
-      def render(output : IO, inventory : Array(InventoryRow), result : AnalysisResult, source_facts : StructuralFacts) : Nil
-        reachable = reachable_source_ids(source_facts)
+      record StatusEvaluation,
+        reachable_ids : Set(String),
+        complete_ids : Array(String),
+        incomplete_ids : Array(String)
+
+      def evaluate(
+        inventory : Array(InventoryRow),
+        result : AnalysisResult,
+        source_facts : StructuralFacts,
+        parity_config : Utils::Config::RepoParityConfig? = nil,
+        root_dir : String = ".",
+      ) : StatusEvaluation
+        reachable_ids = canonical_source_ids(reachable_source_ids(source_facts), parity_config, root_dir)
+        rows_by_id = result.rows.to_h { |row| {row.source_id, row} }
+
+        complete_ids = [] of String
+        incomplete_ids = [] of String
+
+        inventory.each do |row|
+          canonical_id = canonical_source_id(row.source_id, parity_config, root_dir)
+          next unless reachable_ids.includes?(canonical_id)
+
+          report = rows_by_id[row.source_id]?
+          complete = row.status == "ported" &&
+                     report &&
+                     report.crystal_name != "-" &&
+                     (report.structural_status == "structural_match" || structural_not_applicable_but_matched?(report)) &&
+                     (tested_from_refs?(row.crystal_refs) || tested_from_refs?(row.test_refs))
+
+          if complete
+            complete_ids << row.source_id
+            next
+          end
+
+          next if row.status == "intentional_divergence" || row.status == "skipped"
+          incomplete_ids << row.source_id
+        end
+
+        complete_ids.sort!
+        incomplete_ids.sort!
+
+        StatusEvaluation.new(
+          reachable_ids: reachable_ids,
+          complete_ids: complete_ids,
+          incomplete_ids: incomplete_ids,
+        )
+      end
+
+      def render(
+        output : IO,
+        inventory : Array(InventoryRow),
+        result : AnalysisResult,
+        source_facts : StructuralFacts,
+        parity_config : Utils::Config::RepoParityConfig? = nil,
+        root_dir : String = ".",
+      ) : Nil
+        status = evaluate(inventory, result, source_facts, parity_config: parity_config, root_dir: root_dir)
         rows_by_id = result.rows.to_h { |row| {row.source_id, row} }
 
         output.puts "% chiasmus completion facts"
@@ -1292,7 +1653,7 @@ module Chiasmus
         inventory.each do |row|
           emit_inventory_facts(output, row)
           output.puts "source_symbol_name(#{quote(row.source_id)}, #{quote(row.source_name)})."
-          output.puts "reachable_from_entry(#{quote(row.source_id)})." if reachable.includes?(row.source_id)
+          output.puts "reachable_from_entry(#{quote(row.source_id)})." if status.reachable_ids.includes?(canonical_source_id(row.source_id, parity_config, root_dir))
           output.puts "tested(#{quote(row.source_id)})." if tested_from_refs?(row.crystal_refs) || tested_from_refs?(row.test_refs)
 
           next unless report = rows_by_id[row.source_id]?
@@ -1455,6 +1816,35 @@ module Chiasmus
         output.puts "    \\+ status(Id, 'skipped')."
       end
 
+      private def canonical_source_ids(ids : Set(String), parity_config : Utils::Config::RepoParityConfig?, root_dir : String) : Set(String)
+        ids.map { |id| canonical_source_id(id, parity_config, root_dir) }.to_set
+      end
+
+      private def canonical_source_id(source_id : String, parity_config : Utils::Config::RepoParityConfig?, root_dir : String) : String
+        parts = source_id.split("::", 3)
+        return source_id if parts.size < 3
+
+        "#{canonical_source_file(parts[0], parity_config, root_dir)}::#{parts[1]}::#{parts[2]}"
+      end
+
+      private def canonical_source_file(file : String, parity_config : Utils::Config::RepoParityConfig?, root_dir : String) : String
+        normalized = file.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
+        vendor_src = parity_config.try(&.vendor_src).try(&.strip)
+        return normalized if vendor_src.nil? || vendor_src.not_nil!.empty?
+
+        vendor_prefix = vendor_src.not_nil!.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
+        repo_prefix = File.expand_path(root_dir).gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{/$}, "")
+        if normalized == repo_prefix || normalized.starts_with?("#{repo_prefix}/")
+          normalized = normalized[repo_prefix.size..]
+          normalized = normalized[1..] if normalized.starts_with?('/')
+        end
+        return normalized unless normalized == vendor_prefix || normalized.starts_with?("#{vendor_prefix}/")
+
+        suffix = normalized[vendor_prefix.size..]
+        suffix = suffix[1..] if suffix.starts_with?('/')
+        suffix.empty? ? normalized : suffix
+      end
+
       private def quote(value : String) : String
         escaped = value.gsub("\\", "\\\\").gsub("'", "\\'")
         "'#{escaped}'"
@@ -1509,8 +1899,6 @@ module Chiasmus
           return 1
         end
 
-        crystal_dirs = ["src", "spec"] if crystal_dirs.empty?
-
         result = Parity.analyze(
           inventory_path: inventory_path,
           root_dir: root_dir,
@@ -1529,7 +1917,7 @@ module Chiasmus
             return 1
           end
           inventory = Loader.read_inventory(inventory_path)
-          Completion.render(output, inventory, result, Structural.load_facts(source_path))
+          Completion.render(output, inventory, result, Structural.load_facts(source_path), root_dir: root_dir)
         else
           render_tsv(output, result)
         end
