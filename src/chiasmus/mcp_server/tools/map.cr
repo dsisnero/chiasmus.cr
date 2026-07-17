@@ -2,6 +2,7 @@
 require "mcp"
 require "../types"
 require "../tool_schemas"
+require "./source_paths"
 require "../../graph/map"
 require "../../graph/extractor"
 require "../../graph/parallel_io"
@@ -19,7 +20,7 @@ module Chiasmus
 
           return Types::ErrorResponse.new("'files' (non-empty string[]) is required") if args.files.empty?
 
-          paths = args.files.map { |path| File.expand_path(path) }
+          paths = SourcePaths.normalize_file_inputs!(args.files)
           graph = load_graph(paths, args.cache || Graph::GraphCache.default_cache_dir) || return Types::ErrorResponse.new("Unable to index all requested files")
 
           map = case args.mode

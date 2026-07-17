@@ -17,6 +17,12 @@ module Chiasmus
         MAX_FILE_SIZE          = 500_000
         DEFAULT_MAX_CONCURRENT = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
 
+        record EmbeddingResolution,
+          provider : String,
+          model_name : String,
+          api_key : String? = nil,
+          base_url : String? = nil
+
         private record SearchReadResult,
           path : String,
           content : String? = nil,
@@ -144,49 +150,89 @@ module Chiasmus
         # Supports: ollama, deepseek, openai.
         # Ollama defaults to nomic-embed-text, others to text-embedding-3-small.
         private def resolve_embedding_model
+          resolution = self.class.resolve_embedding_resolution
+          return nil unless resolution
+
+          case resolution.provider
+          when "ollama"
+            self.class.ollama_embedding_model(resolution.base_url, resolution.model_name)
+          when "deepseek"
+            api_key = resolution.api_key || return nil
+            client = Crig::Providers::OpenAI::Client.new(api_key, resolution.base_url || "https://api.deepseek.com/v1")
+            client.embedding_model(resolution.model_name)
+          when "openai"
+            api_key = resolution.api_key || return nil
+            client = Crig::Providers::OpenAI::Client.new(api_key)
+            client.embedding_model(resolution.model_name)
+          else
+            nil
+          end
+        end
+
+        def self.resolve_embedding_resolution : EmbeddingResolution?
           provider = ENV["CHIASMUS_EMBED_PROVIDER"]?
           base_url = ENV["CHIASMUS_EMBED_URL"]?
 
           if provider
             case provider
             when "ollama"
-              return self.class.ollama_embedding_model(base_url)
+              return EmbeddingResolution.new(
+                provider: "ollama",
+                model_name: ENV["CHIASMUS_EMBED_MODEL"]? || Crig::Providers::Ollama::NOMIC_EMBED_TEXT,
+                base_url: base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL,
+              )
             when "deepseek"
-              model_name = ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small"
               if api_key = ENV["DEEPSEEK_API_KEY"]?
-                url = base_url || "https://api.deepseek.com/v1"
-                client = Crig::Providers::OpenAI::Client.new(api_key, url)
-                return client.embedding_model(model_name)
+                return EmbeddingResolution.new(
+                  provider: "deepseek",
+                  model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
+                  api_key: api_key,
+                  base_url: base_url || "https://api.deepseek.com/v1",
+                )
               end
             when "openai"
-              model_name = ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small"
               if api_key = ENV["OPENAI_API_KEY"]?
-                client = Crig::Providers::OpenAI::Client.new(api_key)
-                return client.embedding_model(model_name)
+                return EmbeddingResolution.new(
+                  provider: "openai",
+                  model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
+                  api_key: api_key,
+                )
               end
             end
 
             return nil
           end
 
-          resolve_embedding_model_fallback(base_url) || self.class.ollama_embedding_model(base_url)
-        end
-
-        private def resolve_embedding_model_fallback(base_url : String?)
-          model = ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small"
-
           if api_key = ENV["DEEPSEEK_API_KEY"]?
-            url = base_url || "https://api.deepseek.com/v1"
-            client = Crig::Providers::OpenAI::Client.new(api_key, url)
-            return client.embedding_model(model)
+            return EmbeddingResolution.new(
+              provider: "deepseek",
+              model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
+              api_key: api_key,
+              base_url: base_url || "https://api.deepseek.com/v1",
+            )
           end
 
           if api_key = ENV["OPENAI_API_KEY"]?
-            client = Crig::Providers::OpenAI::Client.new(api_key)
-            return client.embedding_model(model)
+            return EmbeddingResolution.new(
+              provider: "openai",
+              model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
+              api_key: api_key,
+            )
           end
 
-          nil
+          EmbeddingResolution.new(
+            provider: "ollama",
+            model_name: ENV["CHIASMUS_EMBED_MODEL"]? || Crig::Providers::Ollama::NOMIC_EMBED_TEXT,
+            base_url: base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL,
+          )
+        end
+
+        def self.resolved_embedding_provider_name : String?
+          resolve_embedding_resolution.try(&.provider)
+        end
+
+        def self.resolved_embedding_model_name : String?
+          resolve_embedding_resolution.try(&.model_name)
         end
 
         def self.embedding_configured? : Bool
@@ -210,8 +256,8 @@ module Chiasmus
           !value.nil? && !value.blank?
         end
 
-        def self.ollama_embedding_model(base_url : String?)
-          model_name = ENV["CHIASMUS_EMBED_MODEL"]? || Crig::Providers::Ollama::NOMIC_EMBED_TEXT
+        def self.ollama_embedding_model(base_url : String?, model_name : String? = nil)
+          model_name ||= ENV["CHIASMUS_EMBED_MODEL"]? || Crig::Providers::Ollama::NOMIC_EMBED_TEXT
           url = base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL
           client = Crig::Providers::Ollama::Client.new(Crig::Nothing.new, url)
           client.embedding_model(model_name)

@@ -33,6 +33,8 @@ end
 describe "Watcher + Cache integration" do
   it "adds, updates, and deletes a Crystal file across the index, facts, and SQLite cache" do
     with_temp_dir do |dir|
+      next pending("crystal grammar not available") unless Parser.get_language("crystal")
+
       src_dir = File.join(dir, "src")
       Dir.mkdir(src_dir)
 
@@ -205,19 +207,20 @@ describe "Watcher + Cache integration" do
 
   it "watcher triggers eager re-extraction on file change" do
     with_temp_dir do |dir|
+      next pending("crystal grammar not available") unless Parser.get_language("crystal")
+
       file_path = File.join(dir, "main.cr")
+      relative_path = Path.new(file_path).relative_to(dir).to_s
       File.write(file_path, "def v1\n  1\nend")
 
       cache_dir = File.join(dir, ".cache")
       repo_key = GraphCache.default_repo_key(dir)
 
-      # Warm the parser
-      Parser.get_language_for_file(file_path)
-
       # Watcher with eager re-extraction callback
       changed = [] of String
+      changed_lock = Mutex.new
       watcher = Watcher.new(dir, interval: 0.05.seconds) do |changes|
-        changed.concat(changes.changed)
+        changed_lock.synchronize { changed.concat(changes.changed) }
         changes.changed.each do |rel_path|
           abs_path = File.join(dir, rel_path)
           spawn do
@@ -229,19 +232,28 @@ describe "Watcher + Cache integration" do
           end
         end
       end
-      spawn { watcher.run }
-      sleep(0.15.seconds)
 
-      File.write(file_path, "def v2\n  2\nend")
-      sleep(0.15.seconds)
-      watcher.stop
+      begin
+        spawn { watcher.run }
+        wait_until { watcher.watched_files.includes?(relative_path) }.should be_true
 
-      changed.any?(&.ends_with?("main.cr")).should be_true
+        File.write(file_path, "def v2\n  2\nend")
+        wait_until do
+          changed_lock.synchronize do
+            changed.any? { |path| path == relative_path }
+          end
+        end.should be_true
+      ensure
+        watcher.stop
+        watcher.wait
+      end
     end
   end
 
   it "removes resident facts and the SQLite cache row after file deletion" do
     with_temp_dir do |dir|
+      next pending("crystal grammar not available") unless Parser.get_language("crystal")
+
       file_path = File.join(dir, "removed.cr")
       cache_dir = File.join(dir, ".cache")
       repo_key = GraphCache.default_repo_key(dir)

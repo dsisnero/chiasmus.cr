@@ -35,32 +35,17 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         "OPENAI_API_KEY"          => nil,
         "CHIASMUS_EMBED_PROVIDER" => nil,
       }) do
-        tool = Chiasmus::MCPServer::Tools::SearchTool.new
-        r = tool.invoke({
-          "query" => JSON::Any.new("test"),
-          "files" => JSON::Any.new([] of JSON::Any),
-        })
-        # Should fail with "no readable files" not "API key" — meaning it resolved the provider
-        r.status.should eq("error")
-        err = r.as(Chiasmus::MCPServer::Types::ErrorResponse).error
-        err.should contain("files")
+        Chiasmus::MCPServer::Tools::SearchTool.resolved_embedding_provider_name.should eq("deepseek")
       end
     end
 
     it "uses CHIASMUS_EMBED_PROVIDER to select openai or deepseek" do
-      # Even with DEEPSEEK set, if provider is "openai", use OPENAI
       with_env({
         "DEEPSEEK_API_KEY"        => "sk-ds",
         "OPENAI_API_KEY"          => "sk-oai",
         "CHIASMUS_EMBED_PROVIDER" => "openai",
       }) do
-        tool = Chiasmus::MCPServer::Tools::SearchTool.new
-        r = tool.invoke({
-          "query" => JSON::Any.new("test"),
-          "files" => JSON::Any.new([] of JSON::Any),
-        })
-        r.status.should eq("error")
-        r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("files")
+        Chiasmus::MCPServer::Tools::SearchTool.resolved_embedding_provider_name.should eq("openai")
       end
     end
 
@@ -70,17 +55,7 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         "OPENAI_API_KEY"          => nil,
         "CHIASMUS_EMBED_PROVIDER" => nil,
       }) do
-        tool = Chiasmus::MCPServer::Tools::SearchTool.new
-        r = tool.invoke({
-          "query" => JSON::Any.new("test"),
-          "files" => JSON::Any.new([JSON::Any.new(__FILE__)]),
-        })
-        if r.status == "error"
-          err = r.as(Chiasmus::MCPServer::Types::ErrorResponse).error
-          err.should_not contain("No embedding provider configured")
-          err.should_not contain("OPENAI_API_KEY")
-          err.should_not contain("DEEPSEEK_API_KEY")
-        end
+        Chiasmus::MCPServer::Tools::SearchTool.resolved_embedding_provider_name.should eq("ollama")
       end
     end
 
@@ -90,13 +65,7 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         "OPENAI_API_KEY"          => nil,
         "CHIASMUS_EMBED_PROVIDER" => "deepseek",
       }) do
-        tool = Chiasmus::MCPServer::Tools::SearchTool.new
-        r = tool.invoke({
-          "query" => JSON::Any.new("test"),
-          "files" => JSON::Any.new([JSON::Any.new(__FILE__)]),
-        })
-        r.status.should eq("error")
-        r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("embedding")
+        Chiasmus::MCPServer::Tools::SearchTool.resolve_embedding_resolution.should be_nil
       end
     end
 
@@ -106,13 +75,7 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         "OPENAI_API_KEY"       => nil,
         "CHIASMUS_EMBED_MODEL" => "custom-embed-model",
       }) do
-        tool = Chiasmus::MCPServer::Tools::SearchTool.new
-        r = tool.invoke({
-          "query" => JSON::Any.new("test"),
-          "files" => JSON::Any.new([] of JSON::Any),
-        })
-        r.status.should eq("error")
-        r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("files")
+        Chiasmus::MCPServer::Tools::SearchTool.resolved_embedding_model_name.should eq("custom-embed-model")
       end
     end
 
@@ -122,14 +85,7 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         "OPENAI_API_KEY"          => "sk-openai-test",
         "CHIASMUS_EMBED_PROVIDER" => nil,
       }) do
-        tool = Chiasmus::MCPServer::Tools::SearchTool.new
-        r = tool.invoke({
-          "query" => JSON::Any.new("test"),
-          "files" => JSON::Any.new([] of JSON::Any),
-        })
-        r.status.should eq("error")
-        # Should pass the provider check and fail on files, not "API key not configured"
-        r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("files")
+        Chiasmus::MCPServer::Tools::SearchTool.resolved_embedding_provider_name.should eq("deepseek")
       end
     end
   end

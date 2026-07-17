@@ -96,30 +96,7 @@ describe "SearchTool embedding provider default" do
     ENV.delete("OPENAI_API_KEY")
 
     begin
-      tool = Chiasmus::MCPServer::Tools::SearchTool.new
-      tmpdir = Dir.tempdir
-      path = File.join(tmpdir, "embed_smoke.go")
-      File.write(path, "package main\nfunc main() {}")
-
-      begin
-        result = tool.invoke({
-          "query" => JSON::Any.new("main function"),
-          "files" => JSON.parse([path].to_json),
-        })
-
-        if result.status == "error"
-          err = result.as(Chiasmus::MCPServer::Types::ErrorResponse).error
-          # RED: with deepseek as default, error is "No embedding provider configured"
-          #      because neither DEEPSEEK_API_KEY nor OPENAI_API_KEY is set.
-          # GREEN: with ollama as default, error should be a connection error
-          #        (ollama uses Crig::Nothing, no API key needed).
-          err.should_not contain("No embedding provider configured")
-          err.should_not contain("OPENAI_API_KEY")
-          err.should_not contain("DEEPSEEK_API_KEY")
-        end
-      ensure
-        File.delete(path) if File.exists?(path)
-      end
+      Chiasmus::MCPServer::Tools::SearchTool.resolved_embedding_provider_name.should eq("ollama")
     ensure
       ENV["DEEPSEEK_API_KEY"] = original_deepseek if original_deepseek
       ENV["OPENAI_API_KEY"] = original_openai if original_openai

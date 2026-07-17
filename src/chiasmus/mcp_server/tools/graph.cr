@@ -2,6 +2,7 @@
 require "mcp"
 require "../types"
 require "../tool_schemas"
+require "./source_paths"
 require "../../graph/analyses"
 require "tracing"
 
@@ -17,7 +18,7 @@ module Chiasmus
 
           return Types::ErrorResponse.new("Missing required parameters: files and analysis") unless args.files && args.analysis
 
-          absolute_files = args.files.map { |file_path| File.expand_path(file_path) }
+          absolute_files = SourcePaths.normalize_file_inputs!(args.files)
 
           unless Graph::AnalysisType.parse?(args.analysis)
             return Types::ErrorResponse.new("Unknown analysis: #{args.analysis}. Use one of: #{VALID_ANALYSES.join(", ")}")

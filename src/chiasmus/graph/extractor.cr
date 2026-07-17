@@ -32,18 +32,29 @@ module Chiasmus
         to_extract = files
         cached = [] of NamedTuple(path: String, graph: CodeGraph)
 
+        cache_error = nil.as(String?)
+
         if cache_dir
-          check_result = GraphCache.check_file_cache(
-            files.map { |file_info| {path: file_info.path, content: file_info.content} },
-            cache_dir,
-            repo_key: repo_key,
-          )
-          cached = check_result[:hits]
-          to_extract = check_result[:misses].map { |miss| SourceFile.new(path: miss[:path], content: miss[:content]) }
+          begin
+            check_result = GraphCache.check_file_cache(
+              files.map { |file_info| {path: file_info.path, content: file_info.content} },
+              cache_dir,
+              repo_key: repo_key,
+            )
+            cached = check_result[:hits]
+            to_extract = check_result[:misses].map { |miss| SourceFile.new(path: miss[:path], content: miss[:content]) }
+          rescue ex
+            cache_error = ex.message || ex.class.name
+            STDERR.puts "[Chiasmus] graph cache unavailable for #{cache_dir}: #{cache_error}; continuing without cache"
+            cached = [] of NamedTuple(path: String, graph: CodeGraph)
+            to_extract = files
+          end
         end
 
         cache_status = if cache_dir.nil?
                          "disabled"
+                       elsif cache_error
+                         "cache_error"
                        elsif cached.size == files.size
                          "disk_hit"
                        elsif cached.empty?
