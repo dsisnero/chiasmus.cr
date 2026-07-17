@@ -371,7 +371,9 @@ Implementation:
 - `src/chiasmus/discovery.cr` — Crystal module using tree-sitter Query API for TypeScript symbol extraction.
 - Tree-sitter query patterns cover: `class`, `interface`, `type`, `function`, `function` (arrow functions), `method` (class-qualified), `const` (UPPERCASE only), and `test` (describe/it/test).
 - `src/chiasmus_discover.cr` — CLI entry point (`chiasmus-discover` target in `shard.yml`).
-- `scripts/parity_inventory_lib.rb` — Updated to delegate to the Crystal discovery binary when `PORT_PARSER=tree-sitter` or `--parser tree-sitter` is requested.
+- The installed `cross-language-crystal-parity` skill bundle’s
+  `parity_inventory_lib.rb` now delegates to the Crystal discovery binary when
+  `PORT_PARSER=tree-sitter` or `--parser tree-sitter` is requested.
 - Platform-agnostic grammar loading: searches `vendor/grammars/` with platform-appropriate extensions (`.dylib`/`.so`/`.dll`), tries multiple library naming conventions (`libtree-sitter-{lang}.ext`, `{lang}.ext`, `parser.ext`), subdirectory probes, and multiple symbol naming conventions.
 - Regex fallback mode: clearly reports `parser_mode = "regex"` in notes when tree-sitter is unavailable.
 - Stable IDs: `{relative_path}::{kind}::{name}` matching existing inventory format.
@@ -437,7 +439,9 @@ Why this matters:
 Implementation:
 
 - `plans/inventory/conversion_rules.tsv` — 18 conversion rules mapping upstream TypeScript patterns to Crystal replacements across 6 subsystems (LLM adapters, Prolog, BM25, adapter registration, tree-sitter, Z3).
-- `scripts/generate_inventory_facts.rb` — Deterministic Ruby script that reads port inventory, source parity, test parity, and conversion rules to produce Prolog facts.
+- The installed `cross-language-crystal-parity` skill bundle’s
+  `generate_inventory_facts.rb` deterministically reads port inventory, source
+  parity, test parity, and conversion rules to produce Prolog facts.
 - `plans/inventory/parity_facts.pl` — 2,073 Prolog facts including:
   - `inventory_item/5` — all 505 tracked items with kind, status, refs, notes.
   - `status/2` — status of each item.
@@ -450,13 +454,13 @@ Implementation:
   - Changed upstream items after vendor pull.
   - Ported rows without direct specs.
   - Rows impacted by a conversion rule.
-- `spec/scripts/inventory_facts_spec.cr` — 5 specs: fact generation, status filtering, conversion rule independence, deterministic output, and non-destructive behavior.
-- `scripts/generate_inventory_facts.rb` avoids newer Ruby-only APIs so the parity fact generator runs under the same Ruby available to the Crystal spec harness.
+- The parity fact generator avoids newer Ruby-only APIs so it runs under the
+  same Ruby available to the Crystal spec harness.
 
 Deliverables:
 
 - `[x]` `plans/inventory/conversion_rules.tsv` with 18 mapping rules across 6 subsystems.
-- `[x]` `scripts/generate_inventory_facts.rb` for deterministic fact generation.
+- `[x]` Installed parity skill support for deterministic fact generation.
 - `[x]` `plans/inventory/parity_facts.pl` with 2,073 facts and example queries.
 - `[x]` Specs validating fact generation correctness and determinism.
 
@@ -905,38 +909,32 @@ Per-language AST walkers for the `extract_graph` pipeline:
 ### After `git submodule update --remote vendor/chiasmus`
 
 ```bash
+SKILL_DIR="${CHIASMUS_PARITY_SKILL_DIR:-$HOME/.agents/skills/crystal_forge/skills/cross-language-crystal-parity}"
+
 # 1. Materialize the current fact/planning bundle
-./scripts/plan_with_chiasmus.sh . vendor/chiasmus typescript src
+"${SKILL_DIR}/scripts/plan_with_chiasmus.sh" . vendor/chiasmus typescript src
 # Review plans/generated/parity/typescript/parity_summary.txt for match-status and drift counts
 
 # 2. Run drift checks
-./scripts/check_port_inventory.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
-./scripts/check_source_parity.sh . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
-./scripts/check_test_parity.sh . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
+"${SKILL_DIR}/scripts/check_port_inventory.sh" . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
+"${SKILL_DIR}/scripts/check_source_parity.sh" . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
+"${SKILL_DIR}/scripts/check_test_parity.sh" . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
 
-# 3. Sync the curated ledger when discovery finds new source rows
-ruby scripts/sync_port_inventory.rb \
-  --manifest plans/inventory/typescript_port_inventory.tsv \
-  --source vendor/chiasmus \
-  --language typescript \
-  --parser tree-sitter
+# 3. Run the fact-driven completion gate
+"${SKILL_DIR}/scripts/check_completion_gate.sh" . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src
+"${SKILL_DIR}/scripts/check_completion_gate.sh" . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src --query incomplete --format ids
 
-# 4. Run the fact-driven completion gate
-./scripts/check_completion_gate.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src
-./scripts/check_completion_gate.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src --query incomplete --format ids
-
-# 5. Regenerate Prolog facts only if you still need ledger-only queries
-ruby scripts/generate_inventory_facts.rb \
+# 4. Regenerate Prolog facts only if you still need ledger-only queries
+ruby "${SKILL_DIR}/scripts/generate_inventory_facts.rb" \
   --inventory plans/inventory/typescript_port_inventory.tsv \
   --source plans/inventory/typescript_source_parity.tsv \
   --tests plans/inventory/typescript_test_parity.tsv \
   --rules plans/inventory/conversion_rules.tsv \
   > plans/inventory/parity_facts.pl
 
-# 6. Run quality gates and adversarial signoff
+# 5. Run quality gates and adversarial signoff
 make format && make test
-./scripts/verify_parity_adversarial.sh . vendor/chiasmus typescript 'make test' '<upstream test command>'
-./scripts/verify_parity_adversarial.sh . vendor/chiasmus typescript 'make test' '<upstream test command>'
+"${SKILL_DIR}/scripts/verify_parity_adversarial.sh" . vendor/chiasmus typescript 'make test' '<upstream test command>'
 ```
 
 ### Drift Response

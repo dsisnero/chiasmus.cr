@@ -61,10 +61,43 @@ parity-maintenance mode after the port is mostly complete.
 The workflow needs explicit ownership of each artifact so agents know what to
 update and when.
 
+### Repo-local config
+
+Parity workflow settings should live in a repo-local config file at
+`./.chiasmus/config.yml`.
+
+- the MCP server should create `./.chiasmus/` on startup so repo-local state
+  has a stable home
+- startup should not create `config.yml` or seed parity settings automatically
+  because not every chiasmus repo is a porting repo
+- parity work can opt in later by adding a `parity` section to the existing
+  config, preserving unrelated keys
+- initial parity keys are:
+
+```yaml
+parity:
+  vendor_src: vendor/chiasmus
+  target_src:
+    - src
+    - spec
+  equivalences:
+    - source_path: src
+      target_path: src/chiasmus
+      target_namespace: Chiasmus
+```
+
+This gives us one configurable place to normalize source-vs-target roots
+without hard-coding vendor or target directory assumptions into planner/parity
+logic. The `equivalences` entries also let parity treat an alternate target
+directory layout and an extra Crystal/Ruby namespace prefix as the same
+porting surface, which is the common case when the target repo nests code under
+an additional top-level module such as `Chiasmus`.
+
 ### Source-derived artifacts
 
 - vendor facts: layer-A graph facts for the source tree
 - target facts: layer-A graph facts for the port tree
+- cached `CodeGraph` snapshots in the shared SQLite graph cache
 - declaration snapshots from `chiasmus-discover`
 - structural ranking/slicing reports from the planner
 
@@ -172,8 +205,9 @@ The tracking layer should answer these directly:
 
 ## Two fact layers (this is the crux)
 
-The repo already has **two separate Prolog-fact worlds**. The deeper one is the
-one we under-use.
+The repo already has **two separate fact worlds**. The graph world is now
+backed by both an inspectable Prolog serialization and the shared cached
+`CodeGraph` snapshots that planning/parity reuse directly.
 
 ### A. Code-graph facts — `Graph::Facts.graph_to_prolog`
 
@@ -191,12 +225,20 @@ entry_point(Name).
 ```
 
 This is the **structural / relationship** layer: dependency order, reachability,
-dead code, module cohesion, blast radius. Today it is exposed **only** through
-the MCP `chiasmus_graph analysis=facts` tool and is **not used by any parity
-script**. This is the layer that makes chiasmus special and the one our goal
-hinges on.
+dead code, module cohesion, blast radius. It is now exposed through the
+`chiasmus-facts` CLI and is consumed by `chiasmus-plan`,
+the installed `cross-language-crystal-parity` skill bundle’s
+`plan_with_chiasmus.sh`, and its `check_completion_gate.sh`. This
+is the layer that makes chiasmus special and the one our goal hinges on.
 
-### B. Inventory facts — `scripts/generate_inventory_facts.rb` → `plans/inventory/parity_facts.pl`
+Operationally, `chiasmus-facts` now does two things per run:
+
+- emits a human-inspectable Prolog facts file
+- saves a named `CodeGraph` snapshot into the shared SQLite cache and embeds a
+  `% graph_snapshot ...` header so downstream tools can load the cached graph
+  instead of reconstructing it from facts text
+
+### B. Inventory facts — installed parity skill `generate_inventory_facts.rb` → `plans/inventory/parity_facts.pl`
 
 Derived from the *curated TSV ledgers* (not from parsing code):
 
@@ -212,24 +254,28 @@ This is the **bookkeeping / ledger** layer: queryable porting state ("ported
 items with no test", "divergences in the LLM subsystem"). It encodes
 human-curated mapping decisions, not code structure.
 
-The two layers never meet today. The goal is to join them.
+The two layers now meet in the repo-local workflow: planner, parity, and
+completion consume the structural graph layer plus curated inventory state. The
+remaining doc gap is to keep the external reusable skill bundle aligned with
+the repo-local implementation.
 
 ## Current tools mapped to the loop
 
 | Stage | Best existing tool | Verdict |
 |---|---|---|
-| Enumerate "what exists" in vendor | `chiasmus-discover --language <lang>` | declarations only (`defines`), no relationships |
-| Extract structural graph facts | `chiasmus-facts` | good facts layer, currently raw |
-| Rank/slice work | none | missing |
-| Track / query port state | `generate_inventory_facts.rb` → layer B | works (bookkeeping) |
-| Verify "is X ported, to what, how sure" | `chiasmus-parity` | name/kind match + confidence, **name-level only** |
-| Verify structural similarity | none | missing |
-| Run both test suites for signoff | `verify_parity_adversarial.sh` | now includes `check_completion_gate.sh`; still needs direct cross-language skill wiring |
+| Enumerate "what exists" in vendor | `chiasmus-discover --language <lang>` | declarations only (`defines`), still useful for manifest generation |
+| Extract structural graph facts | `chiasmus-facts` | working layer-A facts CLI plus shared SQLite-backed `CodeGraph` snapshots |
+| Rank/slice work | `chiasmus-plan` | implemented: `rank`, `safe`, `slice`, `seed-parity`, `track`, `audit`, `refresh` |
+| Track / query port state | curated inventory + `chiasmus-plan track` | generated slices plus curated status are now joinable |
+| Verify "is X ported, to what, how sure" | `chiasmus-parity` | name/kind matching plus structural columns when source/target facts are available |
+| Verify reachable completion | `chiasmus-complete` / `check_completion_gate.sh` | implemented fact-driven `complete` / `incomplete` gate |
+| Run both test suites for signoff | `verify_parity_adversarial.sh` | includes completion gate before Crystal and upstream test commands |
 
-**Ceiling:** every tool in the loop uses only **declarations** (`defines`) and
-**names**. None use `calls/imports/contains/reaches/dead`. "Complete" today
-means *a same-named target symbol exists and the tests run* — not *it does the
-same thing*.
+**Current ceiling:** the workflow now uses `calls`, `imports`, `contains`,
+`entry_point`, reachability, planner-derived slices, and snapshot-backed graph
+reuse, but it is still a structural parity workflow, not a semantic proof
+system. "Complete" means the reachable ledger is closed with structural checks
+and tests, not that the port is mathematically proven behavior-identical.
 
 - `chiasmus-discover` (`src/chiasmus_discover.cr`): vendor declaration
   enumeration → `{path}::{kind}::{name}` TSV. Used by the scripts as the
@@ -239,36 +285,160 @@ same thing*.
   `match_status` (`curated_exact|curated_alias|candidate_exact|candidate_alias|
   ambiguous_candidate|curated_ref_only|stale_ref_path|intentional_divergence|
   unmapped`). It consumes a **curated inventory**, not the vendor source.
-  Currently **not wired into the parity skill**.
+  It now respects explicit `target_symbol` aliases for deterministic renamed
+  ports and preserves `qualified_name` facts through structural checks instead
+  of collapsing to simple names. It is part of the repo-local parity workflow
+  and is consumed by the completion gate and planner bundle scripts.
 
-## Gaps
+## Remaining gaps
 
-1. **Vendor call-graph facts never feed the port plan.** `chiasmus_graph` can
-   already emit `calls/reaches/dead/contains/entry_point` for the vendor source
-   — exactly what dictates *port leaves first, skip dead code, port cohesive
-   modules as units, scope to reachable-from-entry*. Nothing converts vendor
-   graph facts → an ordered port inventory.
-2. **No CLI to dump graph facts for a vendor tree.** Layer A lives behind the
-   MCP tool only. `chiasmus-discover` emits declarations; there is no
-   `chiasmus-facts <dir> --language <lang>` to emit the Prolog call-graph that
-   the scripts / Prolog layer could consume.
-3. **Verification is name-shaped, not behavior-shaped.** Missing: for each
-   mapped pair, compare normalized `calls`/`contains`/arity of vendor symbol vs
-   port symbol — "vendor `foo` calls `bar`+`baz`; does the Crystal port call the
-   equivalents?" Catches ports that kept the name but dropped a branch/call.
-4. **`chiasmus-parity` is not wired into the skill** — even name-level matching
-   is out of the loop.
-5. **No integrated planning/tracking loop.** Generated facts do not feed a
-   durable accepted plan and then feed back from verification into re-planning.
-6. **No single "done" gate.** The pieces don't roll up into one query over the
-   merged facts.
+1. **The bundle now emits real-repo planning artifacts, but the plan is not
+   yet trustworthy.** On July 14, 2026, a clean run of the installed
+   `cross-language-crystal-parity` skill’s `plan_with_chiasmus.sh` against this
+   repo produced
+   `seed.md`, `rank.tsv`, `safe.tsv`, `slices.tsv`, `track.tsv`, and
+   `parity.tsv` in `temp/plan-verify-current/`, which proves the shared
+   extraction/cache/parity path is usable. However, the generated plan still
+   has unsound recommendations:
+   - `rank.tsv` over-prioritizes internal helpers such as
+     `collapseSignature`, `cljSymName`, and `resolveTargets`
+   - `safe.tsv` misclassifies many exported interfaces/types as
+     dead-code cleanup candidates
+   - `slices.tsv` / `track.tsv` generate a giant `cleanup:dead-code` slice
+     that is not branch-sized or actionable
+2. **Completion-stage finalization still needs a real-repo fix.** The planner
+   bundle now preserves nonzero `completion_status.tsv` output in focused
+   specs, but the live repo run still failed to finalize
+   `completion_status.tsv` / `completion_incomplete.tsv` before interruption.
+   That needs its own end-to-end red-green follow-up.
+3. **Verification is still structural, not semantic.** The current checks catch
+   missing symbols, import/call/containment drift, and completion gaps, but
+   they do not prove full behavioral equivalence.
+4. **The external parity skill bundle still lags the repo-local workflow.**
+   Repo scripts and CLIs are ahead of the reusable skill documentation and need
+   to stay synchronized.
+
+## Plan To Reach Trustworthy Generated Plans
+
+Yes, this is possible.
+
+The hard part is no longer graph extraction. We already have the needed
+primitives:
+
+- shared SQLite + `CodeGraph` snapshot caching
+- source and target fact extraction through the same graph path
+- structural parity reports tied to curated inventory rows
+- planner outputs for `rank`, `safe`, `slice`, `seed-parity`, and `track`
+
+What is missing is a stronger contract for **planner correctness**. The next
+work should treat plan quality as a separately testable layer above extraction.
+
+### Milestone G0 — Lock the acceptance contract
+
+Write down what "correct plan" means before adjusting heuristics.
+
+Acceptance criteria:
+
+- the top-ranked work should prefer reachable, incomplete, parity-relevant
+  symbols over private helper centrality
+- `safe` should not label exported API surface or mapped parity rows as
+  cleanup solely because they are low-degree or type-only
+- `slice` and `track` should produce branch-sized worksets, not one giant
+  cleanup bucket
+- the planner bundle should finish and materialize completion artifacts on the
+  real repo
+
+### Milestone G1 — Build deterministic planner fixtures
+
+Add red-green fixture specs for the planner inputs and outputs, not just file
+existence.
+
+Needed fixture cases:
+
+- helper-heavy source graphs where internal utilities have high degree but are
+  not the next porting priority
+- type/interface-only modules that are exported and mapped, so `safe` must not
+  recommend cleanup
+- namespace/path-equivalent source vs target layouts
+- intentionally divergent rows that should not dominate the plan
+- test-only source rows that should not be mistaken for core implementation
+
+Acceptance:
+
+- focused specs assert exact or tightly bounded `rank`, `safe`, `slice`, and
+  `track` outputs for each fixture
+- golden outputs live in isolated spec files and use the same file naming
+  conventions as the rest of the repo
+
+### Milestone G2 — Make planner scoring parity-aware
+
+Update planner heuristics so planning uses curated parity state, not only raw
+graph centrality.
+
+Required changes:
+
+- up-rank reachable `unmapped`, `candidate_*`, and structurally drifting
+  `ported` rows
+- down-rank symbols already covered by confident parity matches unless they are
+  part of an accepted incomplete slice
+- heavily down-rank internal helper nodes when their owning exported feature
+  row is the real actionable unit
+- prevent exported interfaces/types from becoming `cleanup` unless they are
+  both unreachable and unmapped
+
+Acceptance:
+
+- the top section of `rank.tsv` on this repo is dominated by actionable parity
+  work, not helper trivia
+- `safe.tsv` stops recommending cleanup for mapped exported API rows such as
+  `AnalysisRequest`, `CodeGraph`, and similar inventory-backed surface
+
+### Milestone G3 — Make slices branch-sized and reviewable
+
+Split cleanup and feature groups into bounded units that a porting agent can
+actually execute.
+
+Required changes:
+
+- cap slice size
+- split oversized cleanup slices by file, directory, or community
+- prefer source-file or feature-root naming in slice ids when that is more
+  informative than raw community numbers
+- keep `parallel_safe` meaningful by avoiding giant mixed-purpose groups
+
+Acceptance:
+
+- no generated slice contains hundreds of heterogeneous members
+- `seed.md` reads like a reviewable draft for `plans/parity.md`, not a dump of
+  graph communities
+
+### Milestone G4 — Finish the live bundle and promote a smoke gate
+
+Treat the real repo run as its own acceptance test.
+
+Required changes:
+
+- fix the completion-stage finalization issue in
+  the installed `cross-language-crystal-parity` skill’s
+  `plan_with_chiasmus.sh` or the underlying completion command path
+- rerun from a clean `temp/` directory against this repo
+- inspect the generated artifacts for both existence and plan quality
+
+Acceptance:
+
+- `completion_status.tsv` and `completion_incomplete.tsv` are finalized in the
+  live run
+- `seed.md`, `rank.tsv`, `safe.tsv`, `slices.tsv`, and `track.tsv` are
+  materially useful to a human reviewer
+- the resulting plan can be used to seed or refresh `plans/parity.md` with
+  minimal manual correction
 
 ## Proposed CLI Surface
 
 We should add a dedicated planning CLI instead of overloading `chiasmus-facts`
 or forcing planning into the existing parity matcher.
 
-Recommended binary:
+Current binary:
 
 ```text
 chiasmus-plan
@@ -639,11 +809,14 @@ The planner should produce outputs that feed, not replace:
 Recommended workflow:
 
 1. `chiasmus-facts` extracts the vendor graph facts.
-2. `chiasmus-plan rank/safe/slice` produces human-reviewable planning output.
-3. `chiasmus-plan seed-parity` drafts a Markdown roadmap and optional TSV seed.
-4. Human/agent curates `plans/parity.md`.
-5. Porting proceeds with the normal parity workflow.
-6. `chiasmus-parity` + structural checks verify completion.
+2. The emitted facts file carries `% graph_snapshot ...` metadata so downstream
+   tools can reload the cached `CodeGraph` from the shared SQLite cache instead
+   of reparsing the Prolog dump.
+3. `chiasmus-plan rank/safe/slice` produces human-reviewable planning output.
+4. `chiasmus-plan seed-parity` drafts a Markdown roadmap and optional TSV seed.
+5. Human/agent curates `plans/parity.md`.
+6. Porting proceeds with the normal parity workflow.
+7. `chiasmus-parity` + structural checks verify completion.
 
 ## How To Partition Work Across Agents
 
@@ -671,7 +844,7 @@ The planner should label slices with:
 
 ## Staged plan (the bridge)
 
-### Step 1 — `chiasmus-facts` CLI  *(in progress)*
+### Step 1 — `chiasmus-facts` CLI
 
 Thin CLI wrapping `Graph::Extractor` + `Graph::Facts.graph_to_prolog`, generic
 over `--language`. Emits the layer-A Prolog for any dir/language.
@@ -681,9 +854,10 @@ chiasmus-facts --language typescript --dir vendor/chiasmus/src > vendor.pl
 chiasmus-facts --language crystal    --dir src                 > port.pl
 ```
 
-Reuses `Graph::Analyses.run_analysis_async(file_paths, AnalysisRequest(analysis: Facts))`.
-Options: `--entry-point NAME` (repeatable), `--insights`, `--prefix` (atom
-namespace so vendor/port facts can coexist in one program).
+Reuses `Graph::Extractor.extract_graph` and the shared `GraphCache` for
+per-file reuse, then persists a named `CodeGraph` snapshot and emits a facts
+header pointing at that cached snapshot. Options: `--entry-point NAME`
+(repeatable), `--insights`, `--cache-dir`, `--repo-key`, `--cache-max-bytes`.
 
 ### Step 2 — Plan from vendor facts
 
@@ -895,7 +1069,10 @@ Acceptance:
       (`vendor/chiasmus/src`, 53 files → 530 defines / 1416 calls / 473 imports)
       and Crystal (`src/chiasmus`, 129 files → 2037 / 7117 / 1478). Facts are
       queryable Prolog: `callee_of('loadConfig', X)` and `dead/1` (found 6
-      unused vendor functions) both resolve under swipl.
+      unused vendor functions) both resolve under swipl. Facts emission now
+      also persists named `CodeGraph` snapshots into the shared SQLite cache
+      and advertises them via `% graph_snapshot ...` headers so plan/parity do
+      not need to regenerate or reconstruct the same graph.
 - [x] Step 2: vendor-facts → port-plan seeder — implemented across `src/chiasmus/plan.cr` / `src/chiasmus_plan.cr` as `rank`, `safe`, `slice`, `seed-parity`, and `track`; covered by `spec/chiasmus/plan_spec.cr`
 - [x] Step 3: structural parity (`structural_match`/`structural_drift`) —
       implemented in `src/chiasmus/parity.cr` with per-row structural audit
@@ -904,7 +1081,7 @@ Acceptance:
       entry-point drift, and missing-symbol drift against source/target fact
       graphs, covered by
       `spec/chiasmus/parity_spec.cr`
-- [x] Step 4: skill wiring + unified `complete/1` gate — the completion-facts half now exists in `src/chiasmus/parity.cr` via `chiasmus-parity --format completion-facts`, with `complete/1` and `incomplete/1` query coverage in `spec/chiasmus/parity_spec.cr`; `src/chiasmus/complete.cr` and `src/chiasmus_complete.cr` now expose a first-class `chiasmus-complete` gate with `status|complete|incomplete` queries and nonzero status output while reachable incomplete work remains; `scripts/check_completion_gate.sh` now supports pass-through `--query/--format` usage, `scripts/plan_with_chiasmus.sh` materializes a reusable planner bundle (`rank`, `safe`, `slice`, `seed-parity`, `track`, parity TSV, parity summary, completion status, incomplete rows), `scripts/summarize_parity_report.rb` turns raw parity TSV output into actionable drift counts, `scripts/upgrade_port_inventory.rb` upgrades legacy ledgers to the header-driven `target_symbol` / `test_refs` format, and `scripts/sync_port_inventory.rb` appends newly discovered source rows without clobbering existing status/ref curation; repo-local parity docs are synced to this workflow, while the external `cross-language-crystal-parity` skill bundle still needs the same update when that path is writable again
+- [x] Step 4: skill wiring + unified `complete/1` gate — the completion-facts half now exists in `src/chiasmus/parity.cr` via `chiasmus-parity --format completion-facts`, with `complete/1` and `incomplete/1` query coverage in `spec/chiasmus/parity_spec.cr`; `src/chiasmus/complete.cr` and `src/chiasmus_complete.cr` now expose a first-class `chiasmus-complete` gate with `status|complete|incomplete` queries and nonzero status output while reachable incomplete work remains; the installed `cross-language-crystal-parity` skill bundle’s `check_completion_gate.sh` supports pass-through `--query/--format` usage, its `plan_with_chiasmus.sh` materializes a reusable planner bundle (`rank`, `safe`, `slice`, `seed-parity`, `track`, parity TSV, parity summary, completion status, incomplete rows), and its `summarize_parity_report.rb` turns raw parity TSV output into actionable drift counts
 - [x] P1: planner ranking CLI (`rank` / `safe`) — implemented in
       `src/chiasmus/plan.cr` with TSV/JSON output via `src/chiasmus_plan.cr`;
       covered by `spec/chiasmus/plan_spec.cr`
@@ -927,6 +1104,33 @@ Acceptance:
       previous facts diff over generated slices in `src/chiasmus/plan.cr`,
       exposed via `chiasmus-plan refresh --previous-facts FILE` with TSV/JSON
       output; covered by `spec/chiasmus/plan_spec.cr`
+
+## Verification snapshot (2026-07-14)
+
+- The installed `cross-language-crystal-parity` skill’s
+  `plan_with_chiasmus.sh` was verified in `temp/` against a minimal
+  disposable repo using the real `chiasmus-facts`, `chiasmus-plan`,
+  `chiasmus-parity`, and `chiasmus-complete` binaries. After fixing the
+  parity/completion CLI wrapper entrypoints, the disposable run completed
+  end-to-end and generated non-empty `rank.tsv`, `safe.tsv`, `slices.tsv`,
+  `seed.md`, `track.tsv`, `parity.tsv`, `parity_summary.txt`,
+  `completion_status.tsv`, and `completion_incomplete.tsv`.
+- The same script was then exercised against the real `vendor/chiasmus`
+  TypeScript source plus this repo's `src/` Crystal tree, again in `temp/` to
+  avoid touching curated planning artifacts. That run produced `source_facts.pl`
+  but did not complete `crystal_facts.pl` before interruption, so the
+  repo-sized end-to-end workflow is not yet marked proven.
+- Focused red-green tests now also verify the snapshot-backed reuse path:
+  `spec/chiasmus/facts_cli_spec.cr` proves `chiasmus-facts` emits
+  `% graph_snapshot ...` metadata and persists the extracted graph,
+  `spec/chiasmus/plan_spec.cr` proves `Plan.load_facts` reloads the cached
+  `CodeGraph`, and `spec/chiasmus/parity_spec.cr` proves
+  `Parity::Structural.load_facts` does the same while still honoring scoped-call
+  and entry-point facts from the emitted file.
+- The planning design is therefore validated at the logic level and at the
+  disposable-repro level, but operational verification on the full repo still
+  depends on stabilizing Crystal fact extraction on the full repo-sized source
+  tree.
 
 ## Design constraints
 

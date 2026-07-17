@@ -556,19 +556,21 @@ like these:
 Run:
 
 ```bash
+SKILL_DIR="${CHIASMUS_PARITY_SKILL_DIR:-$HOME/.agents/skills/crystal_forge/skills/cross-language-crystal-parity}"
+
 make format
 make lint
 make test
-./scripts/check_port_inventory.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
-./scripts/check_source_parity.sh . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
-./scripts/check_test_parity.sh . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
+"${SKILL_DIR}/scripts/check_port_inventory.sh" . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
+"${SKILL_DIR}/scripts/check_source_parity.sh" . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
+"${SKILL_DIR}/scripts/check_test_parity.sh" . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
 ```
 
 Use `check_completion_gate.sh` when the change affects fact-driven
 completeness, reachable vendor coverage, or structural signoff:
 
 ```bash
-./scripts/check_completion_gate.sh . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src
+"${SKILL_DIR}/scripts/check_completion_gate.sh" . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript src
 ```
 
 Use `verify_parity_adversarial.sh` when the change materially affects parity
