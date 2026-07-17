@@ -139,6 +139,7 @@ module Chiasmus
 
       def initialize(@refreshable_from_env : Bool = false)
         @config = Utils::Config.load
+        Utils::Config.load_repo_config(Dir.current)
         @skill_library = Skills::Library.create(self.class.chiasmus_home)
         @skill_learner = nil
         @formalization_engine = nil

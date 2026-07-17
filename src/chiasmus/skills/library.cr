@@ -1,6 +1,7 @@
 require "json"
 require "bm25"
 require "./template_store"
+require "../utils/atomic_file"
 
 module Chiasmus
   module Skills
@@ -416,19 +417,10 @@ module Chiasmus
         )
       end
 
-      private def atomic_write(path : String, payload : String) : Nil
-        dir = File.dirname(path)
-        Dir.mkdir_p(dir) unless Dir.exists?(dir)
-
-        tmp = "#{path}.tmp.#{Random::Secure.hex(8)}"
-        File.write(tmp, payload)
-        File.rename(tmp, path)
-      end
-
       private def persist_metadata_payload(payload : String) : Nil
         @metadata_write_mutex.synchronize do
           self.class.run_before_metadata_write_hook_for_test
-          atomic_write(@metadata_path, payload)
+          Utils::AtomicFile.write(@metadata_path, payload)
         end
       end
 

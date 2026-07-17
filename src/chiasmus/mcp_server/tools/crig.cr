@@ -1,6 +1,7 @@
 # chiasmus_crig tool - Run a direct Crig prompt via rig_tool macro
 require "mcp"
 require "crig"
+require "../types"
 require "../../llm/types"
 
 module Chiasmus

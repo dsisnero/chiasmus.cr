@@ -1,0 +1,19 @@
+parity:
+  vendor_src: vendor/chiasmus
+  target_src:
+    - src
+    - spec
+  equivalences:
+    - source_path: src
+      target_path: src/chiasmus
+      target_namespace: Chiasmus
+    - source_path: tests
+      target_path: spec/chiasmus
+    - source_path: benchmark/chiasmus
+      target_path: src/benchmark/chiasmus
+      target_namespace: Benchmark::Chiasmus
+    - source_path: benchmark/traditional
+      target_path: src/benchmark/traditional
+      target_namespace: Benchmark::Traditional
+    - source_path: benchmark/tests
+      target_path: spec/benchmark
