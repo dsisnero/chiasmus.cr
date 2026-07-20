@@ -249,9 +249,10 @@ module Chiasmus
         getter name : String
         getter file : String
         getter line : Int32
+        getter line_end : Int32?
         getter score : Float64
 
-        def initialize(@name : String, @file : String, @line : Int32, @score : Float64)
+        def initialize(@name : String, @file : String, @line : Int32, @score : Float64, @line_end : Int32? = nil)
         end
       end
 
@@ -260,6 +261,22 @@ module Chiasmus
         getter warnings : Array(String)?
 
         def initialize(@hits : Array(SearchHitJSON), @warnings : Array(String)? = nil)
+          super("success")
+        end
+      end
+
+      struct ReadSymbolResponse < Response
+        getter name : String
+        getter qualified_name : String?
+        getter file : String
+        getter kind : String
+        getter signature : String?
+        getter start_line : Int32
+        getter end_line : Int32
+        getter content : String
+
+        def initialize(@name : String, @qualified_name : String?, @file : String, @kind : String,
+                       @signature : String?, @start_line : Int32, @end_line : Int32, @content : String)
           super("success")
         end
       end
@@ -460,6 +477,15 @@ module Chiasmus
         getter top_k : Int32 = 10
         getter languages : Array(String)?
         getter kinds : Array(String)?
+      end
+
+      struct ReadSymbolInput
+        include JSON::Serializable
+
+        getter files : Array(String)
+        getter name : String?
+        getter qualified_name : String?
+        getter file : String?
       end
 
       struct CraftInput

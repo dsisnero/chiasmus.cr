@@ -42,7 +42,7 @@ describe "Chiasmus MCP Server Transport" do
       info.version.should eq(Chiasmus::VERSION)
     end
 
-    it "lists all 11 expected tools" do
+    it "lists all 12 expected tools" do
       result = (client || raise("not connected")).list_tools
       result.should_not be_nil
       if result
@@ -58,6 +58,7 @@ describe "Chiasmus MCP Server Transport" do
           "chiasmus_graph",
           "chiasmus_map",
           "chiasmus_search",
+          "chiasmus_read_symbol",
           "chiasmus_craft",
           "chiasmus_review",
         ]
@@ -137,6 +138,7 @@ private def register_tools_on(mcp_server : MCP::Server::Server)
     {Chiasmus::MCPServer::Tools::GraphTool, Chiasmus::MCPServer::Tools::GraphTool.tool_name, Chiasmus::MCPServer::Tools::GraphTool.tool_description, Chiasmus::MCPServer::Tools::GraphTool.input_schema},
     {Chiasmus::MCPServer::Tools::MapTool, Chiasmus::MCPServer::Tools::MapTool.tool_name, Chiasmus::MCPServer::Tools::MapTool.tool_description, Chiasmus::MCPServer::Tools::MapTool.input_schema},
     {Chiasmus::MCPServer::Tools::SearchTool, Chiasmus::MCPServer::Tools::SearchTool.tool_name, Chiasmus::MCPServer::Tools::SearchTool.tool_description, Chiasmus::MCPServer::Tools::SearchTool.input_schema},
+    {Chiasmus::MCPServer::Tools::ReadSymbolTool, Chiasmus::MCPServer::Tools::ReadSymbolTool.tool_name, Chiasmus::MCPServer::Tools::ReadSymbolTool.tool_description, Chiasmus::MCPServer::Tools::ReadSymbolTool.input_schema},
     {Chiasmus::MCPServer::Tools::CraftTool, Chiasmus::MCPServer::Tools::CraftTool.tool_name, Chiasmus::MCPServer::Tools::CraftTool.tool_description, Chiasmus::MCPServer::Tools::CraftTool.input_schema},
     {Chiasmus::MCPServer::Tools::ReviewTool, Chiasmus::MCPServer::Tools::ReviewTool.tool_name, Chiasmus::MCPServer::Tools::ReviewTool.tool_description, Chiasmus::MCPServer::Tools::ReviewTool.input_schema},
   ]

@@ -77,6 +77,38 @@ describe SearchEngine do
       corpus = SearchEngine.build_search_corpus(graph, files)
       corpus.should be_empty
     end
+
+    it "uses syntax-aware chunks with leading comments for callable context" do
+      source = <<-CR
+        class Greeter
+          # says hi
+          def greet(name)
+            puts name
+          end
+
+          def part(name)
+            puts name
+          end
+        end
+      CR
+
+      graph = CodeGraph.new(
+        defines: [
+          DefinesFact.new(file: "greeter.cr", name: "greet", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(3, 5)),
+          DefinesFact.new(file: "greeter.cr", name: "part", kind: SymbolKind::Function, span: Chiasmus::Graph::Span.line_range(7, 9)),
+        ],
+      )
+      files = {"greeter.cr" => source}
+
+      corpus = SearchEngine.build_search_corpus(graph, files)
+      greet = corpus.find(&.name.==("greet"))
+      greet.should_not be_nil
+
+      text = greet.not_nil!.text
+      text.should contain("says hi")
+      text.should contain("def greet")
+      text.should_not contain("def part")
+    end
   end
 
   describe ".run_search" do
@@ -84,17 +116,18 @@ describe SearchEngine do
       model = MockEmbeddingModel.new(3)
       corpus = [
         SearchCorpusEntry.new(
-          id: "a.ts#foo#1", name: "foo", file: "a.ts", line: 1,
+          id: "a.ts#foo#1", name: "foo", file: "a.ts", line: 1, line_end: 3,
           signature: nil, leading_doc: nil, text: "foo function",
         ),
         SearchCorpusEntry.new(
-          id: "b.ts#bar#1", name: "bar", file: "b.ts", line: 1,
+          id: "b.ts#bar#1", name: "bar", file: "b.ts", line: 1, line_end: 1,
           signature: nil, leading_doc: nil, text: "bar function",
         ),
       ]
       hits = SearchEngine.run_search("foo", corpus, model, 2)
       hits.should_not be_empty
       hits.first.name.should eq "foo"
+      hits.first.line_end.should eq 3
     end
 
     it "returns empty for empty corpus" do
@@ -107,7 +140,7 @@ describe SearchEngine do
       model = MockEmbeddingModel.new(3)
       corpus = [
         SearchCorpusEntry.new(
-          id: "a.ts#f#1", name: "f", file: "a.ts", line: 1,
+          id: "a.ts#f#1", name: "f", file: "a.ts", line: 1, line_end: 2,
           signature: nil, leading_doc: nil, text: "test text",
         ),
       ]

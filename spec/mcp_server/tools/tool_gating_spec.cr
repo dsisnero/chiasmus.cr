@@ -52,6 +52,7 @@ describe "MCP tool gating by configured capability" do
     names = build_and_list_tools
     names.should contain("chiasmus_graph")
     names.should contain("chiasmus_map")
+    names.should contain("chiasmus_read_symbol")
     names.should contain("chiasmus_verify")
     names.should contain("chiasmus_lint")
     names.should contain("chiasmus_skills")

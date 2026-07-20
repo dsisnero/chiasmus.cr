@@ -3,6 +3,7 @@ require "mcp"
 require "../types"
 require "../tool_schemas"
 require "./source_paths"
+require "./indexed_graph_loader"
 require "../../graph/map"
 require "../../graph/extractor"
 require "../../graph/parallel_io"
@@ -45,16 +46,7 @@ module Chiasmus
         end
 
         private def load_graph(paths : Array(String), cache_dir : String?) : Graph::CodeGraph?
-          if index = @project_index
-            lookup = index.lookup(paths)
-            Tracing.info("chiasmus.map.cache", cache_status: lookup.status, files: paths.size)
-            return lookup.graph if lookup.graph
-          end
-
-          source_files = Graph::FileIO.read_source_files_or_raise(paths)
-          graph = Graph::Extractor.extract_graph_async(source_files, cache_dir: cache_dir).receive
-          @project_index.try(&.upsert_graph(graph))
-          graph
+          IndexedGraphLoader.load_graph(paths, cache_dir, @project_index, "chiasmus.map.cache")
         end
 
         def self.tool_name : String

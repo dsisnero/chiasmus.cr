@@ -17,6 +17,22 @@ private def make_item(id, kind, name, file, scope = "source", span = nil)
 end
 
 describe Chiasmus::MCPServer::Tools::SearchTool do
+  describe "search hit serialization" do
+    it "includes line_end when present" do
+      hit = Chiasmus::MCPServer::Types::SearchHitJSON.new(
+        name: "call",
+        file: "src/app.cr",
+        line: 10,
+        line_end: 13,
+        score: 0.91
+      )
+
+      payload = JSON.parse(hit.to_json)
+      payload["line"].as_i.should eq(10)
+      payload["line_end"].as_i.should eq(13)
+    end
+  end
+
   describe "file preparation" do
     it "reads files with bounded concurrency" do
       tmpdir = File.join(Dir.tempdir, "search-tool-files-#{Random::Secure.hex(8)}")

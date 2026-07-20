@@ -13,6 +13,7 @@ describe "Tool schema unification" do
       Chiasmus::MCPServer::Tools::GraphTool,
       Chiasmus::MCPServer::Tools::MapTool,
       Chiasmus::MCPServer::Tools::SearchTool,
+      Chiasmus::MCPServer::Tools::ReadSymbolTool,
       Chiasmus::MCPServer::Tools::CraftTool,
       Chiasmus::MCPServer::Tools::ReviewTool,
       Chiasmus::MCPServer::Tools::CrigTool,

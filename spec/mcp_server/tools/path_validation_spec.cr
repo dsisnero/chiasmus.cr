@@ -40,6 +40,20 @@ describe "MCP tool path validation" do
     end
   end
 
+  it "read symbol tool rejects directory entries in files with a clear error" do
+    with_temp_repo_fixture do |dir|
+      result = Chiasmus::MCPServer::Tools::ReadSymbolTool.new.invoke({
+        "files" => JSON.parse([dir].to_json),
+        "name"  => JSON::Any.new("call"),
+      })
+
+      result.status.should eq("error")
+      error = result.as(Chiasmus::MCPServer::Types::ErrorResponse).error
+      error.should contain("directories")
+      error.should contain("source file paths")
+    end
+  end
+
   it "graph tool falls back to uncached extraction when cache_dir is unusable" do
     with_temp_repo_fixture do |dir|
       source_path = File.join(dir, "main.go")

@@ -64,6 +64,7 @@ ALL_TOOLS = [
   "chiasmus_graph",
   "chiasmus_map",
   "chiasmus_search",
+  "chiasmus_read_symbol",
   "chiasmus_craft",
   "chiasmus_review",
 ]
@@ -102,7 +103,7 @@ describe "MCP tool gating by configured capability" do
     names.should contain("chiasmus_formalize")
   end
 
-  it "always lists capability-independent tools (graph, map)" do
+  it "always lists capability-independent tools (graph, map, read_symbol)" do
     server = build_server(ALL_TOOLS)
     # Remove both backend-dependent tools
     server.remove_tool("chiasmus_search")
@@ -110,6 +111,7 @@ describe "MCP tool gating by configured capability" do
     names = list_tool_names(server)
     names.should contain("chiasmus_graph")
     names.should contain("chiasmus_map")
+    names.should contain("chiasmus_read_symbol")
   end
 
   it "hides both chiasmus_search and chiasmus_learn when neither backend is configured" do

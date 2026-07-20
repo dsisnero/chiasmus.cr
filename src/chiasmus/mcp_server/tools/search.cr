@@ -5,6 +5,7 @@ require "../types"
 require "../tool_schemas"
 require "../../search/engine"
 require "../../search/embedding_cache"
+require "./indexed_graph_loader"
 require "../../graph/extractor"
 require "../../utils/config"
 require "../../utils/bounded_work"
@@ -84,6 +85,7 @@ module Chiasmus
               name: hit.name,
               file: hit.file,
               line: hit.line,
+              line_end: hit.line_end,
               score: hit.score
             )
           end
@@ -100,15 +102,12 @@ module Chiasmus
         end
 
         private def load_search_graph(source_files : Array(Graph::SourceFile)) : Graph::CodeGraph?
-          if index = @project_index
-            lookup = index.lookup(source_files.map(&.path))
-            Tracing.info("chiasmus.search.cache", cache_status: lookup.status, files: source_files.size)
-            return lookup.graph if lookup.graph
-          end
-
-          graph = Graph::Extractor.extract_graph_async(source_files, cache_dir: Graph::GraphCache.default_cache_dir).receive
-          @project_index.try(&.upsert_graph(graph))
-          graph
+          IndexedGraphLoader.load_graph(
+            source_files.map(&.path),
+            Graph::GraphCache.default_cache_dir,
+            @project_index,
+            "chiasmus.search.cache"
+          )
         end
 
         private def read_search_files(files : Array(String), max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT) : {Hash(String, String), Array(String)}
@@ -277,7 +276,7 @@ module Chiasmus
           Generic tree-sitter fallback for 35+ additional languages.
 
           Uses embeddings + cosine similarity. Returns a ranked list of
-          {name, file, line, score}. Ranking is by closeness of the concept,
+          {name, file, line, line_end, score}. Ranking is by closeness of the concept,
           NOT by exact name match.
 
           Requires an embedding provider configured via env:

@@ -12,6 +12,7 @@ require "./tools/lint"
 require "./tools/graph"
 require "./tools/map"
 require "./tools/search"
+require "./tools/read_symbol"
 require "./tools/craft"
 require "./tools/review"
 require "./tools/crig"
@@ -406,6 +407,7 @@ module Chiasmus
           {Tools::GraphTool, Tools::GraphTool.tool_name, Tools::GraphTool.tool_description, Tools::GraphTool.input_schema},
           {Tools::MapTool, Tools::MapTool.tool_name, Tools::MapTool.tool_description, Tools::MapTool.input_schema},
           {Tools::SearchTool, Tools::SearchTool.tool_name, Tools::SearchTool.tool_description, Tools::SearchTool.input_schema},
+          {Tools::ReadSymbolTool, Tools::ReadSymbolTool.tool_name, Tools::ReadSymbolTool.tool_description, Tools::ReadSymbolTool.input_schema},
           {Tools::CraftTool, Tools::CraftTool.tool_name, Tools::CraftTool.tool_description, Tools::CraftTool.input_schema},
           {Tools::ReviewTool, Tools::ReviewTool.tool_name, Tools::ReviewTool.tool_description, Tools::ReviewTool.input_schema},
           {Tools::CrigTool, Tools::CrigTool.tool_name, Tools::CrigTool.tool_description, Tools::CrigTool.input_schema},
@@ -427,6 +429,8 @@ module Chiasmus
                             Tools::MapTool.new(@project_index)
                           when Tools::SearchTool.tool_name
                             Tools::SearchTool.new(@project_index)
+                          when Tools::ReadSymbolTool.tool_name
+                            Tools::ReadSymbolTool.new(@project_index)
                           else
                             tool_class.new
                           end

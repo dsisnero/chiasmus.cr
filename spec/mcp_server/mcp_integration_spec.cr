@@ -2,7 +2,7 @@ require "../spec_helper"
 require "mcp"
 
 # Comprehensive MCP protocol integration tests.
-# Tests all 12 chiasmus tools through the full MCP stack:
+# Tests all 13 chiasmus tools through the full MCP stack:
 #   InMemoryTransport → MCP::Server → MCP::Client.call_tool
 #
 # Plus tool gating and the in-memory healthcheck.
@@ -35,6 +35,7 @@ private def register_all_tools_on(mcp_server : MCP::Server::Server)
     {Chiasmus::MCPServer::Tools::GraphTool, Chiasmus::MCPServer::Tools::GraphTool.tool_name, Chiasmus::MCPServer::Tools::GraphTool.tool_description, Chiasmus::MCPServer::Tools::GraphTool.input_schema},
     {Chiasmus::MCPServer::Tools::MapTool, Chiasmus::MCPServer::Tools::MapTool.tool_name, Chiasmus::MCPServer::Tools::MapTool.tool_description, Chiasmus::MCPServer::Tools::MapTool.input_schema},
     {Chiasmus::MCPServer::Tools::SearchTool, Chiasmus::MCPServer::Tools::SearchTool.tool_name, Chiasmus::MCPServer::Tools::SearchTool.tool_description, Chiasmus::MCPServer::Tools::SearchTool.input_schema},
+    {Chiasmus::MCPServer::Tools::ReadSymbolTool, Chiasmus::MCPServer::Tools::ReadSymbolTool.tool_name, Chiasmus::MCPServer::Tools::ReadSymbolTool.tool_description, Chiasmus::MCPServer::Tools::ReadSymbolTool.input_schema},
     {Chiasmus::MCPServer::Tools::CraftTool, Chiasmus::MCPServer::Tools::CraftTool.tool_name, Chiasmus::MCPServer::Tools::CraftTool.tool_description, Chiasmus::MCPServer::Tools::CraftTool.input_schema},
     {Chiasmus::MCPServer::Tools::ReviewTool, Chiasmus::MCPServer::Tools::ReviewTool.tool_name, Chiasmus::MCPServer::Tools::ReviewTool.tool_description, Chiasmus::MCPServer::Tools::ReviewTool.input_schema},
     {Chiasmus::MCPServer::Tools::CrigTool, Chiasmus::MCPServer::Tools::CrigTool.tool_name, Chiasmus::MCPServer::Tools::CrigTool.tool_description, Chiasmus::MCPServer::Tools::CrigTool.input_schema},
@@ -171,7 +172,7 @@ end
 
 describe "MCP Server initialization via transport" do
   describe "initialize + tools/list" do
-    it "lists all 12 expected tools" do
+    it "lists all 13 expected tools" do
       mcp_server, client = connect_server_and_client
       begin
         result = client.list_tools
@@ -189,6 +190,7 @@ describe "MCP Server initialization via transport" do
             "chiasmus_graph",
             "chiasmus_map",
             "chiasmus_search",
+            "chiasmus_read_symbol",
             "chiasmus_craft",
             "chiasmus_review",
             "chiasmus_crig",
@@ -829,6 +831,31 @@ describe "All 12 tools through MCP transport" do
         result["error"].as_s.should contain("files")
       ensure
         disconnect(mcp_server, client)
+      end
+    end
+  end
+
+  describe "chiasmus_read_symbol" do
+    it "returns source content for a named symbol" do
+      path, cleanup = temp_source_file("cr", "class Sample\n  def call(name)\n    puts name\n  end\nend\n")
+      begin
+        mcp_server, client = connect_server_and_client
+        begin
+          result = call_tool(client, "chiasmus_read_symbol", {
+            "files" => JSON.parse([path].to_json),
+            "file"  => JSON::Any.new(path),
+            "name"  => JSON::Any.new("call"),
+          })
+          result["status"].as_s.should eq("success")
+          result["file"].as_s.should eq(path)
+          result["start_line"].as_i.should eq(2)
+          result["end_line"].as_i.should eq(4)
+          result["content"].as_s.should contain("def call(name)")
+        ensure
+          disconnect(mcp_server, client)
+        end
+      ensure
+        cleanup.call
       end
     end
   end

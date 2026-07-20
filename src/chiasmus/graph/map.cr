@@ -67,34 +67,34 @@ module Chiasmus
       def build_overview(graph : CodeGraph, max_exports : Int32 = DEFAULT_MAX_EXPORTS) : OverviewMap
         file_nodes = graph.files || [] of FileNode
 
-        defines_by_file = Hash(String, Array(DefinesFact)).new { |h, k| h[k] = [] of DefinesFact }
-        graph.defines.each { |d| defines_by_file[d.file] << d }
+        defines_by_file = Hash(String, Array(DefinesFact)).new { |hash, key| hash[key] = [] of DefinesFact }
+        graph.defines.each { |definition| defines_by_file[definition.file] << definition }
 
-        export_names = Hash(String, Set(String)).new { |h, k| h[k] = Set(String).new }
-        graph.exports.each { |e| export_names[e.file] << e.name }
+        export_names = Hash(String, Set(String)).new { |hash, key| hash[key] = Set(String).new }
+        graph.exports.each { |export_fact| export_names[export_fact.file] << export_fact.name }
 
         overview_files = [] of OverviewFile
         total_tokens = 0
         languages = Set(String).new
 
-        file_nodes.each do |fn|
-          defines = defines_by_file[fn.path]? || [] of DefinesFact
-          exports = export_names[fn.path]?
+        file_nodes.each do |file_node|
+          defines = defines_by_file[file_node.path]? || [] of DefinesFact
+          exports = export_names[file_node.path]?
           export_count = exports.try(&.size) || 0
           top_exports = defines
-            .select { |d| exports.try(&.includes?(d.name)) || false }
+            .select { |definition| exports.try(&.includes?(definition.name)) || false }
             .first(max_exports)
-            .map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.span.start_line, line_end: d.span.end_line, signature: d.signature) }
+            .map { |definition| SymbolEntry.new(name: definition.name, kind: definition.kind.to_s.downcase, line: definition.span.start_line, line_end: definition.span.end_line, signature: definition.signature) }
 
-          languages << fn.language
-          total_tokens += fn.token_estimate || 0
+          languages << file_node.language
+          total_tokens += file_node.token_estimate || 0
 
           overview_files << OverviewFile.new(
-            path: fn.path,
-            language: fn.language,
-            lines: fn.line_count,
-            tokens: fn.token_estimate,
-            doc: fn.file_doc.try { |d| d[0, DEFAULT_DOC_LEN] },
+            path: file_node.path,
+            language: file_node.language,
+            lines: file_node.line_count,
+            tokens: file_node.token_estimate,
+            doc: file_node.file_doc.try { |file_doc| file_doc[0, DEFAULT_DOC_LEN] },
             export_count: export_count,
             top_exports: top_exports,
           )
@@ -133,7 +133,7 @@ module Chiasmus
         end
 
         dir_name = path_parts[depth]
-        child = node.dirs.find { |d| d.name == dir_name }
+        child = node.dirs.find { |dir_node| dir_node.name == dir_name }
         unless child
           child = DirNode.new(name: dir_name, dirs: [] of DirNode, files: [] of OverviewFile)
           node.dirs << child
@@ -143,39 +143,39 @@ module Chiasmus
       end
 
       def build_file_detail(graph : CodeGraph, path : String) : FileDetail?
-        fn = graph.files.try(&.find { |f| f.path == path })
-        return nil unless fn
+        file_node = graph.files.try(&.find { |candidate| candidate.path == path })
+        return nil unless file_node
 
-        defines = graph.defines.select { |d| d.file == path }
+        defines = graph.defines.select { |definition| definition.file == path }
         export_names = Set(String).new
-        graph.exports.select { |e| e.file == path }.each { |e| export_names << e.name }
-        imports = graph.imports.select { |i| i.file == path }
+        graph.exports.select { |export_fact| export_fact.file == path }.each { |export_fact| export_names << export_fact.name }
+        imports = graph.imports.select { |import_fact| import_fact.file == path }
 
         FileDetail.new(
           kind: "file",
           path: path,
-          language: fn.language,
-          lines: fn.line_count,
-          tokens: fn.token_estimate,
-          doc: fn.file_doc.try { |d| d[0, DEFAULT_DOC_LEN] },
-          exports: defines.select { |d| export_names.includes?(d.name) }
-            .map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.span.start_line, line_end: d.span.end_line, signature: d.signature) },
-          imports: imports.map { |i| {name: i.name, source: i.source} },
-          symbols: defines.map { |d| SymbolEntry.new(name: d.name, kind: d.kind.to_s.downcase, line: d.span.start_line, line_end: d.span.end_line, signature: d.signature) },
+          language: file_node.language,
+          lines: file_node.line_count,
+          tokens: file_node.token_estimate,
+          doc: file_node.file_doc.try { |file_doc| file_doc[0, DEFAULT_DOC_LEN] },
+          exports: defines.select { |definition| export_names.includes?(definition.name) }
+            .map { |definition| SymbolEntry.new(name: definition.name, kind: definition.kind.to_s.downcase, line: definition.span.start_line, line_end: definition.span.end_line, signature: definition.signature) },
+          imports: imports.map { |import_fact| {name: import_fact.name, source: import_fact.source} },
+          symbols: defines.map { |definition| SymbolEntry.new(name: definition.name, kind: definition.kind.to_s.downcase, line: definition.span.start_line, line_end: definition.span.end_line, signature: definition.signature) },
         )
       end
 
       def build_symbol_detail(graph : CodeGraph, name : String) : SymbolDetail?
-        defs = graph.defines.select { |d| d.name == name }
+        defs = graph.defines.select { |definition| definition.name == name }
         return nil if defs.empty?
 
-        callers = graph.calls.select { |c| c.callee == name }.map(&.caller).uniq.sort
-        callees = graph.calls.select { |c| c.caller == name }.map(&.callee).uniq.sort
+        callers = graph.calls.select { |call_fact| call_fact.callee == name }.map(&.caller).uniq.sort
+        callees = graph.calls.select { |call_fact| call_fact.caller == name }.map(&.callee).uniq.sort
 
         SymbolDetail.new(
           kind: "symbol",
           name: name,
-          defines: defs.map { |d| {file: d.file, kind: d.kind.to_s.downcase, line: d.span.start_line, line_end: d.span.end_line, signature: d.signature} },
+          defines: defs.map { |definition| {file: definition.file, kind: definition.kind.to_s.downcase, line: definition.span.start_line, line_end: definition.span.end_line, signature: definition.signature} },
           callers: callers,
           callees: callees,
         )
@@ -215,15 +215,15 @@ module Chiasmus
               json.field "language", map.language
               json.field "symbols" do
                 json.array do
-                  map.symbols.each do |s|
+                  map.symbols.each do |symbol_entry|
                     json.object do
-                      json.field "name", s.name
-                      json.field "kind", s.kind
-                      json.field "line", s.line
-                      if s.line_end > 0
-                        json.field "line_end", s.line_end
+                      json.field "name", symbol_entry.name
+                      json.field "kind", symbol_entry.kind
+                      json.field "line", symbol_entry.line
+                      if symbol_entry.line_end > 0
+                        json.field "line_end", symbol_entry.line_end
                       end
-                      if sig = s.signature
+                      if sig = symbol_entry.signature
                         json.field "signature", sig
                       end
                     end
@@ -239,15 +239,15 @@ module Chiasmus
               json.field "name", map.name
               json.field "defines" do
                 json.array do
-                  map.defines.each do |d|
+                  map.defines.each do |definition|
                     json.object do
-                      json.field "file", d[:file]
-                      json.field "kind", d[:kind]
-                      json.field "line", d[:line]
-                      if d[:line_end] > 0
-                        json.field "line_end", d[:line_end]
+                      json.field "file", definition[:file]
+                      json.field "kind", definition[:kind]
+                      json.field "line", definition[:line]
+                      if definition[:line_end] > 0
+                        json.field "line_end", definition[:line_end]
                       end
-                      if sig = d[:signature]
+                      if sig = definition[:signature]
                         json.field "signature", sig
                       end
                     end
@@ -265,18 +265,18 @@ module Chiasmus
         case map
         when OverviewMap
           lines = ["# Codebase Overview", "", "**Files**: #{map.summary.files} | **Definitions**: #{map.summary.definitions} | **Exports**: #{map.summary.exports}"]
-          map.root.dirs.each { |d| render_dir_tree(d, lines, 2) }
+          map.root.dirs.each { |dir_node| render_dir_tree(dir_node, lines, 2) }
           lines.join("
 ")
         when FileDetail
           lines = ["## #{map.path}", "", "**Language**: #{map.language}", "**Symbols**: #{map.symbols.size}"]
-          map.symbols.each { |s| lines << "- `#{s.name}` (#{s.kind}) line #{s.line}#{s.line_end > 0 ? "-#{s.line_end}" : ""}#{s.signature ? " — #{s.signature}" : ""}" }
+          map.symbols.each { |symbol_entry| lines << "- `#{symbol_entry.name}` (#{symbol_entry.kind}) line #{symbol_entry.line}#{symbol_entry.line_end > 0 ? "-#{symbol_entry.line_end}" : ""}#{symbol_entry.signature ? " — #{symbol_entry.signature}" : ""}" }
           lines.join("
 ")
         when SymbolDetail
-          defined_in = map.defines.map { |d|
-            loc = "#{d[:file]}:#{d[:line]}"
-            loc += "-#{d[:line_end]}" if d[:line_end] > 0
+          defined_in = map.defines.map { |definition|
+            loc = "#{definition[:file]}:#{definition[:line]}"
+            loc += "-#{definition[:line_end]}" if definition[:line_end] > 0
             loc
           }.join(", ")
           lines = ["## #{map.name}", "", "**Defined in**: #{defined_in}"]
@@ -296,8 +296,8 @@ module Chiasmus
       private def render_dir_tree(node : DirNode, lines : Array(String), depth : Int32) : Nil
         prefix = "  " * depth
         lines << "#{prefix}- **#{node.name}/**"
-        node.dirs.each { |d| render_dir_tree(d, lines, depth + 1) }
-        node.files.each { |f| lines << "#{prefix}  - #{File.basename(f.path)} (#{f.language}, #{f.export_count} exports)" }
+        node.dirs.each { |dir_node| render_dir_tree(dir_node, lines, depth + 1) }
+        node.files.each { |overview_file| lines << "#{prefix}  - #{File.basename(overview_file.path)} (#{overview_file.language}, #{overview_file.export_count} exports)" }
       end
 
       def glob_match(path : String, pattern : String) : Bool

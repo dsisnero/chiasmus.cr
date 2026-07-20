@@ -1,9 +1,9 @@
 require "../../spec_helper"
 
-# Comprehensive verification that all 12 chiasmus tools work
+# Comprehensive verification that all 13 chiasmus tools work
 # through the invoke → typed output pipeline after dead code removal.
 
-describe "All 12 chiasmus tools - post-refactor smoke test" do
+describe "All 13 chiasmus tools - post-refactor smoke test" do
   describe "chiasmus_verify" do
     it "Z3: returns SAT with model" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
@@ -395,8 +395,31 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
     end
   end
 
+  describe "chiasmus_read_symbol" do
+    it "returns source content for a named symbol" do
+      tmpdir = Dir.tempdir
+      path = File.join(tmpdir, "read_symbol_smoke.cr")
+      begin
+        File.write(path, "class Sample\n  def call(name)\n    puts name\n  end\nend\n")
+        tool = Chiasmus::MCPServer::Tools::ReadSymbolTool.new
+        r = tool.invoke({
+          "files" => JSON.parse([path].to_json),
+          "file"  => JSON::Any.new(path),
+          "name"  => JSON::Any.new("call"),
+        })
+        r.status.should eq("success")
+        symbol = r.as(Chiasmus::MCPServer::Types::ReadSymbolResponse)
+        symbol.start_line.should eq(2)
+        symbol.end_line.should eq(4)
+        symbol.content.should contain("def call(name)")
+      ensure
+        File.delete(path) if File.exists?(path)
+      end
+    end
+  end
+
   describe "tool metadata completeness" do
-    it "all 12 tools have non-empty name and description" do
+    it "all 13 tools have non-empty name and description" do
       tools = [
         Chiasmus::MCPServer::Tools::VerifyTool,
         Chiasmus::MCPServer::Tools::SkillsTool,
@@ -407,6 +430,7 @@ describe "All 12 chiasmus tools - post-refactor smoke test" do
         Chiasmus::MCPServer::Tools::GraphTool,
         Chiasmus::MCPServer::Tools::MapTool,
         Chiasmus::MCPServer::Tools::SearchTool,
+        Chiasmus::MCPServer::Tools::ReadSymbolTool,
         Chiasmus::MCPServer::Tools::CraftTool,
         Chiasmus::MCPServer::Tools::ReviewTool,
         Chiasmus::MCPServer::Tools::CrigTool,

@@ -28,6 +28,9 @@ describe "Tool output schemas" do
   it "SearchTool has output_schema" do
     Chiasmus::MCPServer::Tools::SearchTool.responds_to?(:output_schema).should be_true
   end
+  it "ReadSymbolTool has output_schema" do
+    Chiasmus::MCPServer::Tools::ReadSymbolTool.responds_to?(:output_schema).should be_true
+  end
   it "CraftTool has output_schema" do
     Chiasmus::MCPServer::Tools::CraftTool.responds_to?(:output_schema).should be_true
   end

@@ -22,7 +22,7 @@ shards:
 
   bubbles:
     git: https://github.com/dsisnero/bubbles.git
-    version: 2.1.0
+    version: 2.1.1
 
   bubbletea:
     git: https://github.com/dsisnero/bubbletea.cr.git
@@ -58,7 +58,7 @@ shards:
 
   crig:
     git: https://github.com/dsisnero/crig.git
-    version: 0.40.0
+    version: 0.39.0+git.commit.d54298fa3dc48fd9111436954edda7f011c31e82
 
   crig-postgres:
     git: https://github.com/dsisnero/crig-postgres.git
@@ -98,7 +98,7 @@ shards:
 
   golden:
     git: https://github.com/dsisnero/golden.git
-    version: 0.1.0+git.commit.82c92f031cbd48f150d8c76d321b5f9211d6d440
+    version: 0.3.0
 
   harmonica:
     git: https://github.com/dsisnero/harmonica.git
@@ -110,7 +110,7 @@ shards:
 
   lipgloss:
     git: https://github.com/dsisnero/lipgloss.git
-    version: 2.0.2
+    version: 2.0.3
 
   mcp:
     git: https://github.com/dsisnero/mcp.cr.git
@@ -118,7 +118,7 @@ shards:
 
   mosaic:
     git: https://github.com/dsisnero/mosaic.git
-    version: 0.1.0+git.commit.afef1373e37de29845d762daf31b12f93c05f153
+    version: 0.1.0+git.commit.efe05c232d6da4cf24ccceafa5b26a01314bfa94
 
   nbchannel:
     git: https://github.com/wyhaines/nbchannel.cr.git
@@ -180,13 +180,13 @@ shards:
     git: https://github.com/dsisnero/sync-map.git
     version: 0.1.4
 
-  teatest:
-    git: https://github.com/dsisnero/teatest.git
-    version: 0.8.0
-
   terminfo:
     git: https://github.com/docelic/terminfo.git
     version: 0.8.1
+
+  text-splitter:
+    git: https://github.com/dsisnero/text-splitter.cr.git
+    version: 0.1.0+git.commit.24c6b35460f3b483c452eae29c84bc8e03d7f229
 
   textseg:
     git: https://github.com/naqvis/uni_text_seg.git

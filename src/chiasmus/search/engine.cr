@@ -5,6 +5,7 @@
 # return top-K hits.
 
 require "../graph/types"
+require "../graph/chunking"
 require "./embedding_cache"
 
 module Chiasmus
@@ -17,6 +18,7 @@ module Chiasmus
       name : String,
       file : String,
       line : Int32,
+      line_end : Int32,
       signature : String?,
       leading_doc : String?,
       text : String
@@ -26,6 +28,7 @@ module Chiasmus
       name : String,
       file : String,
       line : Int32,
+      line_end : Int32,
       signature : String?,
       leading_doc : String?,
       score : Float64
@@ -39,25 +42,28 @@ module Chiasmus
       ) : Array(SearchCorpusEntry)
         out = [] of SearchCorpusEntry
         file_doc = extract_file_docs(graph)
+        chunk_cache = Hash(String, Array(Graph::Chunking::CodeChunk)).new
 
-        graph.defines.each do |d|
-          next unless d.kind.function? || d.kind.method?
-          content = files[d.file]?
+        graph.defines.each do |definition|
+          next unless definition.kind.function? || definition.kind.method?
+          content = files[definition.file]?
           next unless content
 
-          snippet = snippet_around(content, d.span.start_line)
-          parts = [d.name] of String
-          if doc = file_doc[d.file]?
+          doc = file_doc[definition.file]?
+          snippet = snippet_for_define(definition, content, chunk_cache)
+          parts = [definition.name] of String
+          if doc
             parts << doc
           end
           parts << snippet
           text = parts.join("\n")[0, MAX_TEXT_LEN]
 
           out << SearchCorpusEntry.new(
-            id: make_entry_id(d),
-            name: d.name,
-            file: d.file,
-            line: d.span.start_line,
+            id: make_entry_id(definition),
+            name: definition.name,
+            file: definition.file,
+            line: definition.span.start_line,
+            line_end: definition.span.end_line,
             signature: nil,
             leading_doc: doc,
             text: text,
@@ -118,17 +124,18 @@ module Chiasmus
           scored << {score, i}
         end
 
-        scored.sort_by! { |s, _| -s }
+        scored.sort_by! { |score, _entry_index| -score }
         scored.first(top_k).compact_map do |score, i|
-          e = corpus[i]?
-          next unless e
+          entry = corpus[i]?
+          next unless entry
           SearchHit.new(
-            id: e.id,
-            name: e.name,
-            file: e.file,
-            line: e.line,
-            signature: e.signature,
-            leading_doc: e.leading_doc,
+            id: entry.id,
+            name: entry.name,
+            file: entry.file,
+            line: entry.line,
+            line_end: entry.line_end,
+            signature: entry.signature,
+            leading_doc: entry.leading_doc,
             score: score,
           )
         end
@@ -145,11 +152,55 @@ module Chiasmus
         lines[start...finish].join
       end
 
+      private def snippet_for_define(
+        define : Graph::DefinesFact,
+        source : String,
+        chunk_cache : Hash(String, Array(Graph::Chunking::CodeChunk)),
+      ) : String
+        chunks = chunk_cache[define.file]? || begin
+          computed = Graph::Chunking.chunk_source(source, define.file, MAX_TEXT_LEN)
+          chunk_cache[define.file] = computed
+          computed
+        rescue
+          [] of Graph::Chunking::CodeChunk
+        end
+
+        chunk = chunks.find do |candidate|
+          line = define.span.start_line
+          candidate.span.start_line <= line && line <= candidate.span.end_line
+        end
+        return snippet_around(source, define.span.start_line) unless chunk
+
+        chunk_parts = [] of String
+        unless chunk.context.context_path.empty?
+          chunk_parts << chunk.context.context_path.join("::")
+        end
+        unless chunk.context.comments.empty?
+          chunk_parts << chunk.context.comments.map(&.text).join("\n")
+        end
+        body = if chunk.context.symbols_defined.size > 1 ||
+                  chunk.span.start_line < define.span.start_line ||
+                  define.span.end_line < chunk.span.end_line
+                 snippet_between(source, define.span.start_line, define.span.end_line)
+               else
+                 chunk.content
+               end
+        chunk_parts << body
+        chunk_parts.join("\n")
+      end
+
+      private def snippet_between(source : String, start_line : Int32, end_line : Int32) : String
+        lines = source.lines
+        start = Math.max(0, start_line - 1)
+        finish = Math.min(lines.size, end_line)
+        lines[start...finish].join
+      end
+
       private def extract_file_docs(graph : Graph::CodeGraph) : Hash(String, String)
         docs = Hash(String, String).new
-        graph.files.try &.each do |fn|
-          if doc = fn.file_doc
-            docs[fn.path] = doc
+        graph.files.try &.each do |file_node|
+          if doc = file_node.file_doc
+            docs[file_node.path] = doc
           end
         end
         docs
@@ -160,10 +211,10 @@ module Chiasmus
         dot = 0.0
         norm_a = 0.0
         norm_b = 0.0
-        a.size.times do |i|
-          dot += a[i] * b[i]
-          norm_a += a[i] * a[i]
-          norm_b += b[i] * b[i]
+        a.size.times do |index|
+          dot += a[index] * b[index]
+          norm_a += a[index] * a[index]
+          norm_b += b[index] * b[index]
         end
         return 0.0 if norm_a == 0.0 || norm_b == 0.0
         dot / (Math.sqrt(norm_a) * Math.sqrt(norm_b))
