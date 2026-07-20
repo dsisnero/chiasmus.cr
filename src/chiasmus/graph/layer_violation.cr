@@ -40,15 +40,15 @@ module Chiasmus
 
       def find(graph : CodeGraph) : Array(LayerViolationResult)
         func_layers = Hash(String, String).new
-        graph.defines.each do |d|
-          layer = extract_layer(d.file)
-          func_layers[d.name] = layer if layer
+        graph.defines.each do |definition|
+          layer = extract_layer(definition.file)
+          func_layers[definition.name] = layer if layer
         end
 
         violations = [] of LayerViolationResult
-        graph.calls.each do |c|
-          caller_layer = func_layers[c.caller]?
-          callee_layer = func_layers[c.callee]?
+        graph.calls.each do |call|
+          caller_layer = func_layers[call.caller]?
+          callee_layer = func_layers[call.callee]?
           next unless caller_layer && callee_layer
           next if caller_layer == callee_layer
 
@@ -57,8 +57,8 @@ module Chiasmus
 
           if callee_order - caller_order > 1
             violations << LayerViolationResult.new(
-              caller: c.caller,
-              callee: c.callee,
+              caller: call.caller,
+              callee: call.callee,
               caller_layer: caller_layer,
               callee_layer: callee_layer,
             )

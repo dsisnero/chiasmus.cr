@@ -13,10 +13,10 @@ module Chiasmus
       # Every node that appears in defines or as a call endpoint.
       def collect_nodes(graph : CodeGraph) : Set(String)
         nodes = Set(String).new
-        graph.defines.each { |d| nodes << d.name }
-        graph.calls.each do |c|
-          nodes << c.caller
-          nodes << c.callee
+        graph.defines.each { |definition| nodes << definition.name }
+        graph.calls.each do |call|
+          nodes << call.caller
+          nodes << call.callee
         end
         nodes
       end
@@ -27,14 +27,14 @@ module Chiasmus
       def build_undirected_graph(graph : CodeGraph, nodes : Set(String)? = nil) : Hash(String, Set(String))
         g = Hash(String, Set(String)).new
         ns = nodes || collect_nodes(graph)
-        ns.each { |n| g[n] = Set(String).new }
+        ns.each { |node| g[node] = Set(String).new }
 
-        graph.calls.each do |c|
-          next if c.caller == c.callee
-          next unless g.has_key?(c.caller) && g.has_key?(c.callee)
-          next if g[c.caller].includes?(c.callee)
-          g[c.caller] << c.callee
-          g[c.callee] << c.caller
+        graph.calls.each do |call|
+          next if call.caller == call.callee
+          next unless g.has_key?(call.caller) && g.has_key?(call.callee)
+          next if g[call.caller].includes?(call.callee)
+          g[call.caller] << call.callee
+          g[call.callee] << call.caller
         end
 
         g
@@ -43,16 +43,16 @@ module Chiasmus
       # Iterate each undirected edge exactly once.
       def for_each_undirected_edge(graph : CodeGraph, & : String, String ->) : Nil
         seen = Set(String).new
-        graph.calls.each do |c|
-          next if c.caller == c.callee
-          key = if c.caller < c.callee
-                  "#{c.caller}|#{c.callee}"
+        graph.calls.each do |call|
+          next if call.caller == call.callee
+          key = if call.caller < call.callee
+                  "#{call.caller}|#{call.callee}"
                 else
-                  "#{c.callee}|#{c.caller}"
+                  "#{call.callee}|#{call.caller}"
                 end
           next if seen.includes?(key)
           seen << key
-          yield c.caller, c.callee
+          yield call.caller, call.callee
         end
       end
 

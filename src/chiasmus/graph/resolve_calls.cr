@@ -36,13 +36,13 @@ module Chiasmus
         parents = Hash(String, String).new
 
         per_file.each do |info|
-          info.class_fields.each do |cf|
-            existing = own_fields[cf.class_name]?
+          info.class_fields.each do |class_field|
+            existing = own_fields[class_field.class_name]?
             unless existing
               existing = Hash(String, String).new
-              own_fields[cf.class_name] = existing
+              own_fields[class_field.class_name] = existing
             end
-            cf.fields.each { |name, type| existing[name] = type }
+            class_field.fields.each { |field_name, field_type| existing[field_name] = field_type }
           end
           if extends = info.class_extends
             extends.each { |ext| parents[ext.class_name] = ext.parent }
@@ -64,10 +64,10 @@ module Chiasmus
 
           merged = Hash(String, String).new
           if parent = parents[class_name]?
-            resolve.call(parent).each { |k, v| merged[k] = v }
+            resolve.call(parent).each { |field_name, field_type| merged[field_name] = field_type }
           end
           if own = own_fields[class_name]?
-            own.each { |k, v| merged[k] = v }
+            own.each { |field_name, field_type| merged[field_name] = field_type }
           end
 
           in_progress.delete(class_name)
@@ -76,10 +76,10 @@ module Chiasmus
         }
 
         class_names = Set(String).new
-        own_fields.each_key { |cn| class_names << cn }
-        parents.each_key { |cn| class_names << cn }
-        parents.each_value { |cn| class_names << cn }
-        class_names.each { |cn| resolve.call(cn) }
+        own_fields.each_key { |class_name| class_names << class_name }
+        parents.each_key { |class_name| class_names << class_name }
+        parents.each_value { |class_name| class_names << class_name }
+        class_names.each { |class_name| resolve.call(class_name) }
 
         resolved
       end
@@ -95,13 +95,13 @@ module Chiasmus
 
         per_file.each do |info|
           if class_methods = info.class_methods
-            class_methods.each do |cm|
-              existing = own[cm.class_name]?
+            class_methods.each do |class_method|
+              existing = own[class_method.class_name]?
               unless existing
                 existing = Set(String).new
-                own[cm.class_name] = existing
+                own[class_method.class_name] = existing
               end
-              cm.methods.each { |m| existing << m }
+              class_method.methods.each { |method_name| existing << method_name }
             end
           end
           if extends = info.class_extends
@@ -110,10 +110,10 @@ module Chiasmus
         end
 
         if extra = extra_contains_methods
-          extra.each do |c|
-            existing = own[c[:parent]]? || Set(String).new
-            existing << c[:child]
-            own[c[:parent]] = existing
+          extra.each do |contains_method|
+            existing = own[contains_method[:parent]]? || Set(String).new
+            existing << contains_method[:child]
+            own[contains_method[:parent]] = existing
           end
         end
 
@@ -132,10 +132,10 @@ module Chiasmus
 
           merged = Set(String).new
           if parent = parents[class_name]?
-            resolve.call(parent).each { |m| merged << m }
+            resolve.call(parent).each { |method_name| merged << method_name }
           end
           if s = own[class_name]?
-            s.each { |m| merged << m }
+            s.each { |method_name| merged << method_name }
           end
 
           in_progress.delete(class_name)
@@ -144,10 +144,10 @@ module Chiasmus
         }
 
         class_names = Set(String).new
-        own.each_key { |cn| class_names << cn }
-        parents.each_key { |cn| class_names << cn }
-        parents.each_value { |cn| class_names << cn }
-        class_names.each { |cn| resolve.call(cn) }
+        own.each_key { |class_name| class_names << class_name }
+        parents.each_key { |class_name| class_names << class_name }
+        parents.each_value { |class_name| class_names << class_name }
+        class_names.each { |class_name| resolve.call(class_name) }
 
         ClassMethodRegistry.new(flat: flat, own: own, parents: parents)
       end
@@ -169,8 +169,8 @@ module Chiasmus
                        end
         return nil unless current_type
 
-        (1...chain.size).each do |i|
-          field_name = chain[i]
+        (1...chain.size).each do |chain_index|
+          field_name = chain[chain_index]
           fields = registry[current_type]?
           return nil unless fields
           next_type = fields[field_name]?
@@ -186,12 +186,12 @@ module Chiasmus
       private def build_method_owner_index(graph : CodeGraph) : Hash(String, Set(String))
         by_method = Hash(String, Set(String)).new
         method_names = Set(String).new
-        graph.defines.each { |d| method_names << d.name if d.kind.method? }
-        graph.contains.each do |c|
-          next unless method_names.includes?(c.child)
-          set = by_method[c.child]? || Set(String).new
-          set << c.parent
-          by_method[c.child] = set
+        graph.defines.each { |definition| method_names << definition.name if definition.kind.method? }
+        graph.contains.each do |contains_fact|
+          next unless method_names.includes?(contains_fact.child)
+          set = by_method[contains_fact.child]? || Set(String).new
+          set << contains_fact.parent
+          by_method[contains_fact.child] = set
         end
         by_method
       end
@@ -275,10 +275,10 @@ module Chiasmus
       private def method_contains_facts(graph : CodeGraph) : Array({parent: String, child: String})
         out = [] of {parent: String, child: String}
         method_names = Set(String).new
-        graph.defines.each { |d| method_names << d.name if d.kind.method? }
-        graph.contains.each do |c|
-          if method_names.includes?(c.child)
-            out << {parent: c.parent, child: c.child}
+        graph.defines.each { |definition| method_names << definition.name if definition.kind.method? }
+        graph.contains.each do |contains_fact|
+          if method_names.includes?(contains_fact.child)
+            out << {parent: contains_fact.parent, child: contains_fact.child}
           end
         end
         out

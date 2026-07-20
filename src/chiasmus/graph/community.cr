@@ -49,12 +49,12 @@ module Chiasmus
       # Build weighted adjacency from CodeGraph calls
       private def build_adjacency(graph : CodeGraph, nodes : Set(String)) : Hash(String, Hash(String, Float64))
         adj = Hash(String, Hash(String, Float64)).new
-        nodes.each { |n| adj[n] = Hash(String, Float64).new(0.0) }
-        graph.calls.each do |c|
-          next if c.caller == c.callee
-          next unless nodes.includes?(c.caller) && nodes.includes?(c.callee)
-          adj[c.caller][c.callee] += 1.0
-          adj[c.callee][c.caller] += 1.0
+        nodes.each { |node| adj[node] = Hash(String, Float64).new(0.0) }
+        graph.calls.each do |call|
+          next if call.caller == call.callee
+          next unless nodes.includes?(call.caller) && nodes.includes?(call.callee)
+          adj[call.caller][call.callee] += 1.0
+          adj[call.callee][call.caller] += 1.0
         end
         adj
       end
@@ -70,46 +70,46 @@ module Chiasmus
         return false if total_weight == 0.0
 
         node_weight = Hash(String, Float64).new(0.0)
-        adj.each { |u, nbrs| node_weight[u] = nbrs.values.sum }
+        adj.each { |node, neighbors| node_weight[node] = neighbors.values.sum }
 
         comm_weight = Hash(Int32, Float64).new(0.0)
-        communities.each { |u, c| comm_weight[c] = comm_weight[c] + node_weight[u] }
+        communities.each { |node, community_id| comm_weight[community_id] = comm_weight[community_id] + node_weight[node] }
 
         changed = false
         shuffled = nodes.shuffle(rng)
         two_m = total_weight
 
-        shuffled.each do |u|
-          u_comm = communities[u]
-          k_i = node_weight[u]
+        shuffled.each do |node|
+          node_community = communities[node]
+          node_weight_value = node_weight[node]
 
           neighbor_comms = Hash(Int32, Float64).new(0.0)
-          adj[u].each { |v, w| neighbor_comms[communities[v]] += w }
+          adj[node].each { |neighbor, weight| neighbor_comms[communities[neighbor]] += weight }
 
-          best_comm = u_comm
+          best_comm = node_community
           best_gain = 0.0
 
-          neighbor_comms.each do |c, k_i_in_c|
-            next if c == u_comm
+          neighbor_comms.each do |community_id, internal_weight|
+            next if community_id == node_community
 
-            sigma_in_c = comm_weight[c]? || 0.0
-            sigma_in_u = comm_weight[u_comm]? || 0.0
-            k_i_in_u = neighbor_comms[u_comm]? || 0.0
+            sigma_in_c = comm_weight[community_id]? || 0.0
+            sigma_in_u = comm_weight[node_community]? || 0.0
+            k_i_in_u = neighbor_comms[node_community]? || 0.0
 
             # Standard Louvain modularity gain for moving node i from u_comm to c
-            gain = (k_i_in_c - k_i_in_u) / two_m
-            gain -= k_i * (sigma_in_c - (sigma_in_u - k_i)) / (two_m * two_m)
+            gain = (internal_weight - k_i_in_u) / two_m
+            gain -= node_weight_value * (sigma_in_c - (sigma_in_u - node_weight_value)) / (two_m * two_m)
 
             if gain > best_gain
               best_gain = gain
-              best_comm = c
+              best_comm = community_id
             end
           end
 
-          if best_comm != u_comm
-            comm_weight[u_comm] -= k_i
-            comm_weight[best_comm] += k_i
-            communities[u] = best_comm
+          if best_comm != node_community
+            comm_weight[node_community] -= node_weight_value
+            comm_weight[best_comm] += node_weight_value
+            communities[node] = best_comm
             changed = true
           end
         end
@@ -128,7 +128,7 @@ module Chiasmus
 
         # Initialize each node in own community
         communities = Hash(String, Int32).new
-        nodes.each_with_index { |n, i| communities[n] = i }
+        nodes.each_with_index { |node, index| communities[node] = index }
 
         # Run phase 1 repeatedly until convergence
         100.times do
@@ -136,19 +136,19 @@ module Chiasmus
         end
 
         # Group by community
-        by_comm = Hash(Int32, Array(String)).new { |h, k| h[k] = [] of String }
-        communities.each { |n, c| by_comm[c] << n }
+        by_comm = Hash(Int32, Array(String)).new { |hash, community_id| hash[community_id] = [] of String }
+        communities.each { |node, community_id| by_comm[community_id] << node }
 
         # Build community-to-id mapping for intra-edge counting
         comm_ids = Hash(String, Int32).new
-        by_comm.each { |cid, members| members.each { |m| comm_ids[m] = cid } }
+        by_comm.each { |community_id, members| members.each { |member| comm_ids[member] = community_id } }
 
         # Count intra-community edges for cohesion
         intra_counts = Hash(Int32, Int32).new(0)
-        adj.each do |u, neighbors|
-          neighbors.each do |v, w|
-            next unless u < v # count each undirected edge once
-            intra_counts[comm_ids[u]] += w.to_i if comm_ids[u] == comm_ids[v]
+        adj.each do |node, neighbors|
+          neighbors.each do |neighbor, weight|
+            next unless node < neighbor # count each undirected edge once
+            intra_counts[comm_ids[node]] += weight.to_i if comm_ids[node] == comm_ids[neighbor]
           end
         end
 

@@ -73,8 +73,8 @@ module Chiasmus
           # Load persisted templates from the store, then overlay starters
           persisted = store.load_all
           templates = Hash(String, SkillTemplate).new
-          persisted.each { |t| templates[t.name] = t }
-          STARTER_TEMPLATES.each { |t| templates[t.name] = t }
+          persisted.each { |template| templates[template.name] = template }
+          STARTER_TEMPLATES.each { |template| templates[template.name] = template }
 
           metadata = Library.load_persisted_metadata(metadata_path)
           templates.each_key do |name|
@@ -108,7 +108,7 @@ module Chiasmus
         return Hash(String, SkillMetadata).new if raw.strip.empty?
 
         Array(SkillMetadata).from_json(raw)
-          .each_with_object(Hash(String, SkillMetadata).new) { |m, acc| acc[m.name] = m }
+          .each_with_object(Hash(String, SkillMetadata).new) { |metadata, accumulator| accumulator[metadata.name] = metadata }
       rescue JSON::ParseException
         Hash(String, SkillMetadata).new
       end
@@ -309,7 +309,7 @@ module Chiasmus
       def save_templates : Nil
         templates = @mutex.synchronize do
           starter_names = starter_template_names
-          @templates.values.reject { |t| starter_names.includes?(t.name) }
+          @templates.values.reject { |template| starter_names.includes?(template.name) }
         end
         @store.save(templates)
       rescue File::Error

@@ -216,7 +216,7 @@ module Chiasmus
             scope: scope,
             name: filtered,
             file: file,
-            span: def_node.try { |n| Graph::Span.from_node(n) },
+            span: def_node.try { |definition_node| Graph::Span.from_node(definition_node) },
           )
         end
       end
@@ -290,7 +290,7 @@ module Chiasmus
             scope: scope,
             name: filtered,
             file: file,
-            span: def_node.try { |n| Graph::Span.from_node(n) },
+            span: def_node.try { |definition_node| Graph::Span.from_node(definition_node) },
           )
         end
       end

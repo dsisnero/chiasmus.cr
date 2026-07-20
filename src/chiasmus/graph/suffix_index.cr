@@ -44,8 +44,8 @@ module Chiasmus
         lower = Hash(String, String).new
         known = Set(String).new
 
-        file_paths.each do |fp|
-          rel = compute_relative(repo_path, fp)
+        file_paths.each do |file_path|
+          rel = compute_relative(repo_path, file_path)
           next if rel.empty? || rel.starts_with?("..")
 
           module_qn = rel
@@ -100,7 +100,7 @@ module Chiasmus
         cleaned_import = normalize_rel(import_path)
           .sub(STRIP_EXT_RE, "")
           .sub(/^\.\/+/, "")
-        import_parts = cleaned_import.split('/').reject { |p| p.empty? || p == "." || p == ".." }
+        import_parts = cleaned_import.split('/').reject { |part| part.empty? || part == "." || part == ".." }
         candidates << import_parts unless import_parts.empty?
 
         candidates.each do |parts|

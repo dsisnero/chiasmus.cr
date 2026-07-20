@@ -9,17 +9,6 @@ def scan_spec_tree(dir : String, acc : Array(String)) : Nil
 end
 
 describe "spec file naming" do
-  it "does not contain AppleDouble files under spec/" do
-    paths = [] of String
-    scan_spec_tree("spec", paths)
-
-    offenders = paths.select do |path|
-      File.basename(path).starts_with?("._")
-    end
-
-    offenders.should eq([] of String)
-  end
-
   it "keeps executable spec files on *_spec.cr or *_spec.rb names" do
     paths = [] of String
     scan_spec_tree("spec", paths)

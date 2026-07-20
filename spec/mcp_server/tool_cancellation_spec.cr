@@ -19,11 +19,8 @@ describe "Chiasmus MCP tool cancellation" do
       end
 
       with_env({
-        "CHIASMUS_EMBED_PROVIDER" => "ollama",
-        "CHIASMUS_EMBED_MODEL"    => nil,
-        "CHIASMUS_EMBED_URL"      => nil,
-        "OPENAI_API_KEY"          => nil,
-        "DEEPSEEK_API_KEY"        => nil,
+        "OPENAI_API_KEY"   => nil,
+        "DEEPSEEK_API_KEY" => nil,
       }) do
         server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
         transport = server.build_mcp_transport
@@ -35,10 +32,10 @@ describe "Chiasmus MCP tool cancellation" do
 
         begin
           request = MCP::Protocol::CallToolRequest.new(
-            name: "chiasmus_search",
+            name: "chiasmus_graph",
             arguments: {
-              "query" => JSON::Any.new("find function"),
-              "files" => JSON.parse([path].to_json),
+              "analysis" => JSON::Any.new("summary"),
+              "files"    => JSON.parse([path].to_json),
             }
           )
 

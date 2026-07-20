@@ -52,20 +52,20 @@ module Chiasmus
           @value.as_a.map(&.as_s)
         when "string_hash"
           hash = Hash(String, String).new
-          @value.as_h.each { |k, v| hash[k] = v.as_s }
+          @value.as_h.each { |key, value| hash[key] = value.as_s }
           hash
         when "bool_hash"
           hash = Hash(String, Bool).new
-          @value.as_h.each { |k, v| hash[k] = v.as_bool }
+          @value.as_h.each { |key, value| hash[key] = value.as_bool }
           hash
         when "int_hash"
           hash = Hash(String, Int32).new
-          @value.as_h.each { |k, v| hash[k] = v.as_i }
+          @value.as_h.each { |key, value| hash[key] = value.as_i }
           hash
         when "array_array_hash"
           hash = Hash(String, Array(Array(String))).new
-          @value.as_h.each do |k, v|
-            hash[k] = v.as_a.map do |inner|
+          @value.as_h.each do |key, value|
+            hash[key] = value.as_a.map do |inner|
               inner.as_a.map(&.as_s)
             end
           end
@@ -286,19 +286,19 @@ module Chiasmus
         when AnalysisType::Diff
           handle_diff(graph, request.against, snapshot_cache_dir, repo_key)
         when AnalysisType::LayerViolation
-          LayerViolation.find(graph).map { |lv| {
-            "caller" => lv.caller, "callee" => lv.callee,
-            "caller_layer" => lv.caller_layer, "callee_layer" => lv.callee_layer,
+          LayerViolation.find(graph).map { |violation| {
+            "caller" => violation.caller, "callee" => violation.callee,
+            "caller_layer" => violation.caller_layer, "callee_layer" => violation.callee_layer,
           } }.to_json
         when AnalysisType::Hubs
-          Insights.detect_hubs(graph).map { |h| {"name" => h.name, "degree" => h.degree.to_s} }.to_json
+          Insights.detect_hubs(graph).map { |hub| {"name" => hub.name, "degree" => hub.degree.to_s} }.to_json
         when AnalysisType::Bridges
-          Insights.detect_bridges(graph).map { |b| {"name" => b.name, "score" => b.score.to_s} }.to_json
+          Insights.detect_bridges(graph).map { |bridge| {"name" => bridge.name, "score" => bridge.score.to_s} }.to_json
         when AnalysisType::Surprises
-          Insights.detect_surprises(graph).map { |s| {"source" => s.source, "target" => s.target, "score" => s.score, "reasons" => s.reasons.join(",")} }.to_json
+          Insights.detect_surprises(graph).map { |surprise| {"source" => surprise.source, "target" => surprise.target, "score" => surprise.score, "reasons" => surprise.reasons.join(",")} }.to_json
         when AnalysisType::Community
-          CommunityDetection.detect(graph).map { |c| {
-            "id" => c.id, "members" => c.members, "cohesion" => c.cohesion,
+          CommunityDetection.detect(graph).map { |community| {
+            "id" => community.id, "members" => community.members, "cohesion" => community.cohesion,
           } }.to_json
         when AnalysisType::EntryPoints
           EntryPoints.detect(graph)
@@ -318,8 +318,8 @@ module Chiasmus
         {
           "added_nodes"     => diff_result.added_nodes,
           "removed_nodes"   => diff_result.removed_nodes,
-          "added_edges"     => diff_result.added_edges.map { |e| {"source" => e.source, "target" => e.target} },
-          "removed_edges"   => diff_result.removed_edges.map { |e| {"source" => e.source, "target" => e.target} },
+          "added_edges"     => diff_result.added_edges.map { |edge| {"source" => edge.source, "target" => edge.target} },
+          "removed_edges"   => diff_result.removed_edges.map { |edge| {"source" => edge.source, "target" => edge.target} },
           "added_imports"   => diff_result.added_imports.size,
           "removed_imports" => diff_result.removed_imports.size,
           "added_exports"   => diff_result.added_exports.size,

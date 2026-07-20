@@ -28,8 +28,8 @@ module Chiasmus
             files: plan.files,
             focus: plan.focus,
             summary: plan.summary,
-            phases: plan.phases.map { |p| review_phase_to_json(p) },
-            suggested_templates: plan.suggested_templates.map { |t| suggested_template_to_json(t) },
+            phases: plan.phases.map { |phase| review_phase_to_json(phase) },
+            suggested_templates: plan.suggested_templates.map { |template| suggested_template_to_json(template) },
             reporting: review_reporting_to_json(plan.reporting)
           )
         end
@@ -48,19 +48,19 @@ module Chiasmus
           )
         end
 
-        private def suggested_template_to_json(t : Review::SuggestedTemplate) : Types::SuggestedTemplateJSON
+        private def suggested_template_to_json(template : Review::SuggestedTemplate) : Types::SuggestedTemplateJSON
           Types::SuggestedTemplateJSON.new(
-            template: t.template,
-            when: t.when,
-            workflow: t.workflow
+            template: template.template,
+            when: template.when,
+            workflow: template.workflow
           )
         end
 
-        private def review_reporting_to_json(r : Review::ReviewReporting) : Types::ReviewReportingJSON
+        private def review_reporting_to_json(reporting : Review::ReviewReporting) : Types::ReviewReportingJSON
           Types::ReviewReportingJSON.new(
-            format: r.format,
-            severity_levels: r.severity_levels,
-            instructions: r.instructions
+            format: reporting.format,
+            severity_levels: reporting.severity_levels,
+            instructions: reporting.instructions
           )
         end
 
@@ -99,7 +99,7 @@ module Chiasmus
               "focus"         => ToolSchemas::SchemaProperty.new("string", "Review focus: all, quick, architecture, security, correctness").to_json_schema,
               "entry_points"  => ToolSchemas::Common.entry_points_property.to_json_schema,
               "delta_against" => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against for PR-scoped review").to_json_schema,
-            }.transform_values { |v| JSON::Any.new(v) },
+            }.transform_values { |value| JSON::Any.new(value) },
             required: ["files"]
           ).to_mcp_input
         end

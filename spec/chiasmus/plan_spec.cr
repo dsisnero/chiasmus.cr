@@ -1052,41 +1052,41 @@ describe Chiasmus::Plan do
     helper.reachable_from_entry.should be_true
     orphan.reachable_from_entry.should be_false
   end
-  end
+end
 
-  it "normalizes semantic graphs only once when seeding a parity plan" do
-    semantic = Chiasmus::Graph::IR::SemanticGraph.new(
-      symbols: [
-        Chiasmus::Graph::IR::SymbolNode.new(
-          id: "src/app.ts::function::main",
-          name: "main",
-          qualified_name: "main",
-          owner_name: nil,
-          kind: SymbolKind::Function,
-          file: "src/app.ts",
-          span: Chiasmus::Graph::Span.line_range(1),
-        ),
-      ],
-      exports: [
-        Chiasmus::Graph::IR::ExportEdge.new(file: "src/app.ts", name: "main"),
-      ],
-    )
+it "normalizes semantic graphs only once when seeding a parity plan" do
+  semantic = Chiasmus::Graph::IR::SemanticGraph.new(
+    symbols: [
+      Chiasmus::Graph::IR::SymbolNode.new(
+        id: "src/app.ts::function::main",
+        name: "main",
+        qualified_name: "main",
+        owner_name: nil,
+        kind: SymbolKind::Function,
+        file: "src/app.ts",
+        span: Chiasmus::Graph::Span.line_range(1),
+      ),
+    ],
+    exports: [
+      Chiasmus::Graph::IR::ExportEdge.new(file: "src/app.ts", name: "main"),
+    ],
+  )
 
-    normalize_count = 0
-    begin
-      Chiasmus::Graph::IR.set_before_normalize_semantic_hook_for_test do
-        normalize_count += 1
-      end
-
-      seed = Chiasmus::Plan.seed_parity(semantic, ["main"], 10)
-      seed.should contain("# Seed Parity Plan")
-      normalize_count.should eq(1)
-    ensure
-      Chiasmus::Graph::IR.clear_before_normalize_semantic_hook_for_test
+  normalize_count = 0
+  begin
+    Chiasmus::Graph::IR.set_before_normalize_semantic_hook_for_test do
+      normalize_count += 1
     end
-  end
 
-  describe Chiasmus::Plan::CLI do
+    seed = Chiasmus::Plan.seed_parity(semantic, ["main"], 10)
+    seed.should contain("# Seed Parity Plan")
+    normalize_count.should eq(1)
+  ensure
+    Chiasmus::Graph::IR.clear_before_normalize_semantic_hook_for_test
+  end
+end
+
+describe Chiasmus::Plan::CLI do
   it "reads facts and emits ranked TSV output for planner modes" do
     dir = File.join(Dir.tempdir, "chiasmus-plan-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)

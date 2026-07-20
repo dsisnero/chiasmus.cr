@@ -60,7 +60,7 @@ module Chiasmus
             "EmbeddingCache.put_many: length mismatch — #{contents.size} contents vs #{vectors.size} vectors"
           )
         end
-        contents.zip(vectors) { |c, v| put(c, v) }
+        contents.zip(vectors) { |content, vector| put(content, vector) }
       end
 
       def partition_missing(contents : Array(String)) : PartitionResult

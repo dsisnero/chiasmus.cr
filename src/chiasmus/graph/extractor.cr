@@ -208,7 +208,7 @@ module Chiasmus
         source_file = SourceFile.new(path: file_path, content: content)
         graph = extract_single_file(source_file, parser)
 
-        if cache_dir && ((graph.files.try { |f| !f.empty? }) || !graph.defines.empty?)
+        if cache_dir && ((graph.files.try { |file_nodes| !file_nodes.empty? }) || !graph.defines.empty?)
           begin
             GraphCache.save_file_cache(
               [{path: file_path, content: content, graph: graph}],

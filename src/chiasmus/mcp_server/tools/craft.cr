@@ -35,8 +35,8 @@ module Chiasmus
             solver: args.solver,
             signature: args.signature,
             skeleton: args.skeleton,
-            slots: args.slots.map { |s| Skills::SlotDef.new(name: s.name, description: s.description, format: s.format) },
-            normalizations: args.normalizations.map { |n| Skills::Normalization.new(source: n.source, transform: n.transform) },
+            slots: args.slots.map { |slot| Skills::SlotDef.new(name: slot.name, description: slot.description, format: slot.format) },
+            normalizations: args.normalizations.map { |normalization| Skills::Normalization.new(source: normalization.source, transform: normalization.transform) },
             tips: args.tips,
             example: args.example,
             test: args.test

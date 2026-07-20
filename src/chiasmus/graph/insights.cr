@@ -34,7 +34,7 @@ module Chiasmus
       def detect_hubs(graph : CodeGraph, top_n : Int32 = DEFAULT_HUB_TOP_N) : Array(Hub)
         degree = GraphUtil.undirected_degree(graph)
 
-        hubs = degree.map { |name, d| Hub.new(name: name, degree: d) }
+        hubs = degree.map { |name, node_degree| Hub.new(name: name, degree: node_degree) }
         hubs.sort! { |a, b|
           cmp = b.degree <=> a.degree
           cmp == 0 ? a.name <=> b.name : cmp
@@ -55,18 +55,18 @@ module Chiasmus
         return [] of Bridge if nodes.empty?
 
         adj = Hash(String, Set(String)).new
-        nodes.each { |n| adj[n] = Set(String).new }
-        graph.calls.each do |c|
-          next if c.caller == c.callee
-          adj[c.caller] << c.callee
-          adj[c.callee] << c.caller
+        nodes.each { |node| adj[node] = Set(String).new }
+        graph.calls.each do |call|
+          next if call.caller == call.callee
+          adj[call.caller] << call.callee
+          adj[call.callee] << call.caller
         end
 
         n = nodes.size
         betweenness = Hash(String, Float64).new(0.0)
 
-        nodes.each do |s|
-          local_betweenness = brandes_bfs(s, nodes, adj, n)
+        nodes.each do |source_node|
+          local_betweenness = brandes_bfs(source_node, nodes, adj, n)
           local_betweenness.each { |k, v| betweenness[k] += v }
         end
 
@@ -93,7 +93,7 @@ module Chiasmus
         n : Int32,
       ) : Hash(String, Float64)
         stack = [] of String
-        pred = Hash(String, Array(String)).new { |h, k| h[k] = [] of String }
+        pred = Hash(String, Array(String)).new { |predecessors, node| predecessors[node] = [] of String }
         sigma = Hash(String, Int32).new(0)
         sigma[s] = 1
         dist = Hash(String, Int32).new(-1)
@@ -103,14 +103,14 @@ module Chiasmus
         while !queue.empty?
           v = queue.shift
           stack << v
-          adj[v].each do |w|
-            if dist[w] < 0
-              queue << w
-              dist[w] = dist[v] + 1
+          adj[v].each do |neighbor|
+            if dist[neighbor] < 0
+              queue << neighbor
+              dist[neighbor] = dist[v] + 1
             end
-            if dist[w] == dist[v] + 1
-              sigma[w] += sigma[v]
-              pred[w] << v
+            if dist[neighbor] == dist[v] + 1
+              sigma[neighbor] += sigma[v]
+              pred[neighbor] << v
             end
           end
         end
@@ -152,7 +152,7 @@ module Chiasmus
         degree = GraphUtil.undirected_degree(graph)
 
         node_to_community = Hash(String, Int32).new
-        comms.each { |c| c.members.each { |m| node_to_community[m] = c.id } }
+        comms.each { |community| community.members.each { |member| node_to_community[member] = community.id } }
 
         candidates = [] of SurprisingConnection
 

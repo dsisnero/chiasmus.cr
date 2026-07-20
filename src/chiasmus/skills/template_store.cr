@@ -28,7 +28,7 @@ module Chiasmus
       end
 
       def save(templates : Array(T)) : Nil
-        templates.each { |t| @templates[t.name] = t }
+        templates.each { |template| @templates[template.name] = template }
       end
 
       def delete(name : String) : Nil
@@ -62,12 +62,12 @@ module Chiasmus
 
       def delete(name : String) : Nil
         existing = load_all
-        filtered = existing.reject { |t| t.name == name }
+        filtered = existing.reject { |template| template.name == name }
         save(filtered)
       end
 
       def has?(name : String) : Bool
-        load_all.any? { |t| t.name == name }
+        load_all.any? { |template| template.name == name }
       end
     end
   end

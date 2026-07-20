@@ -13,29 +13,29 @@ module Chiasmus
 
       def detect(graph : CodeGraph) : Array(String)
         called = Set(String).new
-        graph.calls.each { |c| called << c.callee }
+        graph.calls.each { |call| called << call.callee }
 
         method_names = Set(String).new
         function_names = Set(String).new
-        graph.defines.each do |d|
-          if d.kind.method?
-            method_names << d.name
-          elsif d.kind.function?
-            function_names << d.name
+        graph.defines.each do |definition|
+          if definition.kind.method?
+            method_names << definition.name
+          elsif definition.kind.function?
+            function_names << definition.name
           end
         end
 
         exported_fns = graph.exports
           .map(&.name)
-          .reject { |n| method_names.includes?(n) }
+          .reject { |function_name| method_names.includes?(function_name) }
 
         if !exported_fns.empty?
-          zero_indegree = exported_fns.reject { |n| called.includes?(n) }
+          zero_indegree = exported_fns.reject { |function_name| called.includes?(function_name) }
           return zero_indegree.uniq!.sort! unless zero_indegree.empty?
           return exported_fns.uniq!.sort!
         end
 
-        roots = function_names.reject { |n| called.includes?(n) }
+        roots = function_names.reject { |function_name| called.includes?(function_name) }
         roots.to_a.uniq!.sort!
       end
     end

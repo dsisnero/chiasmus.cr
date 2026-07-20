@@ -484,7 +484,7 @@ module Chiasmus
         return
       end
 
-      grouped.keys.sort.each do |file|
+      grouped.keys.sort!.each do |file|
         members = ordered_reports_by_name(grouped[file])
         slices << Slice.new(
           slice_id: "cleanup:file:#{file}",
@@ -514,7 +514,7 @@ module Chiasmus
         return
       end
 
-      grouped.keys.sort.each do |file|
+      grouped.keys.sort!.each do |file|
         members = ordered_reports_by_name(grouped[file])
         slices << Slice.new(
           slice_id: "safe-parallel:file:#{file}",
@@ -1092,9 +1092,10 @@ module Chiasmus
     ) : String
       normalized = file.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
       vendor_src = parity_config.try(&.vendor_src).try(&.strip)
-      return normalized if vendor_src.nil? || vendor_src.not_nil!.empty?
+      return normalized unless vendor_src
+      return normalized if vendor_src.empty?
 
-      vendor_prefix = vendor_src.not_nil!.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
+      vendor_prefix = vendor_src.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
       return normalized unless normalized == vendor_prefix || normalized.starts_with?("#{vendor_prefix}/")
 
       suffix = normalized[vendor_prefix.size..]
@@ -1124,7 +1125,8 @@ module Chiasmus
       reachable_from_entry : Bool,
       exported : Bool,
     ) : Int32
-      return 0 if inventory_status.nil? || inventory_status.not_nil!.empty?
+      return 0 unless inventory_status
+      return 0 if inventory_status.empty?
 
       case inventory_status
       when "missing"
@@ -1149,12 +1151,12 @@ module Chiasmus
     ) : Int32
       return 0 unless parity_row
 
-      case parity_row.not_nil!.structural_status
+      case parity_row.structural_status
       when "structural_drift"
         return 0 unless reachable_from_entry
         exported ? 90 : 60
       when "structural_match"
-        parity_row.not_nil!.inventory_status == "ported" ? -10 : 0
+        parity_row.inventory_status == "ported" ? -10 : 0
       else
         0
       end

@@ -667,12 +667,12 @@ module Chiasmus
         normalized_simple = Naming.normalized_simple(normalized_symbol)
         normalized_owner = Naming.normalized_owner(normalized_symbol)
 
-        if qualified = candidates.find { |fact| fact.qualified_name && Naming.normalized_key(fact.qualified_name.not_nil!) == normalized_key }
+        if qualified = candidates.find { |fact| qualified_name = fact.qualified_name; qualified_name && Naming.normalized_key(qualified_name) == normalized_key }
           return StructuralSymbol.new(name: qualified.name, qualified_name: qualified.qualified_name)
         end
 
         if !normalized_owner.empty?
-          if owner_match = candidates.find { |fact| fact.qualified_name && Naming.normalized_simple(fact.qualified_name.not_nil!) == normalized_simple && Naming.normalized_owner(fact.qualified_name.not_nil!) == normalized_owner }
+          if owner_match = candidates.find { |fact| qualified_name = fact.qualified_name; qualified_name && Naming.normalized_simple(qualified_name) == normalized_simple && Naming.normalized_owner(qualified_name) == normalized_owner }
             return StructuralSymbol.new(name: owner_match.name, qualified_name: owner_match.qualified_name)
           end
         end
@@ -1482,7 +1482,7 @@ module Chiasmus
       private def strip_namespace_prefix(name : String, prefix : String?) : String
         return name if prefix.nil?
 
-        normalized_prefix = prefix.not_nil!.strip
+        normalized_prefix = prefix.strip
         return name if normalized_prefix.empty?
 
         variants = [normalized_prefix, normalized_prefix.gsub("::", ".")]
@@ -1507,7 +1507,7 @@ module Chiasmus
       private def normalized_path_prefix(path : String?) : String
         return "" unless path
 
-        normalize_path(path.not_nil!)
+        normalize_path(path)
       end
 
       private def path_matches_prefix?(path : String, prefix : String) : Bool
@@ -1830,9 +1830,10 @@ module Chiasmus
       private def canonical_source_file(file : String, parity_config : Utils::Config::RepoParityConfig?, root_dir : String) : String
         normalized = file.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
         vendor_src = parity_config.try(&.vendor_src).try(&.strip)
-        return normalized if vendor_src.nil? || vendor_src.not_nil!.empty?
+        return normalized unless vendor_src
+        return normalized if vendor_src.empty?
 
-        vendor_prefix = vendor_src.not_nil!.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
+        vendor_prefix = vendor_src.gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{^\./}, "").sub(%r{/$}, "")
         repo_prefix = File.expand_path(root_dir).gsub('\\', '/').gsub(%r{/+}, "/").sub(%r{/$}, "")
         if normalized == repo_prefix || normalized.starts_with?("#{repo_prefix}/")
           normalized = normalized[repo_prefix.size..]

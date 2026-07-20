@@ -228,7 +228,7 @@ module Chiasmus
         all = @library.list
         return nil if all.empty?
 
-        texts = all.map { |s| @library.get_template_search_text(s.template) }
+        texts = all.map { |skill| @library.get_template_search_text(skill.template) }
         vectors = embedding.call([problem] + texts)
 
         query_vec = vectors[0]
@@ -243,7 +243,7 @@ module Chiasmus
           t_norm = l2_norm(t_vec)
           next if t_norm == 0.0
           dot = 0.0
-          query_vec.each_with_index { |qv, j| dot += t_vec[j] * qv }
+          query_vec.each_with_index { |query_value, index| dot += t_vec[index] * query_value }
           score = dot / (q_norm * t_norm)
           if score > best_score
             best_score = score
@@ -259,7 +259,7 @@ module Chiasmus
 
       private def l2_norm(v : Array(Float64)) : Float64
         sum = 0.0
-        v.each { |x| sum += x * x }
+        v.each { |value| sum += value * value }
         Math.sqrt(sum)
       end
 
@@ -277,7 +277,7 @@ module Chiasmus
 
         tips_section = if tips = template.tips
                          if !tips.empty?
-                           "\n⚠ TIPS:\n" + tips.map { |t| "  #{t}" }.join("\n")
+                           "\n⚠ TIPS:\n" + tips.map { |tip| "  #{tip}" }.join("\n")
                          else
                            ""
                          end
@@ -382,11 +382,11 @@ module Chiasmus
           program = spec
           query = "true."
 
-          (lines.size - 1).downto(0) do |i|
-            trimmed = lines[i].strip
+          (lines.size - 1).downto(0) do |line_index|
+            trimmed = lines[line_index].strip
             if trimmed.starts_with?("?-")
               query = trimmed.lchop("?-").strip
-              program = lines[0...i].join("\n").strip
+              program = lines[0...line_index].join("\n").strip
               break
             end
           end

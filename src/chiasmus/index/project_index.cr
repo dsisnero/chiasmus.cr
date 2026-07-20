@@ -302,12 +302,12 @@ module Chiasmus
         files = [] of Graph::FileNode
         type_info = [] of Graph::FileTypeInfo
 
-        definitions_by_name = Hash(String, Array(Graph::DefinesFact)).new { |h, k| h[k] = [] of Graph::DefinesFact }
-        definitions_by_file = Hash(String, Array(Graph::DefinesFact)).new { |h, k| h[k] = [] of Graph::DefinesFact }
-        callers_by_callee = Hash(String, Array(Graph::CallsFact)).new { |h, k| h[k] = [] of Graph::CallsFact }
-        callees_by_caller = Hash(String, Array(Graph::CallsFact)).new { |h, k| h[k] = [] of Graph::CallsFact }
-        imports_by_file = Hash(String, Array(Graph::ImportsFact)).new { |h, k| h[k] = [] of Graph::ImportsFact }
-        exports_by_file = Hash(String, Set(String)).new { |h, k| h[k] = Set(String).new }
+        definitions_by_name = Hash(String, Array(Graph::DefinesFact)).new { |index, name| index[name] = [] of Graph::DefinesFact }
+        definitions_by_file = Hash(String, Array(Graph::DefinesFact)).new { |index, path| index[path] = [] of Graph::DefinesFact }
+        callers_by_callee = Hash(String, Array(Graph::CallsFact)).new { |index, callee| index[callee] = [] of Graph::CallsFact }
+        callees_by_caller = Hash(String, Array(Graph::CallsFact)).new { |index, caller| index[caller] = [] of Graph::CallsFact }
+        imports_by_file = Hash(String, Array(Graph::ImportsFact)).new { |index, path| index[path] = [] of Graph::ImportsFact }
+        exports_by_file = Hash(String, Set(String)).new { |index, path| index[path] = Set(String).new }
         files_by_path = {} of String => Graph::FileNode
         fingerprints = {} of String => FileFingerprint
 

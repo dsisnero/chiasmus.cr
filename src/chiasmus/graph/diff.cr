@@ -26,10 +26,10 @@ module Chiasmus
 
       private def collect_nodes(graph : CodeGraph) : Set(String)
         nodes = Set(String).new
-        graph.defines.each { |d| nodes << d.name }
-        graph.calls.each do |c|
-          nodes << c.caller
-          nodes << c.callee
+        graph.defines.each { |definition| nodes << definition.name }
+        graph.calls.each do |call|
+          nodes << call.caller
+          nodes << call.callee
         end
         nodes
       end
@@ -48,7 +48,7 @@ module Chiasmus
 
       private def collect_edge_keys(graph : CodeGraph) : Set(String)
         set = Set(String).new
-        graph.calls.each { |c| set << edge_key(c.caller, c.callee) }
+        graph.calls.each { |call| set << edge_key(call.caller, call.callee) }
         set
       end
 
@@ -95,8 +95,8 @@ module Chiasmus
         before_nodes = collect_nodes(before)
         after_nodes = collect_nodes(after)
 
-        added_nodes = after_nodes.reject { |n| before_nodes.includes?(n) }.to_a.sort!
-        removed_nodes = before_nodes.reject { |n| after_nodes.includes?(n) }.to_a.sort!
+        added_nodes = after_nodes.reject { |node| before_nodes.includes?(node) }.to_a.sort!
+        removed_nodes = before_nodes.reject { |node| after_nodes.includes?(node) }.to_a.sort!
 
         before_edges = collect_edge_keys(before)
         after_edges = collect_edge_keys(after)

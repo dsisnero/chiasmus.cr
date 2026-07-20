@@ -165,7 +165,7 @@ module Chiasmus
           next unless caller_file
 
           {caller_file, caller_qn, call.callee_qn || call.callee}
-        end.uniq
+        end.uniq!
 
         scoped_calls.empty? ? nil : scoped_calls
       end
@@ -223,7 +223,11 @@ module Chiasmus
         graph : IR::SemanticGraph,
         entry_point_files : Array(Tuple(String, String)),
       ) : Array(Tuple(String, String, String))
-        return graph.scoped_calls.map { |edge| {edge.file, edge.caller, edge.callee} }.uniq if entry_point_files.empty?
+        if entry_point_files.empty?
+          scoped = graph.scoped_calls.map { |edge| {edge.file, edge.caller, edge.callee} }
+          scoped.uniq!
+          return scoped
+        end
 
         index = IR::ScopedSymbolIndex.new(graph.symbols)
         by_caller = Hash(Tuple(String, String), Array(IR::ScopedCallEdge)).new do |hash, key|
@@ -258,10 +262,11 @@ module Chiasmus
           end
         end
 
-        graph.scoped_calls
+        resolved = graph.scoped_calls
           .select { |edge| reachable.includes?({edge.file, edge.caller}) }
           .map { |edge| {edge.file, edge.caller, edge.callee} }
-          .uniq
+        resolved.uniq!
+        resolved
       end
 
       private def resolve_reachable_scoped_callers(

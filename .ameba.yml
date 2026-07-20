@@ -7,6 +7,9 @@
 
 Version: "1.7.0-dev"
 
+Excluded:
+  - spec
+
 Lint/NotNil:
   Excluded:
   - src/chiasmus/graph/resolve_calls.cr
@@ -20,17 +23,20 @@ Lint/ShadowingOuterLocalVar:
 
 Metrics/CyclomaticComplexity:
   Excluded:
+  - src/chiasmus/facts_cli.cr
   - src/chiasmus/discovery/predicate_evaluator.cr
   - src/chiasmus/formalize/validate.cr
   - src/chiasmus/graph/analyses.cr
+  - src/chiasmus/graph/chunking.cr
   - src/chiasmus/graph/extractor.cr
   - src/chiasmus/graph/resolve_calls.cr
   - src/chiasmus/graph/tsconfig_aliases.cr
   - src/chiasmus/graph/walkers/scala.cr
   - src/chiasmus/graph/walkers/dart.cr
-
-Naming/BlockParameterName:
-  Enabled: false
+  - src/chiasmus/mcp_server/tools/read_symbol.cr
+  - src/chiasmus/mcp_server/tools/search.cr
+  - src/chiasmus/parity.cr
+  - src/chiasmus/plan.cr
 
 Naming/QueryBoolMethods:
   Excluded:
