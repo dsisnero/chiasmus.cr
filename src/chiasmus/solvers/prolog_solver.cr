@@ -1,6 +1,10 @@
 require "./types"
 require "./session"
 require "crolog"
+require "tracing"
+{% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
+  require "fiber/execution_context"
+{% end %}
 
 module Chiasmus
   module Solvers
@@ -12,7 +16,13 @@ module Chiasmus
       @session : SolverSession?
 
       private def ensure_session : SolverSession
-        @session ||= SolverSession.create("prolog")
+        @session ||= begin
+          PrologRuntime.acquire
+          SolverSession.create("prolog")
+        rescue ex
+          PrologRuntime.release
+          raise ex
+        end
       end
 
       def type : SolverType
@@ -26,7 +36,19 @@ module Chiasmus
       end
 
       def solve(program : String, query : String, explain : Bool = false) : SolverResult
-        ensure_session.solve(PrologSolverInput.new(program: program, query: query, explain: explain))
+        Tracing.info(
+          "chiasmus.prolog.solve.enqueue",
+          program_bytes: program.bytesize,
+          query_bytes: query.bytesize,
+          explain: explain
+        )
+        result = ensure_session.solve(PrologSolverInput.new(program: program, query: query, explain: explain))
+        Tracing.info(
+          "chiasmus.prolog.solve.complete",
+          status: result.status,
+          explain: explain
+        )
+        result
       end
 
       def solve_async(program : String, query : String, explain : Bool = false) : Channel(SolverResult)
@@ -34,23 +56,31 @@ module Chiasmus
       end
 
       def dispose : Nil
-        @session.try(&.dispose)
+        session = @session
+        return unless session
+
+        session.dispose
         @session = nil
+        PrologRuntime.release
       end
     end
 
     class PrologRuntime
-      MAX_ANSWERS       = PrologSolver::MAX_ANSWERS
-      MAX_INFERENCES    = PrologSolver::MAX_INFERENCES
-      MAX_TRACE_ENTRIES = PrologSolver::MAX_TRACE_ENTRIES
+      MAX_ANSWERS          = PrologSolver::MAX_ANSWERS
+      MAX_INFERENCES       = PrologSolver::MAX_INFERENCES
+      MAX_TRACE_ENTRIES    = PrologSolver::MAX_TRACE_ENTRIES
+      GOAL_TIMEOUT_SECONDS = 30
 
       @@module_counter = Atomic(Int64).new(0_i64)
       @@shared : PrologRuntime?
       @@shared_lock = Mutex.new
+      @@active_clients = 0
+      @@active_clients_lock = Mutex.new
 
-      # All PL_* calls must originate from the same C stack or SWI-Prolog
-      # raises stack_avail___LD assertions.  We use a single dedicated worker
-      # fiber for the entire process lifetime.
+      # All PL_* calls must originate from one stable execution thread or
+      # SWI-Prolog raises stack_avail___LD assertions. On Crystal 1.21+ the
+      # scheduler may resume a normal fiber on another thread, so we run the
+      # shared worker loop inside an isolated execution context.
       record SolveRequest,
         program : String,
         query : String,
@@ -58,7 +88,31 @@ module Chiasmus
         response : Channel(SolverResult)
 
       @@worker_channel : Channel(SolveRequest)?
+      @@worker_done : Channel(Bool)?
+      {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
+        @@worker_context : Fiber::ExecutionContext::Isolated?
+      {% end %}
       @@worker_channel_lock = Mutex.new
+
+      def self.acquire : Nil
+        @@active_clients_lock.synchronize do
+          @@active_clients += 1
+        end
+
+        Tracing.info("chiasmus.prolog.runtime.acquire", active_clients: @@active_clients)
+        shared
+      end
+
+      def self.release : Nil
+        active_clients = @@active_clients_lock.synchronize do
+          if @@active_clients > 0
+            @@active_clients -= 1
+          end
+          @@active_clients
+        end
+
+        Tracing.info("chiasmus.prolog.runtime.release", active_clients: active_clients)
+      end
 
       # Thread-safe shared PrologRuntime singleton.
       def self.shared : PrologRuntime
@@ -69,6 +123,35 @@ module Chiasmus
 
       # Reset the shared instance (for tests).
       def self.reset_shared : Nil
+        @@active_clients_lock.synchronize { @@active_clients = 0 }
+        shutdown
+      end
+
+      def self.shutdown : Nil
+        Tracing.info("chiasmus.prolog.runtime.shutdown")
+        chan = nil.as(Channel(SolveRequest)?)
+        done = nil.as(Channel(Bool)?)
+        {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
+          context = nil.as(Fiber::ExecutionContext::Isolated?)
+        {% end %}
+        @@worker_channel_lock.synchronize do
+          channel = @@worker_channel
+          worker_done = @@worker_done
+          @@worker_channel = nil
+          @@worker_done = nil
+          chan = channel
+          done = worker_done
+          {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
+            context = @@worker_context
+            @@worker_context = nil
+          {% end %}
+        end
+        chan.try(&.close)
+        done.try(&.receive)
+        {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
+          context.try(&.wait)
+        {% end %}
+
         @@shared_lock.synchronize { @@shared = nil }
       end
 
@@ -76,31 +159,65 @@ module Chiasmus
         ensure_worker
       end
 
-      # Start the worker fiber if not already running.
+      # Start the shared worker loop if not already running.
       private def ensure_worker : Nil
         @@worker_channel_lock.synchronize do
           return unless @@worker_channel.nil?
 
           chan = Channel(SolveRequest).new(32)
+          done = Channel(Bool).new(1)
+          startup = Channel(Exception?).new(1)
+          {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
+            context = Fiber::ExecutionContext::Isolated.new("chiasmus-prolog-worker") do
+              run_worker_loop(chan, startup, done)
+            end
+          {% else %}
+            context = nil
+            spawn(name: "chiasmus-prolog-worker") do
+              run_worker_loop(chan, startup, done)
+            end
+          {% end %}
+
+          if ex = startup.receive
+            {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
+              context.wait
+            {% end %}
+            raise ex
+          end
+
           @@worker_channel = chan
+          @@worker_done = done
+          {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
+            @@worker_context = context
+          {% end %}
+        end
+      end
 
-          spawn(name: "chiasmus-prolog-worker") do
-            # Initialize SWI-Prolog on this fiber's stack.
-            # Every PL_* call will now come from this same stack.
-            Crolog.init_with_argv("chiasmus", "--quiet")
+      private def run_worker_loop(
+        chan : Channel(SolveRequest),
+        startup : Channel(Exception?),
+        done : Channel(Bool),
+      ) : Nil
+        begin
+          # Initialize SWI-Prolog on this worker context's owned thread.
+          Crolog.init_with_argv("chiasmus", "--quiet")
+          startup.send(nil)
 
-            loop do
-              request = chan.receive?
-              break unless request
+          loop do
+            request = chan.receive?
+            break unless request
 
-              begin
-                result = solve_sync(request.program, request.query, request.explain)
-                request.response.send(result)
-              rescue ex
-                request.response.send(ErrorResult.new(ex.message || ex.class.name))
-              end
+            begin
+              result = solve_sync(request.program, request.query, request.explain)
+              request.response.send(result)
+            rescue ex
+              request.response.send(ErrorResult.new(ex.message || ex.class.name))
             end
           end
+        rescue ex
+          startup.send(ex)
+        ensure
+          done.send(true)
         end
       end
 
@@ -114,6 +231,7 @@ module Chiasmus
       end
 
       private def solve_sync(program : String, query : String, explain : Bool) : SolverResult
+        Tracing.info("chiasmus.prolog.solve_sync.start", explain: explain)
         source = explain ? instrument_for_tracing(program) : program
         temp_file = write_program(source)
         temp_path = temp_file.path
@@ -121,6 +239,7 @@ module Chiasmus
 
         consult_result = call_goal("load_files(#{quote_atom(temp_path)}, [module(#{module_name}), silent(true)])")
         return ErrorResult.new(consult_result) if consult_result
+        Tracing.info("chiasmus.prolog.solve_sync.consulted", explain: explain)
 
         variables = extract_query_variables(query)
         results = run_findall(module_name, query, variables)
@@ -129,7 +248,17 @@ module Chiasmus
         end
 
         answers = build_answers(results.rows, variables)
+        Tracing.info(
+          "chiasmus.prolog.solve_sync.answers",
+          explain: explain,
+          answer_count: answers.size
+        )
         trace = explain ? collect_trace(module_name) : nil
+        Tracing.info(
+          "chiasmus.prolog.solve_sync.trace",
+          explain: explain,
+          trace_entries: trace.try(&.size) || 0
+        )
         SuccessResult.new(answers, trace)
       ensure
         if temp_path
@@ -156,10 +285,16 @@ module Chiasmus
       private def run_findall(module_name : String, query : String, variables : Array(String)) : QueryRowsResult
         goal = clean_goal(query)
         projection = variables.empty? ? "[]" : "[#{variables.join(", ")}]"
-        wrapper = "findall(#{projection}, (#{module_name}:(#{goal})), Results)"
+        wrapper = "call_with_time_limit(#{GOAL_TIMEOUT_SECONDS}, findall(#{projection}, (#{module_name}:(#{goal})), Results))"
+        Tracing.info(
+          "chiasmus.prolog.run_findall.start",
+          goal_bytes: goal.bytesize,
+          variable_count: variables.size
+        )
         term = parse_term(wrapper)
         return QueryRowsResult.new([] of Array(String), last_exception) unless term
         parsed_term = term
+        Tracing.info("chiasmus.prolog.run_findall.parsed")
 
         call_predicate = LibProlog.predicate("call", 1, nil)
         args = LibProlog.new_term_refs(1)
@@ -177,9 +312,17 @@ module Chiasmus
           LibProlog.close_query(query_id)
           return QueryRowsResult.new([] of Array(String), error)
         end
+        Tracing.info("chiasmus.prolog.run_findall.solved")
+
+        inner = LibProlog.new_term_ref
+        unless LibProlog.get_arg(2, parsed_term, inner) != 0
+          error = exception_message(query_id) || "failed to extract timed query"
+          LibProlog.close_query(query_id)
+          return QueryRowsResult.new([] of Array(String), error)
+        end
 
         results = LibProlog.new_term_ref
-        unless LibProlog.get_arg(3, parsed_term, results) != 0
+        unless LibProlog.get_arg(3, inner, results) != 0
           error = exception_message(query_id) || "failed to extract query results"
           LibProlog.close_query(query_id)
           return QueryRowsResult.new([] of Array(String), error)
@@ -187,6 +330,7 @@ module Chiasmus
 
         rows = parse_result_rows(results)
         LibProlog.close_query(query_id)
+        Tracing.info("chiasmus.prolog.run_findall.complete", row_count: rows.size)
 
         QueryRowsResult.new(rows)
       end
@@ -234,9 +378,12 @@ module Chiasmus
       end
 
       private def call_goal(goal : String) : String?
-        term = parse_term(goal)
+        timed_goal = "call_with_time_limit(#{GOAL_TIMEOUT_SECONDS}, (#{goal}))"
+        Tracing.info("chiasmus.prolog.call_goal.start", goal_bytes: goal.bytesize)
+        term = parse_term(timed_goal)
         return last_exception unless term
         parsed_term = term
+        Tracing.info("chiasmus.prolog.call_goal.parsed")
 
         call_predicate = LibProlog.predicate("call", 1, nil)
         args = LibProlog.new_term_refs(1)
@@ -252,6 +399,7 @@ module Chiasmus
         success = LibProlog.next_solution(query_id) != 0
         error = exception_message(query_id)
         LibProlog.close_query(query_id)
+        Tracing.info("chiasmus.prolog.call_goal.complete", success: success, has_error: !error.nil?)
 
         return error if error
         success ? nil : "goal failed: #{goal}"

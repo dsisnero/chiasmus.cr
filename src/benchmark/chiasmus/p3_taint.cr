@@ -10,35 +10,38 @@ module Benchmark
                            sinks: Array(String),
                          )) : TaintResult
       solver = ::Chiasmus::Solvers::PrologSolver.new
+      begin
+        edge_facts = input[:edges].map { |e| "edge(#{e[:from]}, #{e[:to]})." }.join("\n")
 
-      edge_facts = input[:edges].map { |e| "edge(#{e[:from]}, #{e[:to]})." }.join("\n")
-
-      program = <<-PROLOG
+        program = <<-PROLOG
 #{edge_facts}
 reaches(A, B) :- edge(A, B).
 reaches(A, B) :- edge(A, Mid), reaches(Mid, B).
 PROLOG
 
-      reachable = [] of {source: String, sink: String}
-      unreachable = [] of String
+        reachable = [] of {source: String, sink: String}
+        unreachable = [] of String
 
-      input[:sources].each do |source|
-        input[:sinks].each do |sink|
-          result = solver.solve(program, "reaches(#{source}, #{sink}).")
-          case result
-          when ::Chiasmus::Solvers::SuccessResult
-            if result.answers.size > 0
-              reachable << {source: source, sink: sink}
+        input[:sources].each do |source|
+          input[:sinks].each do |sink|
+            result = solver.solve(program, "reaches(#{source}, #{sink}).")
+            case result
+            when ::Chiasmus::Solvers::SuccessResult
+              if result.answers.size > 0
+                reachable << {source: source, sink: sink}
+              else
+                unreachable << sink
+              end
             else
               unreachable << sink
             end
-          else
-            unreachable << sink
           end
         end
-      end
 
-      TaintResult.new(reachable: reachable, unreachable: unreachable)
+        TaintResult.new(reachable: reachable, unreachable: unreachable)
+      ensure
+        solver.dispose
+      end
     end
   end
 end

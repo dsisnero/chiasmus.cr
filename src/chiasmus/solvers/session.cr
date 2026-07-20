@@ -24,6 +24,7 @@ module Chiasmus
 
       def initialize(@id : String, @solver : Solver)
         @channel = Channel(PrologRequest).new(4)
+        @worker_done = nil.as(Channel(Bool)?)
         @disposed = false
       end
 
@@ -46,17 +47,23 @@ module Chiasmus
       protected def start_worker : Nil
         chan = @channel || raise "Bug: channel not initialized"
         session_id = @id
+        done = Channel(Bool).new(1)
+        @worker_done = done
 
         spawn(name: "chiasmus-session-#{session_id}") do
-          loop do
-            request = chan.receive?
-            break unless request
-            begin
-              result = PrologRuntime.shared.solve(request.program, request.query, request.explain)
-              request.response.send(result)
-            rescue ex
-              request.response.send(ErrorResult.new(ex.message || ex.class.name))
+          begin
+            loop do
+              request = chan.receive?
+              break unless request
+              begin
+                result = PrologRuntime.shared.solve(request.program, request.query, request.explain)
+                request.response.send(result)
+              rescue ex
+                request.response.send(ErrorResult.new(ex.message || ex.class.name))
+              end
             end
+          ensure
+            done.send(true)
           end
         end
       end
@@ -120,6 +127,8 @@ module Chiasmus
         return if @disposed
         @disposed = true
         @channel.try(&.close)
+        @worker_done.try(&.receive)
+        @worker_done = nil
         @solver.dispose
       end
     end

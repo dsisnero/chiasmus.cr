@@ -1,3 +1,4 @@
+require "../../spec_helper"
 require "file_utils"
 
 def with_craft_library(&)
@@ -10,6 +11,12 @@ def with_craft_library(&)
     library.close
     FileUtils.rm_rf(dir)
   end
+end
+
+private def swipl_available_for_craft_spec? : Bool
+  Process.run("which", ["swipl"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+rescue
+  false
 end
 
 def valid_craft_input(**overrides)
@@ -178,6 +185,39 @@ describe Chiasmus::Skills do
         result.tested.should be_true
         result.test_result.should eq("success")
       end
+    end
+
+    it "emits tracing breadcrumbs for the prolog template test path" do
+      next pending("swipl not installed") unless swipl_available_for_craft_spec?
+
+      mock = Tracing::MockSubscriber.new
+
+      with_craft_library do |library, _dir|
+        Tracing::Dispatch.with_default(Tracing::Dispatch.new(mock)) do
+          result = Chiasmus::Skills.craft_template(valid_craft_input(
+            name: "traced-template",
+            solver: "prolog",
+            skeleton: "{{SLOT:facts}}\n{{SLOT:rules}}",
+            slots: [
+              Chiasmus::Skills::SlotDef.new(name: "facts", description: "Facts", format: "parent(tom, bob)."),
+              Chiasmus::Skills::SlotDef.new(name: "rules", description: "Rules", format: "ancestor(X,Y) :- parent(X,Y)."),
+            ],
+            example: "parent(tom, bob).\nparent(bob, ann).\n?- parent(tom, X).",
+            test: true
+          ), library)
+
+          result.created.should be_true
+          result.test_result.should eq("success")
+        end
+      end
+
+      span_names = mock.spans.map { |attrs, _| attrs.metadata.name }
+      event_names = mock.events.map(&.metadata.name)
+      span_names.should contain("chiasmus.skills.craft_template")
+      event_names.should contain("chiasmus.skills.template_test.start")
+      event_names.should contain("chiasmus.prolog.solve.enqueue")
+      event_names.should contain("chiasmus.prolog.solve.complete")
+      event_names.should contain("chiasmus.skills.template_test.dispose")
     end
 
     it "returns validation errors without creating the template" do

@@ -1,3 +1,5 @@
+require "tracing"
+
 module Chiasmus
   module Skills
     record CraftInput,
@@ -38,47 +40,54 @@ module Chiasmus
     end
 
     def self.craft_template(input : CraftInput, library : Library) : CraftResult
-      errors = validate_template(input, library)
-      return CraftResult.new(created: false, errors: errors) unless errors.empty?
-      solver_type = parse_solver(input.solver)
-      return CraftResult.new(created: false, errors: ["Unsupported solver: #{input.solver}"]) unless solver_type
+      Tracing.instrument(
+        "chiasmus.skills.craft_template",
+        template: input.name,
+        solver: input.solver,
+        test: input.test
+      ) do
+        errors = validate_template(input, library)
+        return CraftResult.new(created: false, errors: errors) unless errors.empty?
+        solver_type = parse_solver(input.solver)
+        return CraftResult.new(created: false, errors: ["Unsupported solver: #{input.solver}"]) unless solver_type
 
-      template = SkillTemplate.new(
-        name: input.name,
-        domain: input.domain,
-        solver: solver_type,
-        signature: input.signature,
-        skeleton: input.skeleton,
-        slots: input.slots,
-        normalizations: input.normalizations,
-        tips: input.tips,
-        example: input.example
-      )
+        template = SkillTemplate.new(
+          name: input.name,
+          domain: input.domain,
+          solver: solver_type,
+          signature: input.signature,
+          skeleton: input.skeleton,
+          slots: input.slots,
+          normalizations: input.normalizations,
+          tips: input.tips,
+          example: input.example
+        )
 
-      tested = false
-      test_result = nil.as(String?)
-      if input.test && (example = input.example)
-        tested = true
-        test_result = run_template_test(template.solver, example)
-      end
+        tested = false
+        test_result = nil.as(String?)
+        if input.test && (example = input.example)
+          tested = true
+          test_result = run_template_test(template.solver, example)
+        end
 
-      added = library.add_learned(template)
-      unless added
-        return CraftResult.new(
-          created: false,
-          errors: ["Failed to add template \"#{input.name}\" to library"]
+        added = library.add_learned(template)
+        unless added
+          return CraftResult.new(
+            created: false,
+            errors: ["Failed to add template \"#{input.name}\" to library"]
+          )
+        end
+
+        CraftResult.new(
+          created: true,
+          template: input.name,
+          domain: input.domain,
+          solver: input.solver,
+          slots: input.slots.size,
+          tested: tested,
+          test_result: test_result
         )
       end
-
-      CraftResult.new(
-        created: true,
-        template: input.name,
-        domain: input.domain,
-        solver: input.solver,
-        slots: input.slots.size,
-        tested: tested,
-        test_result: test_result
-      )
     end
 
     private def self.validate_required_fields(input : CraftInput, errors : Array(String)) : Nil
@@ -164,13 +173,32 @@ module Chiasmus
 
     private def self.run_template_test(solver_type : Solvers::SolverType, example : String) : String
       solver = Solvers::Factory.build(solver_type)
+      Tracing.info(
+        "chiasmus.skills.template_test.start",
+        solver: solver_type.to_s.downcase,
+        example_bytes: example.bytesize
+      )
       begin
         result = solver.solve(build_solver_input(solver_type, example))
+        Tracing.info(
+          "chiasmus.skills.template_test.finish",
+          solver: solver_type.to_s.downcase,
+          status: result.status
+        )
         result.status
       rescue ex
+        Tracing.error(
+          "chiasmus.skills.template_test.error",
+          solver: solver_type.to_s.downcase,
+          error: ex.class.name
+        )
         "error: #{ex.message || ex.class.name}"
       ensure
         solver.dispose
+        Tracing.info(
+          "chiasmus.skills.template_test.dispose",
+          solver: solver_type.to_s.downcase
+        )
       end
     end
 

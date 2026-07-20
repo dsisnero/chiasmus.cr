@@ -11,27 +11,31 @@ module Benchmark
                                 backend: Hash(String, NamedTuple(min: Int32, max: Int32)),
                               )) : ValidationGapResult
       solver = ::Chiasmus::Solvers::Z3Solver.new
-      gaps = [] of ValidationGap
+      begin
+        gaps = [] of ValidationGap
 
-      input[:frontend].each do |field, frontend_rule|
-        backend_rule = input[:backend][field]?
-        next unless backend_rule
+        input[:frontend].each do |field, frontend_rule|
+          backend_rule = input[:backend][field]?
+          next unless backend_rule
 
-        smtlib = build_gap_check(field, frontend_rule, backend_rule)
-        result = solver.solve(::Chiasmus::Solvers::Z3SolverInput.new(smtlib))
+          smtlib = build_gap_check(field, frontend_rule, backend_rule)
+          result = solver.solve(::Chiasmus::Solvers::Z3SolverInput.new(smtlib))
 
-        case result
-        when ::Chiasmus::Solvers::SatResult
-          value = result.model[field].to_i
-          gaps << ValidationGap.new(
-            field: field,
-            description: "Frontend accepts #{field}=#{value} but backend rejects it",
-            example: {field => value},
-          )
+          case result
+          when ::Chiasmus::Solvers::SatResult
+            value = result.model[field].to_i
+            gaps << ValidationGap.new(
+              field: field,
+              description: "Frontend accepts #{field}=#{value} but backend rejects it",
+              example: {field => value},
+            )
+          end
         end
-      end
 
-      ValidationGapResult.new(gaps: gaps)
+        ValidationGapResult.new(gaps: gaps)
+      ensure
+        solver.dispose
+      end
     end
 
     def self.build_gap_check(field : String, frontend : NamedTuple(min: Int32, max: Int32), backend : NamedTuple(min: Int32, max: Int32)) : String

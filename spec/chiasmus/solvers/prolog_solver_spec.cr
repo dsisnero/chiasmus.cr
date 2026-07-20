@@ -261,4 +261,24 @@ describe Chiasmus::Solvers::PrologSolver do
       result.as(Chiasmus::Solvers::SuccessResult).answers.size.should eq(Chiasmus::Solvers::PrologSolver::MAX_ANSWERS)
     end
   end
+
+  it "emits tracing around a prolog solve request lifecycle without per-solve shutdown" do
+    next pending("swipl not installed") unless swipl_available?
+
+    mock = Tracing::MockSubscriber.new
+
+    Tracing::Dispatch.with_default(Tracing::Dispatch.new(mock)) do
+      with_prolog_solver do |solver|
+        result = solver.solve("parent(tom, bob).", "parent(tom, X).")
+        result.status.should eq("success")
+      end
+    end
+
+    event_names = mock.events.map(&.metadata.name)
+    event_names.should contain("chiasmus.prolog.runtime.acquire")
+    event_names.should contain("chiasmus.prolog.solve.enqueue")
+    event_names.should contain("chiasmus.prolog.solve.complete")
+    event_names.should contain("chiasmus.prolog.runtime.release")
+    event_names.should_not contain("chiasmus.prolog.runtime.shutdown")
+  end
 end
