@@ -206,7 +206,7 @@ shards:
 
   tree-sitter-manager:
     git: https://github.com/dsisnero/tree-sitter-manager.git
-    version: 0.1.0+git.commit.2c1e4d8d9f1673022fdd87885c8b378ee5ba74b0
+    version: 0.1.0+git.commit.ae11811f2d820c6d7bceda2abb7ac5c5d4238f36
 
   tree_sitter:
     git: https://github.com/dsisnero/crystal-tree-sitter.git

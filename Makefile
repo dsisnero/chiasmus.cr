@@ -1,4 +1,4 @@
-.PHONY: help install-deps install update format lint test clean build build_release build-clis release dist setup-grammars warm-cache
+.PHONY: help install-deps install install-built install-with-build update format lint test clean build build_release build-clis release dist setup-grammars warm-cache
 
 # Default: show help.
 help:
@@ -20,7 +20,8 @@ help:
 	@echo "  setup-grammars     install tree-sitter grammars"
 	@echo ""
 	@echo "Install:"
-	@echo "  install            build release binaries and copy to ~/.local/bin"
+	@echo "  install            install bin/ artifacts; rebuild only when stale"
+	@echo "  install-with-build build release artifacts, then install them"
 	@echo ""
 	@echo "Other:"
 	@echo "  clean              remove bin/, .build/, .crystal-cache/, dist/"
@@ -45,41 +46,67 @@ test:
 SRC := $(shell find src -name "*.cr" -not -name "._*")
 SHARD_FILES := shard.yml shard.lock $(shell find lib -name "shard.yml" 2>/dev/null)
 BUILD_DIR := .build
+BUILD_INPUTS := $(SRC) $(SHARD_FILES) Makefile
+CLI_STAMPS := $(BUILD_DIR)/chiasmus-discover $(BUILD_DIR)/chiasmus-grammar $(BUILD_DIR)/chiasmus-parity $(BUILD_DIR)/chiasmus-plan $(BUILD_DIR)/chiasmus-complete $(BUILD_DIR)/chiasmus-facts
+INSTALL_FLAGS := --release
+INSTALL_ARTIFACTS := bin/chiasmus bin/chiasmus-agent bin/chiasmus-grammar bin/chiasmus-discover bin/chiasmus-facts
 
 build: $(BUILD_DIR)/chiasmus
-$(BUILD_DIR)/chiasmus: $(SRC) $(SHARD_FILES)
+$(BUILD_DIR)/chiasmus: $(BUILD_INPUTS)
 	@mkdir -p bin $(BUILD_DIR)
 	crystal build --release -o bin/chiasmus src/chiasmus_cli.cr
 	@touch $@
 
-build_release: $(BUILD_DIR)/chiasmus_release
-$(BUILD_DIR)/chiasmus_release: $(SRC) $(SHARD_FILES)
+build_release: release
+
+build-clis: $(CLI_STAMPS)
+
+$(BUILD_DIR)/chiasmus-discover: $(BUILD_INPUTS)
 	@mkdir -p bin $(BUILD_DIR)
-	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus src/chiasmus_cli.cr
+	crystal build --release -o bin/chiasmus-discover src/chiasmus_discover.cr
 	@touch $@
 
-build-clis:
-	mkdir -p bin
-	crystal build --release -o bin/chiasmus-discover src/chiasmus_discover.cr
+$(BUILD_DIR)/chiasmus-grammar: $(BUILD_INPUTS)
+	@mkdir -p bin $(BUILD_DIR)
 	crystal build --release -o bin/chiasmus-grammar src/chiasmus_grammar.cr
+	@touch $@
+
+
+$(BUILD_DIR)/chiasmus-parity: $(BUILD_INPUTS)
+	@mkdir -p bin $(BUILD_DIR)
 	# Build parity CLIs with execution contexts enabled so CHIASMUS_PARITY_PARALLEL
 	# can opt into true-thread worker pools for row matching and regex-side scans.
 	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-parity src/chiasmus_parity.cr
+	@touch $@
+
+$(BUILD_DIR)/chiasmus-plan: $(BUILD_INPUTS)
+	@mkdir -p bin $(BUILD_DIR)
 	crystal build --release -o bin/chiasmus-plan src/chiasmus_plan.cr
+	@touch $@
+
+$(BUILD_DIR)/chiasmus-complete: $(BUILD_INPUTS)
+	@mkdir -p bin $(BUILD_DIR)
 	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-complete src/chiasmus_complete.cr
+	@touch $@
+
+$(BUILD_DIR)/chiasmus-facts: $(BUILD_INPUTS)
+	@mkdir -p bin $(BUILD_DIR)
 	# chiasmus-facts is the graph engine headless; build it like the server
 	# (-Dpreview_mt -Dexecution_context) so extraction uses true-thread
 	# parallelism (parallel_cpu_enabled?) instead of fiber-only.
 	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-facts src/chiasmus_facts.cr
+	@touch $@
 
-release:
-	mkdir -p bin
+release: $(BUILD_DIR)/chiasmus_release
+$(BUILD_DIR)/chiasmus_release: $(BUILD_INPUTS)
+	@mkdir -p bin $(BUILD_DIR)
 	@if crystal build --release -Dpreview_mt -Dexecution_context --static -o bin/chiasmus src/chiasmus_cli.cr 2>/dev/null; then \
 		echo "Built static binary"; \
 	else \
 		echo "Static linking failed, building dynamic binary"; \
 		crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus src/chiasmus_cli.cr; \
 	fi
+	@touch $@
 
 # Create distribution package with grammars
 dist: release build-clis
@@ -160,16 +187,50 @@ $(BUILD_DIR)/chiasmus_warmed: $(BUILD_DIR)/chiasmus_release
 	@./scripts/warm_cache.cr
 	@touch $@
 
-# Install chiasmus binaries to ~/.local/bin for system-wide use
-install: release build-clis
+# Install artifacts use the same baseline flags as `shards build --release`.
+# Their Makefile prerequisite intentionally invalidates them when these flags
+# change, while fresh artifacts made by Shards are reused unchanged.
+bin/chiasmus: $(BUILD_INPUTS)
+	@mkdir -p bin
+	crystal build $(INSTALL_FLAGS) -o $@ src/chiasmus_cli.cr
+
+bin/chiasmus-agent: $(BUILD_INPUTS)
+	@mkdir -p bin
+	crystal build $(INSTALL_FLAGS) -o $@ src/chiasmus-agent.cr
+
+bin/chiasmus-grammar: $(BUILD_INPUTS)
+	@mkdir -p bin
+	crystal build $(INSTALL_FLAGS) -o $@ src/chiasmus_grammar.cr
+
+bin/chiasmus-discover: $(BUILD_INPUTS)
+	@mkdir -p bin
+	crystal build $(INSTALL_FLAGS) -o $@ src/chiasmus_discover.cr
+
+bin/chiasmus-facts: $(BUILD_INPUTS)
+	@mkdir -p bin
+	crystal build $(INSTALL_FLAGS) -o $@ src/chiasmus_facts.cr
+
+# Install existing chiasmus binaries to ~/.local/bin for system-wide use.
+# Rebuild only when a tracked input or the Makefile-defined compiler flags changed.
+install: $(INSTALL_ARTIFACTS) install-built
+
+install-built:
+	@test -x bin/chiasmus || (echo "Missing bin/chiasmus; build first or run 'make install-with-build'" && exit 1)
+	@test -x bin/chiasmus-agent || (echo "Missing bin/chiasmus-agent; build first or run 'make install-with-build'" && exit 1)
+	@test -x bin/chiasmus-grammar || (echo "Missing bin/chiasmus-grammar; build first or run 'make install-with-build'" && exit 1)
+	@test -x bin/chiasmus-discover || (echo "Missing bin/chiasmus-discover; build first or run 'make install-with-build'" && exit 1)
+	@test -x bin/chiasmus-facts || (echo "Missing bin/chiasmus-facts; build first or run 'make install-with-build'" && exit 1)
 	@mkdir -p $(HOME)/.local/bin
 	@echo "Installing chiasmus binaries to $(HOME)/.local/bin..."
 	cp bin/chiasmus $(HOME)/.local/bin/chiasmus
 	cp bin/chiasmus-grammar $(HOME)/.local/bin/chiasmus-grammar
 	cp bin/chiasmus-discover $(HOME)/.local/bin/chiasmus-discover
 	cp bin/chiasmus-facts $(HOME)/.local/bin/chiasmus-facts
-	cp bin/chiasmus-agent $(HOME)/.local/bin/chiasmus-agent 2>/dev/null; true
+	cp bin/chiasmus-agent $(HOME)/.local/bin/chiasmus-agent
 	@echo "Done. Ensure $(HOME)/.local/bin is on your PATH."
+
+install-with-build: release build-clis
+	$(MAKE) install
 
 clean:
 	rm -rf .crystal-cache
