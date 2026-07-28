@@ -1,6 +1,6 @@
 require "./discovery"
 require "./utils/bounded_work"
-require "./index/fast_find"
+require "./index/directory_walk"
 
 module Chiasmus
   module DiscoverCLI
@@ -116,17 +116,7 @@ module Chiasmus
       extensions = LANGUAGE_EXTENSIONS[language]? || [".#{language}"]
       paths = [] of String
 
-      config = FastFind::Config.new
-      config.ignore_hidden = true
-      config.follow_symlinks = false
-      config.max_depth = 50
-      walker = FastFind::Walker.new([dir], config)
-      queue = walker.walk
-      loop do
-        entry = queue.receive?
-        break if entry.nil?
-        next unless entry.file?
-        path = entry.path.to_s
+      Index::DirectoryWalk.files(dir, max_depth: 50).each do |path|
         paths << path if extensions.any? { |ext| path.ends_with?(ext) }
       end
 

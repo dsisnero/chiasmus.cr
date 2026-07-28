@@ -1,11 +1,11 @@
-require "./fast_find"
+require "./directory_walk"
 require "../graph/parser"
 
 module Chiasmus
   module Index
     # One source of file-inclusion truth for initial indexing and polling.
     # Git repositories include tracked plus untracked, non-ignored files;
-    # non-Git directories fall back to FastFind.
+    # non-Git directories fall back to dir-walk.
     module FileDiscovery
       extend self
       MAX_FILE_SIZE = 500_000_i64
@@ -39,16 +39,7 @@ module Chiasmus
       end
 
       private def walker_paths(root : String) : Array(String)
-        config = FastFind::Config.new
-        config.ignore_hidden = true
-        config.follow_symlinks = false
-
-        paths = [] of String
-        queue = FastFind::Walker.new([root], config).walk
-        while entry = queue.receive?
-          paths << entry.path.to_s if entry.file?
-        end
-        paths
+        DirectoryWalk.files(root)
       end
     end
   end

@@ -1,4 +1,5 @@
 require "../../spec_helper"
+require "file_utils"
 
 private def z3_available? : Bool
   Process.run("which", ["z3"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
@@ -6,7 +7,85 @@ rescue
   false
 end
 
+# A deterministic stand-in for `z3 -smt2 -in`.  Each `(reset)` ends one solver
+# request: requests containing HANG deliberately produce no response, while all
+# others emit the two sentinels and a minimal SAT response expected by Z3Solver.
+private def fake_z3_command : {String, String}
+  directory = File.join(Dir.tempdir, "chiasmus-fake-z3-#{Random::Secure.hex(8)}")
+  Dir.mkdir_p(directory)
+  command = File.join(directory, "z3")
+  File.write(command, <<-'SCRIPT')
+#!/bin/sh
+request=''
+while IFS= read -r line; do
+  request="$request
+$line"
+  case "$line" in
+    *'(reset)'*)
+      case "$request" in
+        *HANG*) sleep 10 ;;
+        *)
+          printf '%s\n' '<<<Z3_DONE>>>' 'sat' '(' ')' '<<<Z3_DONE>>>'
+          ;;
+      esac
+      request=''
+      ;;
+  esac
+done
+SCRIPT
+  File.chmod(command, 0o755)
+  {directory, command}
+end
+
 describe Chiasmus::Solvers::Z3Solver do
+  it "times out a hung request, resets its process, and recovers on the next request" do
+    directory, command = fake_z3_command
+    solver = Chiasmus::Solvers::Z3Solver.new(command: command, timeout: 250.milliseconds)
+
+    begin
+      started_at = Time.instant
+      timed_out = solver.solve(Chiasmus::Solvers::Z3SolverInput.new("; HANG"))
+
+      timed_out.should be_a(Chiasmus::Solvers::ErrorResult)
+      timed_out.as(Chiasmus::Solvers::ErrorResult).error.should match(/timed out/i)
+      (Time.instant - started_at).should be < 500.milliseconds
+
+      recovered = solver.solve(Chiasmus::Solvers::Z3SolverInput.new("(assert true)"))
+      recovered.should be_a(Chiasmus::Solvers::SatResult)
+    ensure
+      solver.dispose
+      Chiasmus::Solvers::Z3Process.reset
+      FileUtils.rm_rf(directory)
+    end
+  end
+
+  it "serializes concurrent requests through one Z3 runtime without losing responses" do
+    directory, command = fake_z3_command
+    solver = Chiasmus::Solvers::Z3Solver.new(command: command, timeout: 250.milliseconds)
+    results = Channel(Chiasmus::Solvers::SolverResult).new(8)
+
+    begin
+      8.times do |index|
+        spawn do
+          results.send(solver.solve(Chiasmus::Solvers::Z3SolverInput.new("(assert true) ; request #{index}")))
+        end
+      end
+
+      8.times do
+        select
+        when result = results.receive
+          result.should be_a(Chiasmus::Solvers::SatResult)
+        when timeout 2.seconds
+          fail "concurrent Z3 request did not receive a response"
+        end
+      end
+    ensure
+      solver.dispose
+      Chiasmus::Solvers::Z3Process.reset
+      FileUtils.rm_rf(directory)
+    end
+  end
+
   it "returns sat with a model for satisfiable constraints" do
     next pending("z3 not installed") unless z3_available?
 

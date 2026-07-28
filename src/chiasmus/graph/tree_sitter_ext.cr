@@ -1,5 +1,5 @@
 require "tree_sitter"
-require "../index/fast_find"
+require "../index/directory_walk"
 
 module Chiasmus
   module Graph
@@ -36,17 +36,7 @@ module Chiasmus
           next unless Dir.exists?(dir)
 
           # Look for grammar.json files like the original Repository does
-          config = FastFind::Config.new
-          config.ignore_hidden = true
-          config.follow_symlinks = false
-          config.max_depth = 50
-          walker = FastFind::Walker.new([dir], config)
-          queue = walker.walk
-          loop do
-            entry = queue.receive?
-            break if entry.nil?
-            next unless entry.file?
-            grammar_path = entry.path.to_s
+          Index::DirectoryWalk.files(dir, max_depth: 50).each do |grammar_path|
             next unless grammar_path.ends_with?("src/grammar.json")
             if grammar_path =~ %r{.*/tree\-sitter\-([\w\-_]+)/src/grammar.json\z}
               language = $1

@@ -3,7 +3,7 @@ require "file_utils"
 require "process"
 require "path"
 require "tree-sitter-manager"
-require "./index/fast_find"
+require "./index/directory_walk"
 
 module Chiasmus
   # CLI for managing tree-sitter grammars
@@ -394,17 +394,7 @@ module Chiasmus
 
       # Remove all .dylib/.so files
       ext = {% if flag?(:darwin) %} "dylib" {% else %} "so" {% end %}
-      config = FastFind::Config.new
-      config.ignore_hidden = true
-      config.follow_symlinks = false
-      config.max_depth = 50
-      walker = FastFind::Walker.new([cache_dir], config)
-      queue = walker.walk
-      loop do
-        entry = queue.receive?
-        break if entry.nil?
-        next unless entry.file?
-        lib_file = entry.path.to_s
+      Index::DirectoryWalk.files(cache_dir, max_depth: 50).each do |lib_file|
         next unless lib_file.ends_with?(".#{ext}")
         File.delete(lib_file)
         puts "Deleted: #{lib_file}" if @verbose

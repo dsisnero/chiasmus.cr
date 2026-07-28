@@ -21,7 +21,7 @@ module Chiasmus
     # Polling-based filesystem watcher.
     #
     # Spawn a fiber, call `run`, and it periodically checks
-    # file modification times via FastFind's concurrent directory walker.
+    # file modification times via dir-walk's concurrent directory walker.
     # Changed files are yielded to the callback.
     #
     # Call `stop` to end the polling loop.

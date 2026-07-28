@@ -3,7 +3,7 @@ require "./discovery"
 require "./graph/analyses"
 require "./graph/cache"
 require "./graph/facts_snapshot"
-require "./index/fast_find"
+require "./index/directory_walk"
 
 module Chiasmus
   module FactsCLI
@@ -178,17 +178,7 @@ module Chiasmus
       extensions = LANGUAGE_EXTENSIONS[language]? || [".#{language}"]
       files = [] of String
 
-      config = FastFind::Config.new
-      config.ignore_hidden = true
-      config.follow_symlinks = false
-      config.max_depth = 50
-      walker = FastFind::Walker.new([dir], config)
-      queue = walker.walk
-      loop do
-        entry = queue.receive?
-        break if entry.nil?
-        next unless entry.file?
-        path = entry.path.to_s
+      Index::DirectoryWalk.files(dir, max_depth: 50).each do |path|
         next if path.split('/').any?(&.starts_with?("._"))
         files << path if extensions.any? { |ext| path.ends_with?(ext) }
       end
