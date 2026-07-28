@@ -1,7 +1,7 @@
 require "tree-sitter-manager"
 require "./registry"
 require "../utils/bounded_work"
-require "../index/fast_find"
+require "../index/directory_walk"
 
 module Chiasmus
   module Discovery
@@ -118,17 +118,7 @@ module Chiasmus
         extensions = @registry.supported_extensions.to_set
         paths = [] of String
 
-        config = FastFind::Config.new
-        config.ignore_hidden = true
-        config.follow_symlinks = false
-        config.max_depth = 50
-        walker = FastFind::Walker.new([source_dir], config)
-        queue = walker.walk
-        loop do
-          entry = queue.receive?
-          break if entry.nil?
-          next unless entry.file?
-          path = entry.path.to_s
+        Index::DirectoryWalk.files(source_dir, max_depth: 50).each do |path|
           paths << path if extensions.any? { |ext| path.ends_with?(ext) }
         end
 

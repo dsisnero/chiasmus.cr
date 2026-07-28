@@ -20,8 +20,10 @@ targets:
     main: src/chiasmus_plan.cr
   chiasmus-complete:
     main: src/chiasmus_complete.cr
-crystal: ">= 1.19.1"
+crystal: ">= 1.20.2"
 dependencies:
+  dir-walk:
+    github: dsisnero/dir-walk
   tree_sitter:
     github: dsisnero/crystal-tree-sitter
     branch: fix/windows-uint16-portability

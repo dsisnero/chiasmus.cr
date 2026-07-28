@@ -7,7 +7,7 @@ require "./graph/parallel_io"
 require "./graph/types"
 require "./utils/bounded_work"
 require "./utils/config"
-require "./index/fast_find"
+require "./index/directory_walk"
 
 module Chiasmus
   module Parity
@@ -926,17 +926,7 @@ module Chiasmus
           abs_dir = File.expand_path(dir, absolute_root)
           next unless Dir.exists?(abs_dir)
 
-          config = FastFind::Config.new
-          config.ignore_hidden = true
-          config.follow_symlinks = false
-          config.max_depth = 50
-          walker = FastFind::Walker.new([abs_dir], config)
-          queue = walker.walk
-          loop do
-            entry = queue.receive?
-            break if entry.nil?
-            next unless entry.file?
-            path = entry.path.to_s
+          Index::DirectoryWalk.files(abs_dir, max_depth: 50).each do |path|
             next unless path.ends_with?(".cr")
             next if appledouble_path?(path)
             files << path

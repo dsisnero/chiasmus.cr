@@ -88,6 +88,10 @@ shards:
     git: https://github.com/sija/debug.cr.git
     version: 2.0.4
 
+  dir-walk:
+    git: https://github.com/dsisnero/dir-walk.git
+    version: 0.1.0+git.commit.a780125653117b4d2e9d3d01179a04523943ebec
+
   discordcr:
     git: https://github.com/shardlab/discordcr.git
     version: 0.4.1
