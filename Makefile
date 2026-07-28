@@ -1,4 +1,4 @@
-.PHONY: help install-deps install install-built install-with-build update format lint test clean build build_release build-clis release dist setup-grammars warm-cache
+.PHONY: help install-deps ensure-shards install install-built install-with-build update format lint test clean build build_release build-clis release dist setup-grammars warm-cache
 
 # Default: show help.
 help:
@@ -46,10 +46,22 @@ test:
 SRC := $(shell find src -name "*.cr" -not -name "._*")
 SHARD_FILES := shard.yml shard.lock $(shell find lib -name "shard.yml" 2>/dev/null)
 BUILD_DIR := .build
+SHARDS_STAMP := $(BUILD_DIR)/shards-installed
 BUILD_INPUTS := $(SRC) $(SHARD_FILES) Makefile
 CLI_STAMPS := $(BUILD_DIR)/chiasmus-discover $(BUILD_DIR)/chiasmus-grammar $(BUILD_DIR)/chiasmus-parity $(BUILD_DIR)/chiasmus-plan $(BUILD_DIR)/chiasmus-complete $(BUILD_DIR)/chiasmus-facts
 INSTALL_FLAGS := --release
 INSTALL_ARTIFACTS := bin/chiasmus bin/chiasmus-agent bin/chiasmus-grammar bin/chiasmus-discover bin/chiasmus-facts
+
+# Keep pre-built binaries reusable, while ensuring a missing or changed shard
+# set is installed before any Crystal compile starts. This is order-only so it
+# never makes a fresh binary stale by itself.
+ensure-shards:
+	@mkdir -p $(BUILD_DIR)
+	@if [ ! -d lib/dir-walk ] || [ ! -f $(SHARDS_STAMP) ] || [ shard.yml -nt $(SHARDS_STAMP) ] || [ shard.lock -nt $(SHARDS_STAMP) ]; then \
+		shards install --production && touch $(SHARDS_STAMP); \
+	fi
+
+$(BUILD_DIR)/chiasmus $(BUILD_DIR)/chiasmus-discover $(BUILD_DIR)/chiasmus-grammar $(BUILD_DIR)/chiasmus-parity $(BUILD_DIR)/chiasmus-plan $(BUILD_DIR)/chiasmus-complete $(BUILD_DIR)/chiasmus-facts $(BUILD_DIR)/chiasmus_release $(BUILD_DIR)/chiasmus_warmed $(INSTALL_ARTIFACTS): | ensure-shards
 
 build: $(BUILD_DIR)/chiasmus
 $(BUILD_DIR)/chiasmus: $(BUILD_INPUTS)
