@@ -2,6 +2,7 @@ require "spec"
 require "tracing"
 require "../src/chiasmus"
 require "../src/benchmark/**"
+require "./support/grammar_manager_test_support"
 
 module ChiasmusSpecTracing
   class LockedWriter < IO
