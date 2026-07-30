@@ -8,6 +8,7 @@ module TreeSitterManager
         @@cache = nil
         @@initialized = false
       end
+      init(cache_dir) if cache_dir
     end
   end
 end

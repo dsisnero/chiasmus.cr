@@ -1,6 +1,7 @@
 require "spec"
 require "file_utils"
 require "tree-sitter-manager"
+require "../../support/grammar_manager_test_support"
 
 describe TreeSitterManager::GrammarManager do
   describe "metadata integration" do
