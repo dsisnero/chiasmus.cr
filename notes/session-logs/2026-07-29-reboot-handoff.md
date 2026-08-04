@@ -4,7 +4,8 @@
 
 - Repository: `/Volumes/extreme_ssd/repos/github.com/dsisnero/chiasmus.cr`
 - Branch: `main`, clean after the commits below; it was two commits ahead of
-  `origin/main` at handoff.
+  `origin/main` at the original handoff. The Crystal extractor fix below is
+  currently uncommitted (two modified files).
 - Latest Chiasmus vendor source-of-truth revision:
   `vendor/chiasmus @ d1f1291e14e8459465d722662eb6bb997c2d648d`
   (upstream `main`).
@@ -46,6 +47,26 @@
    - Plan: `plans/vendor_chiasmus_d1f1291.md`.
    - Commit: `2a76c20 docs: plan local embedding parity for vendor update`.
 
+5. Fixed Crystal graph extraction for compile-time macro blocks:
+   - `lib/crig/src/crig.cr` uses `{% begin %}` to compute `VERSION`. The
+     Crystal Tree-sitter grammar represents that code as `macro_content` and
+     `macro_expression`, not as a `const_assign`.
+   - Before the fix, the extractor omitted `VERSION` and emitted compile-time
+     operations (`read_file`, `lines`, `select`, `first`, `split`, `last`,
+     `strip`, and `starts_with?`) as false runtime calls owned by `Crig`.
+   - `src/chiasmus/graph/walkers/crystal.cr` now treats `macro_begin` as a
+     compile-time boundary. It recovers an immediately interpolated uppercase
+     assignment as a variable definition, but does not traverse the
+     compile-time expression as runtime code.
+   - Added a red-green regression spec in
+     `spec/chiasmus/graph/crystal_walker_spec.cr` using the exact Crig
+     version-macro pattern. It asserts `Crig`, `VERSION`, their containment,
+     and zero runtime calls.
+   - Verified the real `lib/crig/src/crig.cr`: definitions
+     `Crig, VERSION, UPSTREAM_URL, UPSTREAM_COMMIT, UPSTREAM_SOURCE_PATH`;
+     0 calls; 42 imports.
+   - Passed: focused Crystal spec (25 examples), format check, and Ameba.
+
 ## Pending before updating Crig
 
 Create a Chiasmus graph snapshot of **production Crig sources** before changing
@@ -67,8 +88,9 @@ No complete named snapshot was confirmed. Do **not** assume one exists.
   file `lib/crig/src/crig/agent.cr` (70 functions, 11 classes, 222 call edges),
   showing the source itself parses correctly.
 - The full 161-file request needs a live MCP connection long enough for the
-  extraction and snapshot flush. The final attempt was deliberately stopped
-  for the reboot.
+  extraction and snapshot flush. A subsequent reconnect attempt was manually
+  interrupted while still running; no success response was received. The
+  snapshot remains unconfirmed.
 
 ## First steps after reboot
 

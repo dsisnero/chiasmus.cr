@@ -63,8 +63,6 @@ module Chiasmus
                          "partial_hit"
                        end
 
-        effective_max_concurrent = extraction_max_concurrent(to_extract, parser, max_concurrent, parallel_cpu)
-
         defines = [] of DefinesFact
         calls = [] of CallsFact
         imports = [] of ImportsFact
@@ -75,7 +73,9 @@ module Chiasmus
         call_set = Set(String).new
         fresh_graphs = [] of {path: String, content: String, graph: CodeGraph}
 
-        fresh_results = Utils::BoundedWork.map_ordered(to_extract, effective_max_concurrent, parallel: parallel_cpu) do |file|
+        prewarm_crystal_grammar(to_extract, parser)
+
+        fresh_results = Utils::BoundedWork.map_ordered(to_extract, max_concurrent, parallel: parallel_cpu) do |file|
           extract_single_file(file, parser)
         end
 
@@ -176,21 +176,15 @@ module Chiasmus
         ENV["CHIASMUS_GRAPH_PARALLEL"]? == "1"
       end
 
-      private def extraction_max_concurrent(
-        files : Array(SourceFile),
-        parser,
-        requested : Int32,
-        parallel_cpu : Bool,
-      ) : Int32
-        return requested if requested <= 1
-        return requested if parallel_cpu
-        return requested if ENV["CHIASMUS_CRYSTAL_EXTRACT_CONCURRENT"]? == "1"
+      # Load Crystal once before file workers begin. This keeps grammar setup out
+      # of the first file's extraction path and lets concurrent workers reuse
+      # Parser's synchronized language cache. Injected parsers retain complete
+      # control over their own lifecycle.
+      private def prewarm_crystal_grammar(files : Array(SourceFile), parser) : Nil
+        return unless parser == Parser
+        return unless files.any? { |file| parser.language_for_file(file.path) == "crystal" }
 
-        crystal_only = files.all? do |file|
-          parser.language_for_file(file.path) == "crystal"
-        end
-
-        crystal_only ? 1 : requested
+        Parser.get_language("crystal", 30_000)
       end
 
       # Extract and cache a single file.
@@ -232,6 +226,7 @@ module Chiasmus
         file : SourceFile,
         parser,
       ) : CodeGraph
+        started_at = Time.instant
         defines = [] of DefinesFact
         calls = [] of CallsFact
         imports = [] of ImportsFact
@@ -287,7 +282,7 @@ module Chiasmus
           tree.root_node
         end
 
-        CodeGraph.new(
+        graph = CodeGraph.new(
           defines: defines,
           calls: calls,
           imports: imports,
@@ -296,6 +291,26 @@ module Chiasmus
           files: file_nodes,
           type_info: type_info.empty? ? nil : type_info,
         )
+
+        Tracing.info("chiasmus.graph.extract_single_file",
+          path: shorten_path(file.path),
+          language: lang,
+          bytes: file.content.bytesize,
+          lines: line_count,
+          defines: defines.size,
+          calls: calls.size,
+          elapsed_ms: (Time.instant - started_at).total_milliseconds,
+        )
+        graph
+      end
+
+      private def shorten_path(path : String) : String
+        parts = path.split('/')
+        if parts.size > 4
+          ".../#{parts[-4..].join("/")}"
+        else
+          path
+        end
       end
 
       # Thread-safe merge of a single-file graph into the global accumulators.

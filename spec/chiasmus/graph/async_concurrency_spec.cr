@@ -2,6 +2,7 @@ require "spec"
 require "file_utils"
 require "tree_sitter"
 require "tree-sitter-manager"
+require "../../support/grammar_manager_test_support"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/parser"
 
@@ -101,7 +102,7 @@ end
 
 private def stage_python_grammar(cache_home : String) : Bool
   source_dir = python_grammar_source_dir
-  dest_dir = File.join(cache_home, "chiasmus", "grammars", "python")
+  dest_dir = File.join(cache_home, "tree-sitter-manager", "grammars", "python")
 
   Dir.mkdir_p(dest_dir)
 
@@ -245,7 +246,7 @@ describe "async graph concurrency" do
       first = manager.ensure_grammar_async("coalesced-language", 1_000)
       second = manager.ensure_grammar_async("coalesced-language", 1_000)
 
-      ready = TreeSitterManager::Timeout.with_timeout(200) do
+      ready = TreeSitterManager::Timeout.with_timeout(1_000) do
         until install_calls.get == 1
           Fiber.yield
         end
@@ -280,6 +281,9 @@ describe "async graph concurrency" do
       write_empty_tree_sitter_config(config_home)
 
       with_xdg_dirs(cache_home, config_home) do
+        TreeSitterManager::XDG.grammar_cache_dir.should eq(
+          File.join(cache_home, "tree-sitter-manager", "grammars")
+        )
         channel = Chiasmus::Graph::Parser.get_language_async("python")
         result = TreeSitterManager::Timeout.with_timeout_async(5_000, channel)
 

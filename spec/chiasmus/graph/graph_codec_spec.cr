@@ -36,4 +36,5 @@ describe GraphCodec do
 
     GraphCodec.decode(GraphCodec.encode(graph)).should eq(graph)
   end
+
 end

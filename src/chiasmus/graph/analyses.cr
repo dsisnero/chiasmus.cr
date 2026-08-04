@@ -8,6 +8,8 @@ require "./community"
 require "./diff"
 require "./entry_points"
 
+require "tracing"
+
 module Chiasmus
   module Graph
     # Analysis payload that can be properly serialized to JSON
@@ -151,26 +153,53 @@ module Chiasmus
         error : String? = nil
 
       def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil, repo_key : String? = nil, max_bytes : Int32? = nil, save_snapshot : String? = nil) : AnalysisResult
+        telemetry_span = Tracing.span(Tracing::Level::INFO, "chiasmus.graph.run_analysis", files: file_paths.size, analysis: request.analysis.to_s)
+        started_at = Time.instant
+
         # Guard: save+diff against same snapshot would clobber baseline before diff runs
         if save_snapshot && request.analysis.diff? && request.against == save_snapshot
+          telemetry_span.record(guard_rejected: "save_snapshot_equals_against", elapsed_ms: (Time.instant - started_at).total_milliseconds)
           return AnalysisResult.new(
             analysis: request.analysis,
             result: {"error" => "save_snapshot and against cannot name the same snapshot ('#{save_snapshot}') — the save would overwrite the baseline before the diff runs. Use distinct names."}.to_json.as(AnalysisPayload)
           )
         end
 
+        read_started_at = Time.instant
         files = FileIO.read_source_files_or_raise(file_paths)
+        read_elapsed_ms = (Time.instant - read_started_at).total_milliseconds
+        Tracing.info("chiasmus.graph.run_analysis.read_files", files: file_paths.size, elapsed_ms: read_elapsed_ms)
 
+        extract_started_at = Time.instant
         graph = Extractor.extract_graph(files, cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes)
+        extract_elapsed_ms = (Time.instant - extract_started_at).total_milliseconds
+        Tracing.info("chiasmus.graph.run_analysis.extract", files: file_paths.size, elapsed_ms: extract_elapsed_ms,
+          defines: graph.defines.size, calls: graph.calls.size, imports: graph.imports.size)
 
         if save_snapshot && cache_dir
           snap_name = save_snapshot
           snap_dir = cache_dir
           snap_repo = repo_key || GraphCache.default_repo_key
+          snap_started_at = Time.instant
           GraphCache.save_snapshot_async(snap_name, graph, snap_dir, repo_key: snap_repo)
+          snap_elapsed_ms = (Time.instant - snap_started_at).total_milliseconds
+          Tracing.info("chiasmus.graph.run_analysis.snapshot_queue", snapshot: snap_name, elapsed_ms: snap_elapsed_ms)
         end
 
-        run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
+        analysis_started_at = Time.instant
+        result = run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
+        analysis_elapsed_ms = (Time.instant - analysis_started_at).total_milliseconds
+        Tracing.info("chiasmus.graph.run_analysis.analysis", type: request.analysis.to_s, elapsed_ms: analysis_elapsed_ms)
+
+        total_elapsed_ms = (Time.instant - started_at).total_milliseconds
+        telemetry_span.record(
+          files: file_paths.size,
+          read_ms: read_elapsed_ms,
+          extract_ms: extract_elapsed_ms,
+          analysis_ms: analysis_elapsed_ms,
+          total_ms: total_elapsed_ms,
+        )
+        result
       end
 
       def run_analysis_async(

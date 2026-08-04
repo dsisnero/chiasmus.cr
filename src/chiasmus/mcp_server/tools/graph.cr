@@ -136,6 +136,7 @@ module Chiasmus
           max_bytes : Int32?,
           save_snapshot : String?,
         ) : Graph::Analyses::AsyncAnalysisResult
+          started_at = Time.instant
           result = Graph::Analyses.run_analysis_async(
             files,
             request,
@@ -145,10 +146,25 @@ module Chiasmus
             max_bytes: max_bytes,
             save_snapshot: save_snapshot
           ).receive
+          async_elapsed_ms = (Time.instant - started_at).total_milliseconds
+          Tracing.info("chiasmus.graph.run_extracted_analysis",
+            files: files.size,
+            analysis: request.analysis.to_s,
+            save_snapshot: save_snapshot,
+            async_ms: async_elapsed_ms,
+          )
           # Analyses deliberately persists asynchronously. At the MCP tool
           # boundary, make a named snapshot observable before returning so an
           # immediate follow-up diff cannot race the writer.
-          Graph::GraphCache.flush_async_writes if save_snapshot && cache_dir
+          if save_snapshot && cache_dir
+            flush_started_at = Time.instant
+            Graph::GraphCache.flush_snapshot_writes
+            flush_elapsed_ms = (Time.instant - flush_started_at).total_milliseconds
+            Tracing.info("chiasmus.graph.flush_snapshot_writes",
+              snapshot: save_snapshot,
+              flush_ms: flush_elapsed_ms,
+            )
+          end
           result
         end
 

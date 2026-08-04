@@ -34,7 +34,34 @@ private class TrackingParser
   end
 end
 
+private class PrewarmingParserService < Chiasmus::Graph::Parser::Service
+  getter warmed_languages = [] of String
+
+  def get_language(language : String, timeout_ms : Int32 = 60_000) : TreeSitter::Language?
+    @warmed_languages << language
+    nil
+  end
+
+  def parse(content : String, file_path : String, timeout_ms : Int32 = 30_000) : TreeSitter::Tree?
+    nil
+  end
+end
+
 describe "parallel graph extraction" do
+  it "prewarms the Crystal grammar before default extraction" do
+    previous_service = Parser.service
+    service = PrewarmingParserService.new
+    Parser.service = service
+
+    begin
+      Extractor.extract_graph([SourceFile.new(path: "/tmp/prewarm.cr", content: "class Prewarm; end\n")])
+
+      service.warmed_languages.should eq(["crystal"])
+    ensure
+      Parser.service = previous_service
+    end
+  end
+
   it "extracts symbols from three files without data loss" do
     file_a = SourceFile.new(
       path: "/tmp/a.cr",
@@ -154,15 +181,16 @@ describe "parallel graph extraction" do
     )
   end
 
-  it "serializes cold-start crystal parsing by default" do
+  it "uses bounded concurrency for Crystal parsing by default" do
     parser = TrackingParser.new("crystal")
     files = 4.times.map do |i|
       SourceFile.new(path: "/tmp/cold#{i}.cr", content: "def sample#{i}; end\n")
     end.to_a
 
-    Extractor.extract_graph(files, parser)
+    Extractor.extract_graph(files, parser, max_concurrent: 4)
 
-    parser.max_active.should eq(1)
+    parser.max_active.should be > 1
+    parser.max_active.should be <= 4
   end
 
   it "keeps bounded concurrency for non-crystal languages" do

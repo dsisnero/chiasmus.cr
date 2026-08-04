@@ -15,12 +15,58 @@ module Chiasmus
         contains : Array(ContainsFact),
         call_set : Set(String),
       ) : Nil
+        if node.type == "macro_begin"
+          crystal_macro_begin(node, source, file_path, scope_stack, defines, contains)
+          return
+        end
+
         return if handle_crystal_scope(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
         return if handle_crystal_call(node, source, file_path, scope_stack, calls, imports, call_set)
         handle_crystal_identifier_call(node, source, scope_stack, calls, call_set)
         return if handle_crystal_require(node, source, file_path, imports)
 
         walk_crystal_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
+      end
+
+      # A Crystal `{% ... %}` block is evaluated at compile time. Tree-sitter
+      # exposes its body as macro_content/macro_expression nodes rather than
+      # runtime syntax, so walking it would invent runtime calls. A common
+      # package-version pattern emits an uppercase constant immediately before
+      # an interpolation; retain that generated definition without traversing
+      # the compile-time expression.
+      private def crystal_macro_begin(
+        node : TreeSitter::Node,
+        source : String,
+        file_path : String,
+        scope_stack : Array(String),
+        defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
+      ) : Nil
+        pending_constant = nil.as(String?)
+
+        body = node.child_by_field_name("body")
+        return unless body
+
+        body.children.each do |child|
+          case child.type
+          when "macro_content"
+            pending_constant = crystal_macro_generated_constant(child.text(source))
+          when "macro_expression"
+            if name = pending_constant
+              defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, span: Span.from_node(child))
+              if enclosing = scope_stack.last?
+                contains << ContainsFact.new(parent: enclosing, child: name)
+              end
+            end
+            pending_constant = nil
+          else
+            pending_constant = nil
+          end
+        end
+      end
+
+      private def crystal_macro_generated_constant(content : String) : String?
+        content.match(/(?:^|\n)\s*([A-Z][A-Z0-9_]*)\s*=\s*\z/).try(&.[1]?)
       end
 
       # ameba:disable Metrics/CyclomaticComplexity

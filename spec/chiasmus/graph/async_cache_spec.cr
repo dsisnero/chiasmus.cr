@@ -108,4 +108,45 @@ describe "async cache persistence" do
       FileUtils.rm_rf(tmpdir)
     end
   end
+
+  it "flushes snapshots without waiting for queued file-cache writes" do
+    tmpdir = File.join(Dir.tempdir, "snapshot-only-flush-#{Random::Secure.hex(8)}")
+    cache_dir = File.join(tmpdir, "cache")
+    repo_key = GraphCache.default_repo_key(Dir.current)
+    Dir.mkdir_p(cache_dir)
+
+    file_path = File.join(tmpdir, "queued.cr")
+    File.write(file_path, "class Queued; end\n")
+    entered = Channel(Bool).new(1)
+    release = Channel(Bool).new(1)
+    flushed = Channel(Bool).new(1)
+
+    begin
+      GraphCache.set_before_file_cache_write_hook_for_test do
+        entered.send(true)
+        release.receive?
+      end
+
+      Extractor.extract_graph(
+        [SourceFile.new(path: file_path, content: File.read(file_path))],
+        cache_dir: cache_dir,
+      )
+      entered.receive
+
+      GraphCache.save_snapshot_async("independent", CodeGraph.new, cache_dir, repo_key: repo_key)
+      spawn do
+        GraphCache.flush_snapshot_writes
+        flushed.send(true)
+      end
+
+      TreeSitterManager::Timeout.with_timeout_async(250, flushed).should be_true
+      GraphCache.list_snapshots(cache_dir, repo_key: repo_key).should contain("independent")
+    ensure
+      release.send(true) unless release.closed?
+      GraphCache.clear_before_file_cache_write_hook_for_test
+      GraphCache.flush_async_writes
+      GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(tmpdir)
+    end
+  end
 end

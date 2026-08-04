@@ -226,6 +226,24 @@ describe "Crystal walker structural extraction" do
     definitions.should contain({SymbolKind::Class, "Point"})
   end
 
+  it "does not record compile-time macro expressions as runtime calls" do
+    cr = <<-CR
+      module Crig
+        {% begin %}
+          {% version_line = read_file("#{__DIR__}/../shard.yml").lines.select(&.starts_with?("version:")).first %}
+          VERSION = {{ version_line.split(":").last.strip }}
+        {% end %}
+      end
+    CR
+
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/crig_macro.cr", content: cr)])
+
+    graph.defines.map(&.name).should contain("Crig")
+    graph.defines.map(&.name).should contain("VERSION")
+    graph.contains.map { |fact| {fact.parent, fact.child} }.should contain({"Crig", "VERSION"})
+    graph.calls.should be_empty
+  end
+
   it "keeps nested crystal-native definitions attached to their enclosing container" do
     cr = <<-CR
       module Outer

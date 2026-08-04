@@ -9,6 +9,7 @@ require "./types"
 require "./graph_codec"
 require "./sqlite_cache_store"
 require "tree-sitter-manager"
+require "tracing"
 
 module Chiasmus
   module Graph
@@ -34,7 +35,11 @@ module Chiasmus
       private record FlushRequest,
         ack : Channel(Bool)
 
-      private alias AsyncWriteRequest = FileCacheWriteRequest | SnapshotWriteRequest | FlushRequest
+      private record SnapshotFlushRequest,
+        ack : Channel(Bool)
+
+      private alias AsyncWriteRequest = FileCacheWriteRequest | FlushRequest
+      private alias AsyncSnapshotWriteRequest = SnapshotWriteRequest | SnapshotFlushRequest
       private record GitRepoContext,
         repo_root : String,
         common_dir : String
@@ -47,6 +52,7 @@ module Chiasmus
       @@mutex = Mutex.new
       @@writer_mutex = Mutex.new
       @@write_channel : Channel(AsyncWriteRequest)? = nil
+      @@snapshot_write_channel : Channel(AsyncSnapshotWriteRequest)? = nil
       @@before_file_cache_write_hook : Proc(Nil)? = nil
       @@before_snapshot_write_hook : Proc(Nil)? = nil
       @@store_mutex = Mutex.new
@@ -194,6 +200,7 @@ module Chiasmus
       # --- Snapshots ---
 
       def save_snapshot(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil
+        started_at = Time.instant
         validate_snapshot_name(name)
 
         before_snapshot_write_hook.try(&.call)
@@ -204,19 +211,44 @@ module Chiasmus
 
           target = File.join(snap_dir, "#{name}.json")
           tmp = unique_tmp_path(target)
-          File.write(tmp, GraphCodec.encode(graph))
+
+          encode_started_at = Time.instant
+          encoded = GraphCodec.encode(graph)
+          encode_elapsed_ms = (Time.instant - encode_started_at).total_milliseconds
+
+          write_started_at = Time.instant
+          File.write(tmp, encoded)
           File.rename(tmp, target)
+          write_elapsed_ms = (Time.instant - write_started_at).total_milliseconds
+
+          total_elapsed_ms = (Time.instant - started_at).total_milliseconds
+          Tracing.info("chiasmus.graph.cache.save_snapshot",
+            snapshot: name,
+            defines: graph.defines.size,
+            calls: graph.calls.size,
+            imports: graph.imports.size,
+            exports: graph.exports.size,
+            encoded_bytes: encoded.bytesize,
+            encode_ms: encode_elapsed_ms,
+            write_ms: write_elapsed_ms,
+            total_ms: total_elapsed_ms,
+          )
         end
       end
 
       def save_snapshot_async(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil
         validate_snapshot_name(name)
-        async_write_channel.send(SnapshotWriteRequest.new(name: name, graph: graph, cache_dir: cache_dir, repo_key: repo_key))
+        async_snapshot_write_channel.send(SnapshotWriteRequest.new(name: name, graph: graph, cache_dir: cache_dir, repo_key: repo_key))
       end
 
       def flush_async_writes : Nil
+        flush_file_cache_writes
+        flush_snapshot_writes
+      end
+
+      def flush_snapshot_writes : Nil
         ack = Channel(Bool).new(1)
-        async_write_channel.send(FlushRequest.new(ack: ack))
+        async_snapshot_write_channel.send(SnapshotFlushRequest.new(ack: ack))
         ack.receive?
       end
 
@@ -304,21 +336,60 @@ module Chiasmus
         end
       end
 
+      private def async_snapshot_write_channel : Channel(AsyncSnapshotWriteRequest)
+        @@writer_mutex.synchronize do
+          if channel = @@snapshot_write_channel
+            channel
+          else
+            channel = Channel(AsyncSnapshotWriteRequest).new(32)
+            spawn { process_async_snapshot_writes(channel) }
+            @@snapshot_write_channel = channel
+            channel
+          end
+        end
+      end
+
+      private def flush_file_cache_writes : Nil
+        ack = Channel(Bool).new(1)
+        async_write_channel.send(FlushRequest.new(ack: ack))
+        ack.receive?
+      end
+
       private def process_async_writes(channel : Channel(AsyncWriteRequest)) : Nil
         while request = channel.receive?
           begin
             case request
             when FileCacheWriteRequest
               save_file_cache(request.items, request.cache_dir, repo_key: request.repo_key, max_bytes: request.max_bytes)
-            when SnapshotWriteRequest
-              save_snapshot(request.name, request.graph, request.cache_dir, repo_key: request.repo_key)
             when FlushRequest
               request.ack.send(true)
             end
           rescue ex
             # A removed repository/cache directory must not kill the singleton
-            # writer and strand every later snapshot or flush request.
+            # writer and strand every later cache write or flush request.
             STDERR.puts "[Chiasmus] async cache write failed: #{ex.message}"
+          end
+        end
+      end
+
+      private def process_async_snapshot_writes(channel : Channel(AsyncSnapshotWriteRequest)) : Nil
+        while request = channel.receive?
+          begin
+            case request
+            when SnapshotWriteRequest
+              save_started_at = Time.instant
+              save_snapshot(request.name, request.graph, request.cache_dir, repo_key: request.repo_key)
+              Tracing.info("chiasmus.graph.async_snapshot_write",
+                snapshot: request.name,
+                elapsed_ms: (Time.instant - save_started_at).total_milliseconds,
+              )
+            when SnapshotFlushRequest
+              request.ack.send(true)
+            end
+          rescue ex
+            # A removed repository/cache directory must not kill the singleton
+            # writer and strand every later snapshot write or flush request.
+            STDERR.puts "[Chiasmus] async snapshot write failed: #{ex.message}"
           end
         end
       end
