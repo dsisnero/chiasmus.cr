@@ -34,6 +34,31 @@ module Chiasmus
         RelatedTemplate.new(name: "graph-reachability", reason: "Inferred relationships may create new reachability paths in the dependency graph"),
         RelatedTemplate.new(name: "permission-derivation", reason: "Rule-based derivations often interact with permission and role hierarchies"),
       ],
+      "invariant-check" => [
+        RelatedTemplate.new(name: "boundary-condition", reason: "Invariants often fail at numeric boundaries and edge cases"),
+        RelatedTemplate.new(name: "state-machine-deadlock", reason: "State transitions carry postconditions that need invariant checks"),
+      ],
+      "state-machine-deadlock" => [
+        RelatedTemplate.new(name: "invariant-check", reason: "Each transition should preserve the state-machine invariants"),
+        RelatedTemplate.new(name: "boundary-condition", reason: "State counters and transition limits can fail at boundaries"),
+      ],
+      "boundary-condition" => [
+        RelatedTemplate.new(name: "invariant-check", reason: "Boundary violations are a specific form of invariant violation"),
+        RelatedTemplate.new(name: "schema-consistency", reason: "Boundary conditions can reveal mismatched validation schemas"),
+      ],
+      "association-rule-check" => [
+        RelatedTemplate.new(name: "taint-propagation", reason: "Missing paired sanitization operations can leave taint paths open"),
+        RelatedTemplate.new(name: "collective-classification", reason: "Co-occurrence patterns help classify functions that need handling"),
+      ],
+      "collective-classification" => [
+        RelatedTemplate.new(name: "taint-propagation", reason: "Propagated labels identify taint sources and sinks through calls"),
+        RelatedTemplate.new(name: "association-rule-check", reason: "Classified functions should satisfy their paired-operation rules"),
+      ],
+      "taint-propagation" => [
+        RelatedTemplate.new(name: "association-rule-check", reason: "Sanitizers should co-occur with taint sources on sensitive paths"),
+        RelatedTemplate.new(name: "collective-classification", reason: "Tainted labels can classify callers and downstream functions"),
+        RelatedTemplate.new(name: "graph-reachability", reason: "Taint paths are specialized graph reachability paths"),
+      ],
     }
 
     def self.get_related_templates(template_name : String) : Array(RelatedTemplate)

@@ -2,6 +2,22 @@ require "../../spec_helper"
 
 describe Chiasmus::Skills do
   describe ".get_related_templates" do
+    it "ships the full upstream starter corpus" do
+      Chiasmus::Skills::STARTER_TEMPLATES.map(&.name).sort.should eq([
+        "policy-contradiction", "policy-reachability", "config-equivalence",
+        "constraint-satisfaction", "schema-consistency", "graph-reachability",
+        "rule-inference", "permission-derivation", "invariant-check",
+        "state-machine-deadlock", "boundary-condition", "association-rule-check",
+        "collective-classification", "taint-propagation",
+      ].sort)
+    end
+
+    it "includes relationships for the code-review starters" do
+      Chiasmus::Skills.get_related_templates("invariant-check").map(&.name).should eq([
+        "boundary-condition", "state-machine-deadlock",
+      ])
+    end
+
     it "returns related templates for policy-contradiction" do
       related = Chiasmus::Skills.get_related_templates("policy-contradiction")
       related.should_not be_empty

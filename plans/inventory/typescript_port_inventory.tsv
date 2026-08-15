@@ -149,6 +149,28 @@ src/skills/learner.ts::const::EXTRACT_SYSTEM	const	ported	src/chiasmus/skills/le
 src/skills/learner.ts::const::PROMOTION_SUCCESS_RATE	const	ported	src/chiasmus/skills/learner.cr:7	Learner::PROMOTION_SUCCESS_RATE	-	Ported as Learner::PROMOTION_SUCCESS_RATE
 src/skills/learner.ts::const::PROMOTION_THRESHOLD	const	ported	src/chiasmus/skills/learner.cr:6	Learner::PROMOTION_THRESHOLD	-	Ported as Learner::PROMOTION_THRESHOLD
 src/skills/learner.ts::method::SkillLearner.constructor	method	ported	src/chiasmus/skills/learner.cr:26	-	-	Ported constructor with injectable extractor and library
+src/skills/craft.ts::function::craftTemplate	function	ported	src/chiasmus/skills/craft.cr:42	Skills.craft_template	-	Ported as Skills.craft_template
+src/skills/learner.ts::method::SkillLearner.checkPromotions	method	ported	src/chiasmus/skills/learner.cr:69	Learner#check_promotions	-	Ported promotion policy
+src/skills/learner.ts::method::SkillLearner.extractTemplate	method	ported	src/chiasmus/skills/learner.cr:38	Learner#extract_template	-	Ported extraction policy
+src/skills/learner.ts::method::SkillLearner.isDuplicate	method	ported	src/chiasmus/skills/learner.cr:172	Learner#duplicate?	-	Ported private duplicate check
+src/skills/learner.ts::method::SkillLearner.textSimilarity	method	ported	src/chiasmus/skills/learner.cr:178	Learner#text_similarity	-	Ported private similarity metric
+src/skills/library.ts::method::SkillLibrary.addLearned	method	ported	src/chiasmus/skills/library.cr:232	Library#add_learned	-	Ported learned template persistence
+src/skills/library.ts::method::SkillLibrary.close	method	ported	src/chiasmus/skills/library.cr:293	Library#close	-	Ported close and flush lifecycle
+src/skills/library.ts::method::SkillLibrary.constructor	method	ported	src/chiasmus/skills/library.cr:116	Library#initialize	-	Ported with JSON store and async metadata persistence
+src/skills/library.ts::method::SkillLibrary.create	method	ported	src/chiasmus/skills/library.cr:95	Library.create	-	Ported builder-backed creation
+src/skills/library.ts::method::SkillLibrary.get	method	ported	src/chiasmus/skills/library.cr:155	Library#get	-	Ported lookup
+src/skills/library.ts::method::SkillLibrary.getMetadata	method	ported	src/chiasmus/skills/library.cr:228	Library#get_metadata	-	Ported metadata lookup
+src/skills/library.ts::method::SkillLibrary.getRelated	method	ported	src/chiasmus/skills/library.cr:167	Library#get_related	-	Ported relationship lookup
+src/skills/library.ts::method::SkillLibrary.getTemplateSearchText	method	ported	src/chiasmus/skills/library.cr:323	Library#get_template_search_text	-	Ported searchable text
+src/skills/library.ts::method::SkillLibrary.list	method	ported	src/chiasmus/skills/library.cr:141	Library#list	-	Ported listing
+src/skills/library.ts::method::SkillLibrary.loadMetadata	method	ported	src/chiasmus/skills/library.cr:409	Library#unsafe_load_metadata	-	Ported default metadata lookup
+src/skills/library.ts::method::SkillLibrary.promote	method	ported	src/chiasmus/skills/library.cr:256	Library#promote	-	Ported promotion persistence
+src/skills/library.ts::method::SkillLibrary.rebuildSearchIndex	method	ported	src/chiasmus/skills/library.cr:400	Library#rebuild_search_index	-	Ported search rebuild
+src/skills/library.ts::method::SkillLibrary.recordUse	method	ported	src/chiasmus/skills/library.cr:212	Library#record_use	-	Ported usage tracking
+src/skills/library.ts::method::SkillLibrary.remove	method	ported	src/chiasmus/skills/library.cr:277	Library#remove	-	Ported removal
+src/skills/library.ts::method::SkillLibrary.search	method	ported	src/chiasmus/skills/library.cr:171	Library#search	-	Ported BM25 search
+src/skills/relationships.ts::const::RELATIONSHIPS	const	ported	src/chiasmus/skills/relationships.cr:7	RELATIONSHIPS	-	Ported all upstream relationships
+src/skills/starters.ts::const::STARTER_TEMPLATES	const	ported	src/chiasmus/skills/starters.cr:3	STARTER_TEMPLATES	-	Ported all 14 upstream starters
 src/skills/library.ts::class::SkillLibrary	class	ported	src/chiasmus/skills/library.cr:12	-	-	Ported with starter-template loading, persisted metadata, search, related-template lookup, and learned-template management.
 src/skills/library.ts::interface::SearchOptions	interface	ported	src/chiasmus/skills/library.cr:5	Chiasmus::Skills::SearchOptions	-	Ported as Chiasmus::Skills::SearchOptions.
 src/skills/relationships.ts::function::getRelatedTemplates	function	ported	src/chiasmus/skills/relationships.cr:37	Chiasmus::Skills.get_related_templates	-	Ported as Chiasmus::Skills.get_related_templates.
