@@ -30,7 +30,8 @@ module Chiasmus
         name : String,
         graph : CodeGraph,
         cache_dir : String,
-        repo_key : String? = nil
+        repo_key : String? = nil,
+        acknowledgements : Array(Channel(Exception?)) = [] of Channel(Exception?)
 
       private record FlushRequest,
         ack : Channel(Bool)
@@ -49,10 +50,14 @@ module Chiasmus
         hash : String,
         origin_path : String
 
-      @@mutex = Mutex.new
       @@writer_mutex = Mutex.new
       @@write_channel : Channel(AsyncWriteRequest)? = nil
       @@snapshot_write_channel : Channel(AsyncSnapshotWriteRequest)? = nil
+      @@snapshot_state_mutex = Mutex.new
+      @@pending_snapshot_writes = Hash(String, SnapshotWriteRequest).new
+      @@running_snapshot_writes = Set(String).new
+      @@snapshot_flush_waiters = [] of Channel(Bool)
+      @@snapshot_target_mutexes = Hash(String, Mutex).new
       @@before_file_cache_write_hook : Proc(Nil)? = nil
       @@before_snapshot_write_hook : Proc(Nil)? = nil
       @@store_mutex = Mutex.new
@@ -209,7 +214,7 @@ module Chiasmus
         validate_snapshot_name(name)
 
         before_snapshot_write_hook.try(&.call)
-        @@mutex.synchronize do
+        snapshot_target_mutex_for(name, cache_dir, repo_key).synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
           snap_dir = File.join(paths["repo_dir"], "snapshots")
           Dir.mkdir_p(snap_dir)
@@ -246,6 +251,26 @@ module Chiasmus
         async_snapshot_write_channel.send(SnapshotWriteRequest.new(name: name, graph: graph, cache_dir: cache_dir, repo_key: repo_key))
       end
 
+      # Queue a snapshot and wait only for the latest write to this named
+      # target. This avoids an MCP request being held behind unrelated
+      # snapshots while preserving immediate observability for a follow-up diff.
+      def save_snapshot_async_and_wait(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil
+        validate_snapshot_name(name)
+        acknowledgement = Channel(Exception?).new(1)
+        async_snapshot_write_channel.send(
+          SnapshotWriteRequest.new(
+            name: name,
+            graph: graph,
+            cache_dir: cache_dir,
+            repo_key: repo_key,
+            acknowledgements: [acknowledgement],
+          )
+        )
+        if error = acknowledgement.receive?
+          raise error
+        end
+      end
+
       def flush_async_writes : Nil
         flush_file_cache_writes
         flush_snapshot_writes
@@ -278,7 +303,7 @@ module Chiasmus
       end
 
       def delete_snapshot(name : String, cache_dir : String, repo_key : String? = nil) : Nil
-        @@mutex.synchronize do
+        snapshot_target_mutex_for(name, cache_dir, repo_key).synchronize do
           paths = resolve_cache_paths(cache_dir, repo_key)
           target = File.join(paths["repo_dir"], "snapshots", "#{name}.json")
           File.delete(target) if File.exists?(target)
@@ -379,24 +404,104 @@ module Chiasmus
 
       private def process_async_snapshot_writes(channel : Channel(AsyncSnapshotWriteRequest)) : Nil
         while request = channel.receive?
-          begin
-            case request
-            when SnapshotWriteRequest
-              save_started_at = Time.instant
-              save_snapshot(request.name, request.graph, request.cache_dir, repo_key: request.repo_key)
-              Tracing.info("chiasmus.graph.async_snapshot_write",
-                snapshot: request.name,
-                elapsed_ms: (Time.instant - save_started_at).total_milliseconds,
-              )
-            when SnapshotFlushRequest
-              request.ack.send(true)
-            end
-          rescue ex
-            # A removed repository/cache directory must not kill the singleton
-            # writer and strand every later snapshot write or flush request.
-            STDERR.puts "[Chiasmus] async snapshot write failed: #{ex.message}"
+          case request
+          when SnapshotWriteRequest
+            enqueue_snapshot_write(request)
+          when SnapshotFlushRequest
+            register_snapshot_flush(request.ack)
           end
         end
+      end
+
+      private def enqueue_snapshot_write(request : SnapshotWriteRequest) : Nil
+        key = snapshot_target_key(request.name, request.cache_dir, request.repo_key)
+        start_worker = @@snapshot_state_mutex.synchronize do
+          if pending = @@pending_snapshot_writes[key]?
+            acknowledgements = pending.acknowledgements + request.acknowledgements
+            @@pending_snapshot_writes[key] = SnapshotWriteRequest.new(
+              name: request.name,
+              graph: request.graph,
+              cache_dir: request.cache_dir,
+              repo_key: request.repo_key,
+              acknowledgements: acknowledgements,
+            )
+          else
+            @@pending_snapshot_writes[key] = request
+          end
+
+          if @@running_snapshot_writes.includes?(key)
+            false
+          else
+            @@running_snapshot_writes << key
+            true
+          end
+        end
+        spawn { process_snapshot_target(key) } if start_worker
+      end
+
+      private def process_snapshot_target(key : String) : Nil
+        loop do
+          request = @@snapshot_state_mutex.synchronize { @@pending_snapshot_writes.delete(key) }
+          break unless request
+
+          error : Exception? = nil
+          begin
+            save_started_at = Time.instant
+            save_snapshot(request.name, request.graph, request.cache_dir, repo_key: request.repo_key)
+            Tracing.info("chiasmus.graph.async_snapshot_write",
+              snapshot: request.name,
+              elapsed_ms: (Time.instant - save_started_at).total_milliseconds,
+            )
+          rescue ex
+            error = ex
+            STDERR.puts "[Chiasmus] async snapshot write failed: #{ex.message}"
+          ensure
+            request.acknowledgements.each(&.send(error))
+          end
+        end
+      ensure
+        restart_worker = false
+        flush_waiters = @@snapshot_state_mutex.synchronize do
+          @@running_snapshot_writes.delete(key)
+          if @@pending_snapshot_writes.has_key?(key)
+            # A request can arrive after this worker observes an empty queue
+            # but before its ensure block runs. Keep the target marked running
+            # and immediately schedule its successor so that write is never
+            # stranded.
+            @@running_snapshot_writes << key
+            restart_worker = true
+            [] of Channel(Bool)
+          elsif @@running_snapshot_writes.empty? && @@pending_snapshot_writes.empty?
+            waiters = @@snapshot_flush_waiters
+            @@snapshot_flush_waiters = [] of Channel(Bool)
+            waiters
+          else
+            [] of Channel(Bool)
+          end
+        end
+        flush_waiters.each(&.send(true))
+        spawn { process_snapshot_target(key) } if restart_worker
+      end
+
+      private def register_snapshot_flush(acknowledgement : Channel(Bool)) : Nil
+        flush_now = @@snapshot_state_mutex.synchronize do
+          if @@running_snapshot_writes.empty? && @@pending_snapshot_writes.empty?
+            true
+          else
+            @@snapshot_flush_waiters << acknowledgement
+            false
+          end
+        end
+        acknowledgement.send(true) if flush_now
+      end
+
+      private def snapshot_target_mutex_for(name : String, cache_dir : String, repo_key : String?) : Mutex
+        key = snapshot_target_key(name, cache_dir, repo_key)
+        @@snapshot_state_mutex.synchronize { @@snapshot_target_mutexes[key] ||= Mutex.new }
+      end
+
+      private def snapshot_target_key(name : String, cache_dir : String, repo_key : String?) : String
+        "#{canonical_path(cache_dir)}\u0000#{resolve_repo_key(repo_key)}\u0000#{name}"
       end
 
       private def before_file_cache_write_hook : Proc(Nil)?

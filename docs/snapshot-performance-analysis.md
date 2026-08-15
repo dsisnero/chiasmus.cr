@@ -126,7 +126,7 @@ Crystal extraction now honors its requested bounded concurrency by default;
 
 2. **Pre-warm the Crystal grammar** — default extraction resolves the Crystal language once before it starts file workers. The parser service's synchronized language cache is then reused by every worker, removing grammar initialization from the first file's extraction path.
 
-3. **Isolate snapshot persistence** — snapshot writes have a dedicated worker and `chiasmus_graph` waits only for its named snapshot. Unrelated per-file cache writes can no longer add queue latency before the snapshot becomes observable.
+3. **Isolate snapshot persistence** — snapshots dispatch by named target; retries pending for the same target coalesce, and `chiasmus_graph` waits only for its named snapshot. Unrelated per-file cache writes or snapshot retries cannot add FIFO latency before the snapshot becomes observable.
 
 ### Code changes to consider
 1. **Handwritten JSON encode** — the snapshot encode remains CPU-bound. A direct-to-file `Document#to_json(io)` experiment was discarded: it measured 506–531ms versus the prior 181–261ms on the 4.2MB fixture. Any future encoder change should be benchmarked against the current string-backed implementation and preserve the exact wire format.

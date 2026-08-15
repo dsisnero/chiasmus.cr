@@ -152,7 +152,7 @@ module Chiasmus
         value : AnalysisResult? = nil,
         error : String? = nil
 
-      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil, repo_key : String? = nil, max_bytes : Int32? = nil, save_snapshot : String? = nil) : AnalysisResult
+      def run_analysis(file_paths : Array(String), request : AnalysisRequest, cache_dir : String? = nil, snapshot_cache_dir : String? = nil, repo_key : String? = nil, max_bytes : Int32? = nil, save_snapshot : String? = nil, await_snapshot : Bool = false) : AnalysisResult
         telemetry_span = Tracing.span(Tracing::Level::INFO, "chiasmus.graph.run_analysis", files: file_paths.size, analysis: request.analysis.to_s)
         started_at = Time.instant
 
@@ -181,7 +181,11 @@ module Chiasmus
           snap_dir = cache_dir
           snap_repo = repo_key || GraphCache.default_repo_key
           snap_started_at = Time.instant
-          GraphCache.save_snapshot_async(snap_name, graph, snap_dir, repo_key: snap_repo)
+          if await_snapshot
+            GraphCache.save_snapshot_async_and_wait(snap_name, graph, snap_dir, repo_key: snap_repo)
+          else
+            GraphCache.save_snapshot_async(snap_name, graph, snap_dir, repo_key: snap_repo)
+          end
           snap_elapsed_ms = (Time.instant - snap_started_at).total_milliseconds
           Tracing.info("chiasmus.graph.run_analysis.snapshot_queue", snapshot: snap_name, elapsed_ms: snap_elapsed_ms)
         end
@@ -210,6 +214,7 @@ module Chiasmus
         repo_key : String? = nil,
         max_bytes : Int32? = nil,
         save_snapshot : String? = nil,
+        await_snapshot : Bool = false,
       ) : Channel(AsyncAnalysisResult)
         channel = Channel(AsyncAnalysisResult).new(1)
 
@@ -222,7 +227,8 @@ module Chiasmus
               snapshot_cache_dir: snapshot_cache_dir,
               repo_key: repo_key,
               max_bytes: max_bytes,
-              save_snapshot: save_snapshot
+              save_snapshot: save_snapshot,
+              await_snapshot: await_snapshot
             )
             @@before_async_result_send_hook.try(&.call)
             channel.send(AsyncAnalysisResult.new(value: result))

@@ -120,27 +120,26 @@ Callers: `run_analysis`, `run` (FactsCLI)
 ```
 save_snapshot_async(name, graph, cache_dir, repo_key?)
   ├─ validate_snapshot_name(name)
-  └─ async_write_channel.send(SnapshotWriteRequest)  :214
+  └─ async_snapshot_write_channel.send(SnapshotWriteRequest)
       └─ channel has buffer of 32
-      └─ received by singleton writer fiber
+      └─ received by the snapshot dispatcher fiber
 ```
 
 ### 3c. Async Writer Fiber
 
-File: `src/chiasmus/graph/cache.cr:294-324`
+File: `src/chiasmus/graph/cache.cr`
 
 ```
-async_write_channel()                                 :294
-  └─ lazily creates Channel(AsyncWriteRequest).new(32)
-  └─ spawn { process_async_writes(channel) }          :300
-      ├─ loop: receive? → case request
-      │   ├─ FileCacheWriteRequest → save_file_cache()
-      │   ├─ SnapshotWriteRequest  → save_snapshot()   :314
-      │   └─ FlushRequest         → ack.send(true)     :316
-      └─ errors are caught → stderr, fiber continues
+async_snapshot_write_channel()
+  └─ lazily creates Channel(AsyncSnapshotWriteRequest).new(32)
+  └─ spawn { process_async_snapshot_writes(channel) }
+      ├─ SnapshotWriteRequest → enqueue by {cache dir, repo key, name}
+      ├─ one worker per named target writes atomically
+      ├─ pending retries for the same target collapse to the latest graph
+      └─ SnapshotFlushRequest waits for all targets only at shutdown/CLI flush
 ```
 
-**Concurrency design**: A single background fiber serializes all async writes (file cache + snapshots). This avoids SQLite WAL contention and prevents concurrent snapshot writes from racing. The fiber is created lazily on first use.
+**Concurrency design**: SQLite file-cache writes remain serialized in their own worker. Snapshot targets are independent, while writes to the same named target stay serialized and atomic. `chiasmus_graph` awaits only its named target, so unrelated or retried snapshots cannot create head-of-line latency before an immediate diff.
 
 ### 3d. `GraphCache.load_snapshot` — read back
 
