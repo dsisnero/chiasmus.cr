@@ -40,8 +40,44 @@ class MockEmbeddingModel
   end
 end
 
+class WrongDimensionEmbeddingModel
+  include Crig::Embeddings::EmbeddingModel
+
+  def ndims : Int32
+    3
+  end
+
+  def max_documents : Int32
+    1000
+  end
+
+  def embed_text(text : String) : Crig::Embeddings::Embedding
+    Crig::Embeddings::Embedding.new(document: text, vec: [1.0, 0.0])
+  end
+
+  def embed_texts(texts : Enumerable(String)) : Array(Crig::Embeddings::Embedding)
+    texts.map { |text| embed_text(text) }
+  end
+
+  def embed_images(images : Enumerable(Bytes)) : Array(Crig::Embeddings::Embedding)
+    [] of Crig::Embeddings::Embedding
+  end
+end
+
 describe SearchEngine do
   describe ".build_search_corpus" do
+    it "preserves a callable signature in the embedding text and hit metadata" do
+      signature = "def do_work(arg : Int32) : Bool"
+      graph = CodeGraph.new(defines: [
+        DefinesFact.new(file: "work.cr", name: "do_work", kind: SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1), signature: signature),
+      ])
+      corpus = SearchEngine.build_search_corpus(graph, {"work.cr" => "#{signature}\n  true\nend"})
+
+      corpus.first.signature.should eq(signature)
+      corpus.first.text.should contain(signature)
+      SearchEngine.run_search("work", corpus, MockEmbeddingModel.new(3), 1).first.signature.should eq(signature)
+    end
+
     it "creates entries for function defines" do
       graph = CodeGraph.new(
         defines: [
@@ -112,6 +148,16 @@ describe SearchEngine do
   end
 
   describe ".run_search" do
+    it "rejects embeddings whose dimension disagrees with the model" do
+      corpus = [
+        SearchCorpusEntry.new(id: "a", name: "a", file: "a.cr", line: 1, line_end: 1, signature: nil, leading_doc: nil, text: "a"),
+      ]
+
+      expect_raises(Chiasmus::Search::DimensionError, "VectorStore: expected dimension 3, got 2") do
+        SearchEngine.run_search("query", corpus, WrongDimensionEmbeddingModel.new, 1)
+      end
+    end
+
     it "returns top-K hits using Crig EmbeddingModelDyn" do
       model = MockEmbeddingModel.new(3)
       corpus = [

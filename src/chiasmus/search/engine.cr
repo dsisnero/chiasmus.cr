@@ -7,6 +7,7 @@
 require "../graph/types"
 require "../graph/chunking"
 require "./embedding_cache"
+require "./vector_store"
 
 module Chiasmus
   module Search
@@ -52,6 +53,9 @@ module Chiasmus
           doc = file_doc[definition.file]?
           snippet = snippet_for_define(definition, content, chunk_cache)
           parts = [definition.name] of String
+          if signature = definition.signature
+            parts << signature
+          end
           if doc
             parts << doc
           end
@@ -64,7 +68,7 @@ module Chiasmus
             file: definition.file,
             line: definition.span.start_line,
             line_end: definition.span.end_line,
-            signature: nil,
+            signature: definition.signature,
             leading_doc: doc,
             text: text,
           )
@@ -116,17 +120,18 @@ module Chiasmus
         # Embed query
         query_vec = model.embed_text(query).vec
 
-        # Cosine similarity search
-        scored = [] of {Float64, Int32}
+        # Keep the store as the single dimension-validation and cosine-search
+        # boundary, matching upstream's VectorStore contract.
+        store = VectorStore.new(dim)
         vectors.each_with_index do |vec, i|
           next unless vec
-          score = cosine_similarity(query_vec, vec)
-          scored << {score, i}
+          store.add(VectorRecord.new(id: corpus[i].id, vector: vec))
         end
-
-        scored.sort_by! { |score, _entry_index| -score }
-        scored.first(top_k).compact_map do |score, i|
-          entry = corpus[i]?
+        by_id = corpus.each_with_object(Hash(String, SearchCorpusEntry).new) do |entry, entries|
+          entries[entry.id] = entry
+        end
+        store.search(query_vec, top_k).compact_map do |hit|
+          entry = by_id[hit.id]?
           next unless entry
           SearchHit.new(
             id: entry.id,
@@ -136,7 +141,7 @@ module Chiasmus
             line_end: entry.line_end,
             signature: entry.signature,
             leading_doc: entry.leading_doc,
-            score: score,
+            score: hit.score,
           )
         end
       end
@@ -204,20 +209,6 @@ module Chiasmus
           end
         end
         docs
-      end
-
-      private def cosine_similarity(a : Array(Float64), b : Array(Float64)) : Float64
-        return 0.0 if a.size != b.size
-        dot = 0.0
-        norm_a = 0.0
-        norm_b = 0.0
-        a.size.times do |index|
-          dot += a[index] * b[index]
-          norm_a += a[index] * a[index]
-          norm_b += b[index] * b[index]
-        end
-        return 0.0 if norm_a == 0.0 || norm_b == 0.0
-        dot / (Math.sqrt(norm_a) * Math.sqrt(norm_b))
       end
     end
   end

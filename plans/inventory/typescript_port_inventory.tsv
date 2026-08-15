@@ -1528,23 +1528,23 @@ src/mcp-server.ts::function::handleSolve	function	missing	-	-	-	auto-synced pars
 src/mcp-server.ts::function::handleVerify	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/mcp-server.ts::method::complete	method	missing	-	-	-	auto-synced parser=tree-sitter
 src/review.ts::const::VALID_FOCUS	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/embedding-cache.ts::method::EmbeddingCache.get	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/embedding-cache.ts::method::EmbeddingCache.hash	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/embedding-cache.ts::method::EmbeddingCache.load	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/embedding-cache.ts::method::EmbeddingCache.partitionMissing	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/embedding-cache.ts::method::EmbeddingCache.put	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/embedding-cache.ts::method::EmbeddingCache.putMany	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/embedding-cache.ts::method::EmbeddingCache.save	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/embedding-cache.ts::method::EmbeddingCache.size	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/engine.ts::function::runSearch	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/vector-store.ts::method::VectorStore.add	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/vector-store.ts::method::VectorStore.has	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/vector-store.ts::method::VectorStore.ids	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/vector-store.ts::method::VectorStore.parse	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/vector-store.ts::method::VectorStore.remove	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/vector-store.ts::method::VectorStore.search	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/vector-store.ts::method::VectorStore.serialize	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/search/vector-store.ts::method::VectorStore.size	method	missing	-	-	-	auto-synced parser=tree-sitter
+src/search/embedding-cache.ts::method::EmbeddingCache.get	method	ported	src/chiasmus/search/embedding_cache.cr:32	EmbeddingCache#get	-	Ported
+src/search/embedding-cache.ts::method::EmbeddingCache.hash	method	ported	src/chiasmus/search/embedding_cache.cr:28	EmbeddingCache.hash	-	Ported
+src/search/embedding-cache.ts::method::EmbeddingCache.load	method	ported	src/chiasmus/search/embedding_cache.cr:94	EmbeddingCache#load	-	Ported
+src/search/embedding-cache.ts::method::EmbeddingCache.partitionMissing	method	ported	src/chiasmus/search/embedding_cache.cr:59	EmbeddingCache#partition_missing	-	Ported
+src/search/embedding-cache.ts::method::EmbeddingCache.put	method	ported	src/chiasmus/search/embedding_cache.cr:36	EmbeddingCache#put	-	Ported
+src/search/embedding-cache.ts::method::EmbeddingCache.putMany	method	ported	src/chiasmus/search/embedding_cache.cr:51	EmbeddingCache#put_many	-	Ported
+src/search/embedding-cache.ts::method::EmbeddingCache.save	method	ported	src/chiasmus/search/embedding_cache.cr:75	EmbeddingCache#save	-	Ported
+src/search/embedding-cache.ts::method::EmbeddingCache.size	method	ported	src/chiasmus/search/embedding_cache.cr:123	EmbeddingCache#size	-	Ported
+src/search/engine.ts::function::runSearch	function	ported	src/chiasmus/search/engine.cr:81	SearchEngine.run_search	-	Ported via Crig model and VectorStore
+src/search/vector-store.ts::method::VectorStore.add	method	ported	src/chiasmus/search/vector_store.cr:48	VectorStore#add	-	Ported
+src/search/vector-store.ts::method::VectorStore.has	method	ported	src/chiasmus/search/vector_store.cr:60	VectorStore#has?	-	Ported
+src/search/vector-store.ts::method::VectorStore.ids	method	ported	src/chiasmus/search/vector_store.cr:68	VectorStore#ids	-	Ported
+src/search/vector-store.ts::method::VectorStore.parse	method	ported	src/chiasmus/search/vector_store.cr:112	VectorStore.parse	-	Ported
+src/search/vector-store.ts::method::VectorStore.remove	method	ported	src/chiasmus/search/vector_store.cr:56	VectorStore#remove	-	Ported
+src/search/vector-store.ts::method::VectorStore.search	method	ported	src/chiasmus/search/vector_store.cr:72	VectorStore#search	-	Ported
+src/search/vector-store.ts::method::VectorStore.serialize	method	ported	src/chiasmus/search/vector_store.cr:92	VectorStore#serialize	-	Ported
+src/search/vector-store.ts::method::VectorStore.size	method	ported	src/chiasmus/search/vector_store.cr:64	VectorStore#size	-	Ported
 src/skills/craft.ts::function::craftTemplate	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/skills/learner.ts::method::SkillLearner.checkPromotions	method	missing	-	-	-	auto-synced parser=tree-sitter
 src/skills/learner.ts::method::SkillLearner.extractTemplate	method	missing	-	-	-	auto-synced parser=tree-sitter
