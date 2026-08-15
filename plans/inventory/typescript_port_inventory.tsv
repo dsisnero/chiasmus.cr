@@ -1449,9 +1449,9 @@ src/formalize/engine.ts::method::FormalizationEngine.llmFill	method	missing	-	-	
 src/formalize/engine.ts::method::FormalizationEngine.llmFix	method	missing	-	-	-	auto-synced parser=tree-sitter
 src/formalize/engine.ts::method::FormalizationEngine.selectByEmbedding	method	missing	-	-	-	auto-synced parser=tree-sitter
 src/formalize/engine.ts::method::FormalizationEngine.solve	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/adapter-registry.ts::function::loadAdapterModule	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/adapter-registry.ts::function::runDiscovery	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/adapter-registry.ts::function::scanDirectory	function	missing	-	-	-	auto-synced parser=tree-sitter
+src/graph/adapter-registry.ts::function::loadAdapterModule	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:1	Chiasmus::Graph::AdapterRegistry	spec/chiasmus/graph/adapter_registry_spec.cr	Crystal does not load Node ESM adapter modules; adapters are registered as Crystal implementations.
+src/graph/adapter-registry.ts::function::runDiscovery	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:1	Chiasmus::Graph::AdapterRegistry	spec/chiasmus/graph/adapter_registry_spec.cr	Static Crystal registration replaces node_modules discovery and shared Promise state.
+src/graph/adapter-registry.ts::function::scanDirectory	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:1	Chiasmus::Graph::AdapterRegistry	spec/chiasmus/graph/adapter_registry_spec.cr	No JavaScript module directory scan exists in the Crystal runtime.
 src/graph/analyses.ts::const::LAYER_ORDER	const	intentional_divergence	src/chiasmus/graph/layer_violation.cr:1	Chiasmus::Graph::LayerViolation	spec/chiasmus/graph/layer_violation_spec.cr	Layer ordering is encapsulated by the Crystal LayerViolation analyzer rather than exported as a mutable constant.
 src/graph/analyses.ts::function::runAnalysis	function	ported	src/chiasmus/graph/analyses.cr:155	Chiasmus::Graph::Analyses.run_analysis	spec/chiasmus/graph/analyses_spec.cr	Ported synchronous graph analysis with snapshot/cache options.
 src/graph/analyses.ts::function::runAnalysisFromGraph	function	ported	src/chiasmus/graph/analyses.cr:240	Chiasmus::Graph::Analyses.run_analysis_from_graph	spec/chiasmus/graph/analyses_spec.cr	Ported analysis over a prebuilt graph.
@@ -1470,20 +1470,20 @@ src/graph/cache.ts::function::saveFileCache	function	ported	src/chiasmus/graph/c
 src/graph/cache.ts::function::saveSnapshot	function	ported	src/chiasmus/graph/cache.cr:202	Chiasmus::Graph::GraphCache.save_snapshot	spec/chiasmus/graph/diff_snapshot_spec.cr	Ported atomic named graph snapshot writes.
 src/graph/cache.ts::function::withRepoLock	function	intentional_divergence	src/chiasmus/graph/sqlite_cache_store.cr:1	Chiasmus::Graph::SQLiteCacheStore	spec/chiasmus/graph/cache_spec.cr	SQLite WAL transactional writes replace proper-lockfile critical sections.
 src/graph/cache.ts::function::writeManifest	function	intentional_divergence	src/chiasmus/graph/sqlite_cache_store.cr:1	Chiasmus::Graph::SQLiteCacheStore	spec/chiasmus/graph/cache_spec.cr	SQLite replaces the upstream JSON manifest protocol.
-src/graph/extractor.ts::function::extractFileGraph	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/extractor.ts::function::extractGraph	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/parser.ts::const::EXT_MAP	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/parser.ts::const::LANGUAGE_CONFIG	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/parser.ts::function::initWasm	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/parser.ts::function::loadLanguageAsync	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/parser.ts::function::parseSourceAsync	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/suffix-index.ts::const::EMPTY_SUFFIX_INDEX	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/suffix-index.ts::method::size	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/tsconfig-aliases.ts::const::EMPTY_TSCONFIG_ALIASES	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/tsconfig-aliases.ts::method::rewrite	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/type-env.ts::method::allBindings	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/type-env.ts::method::lookup	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/type-env.ts::method::resolveChain	method	missing	-	-	-	auto-synced parser=tree-sitter
+src/graph/extractor.ts::function::extractFileGraph	function	ported	src/chiasmus/graph/extractor.cr:219	Chiasmus::Graph::Extractor.extract_single_file	spec/chiasmus/graph/extractor_spec.cr	Ported per-file extraction as a private pure worker used by bounded graph extraction.
+src/graph/extractor.ts::function::extractGraph	function	ported	src/chiasmus/graph/extractor.cr:21	Chiasmus::Graph::Extractor.extract_graph	spec/chiasmus/graph/extractor_spec.cr	Ported graph extraction with bounded parallel workers and persistent cache support.
+src/graph/parser.ts::const::EXT_MAP	const	ported	src/chiasmus/graph/parser_language_resolver.cr:15	Chiasmus::Graph::Parser::LanguageResolver	spec/chiasmus/graph/parser_spec.cr	Extension mapping is supplied by TreeSitterManager plus registered Crystal adapters.
+src/graph/parser.ts::const::LANGUAGE_CONFIG	const	intentional_divergence	src/chiasmus/graph/parser_service.cr:1	Chiasmus::Graph::Parser::Service	spec/chiasmus/graph/parser_spec.cr	Native grammar-manager configuration replaces upstream WASM language configuration.
+src/graph/parser.ts::function::initWasm	function	intentional_divergence	src/chiasmus/graph/parser.cr:17	Chiasmus::Graph::Parser.init	spec/chiasmus/graph/parser_spec.cr	Grammar manager initialization replaces tree-sitter WASM initialization.
+src/graph/parser.ts::function::loadLanguageAsync	function	ported	src/chiasmus/graph/parser.cr:58	Chiasmus::Graph::Parser.get_language_async	spec/chiasmus/graph/async_concurrency_spec.cr	Ported asynchronous, coalesced native grammar loading.
+src/graph/parser.ts::function::parseSourceAsync	function	ported	src/chiasmus/graph/parser.cr:45	Chiasmus::Graph::Parser.parse_source_async	spec/chiasmus/graph/parser_spec.cr	Ported asynchronous parse service API.
+src/graph/suffix-index.ts::const::EMPTY_SUFFIX_INDEX	const	ported	src/chiasmus/graph/suffix_index.cr:37	Chiasmus::Graph::SuffixIndex.empty	spec/chiasmus/graph/suffix_index_spec.cr	Ported empty suffix-index factory.
+src/graph/suffix-index.ts::method::size	method	ported	src/chiasmus/graph/suffix_index.cr:26	Chiasmus::Graph::SuffixIndex#size	spec/chiasmus/graph/suffix_index_spec.cr	Ported suffix-index cardinality.
+src/graph/tsconfig-aliases.ts::const::EMPTY_TSCONFIG_ALIASES	const	ported	src/chiasmus/graph/tsconfig_aliases.cr:31	Chiasmus::Graph::TsconfigAliasMap.empty	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported empty alias-map factory.
+src/graph/tsconfig-aliases.ts::method::rewrite	method	ported	src/chiasmus/graph/tsconfig_aliases.cr:27	Chiasmus::Graph::TsconfigAliasMap#rewrite	spec/chiasmus/graph/tsconfig_aliases_spec.cr	Ported tsconfig path alias rewriting.
+src/graph/type-env.ts::method::allBindings	method	intentional_divergence	src/chiasmus/graph/type_env.cr:1	Chiasmus::Graph::TypeEnv	spec/chiasmus/graph/type_env_spec.cr	Crystal resolves type evidence while collecting AST facts rather than exposing a mutable per-scope binding map.
+src/graph/type-env.ts::method::lookup	method	intentional_divergence	src/chiasmus/graph/resolve_calls.cr:1	Chiasmus::Graph::ResolveCalls	spec/chiasmus/graph/type_env_spec.cr	Qualified-call resolution consumes collected type evidence instead of a public TypeEnv lookup API.
+src/graph/type-env.ts::method::resolveChain	method	intentional_divergence	src/chiasmus/graph/resolve_calls.cr:157	Chiasmus::Graph::ResolveCalls.resolve_chain	spec/chiasmus/graph/type_env_spec.cr	Resolution-chain logic is private to the Crystal call resolver.
 src/llm/anthropic.ts::method::AnthropicAdapter.complete	method	missing	-	-	-	auto-synced parser=tree-sitter
 src/llm/azure-openai.ts::method::AzureOpenAIEmbeddingAdapter.dimension	method	missing	-	-	-	auto-synced parser=tree-sitter
 src/llm/azure-openai.ts::method::AzureOpenAIEmbeddingAdapter.embed	method	missing	-	-	-	auto-synced parser=tree-sitter
