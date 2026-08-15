@@ -1452,24 +1452,24 @@ src/formalize/engine.ts::method::FormalizationEngine.solve	method	missing	-	-	-	
 src/graph/adapter-registry.ts::function::loadAdapterModule	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/graph/adapter-registry.ts::function::runDiscovery	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/graph/adapter-registry.ts::function::scanDirectory	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/analyses.ts::const::LAYER_ORDER	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/analyses.ts::function::runAnalysis	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/analyses.ts::function::runAnalysisFromGraph	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/analyses.ts::function::runOnGraph	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::checkFileCache	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::clearRepoCache	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::deleteSnapshot	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::ensureDir	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::ensureLockFile	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::evictIfOverBudget	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::evictLRU	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::listSnapshots	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::loadSnapshot	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::readManifest	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::saveFileCache	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::saveSnapshot	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::withRepoLock	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/graph/cache.ts::function::writeManifest	function	missing	-	-	-	auto-synced parser=tree-sitter
+src/graph/analyses.ts::const::LAYER_ORDER	const	intentional_divergence	src/chiasmus/graph/layer_violation.cr:1	Chiasmus::Graph::LayerViolation	spec/chiasmus/graph/layer_violation_spec.cr	Layer ordering is encapsulated by the Crystal LayerViolation analyzer rather than exported as a mutable constant.
+src/graph/analyses.ts::function::runAnalysis	function	ported	src/chiasmus/graph/analyses.cr:155	Chiasmus::Graph::Analyses.run_analysis	spec/chiasmus/graph/analyses_spec.cr	Ported synchronous graph analysis with snapshot/cache options.
+src/graph/analyses.ts::function::runAnalysisFromGraph	function	ported	src/chiasmus/graph/analyses.cr:240	Chiasmus::Graph::Analyses.run_analysis_from_graph	spec/chiasmus/graph/analyses_spec.cr	Ported analysis over a prebuilt graph.
+src/graph/analyses.ts::function::runOnGraph	function	ported	src/chiasmus/graph/analyses.cr:295	Chiasmus::Graph::Analyses.handle_analysis_request	spec/chiasmus/graph/analyses_spec.cr	Private dispatch is represented by the Crystal analysis request handler.
+src/graph/cache.ts::function::checkFileCache	function	ported	src/chiasmus/graph/cache.cr:102	Chiasmus::Graph::GraphCache.check_file_cache	spec/chiasmus/graph/cache_spec.cr	Ported cache hit/miss lookup through SQLite WAL storage.
+src/graph/cache.ts::function::clearRepoCache	function	ported	src/chiasmus/graph/cache.cr:173	Chiasmus::Graph::GraphCache.clear_repo_cache	spec/chiasmus/graph/diff_snapshot_spec.cr	Ported per-repository cache clearing.
+src/graph/cache.ts::function::deleteSnapshot	function	ported	src/chiasmus/graph/cache.cr:275	Chiasmus::Graph::GraphCache.delete_snapshot	spec/chiasmus/graph/diff_snapshot_spec.cr	Ported snapshot deletion with a missing-file no-op.
+src/graph/cache.ts::function::ensureDir	function	intentional_divergence	src/chiasmus/graph/cache.cr:138	Chiasmus::Graph::GraphCache.save_file_cache	spec/chiasmus/graph/cache_spec.cr	SQLite creates its parent directory; no separate JSON-cache directory helper is needed.
+src/graph/cache.ts::function::ensureLockFile	function	intentional_divergence	src/chiasmus/graph/sqlite_cache_store.cr:1	Chiasmus::Graph::SQLiteCacheStore	spec/chiasmus/graph/cache_spec.cr	SQLite WAL transactions replace Node proper-lockfile bootstrap.
+src/graph/cache.ts::function::evictIfOverBudget	function	ported	src/chiasmus/graph/sqlite_cache_store.cr:87	Chiasmus::Graph::SQLiteCacheStore.evict_over_budget	spec/chiasmus/graph/cache_spec.cr	Ported budget eviction in the SQLite cache store.
+src/graph/cache.ts::function::evictLRU	function	ported	src/chiasmus/graph/cache.cr:169	Chiasmus::Graph::GraphCache.evict_lru	spec/chiasmus/graph/cache_spec.cr	Ported LRU eviction facade.
+src/graph/cache.ts::function::listSnapshots	function	ported	src/chiasmus/graph/cache.cr:264	Chiasmus::Graph::GraphCache.list_snapshots	spec/chiasmus/graph/diff_snapshot_spec.cr	Ported named snapshot listing.
+src/graph/cache.ts::function::loadSnapshot	function	ported	src/chiasmus/graph/cache.cr:255	Chiasmus::Graph::GraphCache.load_snapshot	spec/chiasmus/graph/diff_snapshot_spec.cr	Ported snapshot decoding with missing/corrupt cache tolerance.
+src/graph/cache.ts::function::readManifest	function	intentional_divergence	src/chiasmus/graph/sqlite_cache_store.cr:1	Chiasmus::Graph::SQLiteCacheStore	spec/chiasmus/graph/cache_spec.cr	SQLite replaces the upstream JSON manifest protocol.
+src/graph/cache.ts::function::saveFileCache	function	ported	src/chiasmus/graph/cache.cr:138	Chiasmus::Graph::GraphCache.save_file_cache	spec/chiasmus/graph/cache_spec.cr	Ported persistent per-file graph cache writes.
+src/graph/cache.ts::function::saveSnapshot	function	ported	src/chiasmus/graph/cache.cr:202	Chiasmus::Graph::GraphCache.save_snapshot	spec/chiasmus/graph/diff_snapshot_spec.cr	Ported atomic named graph snapshot writes.
+src/graph/cache.ts::function::withRepoLock	function	intentional_divergence	src/chiasmus/graph/sqlite_cache_store.cr:1	Chiasmus::Graph::SQLiteCacheStore	spec/chiasmus/graph/cache_spec.cr	SQLite WAL transactional writes replace proper-lockfile critical sections.
+src/graph/cache.ts::function::writeManifest	function	intentional_divergence	src/chiasmus/graph/sqlite_cache_store.cr:1	Chiasmus::Graph::SQLiteCacheStore	spec/chiasmus/graph/cache_spec.cr	SQLite replaces the upstream JSON manifest protocol.
 src/graph/extractor.ts::function::extractFileGraph	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/graph/extractor.ts::function::extractGraph	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/graph/parser.ts::const::EXT_MAP	const	missing	-	-	-	auto-synced parser=tree-sitter

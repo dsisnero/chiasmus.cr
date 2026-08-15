@@ -74,7 +74,12 @@ module Chiasmus
       end
 
       def default_cache_dir : String
-        ENV["CHIASMUS_CACHE_DIR"]? || TreeSitterManager::XDG.chiasmus_cache_dir
+        if configured = ENV["CHIASMUS_CACHE_DIR"]?
+          return configured
+        end
+
+        cache_home = ENV["XDG_CACHE_HOME"]? || File.join(Path.home.to_s, ".cache")
+        File.join(cache_home, "chiasmus")
       end
 
       def default_max_bytes_per_repo : Int32

@@ -32,15 +32,39 @@ Current workflow split:
 | Z3 solver config | ~1 | Constructor config instead of global timeout |
 | Uncheckable Ansch/vendor defaults | ~14 | Provider defaults owned by Crig/configuration |
 
-### Outstanding Inventory Reconciliation (180 rows)
+### Outstanding Inventory Reconciliation (238 rows)
 
 The prior “18 VectorStore items” summary is obsolete: P8 is implemented. The current
-tree-sitter sync has 117 source rows, 43 test/fixture-helper rows, and 20 benchmark
-rows marked `missing`. Initial inspection found Crystal counterparts for the source
-rows; these rows are not evidence that 117 product features remain unimplemented.
-They need explicit source-ID-to-Crystal-reference mappings, or a documented
-intentional divergence where Crig, crolog, SQLite, or Crystal's runtime replaces the
-upstream architecture.
+curated ledger has 117 source rows, 43 test/fixture-helper rows, and 20 benchmark
+rows marked `missing`. A strict drift check also found 25 untracked local-embedding
+source declarations and 33 related tests in the pinned vendor. The active scope is
+therefore 142 source rows, 76 test/fixture-helper rows, and 20 benchmark rows.
+
+Most of the original source rows already have a Crystal counterpart and need an
+explicit source-ID-to-Crystal-reference mapping rather than a new implementation.
+The local-embedding rows are a user-visible feature: they require either a Crystal
+backend with matching lifecycle semantics or a documented, user-facing intentional
+divergence. Do not overwrite the curated ledger while refreshing generated manifests;
+append and curate only the new rows.
+
+### Source-Only Work Scope (142 declarations)
+
+This is the implementation-facing scope for `src/` against `vendor/chiasmus/src/`.
+Most rows already have a Crystal counterpart and require an explicit mapping rather
+than a new implementation; the phases below distinguish mapping work from actual
+behavioral gaps.
+
+| Upstream subsystem | Declarations | Planned phase | Expected disposition |
+|---|---:|---|---|
+| `graph/` | 35 | P29–P30 | Map extractor/parser/cache/analysis APIs and add behavior specs where the public contract differs. |
+| `skills/` | 22 | P31 | Map lifecycle, persistence, learning, and search-index methods to the Crystal template store. |
+| `search/` | 17 | P32 | Reconcile the existing VectorStore and embedding-cache APIs, including persistence/serialization behavior. |
+| `llm/` | 11 | P35 | Record Crig substitutions as intentional divergences or add a compatibility seam; do not recreate provider clients. |
+| `solvers/` | 11 | P34 | Specify lifecycle and correction semantics; document crolog/Z3 implementation substitutions. |
+| `mcp-server.ts` | 10 | P36 | Map server construction and tool-handler dispatch to `mcp_server/`. |
+| `formalize/engine.ts` | 9 | P33 | Characterize the formalization pipeline through the Crig boundary. |
+| `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
+| `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
 ## Remaining Feature-Sized Phases (P28-P37)
 
@@ -51,14 +75,14 @@ parity check; generated manifests remain generated artifacts.
 
 | Phase | Feature | Scope | Completion evidence |
 |---|---|---|---|
-| P28 | Inventory reconciliation baseline | Reconcile all 180 missing rows: 117 source, 43 test helpers/fixtures, 20 benchmarks. Explicitly classify Crig, crolog, SQLite, and runtime substitutions. | Every row is mapped, ported, or intentionally diverged with a rationale; inventory checks pass. |
+| P28 | Inventory reconciliation baseline | Reconcile 238 rows: 142 source, 76 test helpers/fixtures, and 20 benchmarks. Append the 25 local-embedding source rows and 33 tests without overwriting curated work; explicitly classify Crig, crolog, SQLite, and runtime substitutions. | Every row is mapped, ported, or intentionally diverged with a rationale; strict inventory and generated-manifest drift checks pass. |
 | P29 | Graph ingestion and resolution | `adapter-registry`, `extractor`, `parser`, `suffix-index`, `tsconfig-aliases`, and `type-env` (17 source IDs). | Characterization specs cover loading, parse failure, alias resolution, and extraction; mapped IDs have exact Crystal refs. |
-| P30 | Graph persistence and analysis | `graph/cache` and `graph/analyses` (18 source IDs), including cache lifecycle, locking, snapshots, and analysis entry points. | Cache/analysis behavior specs pass under concurrent callers; snapshot and analysis API rows reconciled. |
+| P30 ✓ | Graph persistence and analysis | `graph/cache` and `graph/analyses` (18 source IDs), including cache lifecycle, locking, snapshots, and analysis entry points. | Completed: cache/analysis APIs are mapped; SQLite WAL replacements for JSON manifest/proper-lockfile internals are documented; snapshot/cache specs pass. |
 | P31 | Skills lifecycle | `skills/library`, `learner`, `craft`, `relationships`, and `starters` (22 source IDs). | Specs cover persistence, promotion, search-index rebuilding, relationships, and starter templates. |
 | P32 | Semantic-search storage | `embedding-cache`, `search/engine`, and `vector-store` (17 source IDs). | Specs cover cache persistence, dimension handling, vector mutations/search, serialization, and existing P8 mappings. |
 | P33 | Formalization pipeline | `formalize/engine` (9 source IDs): instruction assembly, response cleanup, selection, fill/fix, lint loop, and solve. | Upstream-style request/response characterization tests pass with the Crig adapter boundary documented. |
 | P34 | Solver sessions and correction | `correction-loop`, `session`, `z3-solver`, and `prolog-solver` (11 source IDs). | Lifecycle, disposal, correction, and error semantics are specified; crolog/Z3 substitutions are mapped or documented. |
-| P35 | LLM-provider compatibility | `llm/mock`, `openai-compatible`, `azure`, and `anthropic` (11 source IDs). | Provider contract tests map to Crig behavior; intentionally unsupported upstream adapter internals have precise rationales. |
+| P35 | LLM-provider and local-embedding compatibility | Cloud/mock adapters (11 source IDs) plus local embeddings/configuration (25 new source IDs, 33 tests): env/config precedence, lazy single-flight load, batching, dimension discovery, retry, and disposal. | Provider contract tests map to Crig behavior; local embeddings are behaviorally ported or a supported alternative has a precise, user-facing divergence rationale. |
 | P36 | MCP-server composition | `mcp-server`, configuration defaults, and review focus validation (12 source IDs). | Tool registration, handler routing, defaults, and validation are characterized end-to-end. |
 | P37 | Benchmark-suite parity | Upstream benchmark scenario solvers, runners, and result interfaces (20 rows). | Comparable benchmark commands and result schemas exist; benchmark rows and remaining helper mappings are closed. |
 
