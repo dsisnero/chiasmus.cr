@@ -226,12 +226,13 @@ module Chiasmus
       # class_declaration, etc.). Falls back to the name node itself.
       private def find_definition_parent(node : TreeSitter::Node, kind : String) : TreeSitter::Node
         expected = case kind
-                   when "function", "test" then "function_declaration"
+                   when "function", "test" then {"function_declaration", "method_declaration"}
                    when "method"           then "method_declaration"
                    when "class"            then {"class_declaration", "type_spec", "struct_specifier", "class_definition", "class_body"}
                    when "interface"        then {"interface_declaration", "interface_type", "trait_declaration", "interface_definition"}
+                   when "enum"             then {"enum_declaration", "enum_definition"}
                    when "type"             then "type_alias_declaration"
-                   when "const"            then {"lexical_declaration", "variable_declaration"}
+                   when "const"            then {"lexical_declaration", "variable_declaration", "field_declaration"}
                    else
                      nil
                    end

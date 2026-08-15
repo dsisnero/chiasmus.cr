@@ -1,14 +1,14 @@
 # Chiasmus Crystal Parity Plan
 
-## Current Inventory State (vendor/chiasmus @ `576ed38`)
+## Current Inventory State (vendor/chiasmus @ `d1f1291e`)
 
-Tree-sitter parity baseline refreshed on 2026-06-29.
+Ledger reviewed against the pinned vendor revision on 2026-08-04.
 
-_(Vendor updated 07bbf4a → 576ed38 on 2026-06-15. See P20 for porting status.)_
+_(The completed P20 notes below describe the earlier 07bbf4a → 576ed38 update; they are retained as implementation history.)_
 
 | Manifest | Tracked | Ported | Intentional divergence | Missing |
 |---|---|---:|---:|---:|---:|
-| `typescript_port_inventory.tsv` | 1600 | 1326 | 94 | 180 |
+| `typescript_port_inventory.tsv` | 1600 | 1325 | 95 | 180 |
 | `typescript_source_parity.tsv` | 633 | n/a | n/a | n/a |
 | `typescript_test_parity.tsv` | 991 | n/a | n/a | n/a |
 
@@ -20,7 +20,7 @@ Current workflow split:
 - `check_port_inventory.sh` proves curated source coverage only.
 - `check_test_parity.sh` is the exhaustive test drift gate.
 
-### Intentional Divergences (86 items)
+### Intentional Divergences (95 items)
 
 | Subsystem | Items | Rationale |
 |---|---|---|
@@ -32,9 +32,37 @@ Current workflow split:
 | Z3 solver config | ~1 | Constructor config instead of global timeout |
 | Uncheckable Ansch/vendor defaults | ~14 | Provider defaults owned by Crig/configuration |
 
-### Missing (18 items — all VectorStore)
+### Outstanding Inventory Reconciliation (180 rows)
 
-All in `src/search/vector-store.ts` (8 source + 10 test). The only subsystem without a Crystal port.
+The prior “18 VectorStore items” summary is obsolete: P8 is implemented. The current
+tree-sitter sync has 117 source rows, 43 test/fixture-helper rows, and 20 benchmark
+rows marked `missing`. Initial inspection found Crystal counterparts for the source
+rows; these rows are not evidence that 117 product features remain unimplemented.
+They need explicit source-ID-to-Crystal-reference mappings, or a documented
+intentional divergence where Crig, crolog, SQLite, or Crystal's runtime replaces the
+upstream architecture.
+
+## Remaining Feature-Sized Phases (P28-P37)
+
+Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
+an existing equivalent spec) before changing implementation. On completion, update
+only the affected curated inventory rows with Crystal references and run the relevant
+parity check; generated manifests remain generated artifacts.
+
+| Phase | Feature | Scope | Completion evidence |
+|---|---|---|---|
+| P28 | Inventory reconciliation baseline | Reconcile all 180 missing rows: 117 source, 43 test helpers/fixtures, 20 benchmarks. Explicitly classify Crig, crolog, SQLite, and runtime substitutions. | Every row is mapped, ported, or intentionally diverged with a rationale; inventory checks pass. |
+| P29 | Graph ingestion and resolution | `adapter-registry`, `extractor`, `parser`, `suffix-index`, `tsconfig-aliases`, and `type-env` (17 source IDs). | Characterization specs cover loading, parse failure, alias resolution, and extraction; mapped IDs have exact Crystal refs. |
+| P30 | Graph persistence and analysis | `graph/cache` and `graph/analyses` (18 source IDs), including cache lifecycle, locking, snapshots, and analysis entry points. | Cache/analysis behavior specs pass under concurrent callers; snapshot and analysis API rows reconciled. |
+| P31 | Skills lifecycle | `skills/library`, `learner`, `craft`, `relationships`, and `starters` (22 source IDs). | Specs cover persistence, promotion, search-index rebuilding, relationships, and starter templates. |
+| P32 | Semantic-search storage | `embedding-cache`, `search/engine`, and `vector-store` (17 source IDs). | Specs cover cache persistence, dimension handling, vector mutations/search, serialization, and existing P8 mappings. |
+| P33 | Formalization pipeline | `formalize/engine` (9 source IDs): instruction assembly, response cleanup, selection, fill/fix, lint loop, and solve. | Upstream-style request/response characterization tests pass with the Crig adapter boundary documented. |
+| P34 | Solver sessions and correction | `correction-loop`, `session`, `z3-solver`, and `prolog-solver` (11 source IDs). | Lifecycle, disposal, correction, and error semantics are specified; crolog/Z3 substitutions are mapped or documented. |
+| P35 | LLM-provider compatibility | `llm/mock`, `openai-compatible`, `azure`, and `anthropic` (11 source IDs). | Provider contract tests map to Crig behavior; intentionally unsupported upstream adapter internals have precise rationales. |
+| P36 | MCP-server composition | `mcp-server`, configuration defaults, and review focus validation (12 source IDs). | Tool registration, handler routing, defaults, and validation are characterized end-to-end. |
+| P37 | Benchmark-suite parity | Upstream benchmark scenario solvers, runners, and result interfaces (20 rows). | Comparable benchmark commands and result schemas exist; benchmark rows and remaining helper mappings are closed. |
+
+Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, and P37 last. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
 
 ## Inventory Safety And Vendor Updates
 
@@ -822,7 +850,7 @@ All 19 languages covered by upstream codeium-parse + Crystal extractor have work
 | crystal | `CrystalExtractor` | class, interface, enum, type, method, macro, const, lib, function, annotation, field, import, module, call_sel, call, class_ref, call_op, call_imp, call_idx | ✓ |
 | dart | `DartExtractor` | class, function | ✓ |
 | go | `GoExtractor` | class, interface, function, method, test, type, package, field, enriched fn/method | ✓ |
-| java | `JavaExtractor` | class, interface, function, method, constructor, package, field, enriched method | ✓ |
+| java | `JavaExtractor` | class, enum, interface, function, method, const, constructor, package, field, enriched method | ✓ |
 | javascript | `JavaScriptExtractor` | class, interface, function, method, type, const, test, constructor, import, call, call_sel, class_ref, field | ✓ |
 | kotlin | `KotlinExtractor` | class, function, constructor, import | ✓ |
 | perl | `PerlExtractor` | class, function, import | ✓ |

@@ -172,7 +172,7 @@ describe Chiasmus::Discovery::JavaExtractor do
     interfaces.map(&.name).should contain("Runnable")
   end
 
-  it "extracts enum declarations as class" do
+  it "extracts enum declarations as enum kind" do
     extractor = Chiasmus::Discovery::JavaExtractor.new
     lang = TreeSitterManager::GrammarLoader.load_language("java")
     pending "java grammar not available" unless lang
@@ -181,8 +181,58 @@ describe Chiasmus::Discovery::JavaExtractor do
     tree = parser.parse(nil, source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
+    enums = items.select { |i| i.kind == "enum" }
+    enums.map(&.name).should contain("Color")
+  end
+
+  it "extracts record declarations as class" do
+    extractor = Chiasmus::Discovery::JavaExtractor.new
+    lang = TreeSitterManager::GrammarLoader.load_language("java")
+    pending "java grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "record Point(int x, int y) {}\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.java")
     classes = items.select { |i| i.kind == "class" }
-    classes.map(&.name).should contain("Color")
+    classes.map(&.name).should contain("Point")
+  end
+
+  it "extracts static final UPPERCASE fields as const" do
+    extractor = Chiasmus::Discovery::JavaExtractor.new
+    lang = TreeSitterManager::GrammarLoader.load_language("java")
+    pending "java grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = <<-JAVA
+      public class Constants {
+        public static final String API_KEY = "abc";
+        private static final int MAX = 10;
+        int counter = 0;
+      }
+    JAVA
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.java")
+    consts = items.select { |i| i.kind == "const" }
+    consts.map(&.name).should contain("API_KEY")
+    consts.map(&.name).should contain("MAX")
+    consts.map(&.name).should_not contain("counter")
+  end
+
+  it "classifies methods inside a class as method and top-level methods as function" do
+    extractor = Chiasmus::Discovery::JavaExtractor.new
+    lang = TreeSitterManager::GrammarLoader.load_language("java")
+    pending "java grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "void topLevel() {}\nclass X { void foo() {} }\n"
+    tree = parser.parse(nil, source)
+
+    items = extractor.extract(tree.root_node, source, "test.java")
+    methods = items.select { |i| i.kind == "method" }
+    methods.map(&.name).should contain("X.foo")
+    methods.map(&.name).should_not contain("topLevel")
+    functions = items.select { |i| i.kind == "function" }
+    functions.map(&.name).should contain("topLevel")
   end
 
   it "extracts method declarations" do
