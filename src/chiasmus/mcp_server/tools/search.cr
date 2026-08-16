@@ -232,9 +232,14 @@ module Chiasmus
         # node-llama-cpp is a Node-only optional backend. Crystal supports
         # local semantic search through an Ollama embedding endpoint instead.
         def self.local_embedding_configuration_error : String?
-          return nil unless ENV["CHIASMUS_LOCAL_EMBED"]?
+          local_embedding_configuration_error(Utils::Config.load)
+        end
 
-          "CHIASMUS_LOCAL_EMBED is not supported by the Crystal build; " +
+        def self.local_embedding_configuration_error(config : Utils::Config::ChiasmusConfig) : String?
+          local_config_enabled = config.local_embeddings.try(&.enabled?) || false
+          return nil unless ENV["CHIASMUS_LOCAL_EMBED"]? || local_config_enabled
+
+          "Local embeddings (CHIASMUS_LOCAL_EMBED/localEmbeddings) are not supported by the Crystal build; " +
             "use CHIASMUS_EMBED_PROVIDER=ollama with a local Ollama embedding model instead."
         end
 

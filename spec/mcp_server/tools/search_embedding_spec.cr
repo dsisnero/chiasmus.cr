@@ -99,5 +99,15 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         message.should contain("CHIASMUS_EMBED_PROVIDER=ollama")
       end
     end
+
+    it "rejects node-llama configuration loaded from config.json too" do
+      config = Chiasmus::Utils::Config::ChiasmusConfig.new(
+        Chiasmus::Utils::Config::LocalEmbeddingsConfig.new(enabled: true, model: "hf:example/model")
+      )
+
+      message = Chiasmus::MCPServer::Tools::SearchTool.local_embedding_configuration_error(config) ||
+                raise "expected unsupported local embedding configuration error"
+      message.downcase.should contain("not supported")
+    end
   end
 end
