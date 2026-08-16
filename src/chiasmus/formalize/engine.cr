@@ -139,13 +139,8 @@ module Chiasmus
         # Ask LLM to fill the template
         filled_spec = llm_fill(problem, template)
 
-        # Lint the filled spec
-        linted_spec, lint_errors = lint_loop(filled_spec, template, max_rounds)
-        unless lint_errors.empty?
-          # If linting fails, ask LLM to fix it
-          filled_spec = llm_fix_lint(filled_spec, lint_errors, template)
-          linted_spec, lint_errors = lint_loop(filled_spec, template, max_rounds)
-        end
+        # Lint the filled spec, asking the LLM to repair each unresolved result.
+        linted_spec = lint_loop(filled_spec, template, max_rounds)
 
         # Build solver input
         initial_input = build_solver_input(template, linted_spec)
@@ -162,12 +157,7 @@ module Chiasmus
 
             fixed = llm_fix(attempt.input, feedback, template)
             # Lint the fix before resubmitting to the solver
-            linted, lint_errors = lint_loop(fixed, template, max_rounds)
-            unless lint_errors.empty?
-              # If linting fails, try to fix it
-              fixed = llm_fix_lint(fixed, lint_errors, template)
-              linted, _ = lint_loop(fixed, template, max_rounds)
-            end
+            linted = lint_loop(fixed, template, 2)
 
             build_solver_input(template, linted).as(Solvers::SolverInput?)
           end,
@@ -350,30 +340,7 @@ module Chiasmus
         clean_response(response)
       end
 
-      private def llm_fix_lint(
-        spec : String,
-        lint_errors : Array(String),
-        template : Skills::SkillTemplate,
-      ) : String
-        response = @agent.prompt(
-          <<-CONTENT
-          #{FIX_SYSTEM}
-
-          SOLVER: #{template.solver}
-          SPECIFICATION:
-          #{spec}
-
-          LINT ERRORS:
-          #{lint_errors.join("\n")}
-
-          Fix the specification to resolve these lint errors and return only the corrected version.
-          CONTENT
-        ).send_async.receive.unwrap
-
-        clean_response(response)
-      end
-
-      private def build_solver_input(template : Skills::SkillTemplate, spec : String) : Solvers::SolverInput?
+      private def build_solver_input(template : Skills::SkillTemplate, spec : String) : Solvers::SolverInput
         if template.solver == Solvers::SolverType::Z3
           Solvers::Z3SolverInput.new(smtlib: spec)
         else
@@ -403,66 +370,32 @@ module Chiasmus
           .strip
       end
 
-      # Lint a spec, applying auto-fixes and reporting errors.
-      # Returns the linted spec and any remaining errors.
-      private def lint_loop(spec : String, template : Skills::SkillTemplate, max_rounds : Int32) : {String, Array(String)}
+      # Lint a spec, applying auto-fixes and asking the LLM to repair each
+      # unresolved error set. Repeated error sets stop the loop so a looping
+      # model cannot consume all solver correction rounds.
+      private def lint_loop(spec : String, template : Skills::SkillTemplate, max_rounds : Int32) : String
         current = spec
-        errors = [] of String
+        seen_errors = Set(String).new
 
-        max_rounds.times do |round|
+        max_rounds.times do
           lint_result = Formalize.lint_spec(current, template.solver)
           current = lint_result.spec
 
           if lint_result.errors.empty?
-            return {current, [] of String}
+            return current
           end
 
-          # If we have errors and this is the first round, try to fix common issues
-          if round == 0
-            # Try to apply some heuristic fixes
-            fixed = try_heuristic_fixes(current, lint_result.errors, template.solver)
-            if fixed != current
-              current = fixed
-              next
-            end
-          end
+          error_key = lint_result.errors.sort.join("|")
+          return current if seen_errors.includes?(error_key)
+          seen_errors << error_key
 
-          errors = lint_result.errors
-          break
+          error_report = (lint_result.fixes.map { |fix| "[auto-fixed] #{fix}" } +
+                          lint_result.errors.map { |error| "[error] #{error}" }).join("\n")
+          feedback = "Lint errors (fix these before solver submission):\n#{error_report}"
+          current = llm_fix(build_solver_input(template, current), feedback, template)
         end
 
-        {current, errors}
-      end
-
-      private def try_heuristic_fixes(spec : String, errors : Array(String), solver : Solvers::SolverType) : String
-        fixed = spec
-
-        errors.each do |error|
-          # Try to fix missing periods in Prolog
-          if (error.includes?("clause") && error.includes?("period")) && solver == Solvers::SolverType::Prolog
-            # Add period to last line if missing
-            lines = fixed.lines
-            if !lines.empty? && !lines.last.strip.ends_with?('.')
-              lines[-1] = "#{lines.last.strip}."
-              fixed = lines.join("\n")
-            end
-          end
-
-          # Try to fix unbalanced parentheses
-          if error.includes?("Unbalanced parentheses")
-            # Simple heuristic: add missing closing parens at end
-            depth = 0
-            fixed.each_char do |char|
-              depth += 1 if char == '('
-              depth -= 1 if char == ')'
-            end
-            if depth > 0
-              fixed = "#{fixed}#{")" * depth}"
-            end
-          end
-        end
-
-        fixed
+        current
       end
     end
   end

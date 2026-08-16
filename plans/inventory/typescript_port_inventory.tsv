@@ -1462,15 +1462,15 @@ benchmark/traditional/p3-taint.ts::function::solveTraditional	function	missing	-
 benchmark/traditional/p4-workflow.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
 benchmark/traditional/p5-validation.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/config.ts::const::DEFAULTS	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.buildInstructions	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.buildSolverInput	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.cleanResponse	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.formalize	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.lintLoop	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.llmFill	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.llmFix	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.selectByEmbedding	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/formalize/engine.ts::method::FormalizationEngine.solve	method	missing	-	-	-	auto-synced parser=tree-sitter
+src/formalize/engine.ts::method::FormalizationEngine.buildInstructions	method	ported	src/chiasmus/formalize/engine.cr:256	Chiasmus::Formalize::Engine#build_instructions	spec/chiasmus/formalize/engine_spec.cr	Ported with equivalent slot, normalization, tip, example, and solver guidance assembly.
+src/formalize/engine.ts::method::FormalizationEngine.buildSolverInput	method	ported	src/chiasmus/formalize/engine.cr:343	Chiasmus::Formalize::Engine#build_solver_input	spec/chiasmus/formalize/prolog_input_spec.cr	Ported as typed Z3/Prolog input construction; Crystal extracts the final Prolog query inline.
+src/formalize/engine.ts::method::FormalizationEngine.cleanResponse	method	ported	src/chiasmus/formalize/engine.cr:366	Chiasmus::Formalize::Engine#clean_response	spec/chiasmus/formalize/engine_spec.cr	Ported markdown-fence cleanup at the Crig response boundary.
+src/formalize/engine.ts::method::FormalizationEngine.formalize	method	ported	src/chiasmus/formalize/engine.cr:81	Chiasmus::Formalize::Engine#formalize	spec/chiasmus/formalize/engine_spec.cr	Ported embedding reranking with BM25 and first-template fallback.
+src/formalize/engine.ts::method::FormalizationEngine.lintLoop	method	ported	src/chiasmus/formalize/engine.cr:376	Chiasmus::Formalize::Engine#lint_loop	spec/chiasmus/formalize/engine_spec.cr	Ported bounded auto-fix/LLM remediation loop with repeated-error oscillation detection.
+src/formalize/engine.ts::method::FormalizationEngine.llmFill	method	ported	src/chiasmus/formalize/engine.cr:303	Chiasmus::Formalize::Engine#llm_fill	spec/chiasmus/formalize/engine_spec.cr	Ported through the Crig agent async completion boundary.
+src/formalize/engine.ts::method::FormalizationEngine.llmFix	method	ported	src/chiasmus/formalize/engine.cr:311	Chiasmus::Formalize::Engine#llm_fix	spec/chiasmus/formalize/engine_spec.cr	Ported solver and lint feedback repair prompt through Crig.
+src/formalize/engine.ts::method::FormalizationEngine.selectByEmbedding	method	ported	src/chiasmus/formalize/engine.cr:217	Chiasmus::Formalize::Engine#select_by_embedding	spec/chiasmus/formalize/engine_spec.cr	Ported cosine reranking with failure fallback.
+src/formalize/engine.ts::method::FormalizationEngine.solve	method	ported	src/chiasmus/formalize/engine.cr:125	Chiasmus::Formalize::Engine#solve	spec/chiasmus/formalize/engine_spec.cr	Ported end-to-end fill, lint remediation, solver correction, and usage recording.
 src/graph/adapter-registry.ts::function::loadAdapterModule	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:1	Chiasmus::Graph::AdapterRegistry	spec/chiasmus/graph/adapter_registry_spec.cr	Crystal does not load Node ESM adapter modules; adapters are registered as Crystal implementations.
 src/graph/adapter-registry.ts::function::runDiscovery	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:1	Chiasmus::Graph::AdapterRegistry	spec/chiasmus/graph/adapter_registry_spec.cr	Static Crystal registration replaces node_modules discovery and shared Promise state.
 src/graph/adapter-registry.ts::function::scanDirectory	function	intentional_divergence	src/chiasmus/graph/adapter_registry.cr:1	Chiasmus::Graph::AdapterRegistry	spec/chiasmus/graph/adapter_registry_spec.cr	No JavaScript module directory scan exists in the Crystal runtime.

@@ -272,6 +272,27 @@ describe Chiasmus::Formalize::Engine(Chiasmus::LLM::MockCompletionModel) do
       end
     end
 
+    it "repairs unresolved lint errors before submitting to the solver" do
+      responses = [
+        "(declare-const x Int)\n(assert (= x {{SLOT:value}}))",
+        "(declare-const x Int)\n(assert (= x {{SLOT:replacement}}))",
+        "(declare-const x Int)\n(assert (= x 5))",
+      ]
+
+      with_scripted_formalize_engine(responses) do |engine, _library, prompts|
+        result = engine.solve("Find an integer equal to 5", 3)
+
+        result.converged.should be_true
+        result.result.status.should eq("sat")
+        result.rounds.should eq(1)
+        result.history.size.should eq(1)
+        prompts.size.should eq(3)
+        prompts[1].should contain("FEEDBACK:")
+        prompts[1].should contain("Lint errors (fix these before solver submission):")
+        prompts[1].should contain("[error] Unfilled template slots")
+      end
+    end
+
     it "returns failure with diagnostics when the correction loop exhausts" do
       responses = Array.new(4, %( (declare-const x Int) (assert (= x y)) ).strip)
 
