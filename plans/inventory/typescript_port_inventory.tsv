@@ -1441,26 +1441,26 @@ tests/mcp-tool-gating.test.ts::test::hides chiasmus_search when no embedding pro
 tests/mcp-tool-gating.test.ts::test::keeps gracefully-degrading tools (solve, formalize) listed without an LLM	test	ported	spec/chiasmus/mcp_server/mcp_transport_spec.cr	-	spec/chiasmus/mcp_server/mcp_transport_spec.cr	Tool gating spec added in P12
 tests/mcp-tool-gating.test.ts::test::lists chiasmus_search when an embedding provider is configured	test	ported	spec/chiasmus/mcp_server/mcp_transport_spec.cr	-	spec/chiasmus/mcp_server/mcp_transport_spec.cr	Tool gating spec added in P12
 tests/search/engine.test.ts::test::works when the adapter	test	intentional_divergence	-	-	-	Crig's EmbeddingModelDyn always knows dimension; LazyDimAdapter test not applicable
-benchmark/chiasmus/p1-rbac.ts::function::solveChiasmus	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/chiasmus/p2-deps.ts::function::solveChiasmus	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/chiasmus/p3-taint.ts::function::solveChiasmus	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/chiasmus/p4-workflow.ts::function::solveChiasmus	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/chiasmus/p5-validation.ts::function::solveChiasmus	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p1-rbac.test.ts::function::runSuite	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p1-rbac.test.ts::interface::ConflictResult	interface	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p2-deps.test.ts::function::runSuite	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p2-deps.test.ts::interface::DependencyResult	interface	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p3-taint.test.ts::function::runSuite	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p3-taint.test.ts::interface::TaintResult	interface	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p4-workflow.test.ts::function::runSuite	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p4-workflow.test.ts::interface::WorkflowResult	interface	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p5-validation.test.ts::function::runSuite	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/tests/p5-validation.test.ts::interface::ValidationGapResult	interface	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/traditional/p1-rbac.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/traditional/p2-deps.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/traditional/p3-taint.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/traditional/p4-workflow.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
-benchmark/traditional/p5-validation.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
+benchmark/chiasmus/p1-rbac.ts::function::solveChiasmus	function	ported	src/benchmark/chiasmus/p1_rbac.cr:7	Benchmark::Chiasmus.solve_rbac	spec/benchmark/p1_rbac_spec.cr	Ported Z3 benchmark solver.
+benchmark/chiasmus/p2-deps.ts::function::solveChiasmus	function	ported	src/benchmark/chiasmus/p2_deps.cr:7	Benchmark::Chiasmus.solve_deps	spec/benchmark/p2_deps_spec.cr	Ported Z3 benchmark solver.
+benchmark/chiasmus/p3-taint.ts::function::solveChiasmus	function	ported	src/benchmark/chiasmus/p3_taint.cr:7	Benchmark::Chiasmus.solve_taint	spec/benchmark/p3_taint_spec.cr	Ported Prolog benchmark solver.
+benchmark/chiasmus/p4-workflow.ts::function::solveChiasmus	function	ported	src/benchmark/chiasmus/p4_workflow.cr:7	Benchmark::Chiasmus.solve_workflow	spec/benchmark/p4_workflow_spec.cr	Ported Prolog benchmark solver.
+benchmark/chiasmus/p5-validation.ts::function::solveChiasmus	function	ported	src/benchmark/chiasmus/p5_validation.cr:8	Benchmark::Chiasmus.solve_validation	spec/benchmark/p5_validation_spec.cr	Ported Z3 benchmark solver.
+benchmark/tests/p1-rbac.test.ts::function::runSuite	function	ported	spec/benchmark/p1_rbac_spec.cr:7	Benchmark specs	spec/benchmark/p1_rbac_spec.cr	Crystal spec runner replaces TypeScript runSuite.
+benchmark/tests/p1-rbac.test.ts::interface::ConflictResult	interface	ported	src/benchmark/chiasmus/p1_rbac.cr:5	Benchmark::Chiasmus::ConflictResult	spec/benchmark/p1_rbac_spec.cr	Ported typed result.
+benchmark/tests/p2-deps.test.ts::function::runSuite	function	ported	spec/benchmark/p2_deps_spec.cr:7	Benchmark specs	spec/benchmark/p2_deps_spec.cr	Crystal spec runner replaces TypeScript runSuite.
+benchmark/tests/p2-deps.test.ts::interface::DependencyResult	interface	ported	src/benchmark/chiasmus/p2_deps.cr:5	Benchmark::Chiasmus::DependencyResult	spec/benchmark/p2_deps_spec.cr	Ported typed result.
+benchmark/tests/p3-taint.test.ts::function::runSuite	function	ported	spec/benchmark/p3_taint_spec.cr:7	Benchmark specs	spec/benchmark/p3_taint_spec.cr	Crystal spec runner replaces TypeScript runSuite.
+benchmark/tests/p3-taint.test.ts::interface::TaintResult	interface	ported	src/benchmark/chiasmus/p3_taint.cr:5	Benchmark::Chiasmus::TaintResult	spec/benchmark/p3_taint_spec.cr	Ported typed result.
+benchmark/tests/p4-workflow.test.ts::function::runSuite	function	ported	spec/benchmark/p4_workflow_spec.cr:7	Benchmark specs	spec/benchmark/p4_workflow_spec.cr	Crystal spec runner replaces TypeScript runSuite.
+benchmark/tests/p4-workflow.test.ts::interface::WorkflowResult	interface	ported	src/benchmark/chiasmus/p4_workflow.cr:5	Benchmark::Chiasmus::WorkflowResult	spec/benchmark/p4_workflow_spec.cr	Ported typed result.
+benchmark/tests/p5-validation.test.ts::function::runSuite	function	ported	spec/benchmark/p5_validation_spec.cr:7	Benchmark specs	spec/benchmark/p5_validation_spec.cr	Crystal spec runner replaces TypeScript runSuite.
+benchmark/tests/p5-validation.test.ts::interface::ValidationGapResult	interface	ported	src/benchmark/chiasmus/p5_validation.cr:6	Benchmark::Chiasmus::ValidationGapResult	spec/benchmark/p5_validation_spec.cr	Ported typed result.
+benchmark/traditional/p1-rbac.ts::function::solveTraditional	function	ported	src/benchmark/traditional/p1_rbac.cr:5	Benchmark::Traditional.solve_rbac	spec/benchmark/p1_rbac_spec.cr	Ported traditional benchmark solver.
+benchmark/traditional/p2-deps.ts::function::solveTraditional	function	ported	src/benchmark/traditional/p2_deps.cr:5	Benchmark::Traditional.solve_deps	spec/benchmark/p2_deps_spec.cr	Ported traditional benchmark solver.
+benchmark/traditional/p3-taint.ts::function::solveTraditional	function	ported	src/benchmark/traditional/p3_taint.cr:5	Benchmark::Traditional.solve_taint	spec/benchmark/p3_taint_spec.cr	Ported traditional benchmark solver.
+benchmark/traditional/p4-workflow.ts::function::solveTraditional	function	ported	src/benchmark/traditional/p4_workflow.cr:5	Benchmark::Traditional.solve_workflow	spec/benchmark/p4_workflow_spec.cr	Ported traditional benchmark solver.
+benchmark/traditional/p5-validation.ts::function::solveTraditional	function	ported	src/benchmark/traditional/p5_validation.cr:6	Benchmark::Traditional.solve_validation	spec/benchmark/p5_validation_spec.cr	Ported traditional benchmark solver.
 src/config.ts::const::DEFAULTS	const	intentional_divergence	src/chiasmus/utils/config.cr:75	Chiasmus::Utils::Config::DEFAULTS	spec/chiasmus/utils/config_spec.cr	Static Crystal adapter registration replaces adapterDiscovery; Node-only localEmbeddings is explicitly unsupported with Ollama documented as the local alternative.
 src/formalize/engine.ts::method::FormalizationEngine.buildInstructions	method	ported	src/chiasmus/formalize/engine.cr:256	Chiasmus::Formalize::Engine#build_instructions	spec/chiasmus/formalize/engine_spec.cr	Ported with equivalent slot, normalization, tip, example, and solver guidance assembly.
 src/formalize/engine.ts::method::FormalizationEngine.buildSolverInput	method	ported	src/chiasmus/formalize/engine.cr:343	Chiasmus::Formalize::Engine#build_solver_input	spec/chiasmus/formalize/prolog_input_spec.cr	Ported as typed Z3/Prolog input construction; Crystal extracts the final Prolog query inline.
