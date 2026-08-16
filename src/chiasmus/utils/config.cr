@@ -7,10 +7,32 @@ module Chiasmus
   module Utils
     class Config
       # Configuration structure
+      struct LocalEmbeddingsConfig
+        include JSON::Serializable
+
+        property? enabled : Bool = false
+        property model : String?
+        property dimension : Int32?
+
+        @[JSON::Field(key: "modelsDir")]
+        property models_dir : String?
+
+        def initialize(
+          @enabled : Bool = false,
+          @model : String? = nil,
+          @dimension : Int32? = nil,
+          @models_dir : String? = nil,
+        )
+        end
+      end
+
       struct ChiasmusConfig
         include JSON::Serializable
 
-        def initialize
+        @[JSON::Field(key: "localEmbeddings")]
+        property local_embeddings : LocalEmbeddingsConfig?
+
+        def initialize(@local_embeddings : LocalEmbeddingsConfig? = nil)
         end
       end
 

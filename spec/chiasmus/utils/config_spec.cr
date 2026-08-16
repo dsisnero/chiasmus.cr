@@ -129,6 +129,19 @@ describe Chiasmus::Utils::Config do
       end
     end
 
+    it "parses the local embeddings configuration block" do
+      with_tmp_dir do |dir|
+        write_config(dir, %({"localEmbeddings":{"enabled":true,"model":"hf:example/model","dimension":768,"modelsDir":"/models"}}))
+        config = Chiasmus::Utils::Config.load(dir)
+        local = config.local_embeddings || raise "expected local embeddings configuration"
+
+        local.enabled?.should be_true
+        local.model.should eq("hf:example/model")
+        local.dimension.should eq(768)
+        local.models_dir.should eq("/models")
+      end
+    end
+
     it "returns defaults for whitespace-only JSON file" do
       with_tmp_dir do |dir|
         write_config(dir, "   \n  \t  ")

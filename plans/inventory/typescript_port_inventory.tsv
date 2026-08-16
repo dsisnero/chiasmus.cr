@@ -1545,28 +1545,6 @@ src/search/vector-store.ts::method::VectorStore.remove	method	ported	src/chiasmu
 src/search/vector-store.ts::method::VectorStore.search	method	ported	src/chiasmus/search/vector_store.cr:72	VectorStore#search	-	Ported
 src/search/vector-store.ts::method::VectorStore.serialize	method	ported	src/chiasmus/search/vector_store.cr:92	VectorStore#serialize	-	Ported
 src/search/vector-store.ts::method::VectorStore.size	method	ported	src/chiasmus/search/vector_store.cr:64	VectorStore#size	-	Ported
-src/skills/craft.ts::function::craftTemplate	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/learner.ts::method::SkillLearner.checkPromotions	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/learner.ts::method::SkillLearner.extractTemplate	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/learner.ts::method::SkillLearner.isDuplicate	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/learner.ts::method::SkillLearner.textSimilarity	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.addLearned	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.close	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.constructor	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.create	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.get	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.getMetadata	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.getRelated	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.getTemplateSearchText	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.list	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.loadMetadata	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.promote	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.rebuildSearchIndex	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.recordUse	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.remove	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/library.ts::method::SkillLibrary.search	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/relationships.ts::const::RELATIONSHIPS	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/skills/starters.ts::const::STARTER_TEMPLATES	const	missing	-	-	-	auto-synced parser=tree-sitter
 src/solvers/correction-loop.ts::function::correctionLoop	function	ported	src/chiasmus/solvers/correction_loop.cr:26	Solvers.correction_loop	-	Ported bounded correction lifecycle
 src/solvers/prolog-solver.ts::function::getPl	function	intentional_divergence	src/chiasmus/solvers/prolog_solver.cr:118	PrologRuntime.shared	-	Crolog owns the shared SWI runtime on a dedicated actor instead of exposing Node getPl
 src/solvers/prolog-solver.ts::method::dispose	method	ported	src/chiasmus/solvers/prolog_solver.cr:58	PrologSolver#dispose	-	Ported runtime client release
