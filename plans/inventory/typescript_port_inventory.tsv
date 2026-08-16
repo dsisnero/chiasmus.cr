@@ -1567,17 +1567,17 @@ src/skills/library.ts::method::SkillLibrary.remove	method	missing	-	-	-	auto-syn
 src/skills/library.ts::method::SkillLibrary.search	method	missing	-	-	-	auto-synced parser=tree-sitter
 src/skills/relationships.ts::const::RELATIONSHIPS	const	missing	-	-	-	auto-synced parser=tree-sitter
 src/skills/starters.ts::const::STARTER_TEMPLATES	const	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/correction-loop.ts::function::correctionLoop	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/prolog-solver.ts::function::getPl	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/prolog-solver.ts::method::dispose	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/prolog-solver.ts::method::solve	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/session.ts::method::SolverSession.constructor	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/session.ts::method::SolverSession.create	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/session.ts::method::SolverSession.dispose	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/session.ts::method::SolverSession.solve	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/z3-solver.ts::function::createZ3Solver	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/z3-solver.ts::method::dispose	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/solvers/z3-solver.ts::method::solve	method	missing	-	-	-	auto-synced parser=tree-sitter
+src/solvers/correction-loop.ts::function::correctionLoop	function	ported	src/chiasmus/solvers/correction_loop.cr:26	Solvers.correction_loop	-	Ported bounded correction lifecycle
+src/solvers/prolog-solver.ts::function::getPl	function	intentional_divergence	src/chiasmus/solvers/prolog_solver.cr:118	PrologRuntime.shared	-	Crolog owns the shared SWI runtime on a dedicated actor instead of exposing Node getPl
+src/solvers/prolog-solver.ts::method::dispose	method	ported	src/chiasmus/solvers/prolog_solver.cr:58	PrologSolver#dispose	-	Ported runtime client release
+src/solvers/prolog-solver.ts::method::solve	method	ported	src/chiasmus/solvers/prolog_solver.cr:32	PrologSolver#solve	-	Ported through Crolog worker actor
+src/solvers/session.ts::method::SolverSession.constructor	method	ported	src/chiasmus/solvers/session.cr:25	SolverSession#initialize	-	Ported session initialization
+src/solvers/session.ts::method::SolverSession.create	method	ported	src/chiasmus/solvers/session.cr:31	SolverSession.create	-	Ported factory
+src/solvers/session.ts::method::SolverSession.dispose	method	ported	src/chiasmus/solvers/session.cr:126	SolverSession#dispose	-	Ported worker teardown
+src/solvers/session.ts::method::SolverSession.solve	method	ported	src/chiasmus/solvers/session.cr:71	SolverSession#solve	-	Ported dispatch
+src/solvers/z3-solver.ts::function::createZ3Solver	function	ported	src/chiasmus/solvers/z3_solver.cr:15	Z3Solver.new	-	Ported Crystal factory
+src/solvers/z3-solver.ts::method::dispose	method	ported	src/chiasmus/solvers/z3_solver.cr:32	Z3Solver#dispose	-	Ported process cleanup
+src/solvers/z3-solver.ts::method::solve	method	ported	src/chiasmus/solvers/z3_solver.cr:22	Z3Solver#solve	-	Ported solver invocation
 tests/azure-openai-adapter.test.ts::function::embeddingResponse	function	missing	-	-	-	auto-synced parser=tree-sitter
 tests/config.test.ts::function::makeTmpDir	function	missing	-	-	-	auto-synced parser=tree-sitter
 tests/correction-loop.test.ts::function::fixer	function	missing	-	-	-	auto-synced parser=tree-sitter
