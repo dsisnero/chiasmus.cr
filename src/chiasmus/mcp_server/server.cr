@@ -138,10 +138,11 @@ module Chiasmus
       getter skill_learner : Skills::Learner?
       getter? refreshable_from_env : Bool
 
-      def initialize(@refreshable_from_env : Bool = false)
-        @config = Utils::Config.load
+      def initialize(@refreshable_from_env : Bool = false, chiasmus_home : String? = nil)
+        home = chiasmus_home || self.class.chiasmus_home
+        @config = Utils::Config.load(home)
         Utils::Config.load_repo_config(Dir.current)
-        @skill_library = Skills::Library.create(self.class.chiasmus_home)
+        @skill_library = Skills::Library.create(home)
         @skill_learner = nil
         @formalization_engine = nil
         @tool_dispatcher = ToolDispatcher.new

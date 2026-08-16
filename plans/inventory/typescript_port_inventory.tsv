@@ -1461,7 +1461,7 @@ benchmark/traditional/p2-deps.ts::function::solveTraditional	function	missing	-	
 benchmark/traditional/p3-taint.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
 benchmark/traditional/p4-workflow.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
 benchmark/traditional/p5-validation.ts::function::solveTraditional	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/config.ts::const::DEFAULTS	const	missing	-	-	-	auto-synced parser=tree-sitter
+src/config.ts::const::DEFAULTS	const	intentional_divergence	src/chiasmus/utils/config.cr:75	Chiasmus::Utils::Config::DEFAULTS	spec/chiasmus/utils/config_spec.cr	Static Crystal adapter registration replaces adapterDiscovery; Node-only localEmbeddings is explicitly unsupported with Ollama documented as the local alternative.
 src/formalize/engine.ts::method::FormalizationEngine.buildInstructions	method	ported	src/chiasmus/formalize/engine.cr:256	Chiasmus::Formalize::Engine#build_instructions	spec/chiasmus/formalize/engine_spec.cr	Ported with equivalent slot, normalization, tip, example, and solver guidance assembly.
 src/formalize/engine.ts::method::FormalizationEngine.buildSolverInput	method	ported	src/chiasmus/formalize/engine.cr:343	Chiasmus::Formalize::Engine#build_solver_input	spec/chiasmus/formalize/prolog_input_spec.cr	Ported as typed Z3/Prolog input construction; Crystal extracts the final Prolog query inline.
 src/formalize/engine.ts::method::FormalizationEngine.cleanResponse	method	ported	src/chiasmus/formalize/engine.cr:366	Chiasmus::Formalize::Engine#clean_response	spec/chiasmus/formalize/engine_spec.cr	Ported markdown-fence cleanup at the Crig response boundary.
@@ -1517,17 +1517,17 @@ src/llm/mock.ts::method::MockLLMAdapter.onMatch	method	intentional_divergence	sp
 src/llm/openai-compatible.ts::method::OpenAICompatibleAdapter.complete	method	intentional_divergence	src/chiasmus/llm/types.cr:218	Chiasmus::LLM.agent	-	Crig owns OpenAI-compatible completion transport.
 src/llm/openai-compatible.ts::method::OpenAICompatibleEmbeddingAdapter.dimension	method	intentional_divergence	src/chiasmus/mcp_server/tools/search.cr:151	Chiasmus::MCPServer::Tools::SearchTool	-	Crig embedding models own dimensions and request shape.
 src/llm/openai-compatible.ts::method::OpenAICompatibleEmbeddingAdapter.embed	method	intentional_divergence	src/chiasmus/mcp_server/tools/search.cr:151	Chiasmus::MCPServer::Tools::SearchTool	-	Crig owns OpenAI-compatible embedding transport.
-src/mcp-server.ts::function::createChiasmusServer	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::function::handleCraft	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::function::handleFormalize	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::function::handleGraph	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::function::handleLearn	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::function::handleMap	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::function::handleSearch	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::function::handleSolve	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::function::handleVerify	function	missing	-	-	-	auto-synced parser=tree-sitter
-src/mcp-server.ts::method::complete	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/review.ts::const::VALID_FOCUS	const	missing	-	-	-	auto-synced parser=tree-sitter
+src/mcp-server.ts::function::createChiasmusServer	function	ported	src/chiasmus/mcp_server/server.cr:141	Chiasmus::MCPServer::Server#initialize	spec/chiasmus/mcp_server/repo_config_startup_spec.cr	Ported explicit Chiasmus home isolation and injected Crig-agent construction.
+src/mcp-server.ts::function::handleCraft	function	ported	src/chiasmus/mcp_server/tools/craft.cr:12	Chiasmus::MCPServer::Tools::CraftTool#invoke	spec/mcp_server/tools/craft_spec.cr	Ported handler as typed MCP tool.
+src/mcp-server.ts::function::handleFormalize	function	ported	src/chiasmus/mcp_server/tools/formalize.cr:10	Chiasmus::MCPServer::Tools::FormalizeTool#invoke	spec/mcp_server/tools/formalize_spec.cr	Ported handler as typed MCP tool.
+src/mcp-server.ts::function::handleGraph	function	ported	src/chiasmus/mcp_server/tools/graph.cr:13	Chiasmus::MCPServer::Tools::GraphTool#invoke	spec/mcp_server/tools/graph_spec.cr	Ported handler with durable snapshot semantics.
+src/mcp-server.ts::function::handleLearn	function	ported	src/chiasmus/mcp_server/tools/learn.cr:11	Chiasmus::MCPServer::Tools::LearnTool#invoke	spec/mcp_server/tools/learn_spec.cr	Ported handler; tool remains capability-gated without an LLM.
+src/mcp-server.ts::function::handleMap	function	ported	src/chiasmus/mcp_server/tools/map.cr:12	Chiasmus::MCPServer::Tools::MapTool#invoke	spec/mcp_server/tools/map_spec.cr	Ported handler as typed MCP tool.
+src/mcp-server.ts::function::handleSearch	function	ported	src/chiasmus/mcp_server/tools/search.cr:30	Chiasmus::MCPServer::Tools::SearchTool#invoke	spec/mcp_server/tools/search_embedding_spec.cr	Ported handler; tool remains capability-gated without embeddings.
+src/mcp-server.ts::function::handleSolve	function	ported	src/chiasmus/mcp_server/tools/solve.cr:11	Chiasmus::MCPServer::Tools::SolveTool#invoke	spec/mcp_server/tools/solve_spec.cr	Ported handler with graceful no-LLM fallback.
+src/mcp-server.ts::function::handleVerify	function	ported	src/chiasmus/mcp_server/tools/verify.cr:11	Chiasmus::MCPServer::Tools::VerifyTool#invoke	spec/mcp_server/tools/verify_spec.cr	Ported handler as typed MCP tool.
+src/mcp-server.ts::method::complete	method	intentional_divergence	src/chiasmus/llm/mock_adapter.cr:46	Chiasmus::LLM::MockAdapter.create_agent	spec/chiasmus/formalize/engine_spec.cr	Crig agent completion boundary replaces the upstream LLMAdapter complete method.
+src/review.ts::const::VALID_FOCUS	const	ported	src/chiasmus/review.cr:33	Chiasmus::Review::VALID_FOCUS	spec/chiasmus/review_spec.cr	Ported exact review focus set and validation.
 src/search/embedding-cache.ts::method::EmbeddingCache.get	method	ported	src/chiasmus/search/embedding_cache.cr:32	EmbeddingCache#get	-	Ported
 src/search/embedding-cache.ts::method::EmbeddingCache.hash	method	ported	src/chiasmus/search/embedding_cache.cr:28	EmbeddingCache.hash	-	Ported
 src/search/embedding-cache.ts::method::EmbeddingCache.load	method	ported	src/chiasmus/search/embedding_cache.cr:94	EmbeddingCache#load	-	Ported

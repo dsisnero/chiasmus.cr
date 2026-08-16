@@ -22,6 +22,27 @@ private def with_repo_current_dir(path : String, &)
 end
 
 describe "Repo config startup" do
+  it "uses an explicitly supplied Chiasmus home instead of process-wide environment" do
+    explicit_home = File.join(Dir.tempdir, "chiasmus-explicit-home-#{Random::Secure.hex(8)}")
+    environment_home = File.join(Dir.tempdir, "chiasmus-environment-home-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(explicit_home)
+    Dir.mkdir_p(environment_home)
+
+    begin
+      with_env({"CHIASMUS_HOME" => environment_home}) do
+        server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new(chiasmus_home: explicit_home)
+        server.skill_library.record_use("policy-contradiction", true)
+        server.skill_library.close
+      end
+
+      File.exists?(File.join(explicit_home, "skill_metadata.json")).should be_true
+      File.exists?(File.join(environment_home, "skill_metadata.json")).should be_false
+    ensure
+      FileUtils.rm_rf(explicit_home)
+      FileUtils.rm_rf(environment_home)
+    end
+  end
+
   it "creates the repo config directory on server initialization without seeding parity config" do
     with_repo_config_startup_tmp_dir do |repo_root|
       temp_home = File.join(Dir.tempdir, "chiasmus-home-#{Random::Secure.hex(8)}")
