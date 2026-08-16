@@ -24,4 +24,17 @@ describe Chiasmus::LLM::SimpleConfig do
     config = Chiasmus::LLM::SimpleConfig.new(provider: "openai", model: "deepseek-chat")
     config.provider.should eq("openai")
   end
+
+  it "resolves Azure OpenAI credentials and endpoint from the environment" do
+    with_env({
+      "AZURE_OPENAI_API_KEY"  => "azure-key",
+      "AZURE_OPENAI_BASE_URL" => "https://example.openai.azure.com",
+    }) do
+      config = Chiasmus::LLM::SimpleConfig.new(provider: "azure", model: "azure-gpt")
+
+      config.api_key.should eq("azure-key")
+      config.base_url.should eq("https://example.openai.azure.com")
+      Chiasmus::LLM.available?(config).should be_true
+    end
+  end
 end

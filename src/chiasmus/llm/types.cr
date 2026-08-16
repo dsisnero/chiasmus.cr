@@ -80,29 +80,31 @@ module Chiasmus
 
       def self.api_key_from_env(provider : String) : String?
         case provider
-        when "openai"    then ENV["OPENAI_API_KEY"]?
-        when "deepseek"  then ENV["DEEPSEEK_API_KEY"]?
-        when "anthropic" then ENV["ANTHROPIC_API_KEY"]?
-        when "gemini"    then ENV["GEMINI_API_KEY"]?
-        when "groq"      then ENV["GROQ_API_KEY"]?
-        when "ollama"    then ENV["OLLAMA_API_KEY"]?
-        when "mistral"   then ENV["MISTRAL_API_KEY"]?
-        when "cohere"    then ENV["COHERE_API_KEY"]?
-        else                  nil
+        when "openai"                then ENV["OPENAI_API_KEY"]?
+        when "deepseek"              then ENV["DEEPSEEK_API_KEY"]?
+        when "anthropic"             then ENV["ANTHROPIC_API_KEY"]?
+        when "gemini"                then ENV["GEMINI_API_KEY"]?
+        when "groq"                  then ENV["GROQ_API_KEY"]?
+        when "ollama"                then ENV["OLLAMA_API_KEY"]?
+        when "mistral"               then ENV["MISTRAL_API_KEY"]?
+        when "cohere"                then ENV["COHERE_API_KEY"]?
+        when "azure", "azure_openai" then ENV["AZURE_OPENAI_API_KEY"]?
+        else                              nil
         end
       end
 
       def self.base_url_from_env(provider : String) : String?
         case provider
-        when "openai"    then ENV["OPENAI_BASE_URL"]?
-        when "deepseek"  then ENV["DEEPSEEK_BASE_URL"]?
-        when "anthropic" then ENV["ANTHROPIC_BASE_URL"]?
-        when "gemini"    then ENV["GEMINI_BASE_URL"]?
-        when "groq"      then ENV["GROQ_BASE_URL"]?
-        when "ollama"    then ENV["OLLAMA_BASE_URL"]?
-        when "mistral"   then ENV["MISTRAL_BASE_URL"]?
-        when "cohere"    then ENV["COHERE_BASE_URL"]?
-        else                  nil
+        when "openai"                then ENV["OPENAI_BASE_URL"]?
+        when "deepseek"              then ENV["DEEPSEEK_BASE_URL"]?
+        when "anthropic"             then ENV["ANTHROPIC_BASE_URL"]?
+        when "gemini"                then ENV["GEMINI_BASE_URL"]?
+        when "groq"                  then ENV["GROQ_BASE_URL"]?
+        when "ollama"                then ENV["OLLAMA_BASE_URL"]?
+        when "mistral"               then ENV["MISTRAL_BASE_URL"]?
+        when "cohere"                then ENV["COHERE_BASE_URL"]?
+        when "azure", "azure_openai" then ENV["AZURE_OPENAI_BASE_URL"]?
+        else                              nil
         end
       end
     end

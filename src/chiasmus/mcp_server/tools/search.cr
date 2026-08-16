@@ -37,6 +37,9 @@ module Chiasmus
 
           return Types::ErrorResponse.new("'query' (non-empty string) is required") if args.query.strip.empty?
           return Types::ErrorResponse.new("'files' (non-empty array of absolute paths) is required") if args.files.empty?
+          if error = self.class.local_embedding_configuration_error
+            return Types::ErrorResponse.new(error)
+          end
 
           top_k = {1, {args.top_k, 100}.min}.max
 
@@ -224,6 +227,15 @@ module Chiasmus
             model_name: ENV["CHIASMUS_EMBED_MODEL"]? || Crig::Providers::Ollama::NOMIC_EMBED_TEXT,
             base_url: base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL,
           )
+        end
+
+        # node-llama-cpp is a Node-only optional backend. Crystal supports
+        # local semantic search through an Ollama embedding endpoint instead.
+        def self.local_embedding_configuration_error : String?
+          return nil unless ENV["CHIASMUS_LOCAL_EMBED"]?
+
+          "CHIASMUS_LOCAL_EMBED is not supported by the Crystal build; " +
+            "use CHIASMUS_EMBED_PROVIDER=ollama with a local Ollama embedding model instead."
         end
 
         def self.resolved_embedding_provider_name : String?

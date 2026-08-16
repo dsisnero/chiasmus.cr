@@ -1506,17 +1506,17 @@ src/graph/tsconfig-aliases.ts::method::rewrite	method	ported	src/chiasmus/graph/
 src/graph/type-env.ts::method::allBindings	method	intentional_divergence	src/chiasmus/graph/type_env.cr:1	Chiasmus::Graph::TypeEnv	spec/chiasmus/graph/type_env_spec.cr	Crystal resolves type evidence while collecting AST facts rather than exposing a mutable per-scope binding map.
 src/graph/type-env.ts::method::lookup	method	intentional_divergence	src/chiasmus/graph/resolve_calls.cr:1	Chiasmus::Graph::ResolveCalls	spec/chiasmus/graph/type_env_spec.cr	Qualified-call resolution consumes collected type evidence instead of a public TypeEnv lookup API.
 src/graph/type-env.ts::method::resolveChain	method	intentional_divergence	src/chiasmus/graph/resolve_calls.cr:157	Chiasmus::Graph::ResolveCalls.resolve_chain	spec/chiasmus/graph/type_env_spec.cr	Resolution-chain logic is private to the Crystal call resolver.
-src/llm/anthropic.ts::method::AnthropicAdapter.complete	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/azure-openai.ts::method::AzureOpenAIEmbeddingAdapter.dimension	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/azure-openai.ts::method::AzureOpenAIEmbeddingAdapter.embed	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/mock.ts::method::MockEmbeddingAdapter.dimension	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/mock.ts::method::MockEmbeddingAdapter.embed	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/mock.ts::method::MockEmbeddingAdapter.vectorFor	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/mock.ts::method::MockLLMAdapter.complete	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/mock.ts::method::MockLLMAdapter.onMatch	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/openai-compatible.ts::method::OpenAICompatibleAdapter.complete	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/openai-compatible.ts::method::OpenAICompatibleEmbeddingAdapter.dimension	method	missing	-	-	-	auto-synced parser=tree-sitter
-src/llm/openai-compatible.ts::method::OpenAICompatibleEmbeddingAdapter.embed	method	missing	-	-	-	auto-synced parser=tree-sitter
+src/llm/anthropic.ts::method::AnthropicAdapter.complete	method	intentional_divergence	src/chiasmus/llm/types.cr:218	Chiasmus::LLM.agent	-	Crig owns Anthropic completion transport and timeout behavior.
+src/llm/azure-openai.ts::method::AzureOpenAIEmbeddingAdapter.dimension	method	intentional_divergence	src/chiasmus/mcp_server/tools/search.cr:151	Chiasmus::MCPServer::Tools::SearchTool	-	Crig embedding models expose their own dimensions; Azure's Node adapter is not duplicated.
+src/llm/azure-openai.ts::method::AzureOpenAIEmbeddingAdapter.embed	method	intentional_divergence	src/chiasmus/mcp_server/tools/search.cr:151	Chiasmus::MCPServer::Tools::SearchTool	-	Crig owns provider embedding transport; Azure provider credentials are supported by Crystal factory wiring.
+src/llm/mock.ts::method::MockEmbeddingAdapter.dimension	method	intentional_divergence	spec/chiasmus/search/engine_spec.cr:10	MockEmbeddingModel	spec/chiasmus/search/engine_spec.cr	Injectable Crig-compatible test embedding models replace vendor mock adapters.
+src/llm/mock.ts::method::MockEmbeddingAdapter.embed	method	intentional_divergence	spec/chiasmus/search/engine_spec.cr:10	MockEmbeddingModel	spec/chiasmus/search/engine_spec.cr	Injectable Crig-compatible test embedding models replace vendor mock adapters.
+src/llm/mock.ts::method::MockEmbeddingAdapter.vectorFor	method	intentional_divergence	spec/chiasmus/search/engine_spec.cr:10	MockEmbeddingModel	spec/chiasmus/search/engine_spec.cr	Injectable Crig-compatible test embedding models replace vendor mock adapters.
+src/llm/mock.ts::method::MockLLMAdapter.complete	method	intentional_divergence	spec/support/formalize_scripted_agent.cr:1	FormalizeSpecClient	spec/chiasmus/formalize/engine_spec.cr	Injectable scripted Crig client replaces vendor mock completion matching.
+src/llm/mock.ts::method::MockLLMAdapter.onMatch	method	intentional_divergence	spec/support/formalize_scripted_agent.cr:1	FormalizeSpecClient	spec/chiasmus/formalize/engine_spec.cr	Scripted response queue replaces vendor matcher registration.
+src/llm/openai-compatible.ts::method::OpenAICompatibleAdapter.complete	method	intentional_divergence	src/chiasmus/llm/types.cr:218	Chiasmus::LLM.agent	-	Crig owns OpenAI-compatible completion transport.
+src/llm/openai-compatible.ts::method::OpenAICompatibleEmbeddingAdapter.dimension	method	intentional_divergence	src/chiasmus/mcp_server/tools/search.cr:151	Chiasmus::MCPServer::Tools::SearchTool	-	Crig embedding models own dimensions and request shape.
+src/llm/openai-compatible.ts::method::OpenAICompatibleEmbeddingAdapter.embed	method	intentional_divergence	src/chiasmus/mcp_server/tools/search.cr:151	Chiasmus::MCPServer::Tools::SearchTool	-	Crig owns OpenAI-compatible embedding transport.
 src/mcp-server.ts::function::createChiasmusServer	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/mcp-server.ts::function::handleCraft	function	missing	-	-	-	auto-synced parser=tree-sitter
 src/mcp-server.ts::function::handleFormalize	function	missing	-	-	-	auto-synced parser=tree-sitter

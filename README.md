@@ -183,6 +183,12 @@ export CHIASMUS_EMBED_MODEL=text-embedding-3-small
 export OPENAI_API_KEY=...
 ```
 
+The TypeScript upstream's `CHIASMUS_LOCAL_EMBED*` / `localEmbeddings` options
+use the Node-only `node-llama-cpp` backend and are not supported by this Crystal
+build. For local embeddings, run Ollama and configure
+`CHIASMUS_EMBED_PROVIDER=ollama` with an embedding model such as
+`nomic-embed-text`.
+
 ### Grammar lookup
 
 Graph extraction and discovery look for grammars in this order:

@@ -2,7 +2,7 @@ require "../../spec_helper"
 require "../../../src/chiasmus/mcp_server/tools/search"
 require "../../../src/chiasmus/mcp_server/types"
 
-KEYS = ["DEEPSEEK_API_KEY", "OPENAI_API_KEY", "CHIASMUS_EMBED_PROVIDER", "CHIASMUS_EMBED_MODEL"]
+KEYS = ["DEEPSEEK_API_KEY", "OPENAI_API_KEY", "CHIASMUS_EMBED_PROVIDER", "CHIASMUS_EMBED_MODEL", "CHIASMUS_LOCAL_EMBED"]
 
 private def with_env(vars : Hash(String, String?), &)
   previous = {} of String => String?
@@ -86,6 +86,17 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         "CHIASMUS_EMBED_PROVIDER" => nil,
       }) do
         Chiasmus::MCPServer::Tools::SearchTool.resolved_embedding_provider_name.should eq("deepseek")
+      end
+    end
+
+    it "explains that node-llama local embedding configuration is unsupported" do
+      with_env({
+        "CHIASMUS_LOCAL_EMBED" => "1",
+      }) do
+        message = Chiasmus::MCPServer::Tools::SearchTool.local_embedding_configuration_error ||
+                  raise "expected unsupported local embedding configuration error"
+        message.downcase.should contain("not supported")
+        message.should contain("CHIASMUS_EMBED_PROVIDER=ollama")
       end
     end
   end

@@ -118,6 +118,20 @@ module Chiasmus
         Server.with_agent(agent, env_managed: true)
       end
 
+      # Create a server with Azure OpenAI provider.
+      def self.azure_openai(
+        api_key : String? = ENV["AZURE_OPENAI_API_KEY"]?,
+        base_url : String? = ENV["AZURE_OPENAI_BASE_URL"]?,
+        model : String = "azure-gpt",
+        preamble : String = LLM::DEFAULT_PREAMBLE,
+      )
+        client = Crig::Providers::Azure::Client.builder
+        client = client.api_key(api_key) if api_key
+        client = client.azure_endpoint(base_url) if base_url
+        agent = client.build.agent(model).preamble(preamble).build
+        Server.with_agent(agent, env_managed: true)
+      end
+
       # Create a server without an LLM agent — tools that need an LLM
       # degrade gracefully (chiasmus_formalize falls back to template search,
       # chiasmus_solve falls back to formalize, chiasmus_learn returns
@@ -152,15 +166,16 @@ module Chiasmus
 
       private def self.provider_api_key_set?(provider : String) : Bool
         case provider.downcase
-        when "openai"    then check_key(ENV["OPENAI_API_KEY"]?)
-        when "deepseek"  then check_key(ENV["DEEPSEEK_API_KEY"]?)
-        when "anthropic" then check_key(ENV["ANTHROPIC_API_KEY"]?)
-        when "gemini"    then check_key(ENV["GEMINI_API_KEY"]?)
-        when "groq"      then check_key(ENV["GROQ_API_KEY"]?)
-        when "mistral"   then check_key(ENV["MISTRAL_API_KEY"]?)
-        when "cohere"    then check_key(ENV["COHERE_API_KEY"]?)
-        when "ollama"    then true # local, no API key needed
-        else                  true # unknown provider; let it try
+        when "openai"                then check_key(ENV["OPENAI_API_KEY"]?)
+        when "deepseek"              then check_key(ENV["DEEPSEEK_API_KEY"]?)
+        when "anthropic"             then check_key(ENV["ANTHROPIC_API_KEY"]?)
+        when "gemini"                then check_key(ENV["GEMINI_API_KEY"]?)
+        when "groq"                  then check_key(ENV["GROQ_API_KEY"]?)
+        when "mistral"               then check_key(ENV["MISTRAL_API_KEY"]?)
+        when "cohere"                then check_key(ENV["COHERE_API_KEY"]?)
+        when "azure", "azure_openai" then check_key(ENV["AZURE_OPENAI_API_KEY"]?)
+        when "ollama"                then true # local, no API key needed
+        else                              true # unknown provider; let it try
         end
       end
 
@@ -186,6 +201,8 @@ module Chiasmus
           mistral(model: model)
         when "cohere"
           cohere(model: model)
+        when "azure", "azure_openai"
+          azure_openai(model: model)
         else
           openai(model: model)
         end
