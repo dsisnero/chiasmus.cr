@@ -47,6 +47,30 @@ describe Chiasmus::MCPServer::Tools::CraftTool do
     end
   end
 
+  it "serializes solver test results with the upstream camelCase key" do
+    with_craft_server do |_server, _dir|
+      tool = Chiasmus::MCPServer::Tools::CraftTool.new
+
+      result = tool.invoke({
+        "name"           => JSON::Any.new("tested-mcp-template"),
+        "domain"         => JSON::Any.new("validation"),
+        "solver"         => JSON::Any.new("z3"),
+        "signature"      => JSON::Any.new("Template with a verified example"),
+        "skeleton"       => JSON::Any.new("(declare-const x Int)\n(assert {{SLOT:condition}})"),
+        "slots"          => JSON.parse(%([{"name":"condition","description":"Test condition","format":"(> x 0)"}])),
+        "normalizations" => JSON.parse(%([{"source":"test input","transform":"Map to SMT expression"}])),
+        "example"        => JSON::Any.new("(declare-const x Int) (assert (> x 0))"),
+        "test"           => JSON::Any.new(true),
+      })
+
+      result.status.should eq("success")
+      serialized = JSON.parse(result.to_json)
+      serialized["tested"].as_bool.should be_true
+      serialized["testResult"].as_s.should eq("sat")
+      serialized["test_result"]?.should be_nil
+    end
+  end
+
   it "returns validation errors for bad input" do
     with_craft_server do |_server, _dir|
       tool = Chiasmus::MCPServer::Tools::CraftTool.new

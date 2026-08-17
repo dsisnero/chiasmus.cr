@@ -76,7 +76,7 @@ module Chiasmus
 
         def self.output_schema : MCP::Protocol::Tool::Input
           MCP::Protocol::Tool::Input.new(
-            properties: JSON.parse(%({"status":{"type":"string"},"created":{"type":"boolean"},"template":{"type":"string"},"domain":{"type":"string"}})).as_h
+            properties: JSON.parse(%({"status":{"type":"string"},"created":{"type":"boolean"},"template":{"type":"string"},"domain":{"type":"string"},"tested":{"type":"boolean"},"testResult":{"type":"string"}})).as_h
           )
         end
       end

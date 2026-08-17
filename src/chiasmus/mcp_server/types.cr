@@ -323,6 +323,8 @@ module Chiasmus
         getter slots : Int32?
         # ameba:disable Naming/QueryBoolMethods
         getter tested : Bool
+
+        @[JSON::Field(key: "testResult")]
         getter test_result : String?
         getter errors : Array(String)
 
