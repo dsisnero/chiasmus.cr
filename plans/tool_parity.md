@@ -95,7 +95,7 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 - [x] `chiasmus_verify`: schema now uses upstream `input` as the required parameter; legacy `spec` remains accepted as an unadvertised compatibility alias.
 - [ ] `chiasmus_skills`: Crystal adds `limit` parameter (not in upstream). Keep if useful, document divergence.
 - [ ] `chiasmus_graph`: Crystal adds many more languages. Document as enhancement.
-- [ ] Review all tool response shapes for upstream parity
+- [ ] Review remaining tool response shapes for upstream parity (`chiasmus_skills` exact lookup now returns upstream-compatible `template`, `metadata`, and `related` fields).
 
 ---
 

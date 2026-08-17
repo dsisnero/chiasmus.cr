@@ -19,16 +19,17 @@ module Chiasmus
             template = library.get(name)
             return Types::ErrorResponse.new("Template '#{name}' not found") unless template
 
-            suggestions = library.get_related(name).map do |related|
+            related = library.get_related(name).map do |related_template|
               JSON.parse({
-                "name"   => related.name,
-                "reason" => related.reason,
+                "name"   => related_template.name,
+                "reason" => related_template.reason,
               }.to_json)
             end
 
-            Types::SkillsResponse.new(
-              templates: [Types.template_to_json(template.template)],
-              suggestions: suggestions
+            Types::SkillLookupResponse.new(
+              template: Types.template_to_json(template.template),
+              metadata: Types.skill_metadata_to_json(template.metadata),
+              related: related
             )
           else
             search_options = Skills::SearchOptions.new(
@@ -103,7 +104,13 @@ module Chiasmus
 
         def self.output_schema : MCP::Protocol::Tool::Input
           MCP::Protocol::Tool::Input.new(
-            properties: JSON.parse(%({"status":{"type":"string"},"templates":{"type":"array"}})).as_h
+            properties: JSON.parse(%({
+              "status":{"type":"string"},
+              "templates":{"type":"array"},
+              "template":{"type":"object"},
+              "metadata":{"type":"object"},
+              "related":{"type":"array"}
+            })).as_h
           )
         end
       end

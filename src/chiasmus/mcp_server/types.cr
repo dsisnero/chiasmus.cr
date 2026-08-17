@@ -79,6 +79,17 @@ module Chiasmus
         end
       end
 
+      # Exact template lookup response for chiasmus_skills.
+      struct SkillLookupResponse < Response
+        getter template : TemplateJSON
+        getter metadata : SkillMetadataJSON
+        getter related : Array(JSON::Any)
+
+        def initialize(@template : TemplateJSON, @metadata : SkillMetadataJSON, @related : Array(JSON::Any))
+          super("success")
+        end
+      end
+
       # JSON representations for serialization
       struct SolverResultJSON
         include JSON::Serializable
@@ -613,13 +624,17 @@ module Chiasmus
       def self.skill_search_result_to_json(result : Skills::SkillSearchResult) : SkillSearchResultJSON
         SkillSearchResultJSON.new(
           template: template_to_json(result.template),
-          metadata: SkillMetadataJSON.new(
-            reuse_count: result.metadata.reuse_count,
-            success_count: result.metadata.success_count,
-            last_used: result.metadata.last_used.try(&.to_s),
-            promoted: result.metadata.promoted
-          ),
+          metadata: skill_metadata_to_json(result.metadata),
           score: result.score
+        )
+      end
+
+      def self.skill_metadata_to_json(metadata : Skills::SkillMetadata) : SkillMetadataJSON
+        SkillMetadataJSON.new(
+          reuse_count: metadata.reuse_count,
+          success_count: metadata.success_count,
+          last_used: metadata.last_used.try(&.to_s),
+          promoted: metadata.promoted
         )
       end
     end

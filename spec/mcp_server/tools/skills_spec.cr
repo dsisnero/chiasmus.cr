@@ -14,7 +14,7 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
     result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.first.name.should eq("policy-contradiction")
   end
 
-  it "returns related suggestions for an exact template lookup" do
+  it "returns template metadata and related templates for an exact lookup" do
     server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
     Chiasmus::MCPServer.current_server = server
     tool = Chiasmus::MCPServer::Tools::SkillsTool.new
@@ -24,11 +24,11 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
     })
 
     result.status.should eq("success")
-    skills = result.as(Chiasmus::MCPServer::Types::SkillsResponse)
-    skills.templates.first.name.should eq("policy-contradiction")
-    suggestions = skills.suggestions || raise "Expected suggestions"
-    suggestions.map { |sug| sug["name"]?.try(&.as_s?) }.should contain("policy-reachability")
-    suggestions.map { |sug| sug["name"]?.try(&.as_s?) }.should contain("permission-derivation")
+    lookup = result.as(Chiasmus::MCPServer::Types::SkillLookupResponse)
+    lookup.template.name.should eq("policy-contradiction")
+    lookup.metadata.reuse_count.should be >= 0
+    lookup.related.map { |item| item["name"]?.try(&.as_s?) }.should contain("policy-reachability")
+    lookup.related.map { |item| item["name"]?.try(&.as_s?) }.should contain("permission-derivation")
   end
 
   it "lists all starter templates when no query or name is given" do

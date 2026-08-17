@@ -456,6 +456,30 @@ describe "All 12 tools through MCP transport" do
       end
     end
 
+    it "returns an exact lookup with template metadata and related templates" do
+      agent = Chiasmus::LLM::MockAdapter.create_agent
+      server = Chiasmus::MCPServer::Server.with_agent(agent)
+      Chiasmus::MCPServer.current_server = server
+
+      mcp_server, client = connect_server_and_client
+      begin
+        result = call_tool(client, "chiasmus_skills", {
+          "name" => JSON::Any.new("policy-contradiction"),
+        })
+
+        result["template"]["name"].as_s.should eq("policy-contradiction")
+        result["metadata"]["reuse_count"].as_i.should be >= 0
+        related = result["related"].as_a
+        related.should_not be_empty
+        related.first["name"].as_s.should_not be_empty
+        related.first["reason"].as_s.should_not be_empty
+      ensure
+        disconnect(mcp_server, client)
+        server.skill_library.close rescue nil
+        Chiasmus::MCPServer.current_server = nil
+      end
+    end
+
     it "returns error for nonexistent template" do
       agent = Chiasmus::LLM::MockAdapter.create_agent
       server = Chiasmus::MCPServer::Server.with_agent(agent)
