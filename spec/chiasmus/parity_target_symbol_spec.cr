@@ -63,14 +63,14 @@ TSV
         inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
         root_dir: dir,
         crystal_dirs: ["src"],
-        parser_mode: "tree-sitter",
+        parser_mode: "regex",
         source_facts_path: source_facts_path,
         crystal_facts_path: crystal_facts_path,
       )
 
       row = result.rows.first
       row.match_status.should eq("curated_alias")
-      row.crystal_name.should eq("extract_prolog_query")
+      row.crystal_name.should eq("SpecParity.extract_prolog_query")
       row.basis.should eq("target_symbol")
     ensure
       Chiasmus::Graph::GraphCache.flush_async_writes

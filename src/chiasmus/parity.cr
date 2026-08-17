@@ -773,6 +773,7 @@ module Chiasmus
 
       private def self.tree_sitter_scan(root_dir : String, dirs : Array(String), force_parser : String?) : Array(SymbolItem)
         files = collect_files(root_dir, dirs)
+        absolute_root = File.expand_path(root_dir)
         result = Discovery.discover_files("crystal", files, force_parser: force_parser)
         result.items.compact_map do |item|
           next unless allowed_kind?(item.kind)
@@ -780,7 +781,7 @@ module Chiasmus
             id: item.id,
             name: item.name,
             kind: item.kind,
-            file: item.file,
+            file: relative_to_root(item.file, absolute_root),
             scope: item.scope,
             parser_mode: result.parser_mode,
           )
