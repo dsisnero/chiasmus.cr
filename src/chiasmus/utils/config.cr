@@ -135,11 +135,32 @@ module Chiasmus
 
         begin
           config_data = File.read(config_path)
-          ChiasmusConfig.from_json(config_data)
+          raw = JSON.parse(config_data).as_h?
+          return DEFAULTS.dup unless raw
+
+          ChiasmusConfig.new(local_embeddings: parse_local_embeddings(raw["localEmbeddings"]?))
         rescue ex : JSON::ParseException | File::Error
           # If config file is malformed or unreadable, return defaults
           DEFAULTS.dup
         end
+      end
+
+      private def self.parse_local_embeddings(value : JSON::Any?) : LocalEmbeddingsConfig?
+        return nil unless raw = value.try(&.as_h?)
+
+        LocalEmbeddingsConfig.new(
+          enabled: raw["enabled"]?.try(&.as_bool?) || false,
+          model: raw["model"]?.try(&.as_s?),
+          dimension: int32_value(raw["dimension"]?),
+          models_dir: raw["modelsDir"]?.try(&.as_s?),
+        )
+      end
+
+      private def self.int32_value(value : JSON::Any?) : Int32?
+        return nil unless number = value.try(&.as_i?)
+        return nil unless number.in?(Int32::MIN.to_i64..Int32::MAX.to_i64)
+
+        number.to_i32
       end
 
       def self.repo_config_dir(repo_root : String = Dir.current) : String

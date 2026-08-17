@@ -8,7 +8,7 @@ _(The completed P20 notes below describe the earlier 07bbf4a → 576ed38 update;
 
 | Manifest | Tracked | Ported | Partial | Intentional divergence | Missing |
 |---|---|---:|---:|---:|---:|
-| `typescript_port_inventory.tsv` | 605 | 504 | 3 | 98 | 0 |
+| `typescript_port_inventory.tsv` | 605 | 507 | 0 | 98 | 0 |
 | `typescript_source_parity.tsv` | 605 | n/a | n/a | n/a | n/a |
 | `typescript_test_parity.tsv` | 1082 | n/a | n/a | n/a | n/a |
 

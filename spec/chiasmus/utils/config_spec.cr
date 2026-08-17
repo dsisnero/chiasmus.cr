@@ -142,6 +142,37 @@ describe Chiasmus::Utils::Config do
       end
     end
 
+    it "normalizes a malformed local embeddings block field by field" do
+      with_tmp_dir do |dir|
+        write_config(dir, %({"localEmbeddings":{"enabled":"yes","model":123,"dimension":"768","modelsDir":false}}))
+        config = Chiasmus::Utils::Config.load(dir)
+        local = config.local_embeddings || raise "expected normalized local embeddings configuration"
+
+        local.enabled?.should be_false
+        local.model.should be_nil
+        local.dimension.should be_nil
+        local.models_dir.should be_nil
+      end
+    end
+
+    it "retains valid local embeddings fields beside malformed ones" do
+      with_tmp_dir do |dir|
+        write_config(dir, %({"localEmbeddings":{"enabled":true,"model":123,"dimension":768}}))
+        local = Chiasmus::Utils::Config.load(dir).local_embeddings || raise "expected local embeddings configuration"
+
+        local.enabled?.should be_true
+        local.model.should be_nil
+        local.dimension.should eq(768)
+      end
+    end
+
+    it "ignores a non-object local embeddings value" do
+      with_tmp_dir do |dir|
+        write_config(dir, %({"localEmbeddings":"true"}))
+        Chiasmus::Utils::Config.load(dir).local_embeddings.should be_nil
+      end
+    end
+
     it "returns defaults for whitespace-only JSON file" do
       with_tmp_dir do |dir|
         write_config(dir, "   \n  \t  ")
