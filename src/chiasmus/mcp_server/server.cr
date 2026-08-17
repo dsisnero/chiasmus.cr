@@ -116,6 +116,7 @@ module Chiasmus
       @tool_handlers : Hash(String, Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult))
       @watcher : Index::Watcher?
       @project_index = Index::ProjectIndex.new
+      @chiasmus_home : String
 
       def project_index : Index::ProjectIndex
         @project_index
@@ -140,6 +141,7 @@ module Chiasmus
 
       def initialize(@refreshable_from_env : Bool = false, chiasmus_home : String? = nil)
         home = chiasmus_home || self.class.chiasmus_home
+        @chiasmus_home = home
         @config = Utils::Config.load(home)
         Utils::Config.load_repo_config(Dir.current)
         @skill_library = Skills::Library.create(home)
@@ -394,7 +396,7 @@ module Chiasmus
       end
 
       private def embedding_configured? : Bool
-        Tools::SearchTool.embedding_configured?
+        Tools::SearchTool.embedding_configured?(@config)
       end
 
       private def register_tools(mcp_server : MCP::Server::Server)
@@ -429,7 +431,7 @@ module Chiasmus
                           when Tools::MapTool.tool_name
                             Tools::MapTool.new(@project_index)
                           when Tools::SearchTool.tool_name
-                            Tools::SearchTool.new(@project_index)
+                            Tools::SearchTool.new(@project_index, @config, @chiasmus_home)
                           when Tools::ReadSymbolTool.tool_name
                             Tools::ReadSymbolTool.new(@project_index)
                           else

@@ -29,7 +29,11 @@ module Chiasmus
           content : String? = nil,
           warning : String? = nil
 
-        def initialize(@project_index : Index::ProjectIndex? = nil)
+        def initialize(
+          @project_index : Index::ProjectIndex? = nil,
+          @config : Utils::Config::ChiasmusConfig = Utils::Config.load,
+          @chiasmus_home : String = Utils::Config.chiasmus_home,
+        )
         end
 
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
@@ -37,7 +41,7 @@ module Chiasmus
 
           return Types::ErrorResponse.new("'query' (non-empty string) is required") if args.query.strip.empty?
           return Types::ErrorResponse.new("'files' (non-empty array of absolute paths) is required") if args.files.empty?
-          if error = self.class.local_embedding_configuration_error
+          if error = self.class.local_embedding_configuration_error(@config)
             return Types::ErrorResponse.new(error)
           end
 
@@ -67,9 +71,8 @@ module Chiasmus
             )
           end
 
-          home = Utils::Config.chiasmus_home
           dim = model.ndims
-          cache_path = File.join(home, "embeddings", "d#{dim}.json")
+          cache_path = File.join(@chiasmus_home, "embeddings", "d#{dim}.json")
           cache = Search::EmbeddingCache.new(cache_path, dim)
           begin
             cache.load
@@ -152,7 +155,7 @@ module Chiasmus
         # Supports: ollama, deepseek, openai.
         # Ollama defaults to nomic-embed-text, others to text-embedding-3-small.
         private def resolve_embedding_model
-          resolution = self.class.resolve_embedding_resolution
+          resolution = self.class.resolve_embedding_resolution(@config)
           return nil unless resolution
 
           case resolution.provider
