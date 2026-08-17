@@ -23,6 +23,12 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       required.should contain("solver")
       required.should contain("input")
     end
+
+    it "advertises Mermaid as the only explicit input format" do
+      format = Chiasmus::MCPServer::Tools::VerifyTool.input_schema.properties["format"]
+
+      format["enum"].as_a.map(&.as_s).should eq(["mermaid"])
+    end
   end
 
   describe "#invoke" do

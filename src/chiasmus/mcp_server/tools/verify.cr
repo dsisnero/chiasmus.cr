@@ -106,7 +106,8 @@ DESC
               }),
               "format" => JSON::Any.new({
                 "type"        => JSON::Any.new("string"),
-                "description" => JSON::Any.new("Input format: 'raw' or 'mermaid' (prolog only)"),
+                "enum"        => JSON::Any.new(["mermaid"].map { |value| JSON::Any.new(value) }),
+                "description" => JSON::Any.new("Input format. 'mermaid': parse Mermaid flowchart/stateDiagram → Prolog facts (prolog solver only)"),
               }),
             },
             required: ["solver", "input"]
