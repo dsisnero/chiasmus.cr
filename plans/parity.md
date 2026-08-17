@@ -60,7 +60,7 @@ substitutions.
 | `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
 | `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
-## Feature-Sized Phases (P28-P42)
+## Feature-Sized Phases (P28-P43)
 
 Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
 an existing equivalent spec) before changing implementation. On completion, update
@@ -84,6 +84,7 @@ parity check; generated manifests remain generated artifacts.
 | P40 ✓ | Durable MCP snapshot-status receipts | Persist an atomic per-snapshot lifecycle receipt (`queued → writing → ready\|failed`) and expose it through `chiasmus_snapshot_status`, so a client can recover after a timed-out or cancelled graph-save response without retrying blind. | Completed: cache lifecycle specs cover ready, failed, and deletion cleanup receipts; MCP transport polls a ready save without re-extraction; existing save→diff coverage remains green, along with focused gates and strict parity checks. |
 | P41 ✓ | MCP solve-history wire compatibility | Serialize correction attempts as upstream-compatible ordered `{round, status, error?}` entries instead of leaking internal solver input/result records. | Completed: scripted error→success correction paths prove exact direct and MCP transport history shapes, omit `error` for non-errors, and retain the domain round; focused gates and strict parity checks pass. |
 | P42 ✓ | MCP learn-outcome wire compatibility | Return upstream-shaped learned-template details and represent rejected extraction as a successful `{extracted:false, reason}` outcome. | Completed: tool specs cover upstream success fields, persisted visibility, and duplicate rejection without an error envelope; focused gates and strict parity checks pass. |
+| P43 ✓ | MCP JSON-map wire compatibility | Emit `chiasmus_map format=json` projections at the top level instead of wrapping a JSON string in `content`. | Completed: file JSON transport coverage proves top-level map fields while markdown retains its content envelope; focused gates and strict parity checks pass. |
 
 Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, P40, P41, and P42. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
 

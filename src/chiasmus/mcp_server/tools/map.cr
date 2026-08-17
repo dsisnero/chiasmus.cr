@@ -16,6 +16,7 @@ module Chiasmus
         def initialize(@project_index : Index::ProjectIndex? = nil)
         end
 
+        # ameba:disable Metrics/CyclomaticComplexity
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           args = Types::MapInput.from_json(arguments.to_json)
 
@@ -40,10 +41,14 @@ module Chiasmus
           end
 
           rendered = Graph::CodebaseMap.render_map(map, args.format)
+          return Types::MapJSONResponse.new(JSON.parse(rendered)) if args.format == "json"
+
           Types::MapResponse.new(content: rendered)
         rescue ex
           Types::ErrorResponse.new(ex.message || ex.class.name)
         end
+
+        # ameba:enable Metrics/CyclomaticComplexity
 
         private def load_graph(paths : Array(String), cache_dir : String?) : Graph::CodeGraph?
           IndexedGraphLoader.load_graph(paths, cache_dir, @project_index, "chiasmus.map.cache")

@@ -330,8 +330,10 @@ describe "MCP Server initialization via transport" do
               "format" => JSON::Any.new("json"),
             })
             result["status"].as_s.should eq("success")
-            content = JSON.parse(result["content"].as_s)
-            symbols = content["symbols"]?.try(&.as_a)
+            result["kind"].as_s.should eq("file")
+            result["path"].as_s.should eq(path)
+            result["content"]?.should be_nil
+            symbols = result["symbols"]?.try(&.as_a)
             symbols.should_not be_nil
             if syms = symbols
               # bar function should have end_line > line

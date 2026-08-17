@@ -338,6 +338,21 @@ module Chiasmus
         end
       end
 
+      struct MapJSONResponse < Response
+        getter payload : JSON::Any
+
+        def initialize(@payload : JSON::Any)
+          super("success")
+        end
+
+        def to_json(json : JSON::Builder)
+          json.object do
+            json.field "status", @status
+            @payload.as_h.each { |key, value| json.field key, value }
+          end
+        end
+      end
+
       # Search tool response
       struct SearchHitJSON
         include JSON::Serializable
