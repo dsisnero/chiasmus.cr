@@ -154,6 +154,43 @@ describe Chiasmus::MCPServer::Tools::LearnTool do
     template = resp.template || raise "Expected template"
     template.should eq("port-range-overlap")
     server.skill_library.get("port-range-overlap").should_not be_nil
+
+    serialized = JSON.parse(resp.to_json)
+    serialized["extracted"].as_bool.should be_true
+    serialized["domain"].as_s.should eq("configuration")
+    serialized["solver"].as_s.should eq("z3")
+    serialized["signature"].as_s.should eq("Check if two port ranges overlap")
+    serialized["slots"].as_i.should eq(1)
+    serialized["promoted"].as_bool.should be_false
+    serialized["message"]?.should be_nil
+  end
+
+  it "reports a duplicate extraction as a rejected outcome" do
+    response = {
+      "name"           => "duplicate-template",
+      "domain"         => "configuration",
+      "signature"      => "Detect an intentional duplicate",
+      "slots"          => [] of Hash(String, String),
+      "normalizations" => [] of Hash(String, String),
+      "skeleton"       => "(assert true)",
+    }.to_json
+    server = Chiasmus::MCPServer::Server(LearnSpecCompletionModel).with_agent_builder(
+      build_learn_spec_agent_builder(response)
+    )
+    tool = Chiasmus::MCPServer::Tools::LearnTool.new
+    arguments = {
+      "solver"  => JSON::Any.new("z3"),
+      "spec"    => JSON::Any.new("(assert true)"),
+      "problem" => JSON::Any.new("Detect an intentional duplicate"),
+    }
+
+    tool.invoke(arguments).status.should eq("success")
+    result = tool.invoke(arguments)
+
+    result.status.should eq("success")
+    serialized = JSON.parse(result.to_json)
+    serialized["extracted"].as_bool.should be_false
+    serialized["reason"].as_s.should contain("Template was rejected")
   end
 
   it "does not use a stale learner after the current server is cleared" do

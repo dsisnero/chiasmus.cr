@@ -7,6 +7,7 @@ module Chiasmus
   module MCPServer
     module Tools
       class LearnTool
+        # ameba:disable Metrics/CyclomaticComplexity
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
           args = Types::LearnInput.from_json(arguments.to_json)
 
@@ -20,7 +21,8 @@ module Chiasmus
                         end
 
           server = MCPServer.refresh_with_llm_if_available(MCPServer.current_server)
-          learner = server.try(&.skill_learner)
+          active_server = server || return Types::ErrorResponse.new("LLM not available. chiasmus_learn requires an LLM for template extraction.")
+          learner = active_server.skill_learner
           return Types::ErrorResponse.new("LLM not available. chiasmus_learn requires an LLM for template extraction.") unless learner
 
           async_result = learner.learn_async(solver_type, args.spec, args.problem).receive
@@ -29,15 +31,27 @@ module Chiasmus
           end
 
           template = async_result.template
-          return Types::ErrorResponse.new("Template rejected or could not be extracted") unless template
+          unless template
+            return Types::LearnResponse.new(
+              extracted: false,
+              reason: "Template was rejected — either invalid, too similar to an existing template, or LLM produced unparseable output"
+            )
+          end
 
           Types::LearnResponse.new(
+            extracted: true,
             template: template.name,
-            message: "Template extracted and added to skill library as candidate"
+            domain: template.domain,
+            solver: template.solver.to_s.downcase,
+            signature: template.signature,
+            slots: template.slots.size,
+            promoted: active_server.skill_library.get_metadata(template.name).try(&.promoted) || false,
           )
         rescue ex
           Types::ErrorResponse.new(ex.message || ex.class.name)
         end
+
+        # ameba:enable Metrics/CyclomaticComplexity
 
         def self.tool_name : String
           "chiasmus_learn"
@@ -65,7 +79,7 @@ module Chiasmus
 
         def self.output_schema : MCP::Protocol::Tool::Input
           MCP::Protocol::Tool::Input.new(
-            properties: JSON.parse(%({"status":{"type":"string"},"template":{"type":"string"},"message":{"type":"string"}})).as_h
+            properties: JSON.parse(%({"status":{"type":"string"},"extracted":{"type":"boolean"},"template":{"type":"string"},"domain":{"type":"string"},"solver":{"type":"string"},"signature":{"type":"string"},"slots":{"type":"integer"},"promoted":{"type":"boolean"},"reason":{"type":"string"}})).as_h
           )
         end
       end

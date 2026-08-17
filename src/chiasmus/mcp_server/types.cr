@@ -465,11 +465,27 @@ module Chiasmus
 
       # Learn tool response
       struct LearnResponse < Response
+        getter? extracted : Bool
         getter template : String?
-        getter message : String?
+        getter domain : String?
+        getter solver : String?
+        getter signature : String?
+        getter slots : Int32?
+        getter? promoted : Bool?
+        getter reason : String?
 
-        def initialize(@template : String? = nil, @message : String? = nil)
+        def initialize(@extracted : Bool, @template : String? = nil, @domain : String? = nil,
+                       @solver : String? = nil, @signature : String? = nil, @slots : Int32? = nil,
+                       @promoted : Bool? = nil, @reason : String? = nil)
           super("success")
+        end
+
+        def extracted : Bool
+          @extracted
+        end
+
+        def promoted : Bool?
+          @promoted
         end
       end
 
