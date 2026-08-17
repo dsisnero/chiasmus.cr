@@ -29,6 +29,15 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
     lookup.metadata.reuse_count.should be >= 0
     lookup.related.map { |item| item["name"]?.try(&.as_s?) }.should contain("policy-reachability")
     lookup.related.map { |item| item["name"]?.try(&.as_s?) }.should contain("permission-derivation")
+
+    serialized = JSON.parse(lookup.to_json)
+    metadata = serialized["metadata"]
+    metadata["reuseCount"].as_i.should be >= 0
+    metadata["successCount"].as_i.should be >= 0
+    metadata["lastUsed"]?.should be_nil
+    metadata["reuse_count"]?.should be_nil
+    metadata["success_count"]?.should be_nil
+    metadata["last_used"]?.should be_nil
   end
 
   it "lists all starter templates when no query or name is given" do

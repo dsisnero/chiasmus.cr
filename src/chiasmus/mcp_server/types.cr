@@ -217,8 +217,13 @@ module Chiasmus
       struct SkillMetadataJSON
         include JSON::Serializable
 
+        @[JSON::Field(key: "reuseCount")]
         getter reuse_count : Int32
+
+        @[JSON::Field(key: "successCount")]
         getter success_count : Int32
+
+        @[JSON::Field(key: "lastUsed")]
         getter last_used : String?
         getter? promoted : Bool
 
