@@ -69,7 +69,7 @@ module Chiasmus
           )
         end
 
-        private def fallback_to_formalize(library : Skills::Library, problem : String) : Types::SolveResponse
+        private def fallback_to_formalize(library : Skills::Library, problem : String) : Types::Response
           engine = Formalize::Engine.new(library, LLM::MockAdapter.create_agent)
           formalize_result = engine.formalize(problem)
           unless formalize_result
@@ -82,19 +82,17 @@ module Chiasmus
             )
           end
 
-          Types::SolveResponse.new(
-            result: Types::SolverResultJSON.new(status: "formalized"),
-            converged: false,
-            rounds: 0,
-            template_used: formalize_result.template.name,
-            fallback: true,
+          Types::SolveFallbackResponse.new(
+            template: formalize_result.template.name,
+            solver: formalize_result.template.solver.to_s.downcase,
+            instructions: formalize_result.instructions,
             message: "No LLM API key configured. Returning template instructions instead. Fill the slots and use chiasmus_verify."
           )
         end
 
         def self.output_schema : MCP::Protocol::Tool::Input
           MCP::Protocol::Tool::Input.new(
-            properties: JSON.parse(%({"status":{"type":"string"},"result":{"type":"object"},"converged":{"type":"boolean"},"rounds":{"type":"integer"}})).as_h
+            properties: JSON.parse(%({"status":{"type":"string"},"result":{"type":"object"},"converged":{"type":"boolean"},"rounds":{"type":"integer"},"templateUsed":{"type":"string"},"template":{"type":"string"},"solver":{"type":"string"},"instructions":{"type":"string"}})).as_h
           )
         end
       end

@@ -572,7 +572,10 @@ describe "All 12 tools through MCP transport" do
         })
         result["status"].as_s.should eq("success")
         result["fallback"].as_bool.should be_true
-        result["template_used"].as_s.should eq("policy-contradiction")
+        result["template"].as_s.should eq("policy-contradiction")
+        result["solver"].as_s.should eq("z3")
+        result["instructions"].as_s.should contain("SLOT")
+        result["template_used"]?.should be_nil
         result["message"].as_s.should contain("verify")
       ensure
         disconnect(mcp_server, client)

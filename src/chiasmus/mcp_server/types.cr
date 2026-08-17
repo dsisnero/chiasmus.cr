@@ -47,6 +47,8 @@ module Chiasmus
         getter result : SolverResultJSON
         getter? converged : Bool
         getter rounds : Int32
+
+        @[JSON::Field(key: "templateUsed")]
         getter template_used : String?
         getter answers : Array(PrologAnswerJSON)
         getter history : Array(CorrectionAttemptJSON)
@@ -62,6 +64,23 @@ module Chiasmus
 
         def converged : Bool
           @converged
+        end
+
+        def fallback : Bool
+          @fallback
+        end
+      end
+
+      # No-LLM solve fallback: return the selected template for user completion.
+      struct SolveFallbackResponse < Response
+        getter? fallback : Bool
+        getter message : String
+        getter template : String
+        getter solver : String
+        getter instructions : String
+
+        def initialize(@message : String, @template : String, @solver : String, @instructions : String, @fallback : Bool = true)
+          super("success")
         end
 
         def fallback : Bool

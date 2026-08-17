@@ -21,12 +21,17 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     })
 
     result.status.should eq("success")
-    resp = result.as(Chiasmus::MCPServer::Types::SolveResponse)
+    resp = result.as(Chiasmus::MCPServer::Types::SolveFallbackResponse)
     resp.fallback.should be_true
-    template_used = resp.template_used || raise "Expected template_used"
-    template_used.should eq("policy-contradiction")
-    message = resp.message || raise "Expected message"
-    message.should contain("verify")
+    resp.template.should eq("policy-contradiction")
+    resp.solver.should eq("z3")
+    resp.instructions.should contain("SLOT")
+    resp.message.should contain("verify")
+    serialized = JSON.parse(resp.to_json)
+    serialized["template"].as_s.should eq("policy-contradiction")
+    serialized["solver"].as_s.should eq("z3")
+    serialized["instructions"].as_s.should contain("SLOT")
+    serialized["templateUsed"]?.should be_nil
   end
 
   it "returns an error when problem is missing" do
@@ -54,6 +59,9 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     sr.fallback.should be_false
     sr.converged.should be_true
     sr.result.status.should eq("sat")
+    serialized = JSON.parse(sr.to_json)
+    serialized["templateUsed"].as_s.should_not be_empty
+    serialized["template_used"]?.should be_nil
   end
 
   it "returns template used in response" do
@@ -66,9 +74,8 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     })
 
     result.status.should eq("success")
-    resp = result.as(Chiasmus::MCPServer::Types::SolveResponse)
-    template_used = resp.template_used || raise "Expected template_used"
-    template_used.should_not be_empty
+    resp = result.as(Chiasmus::MCPServer::Types::SolveFallbackResponse)
+    resp.template.should_not be_empty
   end
 
   it "uses async solve before returning the llm-backed response" do

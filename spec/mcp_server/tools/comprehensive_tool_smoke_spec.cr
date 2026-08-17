@@ -182,10 +182,10 @@ describe "All 13 chiasmus tools - post-refactor smoke test" do
       tool = Chiasmus::MCPServer::Tools::SolveTool.new
       r = tool.invoke({"problem" => JSON::Any.new("Check if access control rules conflict")})
       r.status.should eq("success")
-      s = r.as(Chiasmus::MCPServer::Types::SolveResponse)
+      s = r.as(Chiasmus::MCPServer::Types::SolveFallbackResponse)
       s.fallback.should be_true
-      s.template_used.try(&.should(eq("policy-contradiction")))
-      s.message.try(&.should(contain("verify")))
+      s.template.should eq("policy-contradiction")
+      s.message.should contain("verify")
     ensure
       Chiasmus::MCPServer.current_server = nil
     end
