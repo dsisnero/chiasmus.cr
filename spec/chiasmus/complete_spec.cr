@@ -86,6 +86,13 @@ TSV
   crystal_facts_path = File.join(dir, "crystal.pl")
   File.write(source_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(source_graph, ["main"]))
   File.write(crystal_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(crystal_graph, ["main"]))
+  File.write(File.join(dir, "parity.tsv"), <<-TSV)
+# parser_mode=fixture
+# source_id	kind	inventory_status	match_status	confidence	crystal_name	crystal_kind	crystal_path	basis	structural_status	structural_details	notes
+src/app.ts::function::completeMe	function	ported	matched	100	complete_me	function	src/port.cr	explicit	structural_match	-	-
+src/app.ts::function::needsTest	function	ported	matched	100	needs_test	function	src/port.cr	explicit	structural_match	-	-
+src/app.ts::function::deadHelper	function	missing	missing	0	-	-	-	-	structural_missing	-	-
+TSV
   dir
 end
 
@@ -102,7 +109,7 @@ describe Chiasmus::Complete::CLI do
           "--root", dir,
           "--crystal-dir", "src",
           "--source-facts", File.join(dir, "source.pl"),
-          "--crystal-facts", File.join(dir, "crystal.pl"),
+          "--parity-report", File.join(dir, "parity.tsv"),
         ],
         output,
         error
@@ -128,7 +135,7 @@ describe Chiasmus::Complete::CLI do
           "--root", dir,
           "--crystal-dir", "src",
           "--source-facts", File.join(dir, "source.pl"),
-          "--crystal-facts", File.join(dir, "crystal.pl"),
+          "--parity-report", File.join(dir, "parity.tsv"),
           "--query", "incomplete",
           "--format", "ids",
         ],
@@ -155,7 +162,7 @@ describe Chiasmus::Complete::CLI do
           "--root", dir,
           "--crystal-dir", "src",
           "--source-facts", File.join(dir, "source.pl"),
-          "--crystal-facts", File.join(dir, "crystal.pl"),
+          "--parity-report", File.join(dir, "parity.tsv"),
         ],
         output,
         error
