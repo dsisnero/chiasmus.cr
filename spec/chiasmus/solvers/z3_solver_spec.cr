@@ -61,7 +61,11 @@ describe Chiasmus::Solvers::Z3Solver do
 
   it "serializes concurrent requests through one Z3 runtime without losing responses" do
     directory, command = fake_z3_command
-    solver = Chiasmus::Solvers::Z3Solver.new(command: command, timeout: 250.milliseconds)
+    # This checks actor serialization, not timeout enforcement. Under a
+    # threaded suite the process reader can be scheduled behind other specs,
+    # so use a budget that covers scheduler contention; the hung-request case
+    # above remains the 250 ms timeout regression.
+    solver = Chiasmus::Solvers::Z3Solver.new(command: command, timeout: 2.seconds)
     results = Channel(Chiasmus::Solvers::SolverResult).new(8)
 
     begin
