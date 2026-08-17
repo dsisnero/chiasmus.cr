@@ -33,7 +33,6 @@ describe "complete_me" do
 end
 CR
 
-  needs_test_refs = mark_needs_test_complete ? "src/port.cr:8,spec/needs_test_spec.cr:1" : "src/port.cr:8"
   if mark_needs_test_complete
     File.write(File.join(dir, "spec", "needs_test_spec.cr"), <<-CR)
 describe "needs_test" do
@@ -46,10 +45,10 @@ CR
 
   inventory_path = File.join(dir, "plans", "inventory", "port.tsv")
   File.write(inventory_path, <<-TSV)
-# source_id	kind	status	crystal_refs	notes
-src/app.ts::function::completeMe	function	ported	src/port.cr:5,spec/complete_me_spec.cr:1	Covered by spec ref
-src/app.ts::function::needsTest	function	ported	#{needs_test_refs}	#{mark_needs_test_complete ? "Covered by spec ref" : "Missing explicit spec ref"}
-src/app.ts::function::deadHelper	function	missing	-	Unreachable helper
+# source_id	kind	status	crystal_refs	target_symbol	test_refs	notes
+src/app.ts::function::completeMe	function	ported	src/port.cr:5	complete_me	spec/complete_me_spec.cr:1	Covered by spec ref
+src/app.ts::function::needsTest	function	ported	src/port.cr:8	needs_test	#{mark_needs_test_complete ? "spec/needs_test_spec.cr:1" : "-"}	#{mark_needs_test_complete ? "Covered by spec ref" : "Missing explicit spec ref"}
+src/app.ts::function::deadHelper	function	missing	-	-	-	Unreachable helper
 TSV
 
   source_graph = Chiasmus::Graph::CodeGraph.new(
