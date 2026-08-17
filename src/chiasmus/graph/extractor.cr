@@ -172,8 +172,19 @@ module Chiasmus
         @@before_async_result_send_hook = nil
       end
 
+      # CPU workers require Crystal execution contexts. A capable release uses
+      # them by default; callers can explicitly retain fiber-only extraction.
+      def resolve_parallel_cpu(
+        setting : String?,
+        cpu_parallel_available : Bool = Utils::ExecutionPool.cpu_parallel_available?,
+      ) : Bool
+        return false unless cpu_parallel_available
+
+        setting != "0"
+      end
+
       private def parallel_cpu_enabled? : Bool
-        ENV["CHIASMUS_GRAPH_PARALLEL"]? == "1"
+        resolve_parallel_cpu(ENV["CHIASMUS_GRAPH_PARALLEL"]?)
       end
 
       # Load Crystal once before file workers begin. This keeps grammar setup out

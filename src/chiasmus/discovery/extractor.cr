@@ -329,11 +329,7 @@ module Chiasmus
       end
 
       private def isolated_query_instance_required? : Bool
-        {% if flag?(:execution_context) %}
-          Fiber::ExecutionContext.current != Fiber::ExecutionContext.default
-        {% else %}
-          false
-        {% end %}
+        Fiber::ExecutionContext.current != Fiber::ExecutionContext.default
       end
 
       private def deduplicate(items : Array(Item)) : Array(Item)

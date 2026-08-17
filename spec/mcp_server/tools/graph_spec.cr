@@ -28,6 +28,46 @@ private def invoke_graph(args : Hash(String, JSON::Any)) : Chiasmus::MCPServer::
 end
 
 describe Chiasmus::MCPServer::Tools::GraphTool do
+  it "persists a multi-file snapshot and reuses its warmed file cache" do
+    cache_dir = File.tempname("chiasmus-multi-snapshot-cache")
+    source_dir = File.tempname("chiasmus-multi-snapshot-source")
+    Dir.mkdir_p(source_dir)
+    files = 8.times.map do |index|
+      path = File.join(source_dir, "unit_#{index}.cr")
+      File.write(path, "class Unit#{index}\n  def run\n    helper\n  end\n\n  def helper\n  end\nend\n")
+      path
+    end
+    cache = JSON.parse({"cache_dir" => cache_dir, "repo_key" => "multi-snapshot"}.to_json)
+
+    begin
+      first = invoke_graph({
+        "files"         => JSON.parse(files.to_json),
+        "analysis"      => JSON::Any.new("summary"),
+        "cache"         => cache,
+        "save_snapshot" => JSON::Any.new("baseline"),
+      })
+      first.status.should eq("success")
+      Chiasmus::Graph::GraphCache.flush_async_writes
+
+      entries = files.map { |path| {path: path, content: File.read(path)} }.to_a
+      hits = Chiasmus::Graph::GraphCache.check_file_cache(entries, cache_dir, repo_key: "multi-snapshot")[:hits]
+      hits.size.should eq(files.size)
+
+      second = invoke_graph({
+        "files"         => JSON.parse(files.to_json),
+        "analysis"      => JSON::Any.new("summary"),
+        "cache"         => cache,
+        "save_snapshot" => JSON::Any.new("latest"),
+      })
+      second.status.should eq("success")
+      Chiasmus::Graph::GraphCache.load_snapshot("latest", cache_dir, repo_key: "multi-snapshot").should_not be_nil
+    ensure
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(source_dir)
+      FileUtils.rm_rf(cache_dir)
+    end
+  end
+
   it "uses the default extraction cache when cache options are omitted" do
     cache_dir = File.tempname("chiasmus-default-cache")
     file = File.tempname("default-cache", ".go")

@@ -53,15 +53,15 @@ Source: `src/chiasmus/mcp_server/server.cr:27-51`
 ### 2. BoundedWork — parallel file extraction
 
 Extracts call graphs from N files concurrently with a configurable worker pool.
-Two execution modes, chosen at compile time:
+Two execution modes are selected at runtime:
 
 | Mode | Mechanism | When |
 |------|-----------|------|
-| Fibers (default) | `spawn { }` | Standard `-Dchiasmus_cli` |
-| True threads | `Fiber::ExecutionContext::Parallel` | `-Dpreview_mt -Dexecution_context` |
+| Fibers | `spawn { }` | Explicit `CHIASMUS_GRAPH_PARALLEL=0` opt-out |
+| Parallel workers (default) | `Fiber::ExecutionContext::Parallel` | Crystal 1.21 runtime |
 
-The thread mode requires the MT runtime. With `-Dexecution_context`, parallel is
-on by default (opt-out via `CHIASMUS_GRAPH_PARALLEL=0`).
+Crystal 1.21 exposes parallel execution contexts at runtime, so parallel extraction
+is on by default (opt-out via `CHIASMUS_GRAPH_PARALLEL=0`).
 
 ```
 ┌─────┐  ┌─────┐  ┌─────┐
@@ -219,16 +219,16 @@ The `warm_cache.cr` script populates the extraction cache in one request, lettin
 `BoundedWork.map_ordered` parallelize internally. Subsequent `chiasmus_graph` calls
 are all cache hits.
 
-## Compile-time flags
+## Runtime parallelism
 
 | Flag | Effect |
 |------|--------|
 | `-Dchiasmus_cli` | Enables CLI entry point (required for binary, excluded for tests) |
-| `-Dpreview_mt -Dexecution_context` | Enables true thread-parallel extraction via `Fiber::ExecutionContext::Parallel` |
+| `CHIASMUS_GRAPH_PARALLEL=0` | Disables the default parallel extraction worker context |
 
-Build with threads:
+Build the release binary:
 ```bash
-make build_release    # release + MT + parallel extraction by default
+make build_release    # release; parallel extraction is enabled at runtime by default
 ```
 
 ## Key invariants

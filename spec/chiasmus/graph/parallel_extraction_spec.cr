@@ -48,6 +48,19 @@ private class PrewarmingParserService < Chiasmus::Graph::Parser::Service
 end
 
 describe "parallel graph extraction" do
+  describe ".resolve_parallel_cpu" do
+    it "defaults on only when an execution context is available" do
+      Extractor.resolve_parallel_cpu(nil, cpu_parallel_available: true).should be_true
+      Extractor.resolve_parallel_cpu(nil, cpu_parallel_available: false).should be_false
+    end
+
+    it "honors an explicit opt-out without claiming CPU parallelism when unavailable" do
+      Extractor.resolve_parallel_cpu("0", cpu_parallel_available: true).should be_false
+      Extractor.resolve_parallel_cpu("1", cpu_parallel_available: true).should be_true
+      Extractor.resolve_parallel_cpu("1", cpu_parallel_available: false).should be_false
+    end
+  end
+
   it "prewarms the Crystal grammar before default extraction" do
     previous_service = Parser.service
     service = PrewarmingParserService.new

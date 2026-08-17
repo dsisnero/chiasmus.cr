@@ -5,8 +5,8 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Build targets:"
-	@echo "  build              standard release binary (bin/chiasmus)"
-	@echo "  build_release      release + -Dpreview_mt -Dexecution_context (parallel extraction)"
+	@echo "  build              release binary (bin/chiasmus)"
+	@echo "  build_release      release binary (parallel contexts enabled at runtime)"
 	@echo "  warm-cache         build release + warm extraction cache for src/"
 	@echo ""
 	@echo "QA targets:"
@@ -86,9 +86,8 @@ $(BUILD_DIR)/chiasmus-grammar: $(BUILD_INPUTS)
 
 $(BUILD_DIR)/chiasmus-parity: $(BUILD_INPUTS)
 	@mkdir -p bin $(BUILD_DIR)
-	# Build parity CLIs with execution contexts enabled so CHIASMUS_PARITY_PARALLEL
-	# can opt into true-thread worker pools for row matching and regex-side scans.
-	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-parity src/chiasmus_parity.cr
+	# Crystal 1.21 execution contexts are runtime APIs; no feature flags are needed.
+	crystal build --release -o bin/chiasmus-parity src/chiasmus_parity.cr
 	@touch $@
 
 $(BUILD_DIR)/chiasmus-plan: $(BUILD_INPUTS)
@@ -98,25 +97,23 @@ $(BUILD_DIR)/chiasmus-plan: $(BUILD_INPUTS)
 
 $(BUILD_DIR)/chiasmus-complete: $(BUILD_INPUTS)
 	@mkdir -p bin $(BUILD_DIR)
-	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-complete src/chiasmus_complete.cr
+	crystal build --release -o bin/chiasmus-complete src/chiasmus_complete.cr
 	@touch $@
 
 $(BUILD_DIR)/chiasmus-facts: $(BUILD_INPUTS)
 	@mkdir -p bin $(BUILD_DIR)
-	# chiasmus-facts is the graph engine headless; build it like the server
-	# (-Dpreview_mt -Dexecution_context) so extraction uses true-thread
-	# parallelism (parallel_cpu_enabled?) instead of fiber-only.
-	crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus-facts src/chiasmus_facts.cr
+	# chiasmus-facts uses the same runtime parallel contexts as the server.
+	crystal build --release -o bin/chiasmus-facts src/chiasmus_facts.cr
 	@touch $@
 
 release: $(BUILD_DIR)/chiasmus_release
 $(BUILD_DIR)/chiasmus_release: $(BUILD_INPUTS)
 	@mkdir -p bin $(BUILD_DIR)
-	@if crystal build --release -Dpreview_mt -Dexecution_context --static -o bin/chiasmus src/chiasmus_cli.cr 2>/dev/null; then \
+	@if crystal build --release --static -o bin/chiasmus src/chiasmus_cli.cr 2>/dev/null; then \
 		echo "Built static binary"; \
 	else \
 		echo "Static linking failed, building dynamic binary"; \
-		crystal build --release -Dpreview_mt -Dexecution_context -o bin/chiasmus src/chiasmus_cli.cr; \
+		crystal build --release -o bin/chiasmus src/chiasmus_cli.cr; \
 	fi
 	@touch $@
 
