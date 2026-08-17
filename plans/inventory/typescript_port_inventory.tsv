@@ -107,7 +107,7 @@ src/llm/types.ts::interface::LLMMessage	interface	intentional_divergence	src/chi
 src/mcp-server.ts::const::TOOLS	const	ported	src/chiasmus/mcp_server/tools/verify.cr:7	-	-	chiasmus_verify tool ported to Crystal
 src/mcp-server.ts::function::getChiasmusHome	function	ported	src/chiasmus/utils/config.cr:21	-	-	Port with XDG support
 src/mcp-server.ts::function::handleLint	function	ported	src/chiasmus/mcp_server/tools/lint.cr:10	LintTool.invoke	-	ported as LintTool.invoke
-src/mcp-server.ts::function::handleSkills	function	ported	src/chiasmus/mcp_server/tools/skills.cr:7	Chiasmus::MCPServer::Tools::SkillsTool#invoke	spec/mcp_server/mcp_integration_spec.cr	Exact name lookup now matches upstream's template/metadata/related response shape; query/list retain Crystal's status-wrapped response extension.
+src/mcp-server.ts::function::handleSkills	function	ported	src/chiasmus/mcp_server/tools/skills.cr:7	Chiasmus::MCPServer::Tools::SkillsTool#invoke	spec/mcp_server/mcp_integration_spec.cr	Exact lookup matches upstream template/metadata/related fields; name-free listing now follows upstream's unbounded list-and-filter path. Query/list retain Crystal's status-wrapped response extension.
 src/skills/bm25.ts::const::N	const	intentional_divergence	-	-	-	Replaced by dsisnero/bm25 shard (Porter2 + stopwords + embedding)
 src/skills/bm25.ts::const::STOPWORDS	const	intentional_divergence	-	-	-	Replaced by dsisnero/bm25 shard with its own STOP_WORDS_ENGLISH set
 src/skills/bm25.ts::function::buildIndex	function	intentional_divergence	lib/bm25/src/bm25/search.cr:55	Bm25::SearchEngine#search	-	Replaced by Bm25::SearchEngine#search with incremental upsert

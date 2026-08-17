@@ -52,7 +52,9 @@ describe Chiasmus::MCPServer::Tools::SkillsTool do
     })
 
     result.status.should eq("success")
-    result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates.each do |item|
+    templates = result.as(Chiasmus::MCPServer::Types::SkillsResponse).templates
+    templates.size.should eq(Chiasmus::Skills::STARTER_TEMPLATES.count { |template| template.solver == Chiasmus::Solvers::SolverType::Prolog })
+    templates.each do |item|
       item.solver.should eq("prolog")
     end
   end

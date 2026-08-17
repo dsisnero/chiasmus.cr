@@ -31,17 +31,27 @@ module Chiasmus
               metadata: Types.skill_metadata_to_json(template.metadata),
               related: related
             )
-          else
+          elsif query = args.query
             search_options = Skills::SearchOptions.new(
               domain: args.domain,
               solver: args.solver ? parse_solver_type(args.solver.not_nil!) : nil,
               limit: args.limit
             )
 
-            results = library.search(args.query || "", search_options)
+            results = library.search(query, search_options)
 
             Types::SkillsResponse.new(
               templates: results.map { |search_result| Types.skill_search_result_to_json(search_result).template }
+            )
+          else
+            templates = library.list
+            templates = templates.select { |item| item.template.domain == args.domain } if args.domain
+            if solver_type = args.solver.try { |solver| parse_solver_type(solver) }
+              templates = templates.select { |item| item.template.solver == solver_type }
+            end
+
+            Types::SkillsResponse.new(
+              templates: templates.map { |item| Types.template_to_json(item.template) }
             )
           end
         rescue ex
