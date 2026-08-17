@@ -100,14 +100,24 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
       end
     end
 
-    it "rejects node-llama configuration loaded from config.json too" do
+    it "reserves the node-llama diagnostic for the Node-only environment flag" do
       config = Chiasmus::Utils::Config::ChiasmusConfig.new(
         Chiasmus::Utils::Config::LocalEmbeddingsConfig.new(enabled: true, model: "hf:example/model")
       )
 
-      message = Chiasmus::MCPServer::Tools::SearchTool.local_embedding_configuration_error(config) ||
-                raise "expected unsupported local embedding configuration error"
-      message.downcase.should contain("not supported")
+      Chiasmus::MCPServer::Tools::SearchTool.local_embedding_configuration_error(config).should be_nil
+    end
+
+    it "uses an enabled configured model through the Ollama embedding provider" do
+      config = Chiasmus::Utils::Config::ChiasmusConfig.new(
+        Chiasmus::Utils::Config::LocalEmbeddingsConfig.new(enabled: true, model: "nomic-embed-text")
+      )
+
+      resolution = Chiasmus::MCPServer::Tools::SearchTool.resolve_embedding_resolution(config)
+      resolution.should_not be_nil
+      resolution.try(&.provider).should eq("ollama")
+      resolution.try(&.model_name).should eq("nomic-embed-text")
+      Chiasmus::MCPServer::Tools::SearchTool.embedding_configured?(config).should be_true
     end
   end
 end

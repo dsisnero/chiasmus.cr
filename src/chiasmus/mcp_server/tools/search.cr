@@ -172,8 +172,24 @@ module Chiasmus
         end
 
         def self.resolve_embedding_resolution : EmbeddingResolution?
+          resolve_embedding_resolution(Utils::Config.load)
+        end
+
+        # Crystal uses an Ollama endpoint for configured local embeddings.
+        # The upstream node-llama-cpp-only fields remain diagnostic-only.
+        def self.resolve_embedding_resolution(config : Utils::Config::ChiasmusConfig) : EmbeddingResolution?
           provider = ENV["CHIASMUS_EMBED_PROVIDER"]?
           base_url = ENV["CHIASMUS_EMBED_URL"]?
+
+          if local = config.local_embeddings
+            if local.enabled? && (model = local.model) && !model.blank?
+              return EmbeddingResolution.new(
+                provider: "ollama",
+                model_name: model,
+                base_url: base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL,
+              )
+            end
+          end
 
           if provider
             case provider
@@ -235,9 +251,8 @@ module Chiasmus
           local_embedding_configuration_error(Utils::Config.load)
         end
 
-        def self.local_embedding_configuration_error(config : Utils::Config::ChiasmusConfig) : String?
-          local_config_enabled = config.local_embeddings.try(&.enabled?) || false
-          return nil unless ENV["CHIASMUS_LOCAL_EMBED"]? || local_config_enabled
+        def self.local_embedding_configuration_error(_config : Utils::Config::ChiasmusConfig) : String?
+          return nil unless ENV["CHIASMUS_LOCAL_EMBED"]?
 
           "Local embeddings (CHIASMUS_LOCAL_EMBED/localEmbeddings) are not supported by the Crystal build; " +
             "use CHIASMUS_EMBED_PROVIDER=ollama with a local Ollama embedding model instead."
@@ -252,6 +267,14 @@ module Chiasmus
         end
 
         def self.embedding_configured? : Bool
+          embedding_configured?(Utils::Config.load)
+        end
+
+        def self.embedding_configured?(config : Utils::Config::ChiasmusConfig) : Bool
+          if local = config.local_embeddings
+            return true if local.enabled? && local.model.try { |model| !model.blank? }
+          end
+
           provider = ENV["CHIASMUS_EMBED_PROVIDER"]?
 
           case provider
