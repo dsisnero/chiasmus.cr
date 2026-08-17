@@ -1,6 +1,7 @@
 # chiasmus_search tool — Semantic code search over files
 require "mcp"
 require "crig"
+require "openssl"
 require "../types"
 require "../tool_schemas"
 require "../../search/engine"
@@ -62,17 +63,17 @@ module Chiasmus
             return Types::ErrorResponse.new("No searchable content found in files.")
           end
 
-          model = resolve_embedding_model
-          unless model
-            return Types::ErrorResponse.new(
-              "No embedding provider configured. " +
-              "Set OPENAI_API_KEY / DEEPSEEK_API_KEY / OPENROUTER_API_KEY " +
-              "(see CHIASMUS_EMBED_* env vars for overrides)."
-            )
-          end
+          resolution = self.class.resolve_embedding_resolution(@config) ||
+                       return Types::ErrorResponse.new(
+                         "No embedding provider configured. " +
+                         "Set OPENAI_API_KEY / DEEPSEEK_API_KEY / OPENROUTER_API_KEY " +
+                         "(see CHIASMUS_EMBED_* env vars for overrides)."
+                       )
+          model = resolve_embedding_model(resolution) ||
+                  return Types::ErrorResponse.new("Unable to create embedding model for #{resolution.provider}")
 
           dim = model.ndims
-          cache_path = File.join(@chiasmus_home, "embeddings", "d#{dim}.json")
+          cache_path = self.class.embedding_cache_path(@chiasmus_home, resolution, dim)
           cache = Search::EmbeddingCache.new(cache_path, dim)
           begin
             cache.load
@@ -154,10 +155,7 @@ module Chiasmus
         # Provider priority: CHIASMUS_EMBED_PROVIDER > env-backed fallback > implicit ollama.
         # Supports: ollama, deepseek, openai.
         # Ollama defaults to nomic-embed-text, others to text-embedding-3-small.
-        private def resolve_embedding_model
-          resolution = self.class.resolve_embedding_resolution(@config)
-          return nil unless resolution
-
+        private def resolve_embedding_model(resolution : EmbeddingResolution)
           case resolution.provider
           when "ollama"
             self.class.ollama_embedding_model(resolution.base_url, resolution.model_name)
@@ -292,6 +290,18 @@ module Chiasmus
           else
             false
           end
+        end
+
+        # Content hashes alone are insufficient because vectors from different
+        # embedding models can share a dimension while inhabiting different
+        # semantic spaces.
+        def self.embedding_cache_path(home : String, resolution : EmbeddingResolution, dimension : Int32) : String
+          namespace = OpenSSL::Digest.new("SHA256")
+            .update(resolution.provider)
+            .update("\u0000")
+            .update(resolution.model_name)
+            .final.hexstring[0, 16]
+          File.join(home, "embeddings", "d#{dimension}-#{namespace}.json")
         end
 
         private def self.configured?(value : String?) : Bool

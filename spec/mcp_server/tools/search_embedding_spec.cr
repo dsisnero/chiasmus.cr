@@ -119,5 +119,15 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
       resolution.try(&.model_name).should eq("nomic-embed-text")
       Chiasmus::MCPServer::Tools::SearchTool.embedding_configured?(config).should be_true
     end
+
+    it "isolates embedding caches by provider and model as well as dimension" do
+      home = "/tmp/chiasmus-embedding-cache-path"
+      openai = Chiasmus::MCPServer::Tools::SearchTool::EmbeddingResolution.new("openai", "text-embedding-3-small")
+      ollama = Chiasmus::MCPServer::Tools::SearchTool::EmbeddingResolution.new("ollama", "nomic-embed-text")
+
+      Chiasmus::MCPServer::Tools::SearchTool.embedding_cache_path(home, openai, 768).should_not eq(
+        Chiasmus::MCPServer::Tools::SearchTool.embedding_cache_path(home, ollama, 768)
+      )
+    end
   end
 end
