@@ -2,15 +2,15 @@
 
 ## Current Inventory State (vendor/chiasmus @ `d1f1291e`)
 
-Ledger reviewed against the pinned vendor revision on 2026-08-04.
+Ledger reconciled against the pinned vendor revision on 2026-08-16.
 
 _(The completed P20 notes below describe the earlier 07bbf4a → 576ed38 update; they are retained as implementation history.)_
 
-| Manifest | Tracked | Ported | Intentional divergence | Missing |
+| Manifest | Tracked | Ported | Partial | Intentional divergence | Missing |
 |---|---|---:|---:|---:|---:|
-| `typescript_port_inventory.tsv` | 1600 | 1325 | 95 | 180 |
-| `typescript_source_parity.tsv` | 633 | n/a | n/a | n/a |
-| `typescript_test_parity.tsv` | 991 | n/a | n/a | n/a |
+| `typescript_port_inventory.tsv` | 605 | 504 | 3 | 98 | 0 |
+| `typescript_source_parity.tsv` | 605 | n/a | n/a | n/a | n/a |
+| `typescript_test_parity.tsv` | 1082 | n/a | n/a | n/a | n/a |
 
 Current workflow split:
 
@@ -20,7 +20,7 @@ Current workflow split:
 - `check_port_inventory.sh` proves curated source coverage only.
 - `check_test_parity.sh` is the exhaustive test drift gate.
 
-### Intentional Divergences (95 items)
+### Intentional Divergences (98 items)
 
 | Subsystem | Items | Rationale |
 |---|---|---|
@@ -32,27 +32,21 @@ Current workflow split:
 | Z3 solver config | ~1 | Constructor config instead of global timeout |
 | Uncheckable Ansch/vendor defaults | ~14 | Provider defaults owned by Crig/configuration |
 
-### Outstanding Inventory Reconciliation (238 rows)
+### Reconciled Inventory Scope
 
-The prior “18 VectorStore items” summary is obsolete: P8 is implemented. The current
-curated ledger has 117 source rows, 43 test/fixture-helper rows, and 20 benchmark
-rows marked `missing`. A strict drift check also found 25 untracked local-embedding
-source declarations and 33 related tests in the pinned vendor. The active scope is
-therefore 142 source rows, 76 test/fixture-helper rows, and 20 benchmark rows.
+P28 established a source-only curated ledger and refreshed both generated manifests.
+The 1,082 upstream tests—including helpers, fixtures, and benchmark test declarations—
+belong solely in `typescript_test_parity.tsv`; they are not source implementation rows.
+All 605 source declarations are now mapped as ported, partial, or intentionally
+divergent. The 20 Node `node-llama-cpp` local-embedding declarations are intentionally
+divergent: Crystal validates the configuration and routes configured local models to
+Ollama, but does not claim Node model lifecycle parity.
 
-Most of the original source rows already have a Crystal counterpart and need an
-explicit source-ID-to-Crystal-reference mapping rather than a new implementation.
-The local-embedding rows are a user-visible feature: they require either a Crystal
-backend with matching lifecycle semantics or a documented, user-facing intentional
-divergence. Do not overwrite the curated ledger while refreshing generated manifests;
-append and curate only the new rows.
-
-### Source-Only Work Scope (142 declarations)
+### Source-Only Work Scope (reconciled)
 
 This is the implementation-facing scope for `src/` against `vendor/chiasmus/src/`.
-Most rows already have a Crystal counterpart and require an explicit mapping rather
-than a new implementation; the phases below distinguish mapping work from actual
-behavioral gaps.
+The feature phases below capture the completed mappings and documented behavioral
+substitutions.
 
 | Upstream subsystem | Declarations | Planned phase | Expected disposition |
 |---|---:|---|---|
@@ -75,14 +69,14 @@ parity check; generated manifests remain generated artifacts.
 
 | Phase | Feature | Scope | Completion evidence |
 |---|---|---|---|
-| P28 | Inventory reconciliation baseline | Reconcile 238 rows: 142 source, 76 test helpers/fixtures, and 20 benchmarks. Append the 25 local-embedding source rows and 33 tests without overwriting curated work; explicitly classify Crig, crolog, SQLite, and runtime substitutions. | Every row is mapped, ported, or intentionally diverged with a rationale; strict inventory and generated-manifest drift checks pass. |
+| P28 ✓ | Inventory reconciliation baseline | Reconciled the curated ledger to the 605 upstream source declarations; refreshed generated source (605) and test (1,082) manifests; classified local-embedding configuration and the Node/Ollama substitution. | Completed: `check_port_inventory`, `check_source_parity`, and `check_test_parity` pass in strict tree-sitter mode. |
 | P29 ✓ | Graph ingestion and resolution | `adapter-registry`, `extractor`, `parser`, `suffix-index`, `tsconfig-aliases`, and `type-env` (17 source IDs). | Completed: characterization specs cover loading, parse failure, alias resolution, and extraction; static/native Crystal replacements for Node module loading, WASM configuration, and public TypeEnv APIs are documented. |
 | P30 ✓ | Graph persistence and analysis | `graph/cache` and `graph/analyses` (18 source IDs), including cache lifecycle, locking, snapshots, and analysis entry points. | Completed: cache/analysis APIs are mapped; SQLite WAL replacements for JSON manifest/proper-lockfile internals are documented; snapshot/cache specs pass. |
 | P31 ✓ | Skills lifecycle | `skills/library`, `learner`, `craft`, `relationships`, and `starters` (22 source IDs). | Completed: upstream's 14-template starter corpus and all relationship edges are covered; persistence, promotion, and search-index specs pass. |
 | P32 ✓ | Semantic-search storage | `embedding-cache`, `search/engine`, and `vector-store` (17 source IDs). | Completed: corpus signatures and vector dimensions now follow upstream; specs cover cache persistence, mutations, search, and serialization. |
 | P33 ✓ | Formalization pipeline | `formalize/engine` (9 source IDs): instruction assembly, response cleanup, selection, fill/fix, lint loop, and solve. | Completed: bounded lint remediation now includes upstream-style auto-fix/error feedback and oscillation detection before solver correction; Crig supplies the equivalent async completion boundary. |
 | P34 ✓ | Solver sessions and correction | `correction-loop`, `session`, `z3-solver`, and `prolog-solver` (11 source IDs). | Completed: lifecycle, disposal, correction, and error semantics are specified; crolog’s stable per-query wall-clock/answer limits replace the upstream Node per-query inference-budget override. |
-| P35 ✓ | LLM-provider and local-embedding compatibility | Cloud/mock adapters (11 source IDs) plus local embeddings/configuration (25 new source IDs, 33 tests): env/config precedence, lazy single-flight load, batching, dimension discovery, retry, and disposal. | Completed: Crig replaces vendor adapter transport; Azure env/provider routing is covered. Node-only `node-llama-cpp` local embeddings are explicitly unsupported, with Ollama as the documented local alternative. The newly discovered local-embedding rows remain queued for P28 reconciliation. |
+| P35 ✓ | LLM-provider and local-embedding compatibility | Cloud/mock adapters (11 source IDs) plus local embeddings/configuration: env/config precedence and the supported Ollama alternative. | Completed: Crig replaces vendor adapter transport; Azure env/provider routing is covered. Node-only `node-llama-cpp` lifecycle semantics remain an explicit Ollama-backed intentional divergence, reconciled in P28. |
 | P36 ✓ | MCP-server composition | `mcp-server`, configuration defaults, and review focus validation (12 source IDs). | Completed: tool registration/gating and review focus validation are characterized end-to-end; server construction now supports an isolated explicit Chiasmus home. Crig completion and Node-only local embeddings are documented divergences. |
 | P37 ✓ | Benchmark-suite parity | Upstream benchmark scenario solvers, runners, and result interfaces (20 rows). | Completed: all five deterministic Chiasmus-vs-traditional scenarios and typed results are covered by Crystal benchmark specs; Crystal Spec replaces TypeScript runSuite. |
 

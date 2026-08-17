@@ -1,10 +1,14 @@
 # source_test_id	status	crystal_refs	notes
+benchmark/tests/p1-rbac.test.ts::function::runSuite	missing	-	baseline
+benchmark/tests/p1-rbac.test.ts::interface::ConflictResult	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::Problem 1: RBAC Policy Conflict Detection	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::Traditional	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::detects the auditor read/billing conflict	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::finds exactly one conflict in this ruleset	missing	-	baseline
 benchmark/tests/p1-rbac.test.ts::test::returns the specific conflicting triple	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::function::runSuite	missing	-	baseline
+benchmark/tests/p2-deps.test.ts::interface::DependencyResult	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::Problem 2: Package Dependency Resolution	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::Traditional	missing	-	baseline
@@ -12,6 +16,8 @@ benchmark/tests/p2-deps.test.ts::test::all versions are within allowed ranges	mi
 benchmark/tests/p2-deps.test.ts::test::finds a satisfiable assignment	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::respects dependency requirements	missing	-	baseline
 benchmark/tests/p2-deps.test.ts::test::respects incompatibilities	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::function::runSuite	missing	-	baseline
+benchmark/tests/p3-taint.test.ts::interface::TaintResult	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::Problem 3: Data Flow Taint Analysis	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::Traditional	missing	-	baseline
@@ -19,6 +25,8 @@ benchmark/tests/p3-taint.test.ts::test::all three sinks are reachable	missing	-	
 benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach db_query	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach eval_engine	missing	-	baseline
 benchmark/tests/p3-taint.test.ts::test::finds that http_request can reach file_write	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::function::runSuite	missing	-	baseline
+benchmark/tests/p4-workflow.test.ts::interface::WorkflowResult	missing	-	baseline
 benchmark/tests/p4-workflow.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p4-workflow.test.ts::test::Problem 4: Workflow State Machine Validation	missing	-	baseline
 benchmark/tests/p4-workflow.test.ts::test::Traditional	missing	-	baseline
@@ -26,6 +34,8 @@ benchmark/tests/p4-workflow.test.ts::test::does not flag reachable states as unr
 benchmark/tests/p4-workflow.test.ts::test::does not flag states with outgoing transitions as dead-ends	missing	-	baseline
 benchmark/tests/p4-workflow.test.ts::test::identifies 'archived' as a dead-end	missing	-	baseline
 benchmark/tests/p4-workflow.test.ts::test::identifies 'deleted' as unreachable	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::function::runSuite	missing	-	baseline
+benchmark/tests/p5-validation.test.ts::interface::ValidationGapResult	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::Chiasmus	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::Problem 5: API Validation Rule Consistency	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::Traditional	missing	-	baseline
@@ -37,6 +47,7 @@ benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the
 tests/anthropic-adapter.test.ts::test::AnthropicAdapter	missing	-	baseline
 tests/anthropic-adapter.test.ts::test::defaults to claude-sonnet-4-6 when no model is configured	missing	-	baseline
 tests/anthropic-adapter.test.ts::test::honors an explicit model override	missing	-	baseline
+tests/azure-openai-adapter.test.ts::function::embeddingResponse	missing	-	baseline
 tests/azure-openai-adapter.test.ts::test::AzureOpenAIEmbeddingAdapter	missing	-	baseline
 tests/azure-openai-adapter.test.ts::test::URL-encodes the deployment name and api-version	missing	-	baseline
 tests/azure-openai-adapter.test.ts::test::batches at the Azure 16-input limit by default	missing	-	baseline
@@ -55,12 +66,19 @@ tests/bm25.test.ts::test::incremental add keeps IDF consistent	missing	-	baselin
 tests/bm25.test.ts::test::matches full rebuild across many adds	missing	-	baseline
 tests/bm25.test.ts::test::matches full rebuild for a term not in the added doc	missing	-	baseline
 tests/bm25.test.ts::test::search scores after incremental add match full rebuild	missing	-	baseline
+tests/config.test.ts::function::makeTmpDir	missing	-	baseline
 tests/config.test.ts::test::falls back to defaults for invalid JSON	missing	-	baseline
+tests/config.test.ts::test::ignores a non-object localEmbeddings value	missing	-	baseline
 tests/config.test.ts::test::ignores unknown keys and wrong types	missing	-	baseline
+tests/config.test.ts::test::is undefined by default	missing	-	baseline
 tests/config.test.ts::test::loadConfig	missing	-	baseline
+tests/config.test.ts::test::localEmbeddings	missing	-	baseline
+tests/config.test.ts::test::normalizes enabled to a boolean and drops non-string model	missing	-	baseline
 tests/config.test.ts::test::not valid json {{{	missing	-	baseline
+tests/config.test.ts::test::reads a complete localEmbeddings block	missing	-	baseline
 tests/config.test.ts::test::reads adapterDiscovery from config.json	missing	-	baseline
 tests/config.test.ts::test::returns defaults when config.json does not exist	missing	-	baseline
+tests/correction-loop.test.ts::function::fixer	missing	-	baseline
 tests/correction-loop.test.ts::test::Correction Loop	missing	-	baseline
 tests/correction-loop.test.ts::test::Prolog	missing	-	baseline
 tests/correction-loop.test.ts::test::Z3	missing	-	baseline
@@ -75,6 +93,7 @@ tests/correction-loop.test.ts::test::passes through a correct Prolog program wit
 tests/correction-loop.test.ts::test::passes through a correct spec without correction	missing	-	baseline
 tests/correction-loop.test.ts::test::provides error history for debugging	missing	-	baseline
 tests/correction-loop.test.ts::test::stops early when fixer gives up (returns null)	missing	-	baseline
+tests/craft.test.ts::function::validInput	missing	-	baseline
 tests/craft.test.ts::test::craftTemplate	missing	-	baseline
 tests/craft.test.ts::test::duplicate name returns error	missing	-	baseline
 tests/craft.test.ts::test::empty normalizations array returns error	missing	-	baseline
@@ -90,6 +109,7 @@ tests/craft.test.ts::test::valid template is added to library and searchable	mis
 tests/craft.test.ts::test::valid template passes validation with no errors	missing	-	baseline
 tests/craft.test.ts::test::validateTemplate	missing	-	baseline
 tests/craft.test.ts::test::validation errors prevent creation	missing	-	baseline
+tests/create-embedding-from-env.test.ts::const::RELEVANT_VARS	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::Azure activation	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::DeepSeek (no embeddings API)	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::OpenAI fallback	missing	-	baseline
@@ -98,13 +118,20 @@ tests/create-embedding-from-env.test.ts::test::accepts AZURE_OPENAI_ENDPOINT as 
 tests/create-embedding-from-env.test.ts::test::createEmbeddingFromEnv	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::does not activate when only the key is set (no endpoint)	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::does not take precedence over a working OPENROUTER_API_KEY	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::does not use local when disabled, even with a model set	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::falls through to a cloud provider when enabled but no model is set	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::forwards CHIASMUS_EMBED_DIM and AZURE_OPENAI_API_VERSION to the adapter URL	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::is honored when CHIASMUS_EMBED_URL points at an embeddings-capable endpoint	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::local embeddings (node-llama-cpp)	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::prefers local over an available cloud key when enabled	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::returns an AzureOpenAIEmbeddingAdapter when key + endpoint + deployment are set	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::returns an OpenAICompatibleEmbeddingAdapter when only OPENAI_API_KEY is set	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::returns an OpenAICompatibleEmbeddingAdapter when only OPENROUTER_API_KEY is set	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::returns null when no provider env vars are set	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::selects LocalEmbeddingAdapter when enabled + model via env, threading dimension	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::takes precedence over OPENAI_API_KEY when both are configured	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::uses config-file localEmbeddings when passed (no env)	missing	-	baseline
+tests/create-embedding-from-env.test.ts::test::warns and returns null when enabled, no model, and no cloud provider	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::warns and returns null when key + endpoint are set but deployment is missing	missing	-	baseline
 tests/create-embedding-from-env.test.ts::test::warns and returns null when only DEEPSEEK_API_KEY is set	missing	-	baseline
 tests/dogfood.test.ts::test::Dogfood: realistic problem domains	missing	-	baseline
@@ -121,6 +148,7 @@ tests/embedding-adapter.test.ts::test::mock batch returns in the same order as i
 tests/embedding-adapter.test.ts::test::mock exposes dimension() matching configured size	missing	-	baseline
 tests/embedding-adapter.test.ts::test::mock produces distinct vectors for distinct inputs	missing	-	baseline
 tests/embedding-adapter.test.ts::test::mock returns deterministic vectors of the configured dimension	missing	-	baseline
+tests/engine-empty-library.test.ts::function::makeEmptyLibrary	missing	-	baseline
 tests/engine-empty-library.test.ts::test::FormalizationEngine	missing	-	baseline
 tests/engine-empty-library.test.ts::test::returns null instead of crashing when library is empty	missing	-	baseline
 tests/extractor-class-scope.test.ts::test::attributes calls in class body static fields to the class	missing	-	baseline
@@ -163,6 +191,9 @@ tests/graph-analyses-escaping.test.ts::test::handles from/to with special chars 
 tests/graph-analyses-escaping.test.ts::test::handles target names with parentheses	missing	-	baseline
 tests/graph-analyses-escaping.test.ts::test::handles target names with single quotes	missing	-	baseline
 tests/graph-analyses-escaping.test.ts::test::handles target names with spaces	missing	-	baseline
+tests/graph/adapter-registry.test.ts::function::makeTestAdapter	missing	-	baseline
+tests/graph/adapter-registry.test.ts::function::walkCalls	missing	-	baseline
+tests/graph/adapter-registry.test.ts::method::extract	missing	-	baseline
 tests/graph/adapter-registry.test.ts::test::adapter integration with extractor	missing	-	baseline
 tests/graph/adapter-registry.test.ts::test::adapter integration with parser	missing	-	baseline
 tests/graph/adapter-registry.test.ts::test::adapter with searchPaths is accepted by registerAdapter	missing	-	baseline
@@ -191,6 +222,7 @@ tests/graph/analyses-diff.test.ts::test::computes diff against a saved snapshot	
 tests/graph/analyses-diff.test.ts::test::returns error when against snapshot is missing	missing	-	baseline
 tests/graph/analyses-diff.test.ts::test::runAnalysis: diff analysis	missing	-	baseline
 tests/graph/analyses-diff.test.ts::test::saves a snapshot when saveSnapshot is supplied	missing	-	baseline
+tests/graph/analyses-insights.test.ts::function::makeGraph	missing	-	baseline
 tests/graph/analyses-insights.test.ts::test::bridges analysis returns betweenness-ranked nodes	missing	-	baseline
 tests/graph/analyses-insights.test.ts::test::communities analysis returns community list	missing	-	baseline
 tests/graph/analyses-insights.test.ts::test::emits community/2, cohesion/2, hub/2, and bridge/2 facts when present	missing	-	baseline
@@ -199,6 +231,8 @@ tests/graph/analyses-insights.test.ts::test::hubs analysis returns ranked nodes	
 tests/graph/analyses-insights.test.ts::test::omits insight facts by default (keeps facts dump size predictable)	missing	-	baseline
 tests/graph/analyses-insights.test.ts::test::runAnalysis: new insight analyses	missing	-	baseline
 tests/graph/analyses-insights.test.ts::test::surprises analysis returns cross-community edges	missing	-	baseline
+tests/graph/analyses-scale.test.ts::function::makeChain	missing	-	baseline
+tests/graph/analyses-scale.test.ts::function::makeCyclicGraph	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::buildFactsResult returns an error object when the program exceeds the cap	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::buildFactsResult returns the raw program under the cap	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::callers/callees on a 500-node dense graph respond in < 100ms	missing	-	baseline
@@ -212,6 +246,7 @@ tests/graph/analyses-scale.test.ts::test::path on a 500-node chain returns a cha
 tests/graph/analyses-scale.test.ts::test::reachability on a 1000-node chain finishes in < 200ms	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::runAnalysisFromGraph surfaces the cap error on an oversize graph	missing	-	baseline
 tests/graph/analyses-scale.test.ts::test::small graphs return the full program string via runAnalysisFromGraph	missing	-	baseline
+tests/graph/analyses.test.ts::function::makeGraph	missing	-	baseline
 tests/graph/analyses.test.ts::test::an empty filePaths list is not an error — returns empty summary with no warnings	missing	-	baseline
 tests/graph/analyses.test.ts::test::callees returns correct callees	missing	-	baseline
 tests/graph/analyses.test.ts::test::callers returns correct callers	missing	-	baseline
@@ -237,6 +272,9 @@ tests/graph/analyses.test.ts::test::runAnalysis file I/O surface	missing	-	basel
 tests/graph/analyses.test.ts::test::runAnalysisFromGraph	missing	-	baseline
 tests/graph/analyses.test.ts::test::summary returns correct counts	missing	-	baseline
 tests/graph/analyses.test.ts::test::unqualified target resolves to namespace-qualified node (Clojure compat)	missing	-	baseline
+tests/graph/cache.test.ts::function::bigFragment	missing	-	baseline
+tests/graph/cache.test.ts::function::fragment	missing	-	baseline
+tests/graph/cache.test.ts::function::opts	missing	-	baseline
 tests/graph/cache.test.ts::test::cache: LRU eviction	missing	-	baseline
 tests/graph/cache.test.ts::test::cache: checkFileCache + saveFileCache	missing	-	baseline
 tests/graph/cache.test.ts::test::cache: concurrent access safety	missing	-	baseline
@@ -284,6 +322,7 @@ tests/graph/call-qn-resolution.test.ts::test::localVar.method() with new-express
 tests/graph/call-qn-resolution.test.ts::test::primitive type annotations do not produce QNs	missing	-	baseline
 tests/graph/call-qn-resolution.test.ts::test::this.field.method() chain resolves via class field registry	missing	-	baseline
 tests/graph/call-qn-resolution.test.ts::test::this.method() on a class method resolves to Class.method	missing	-	baseline
+tests/graph/calls-qn.test.ts::function::emptyGraph	missing	-	baseline
 tests/graph/calls-qn.test.ts::test::CallsFact.calleeQN (R2)	missing	-	baseline
 tests/graph/calls-qn.test.ts::test::ImportsFact.resolved → imports_resolved/3 Prolog facts	missing	-	baseline
 tests/graph/calls-qn.test.ts::test::does not emit calls_qn dynamic declaration when no rows have QN	missing	-	baseline
@@ -359,6 +398,7 @@ tests/graph/clojure.test.ts::test::walks deftype method bodies	missing	-	baselin
 tests/graph/clojure.test.ts::test::walks extend-protocol method bodies	missing	-	baseline
 tests/graph/clojure.test.ts::test::walks extend-type method bodies	missing	-	baseline
 tests/graph/clojure.test.ts::test::walks top-level forms using the ns name as caller	missing	-	baseline
+tests/graph/community.test.ts::function::g	missing	-	baseline
 tests/graph/community.test.ts::test::cohesion score is intra_edges / max_possible	missing	-	baseline
 tests/graph/community.test.ts::test::detectCommunities	missing	-	baseline
 tests/graph/community.test.ts::test::detected communities carry a cohesion score in [0, 1]	missing	-	baseline
@@ -369,6 +409,7 @@ tests/graph/community.test.ts::test::returns empty list for empty graph	missing	
 tests/graph/community.test.ts::test::separates two cliques connected by a single bridge	missing	-	baseline
 tests/graph/community.test.ts::test::sorts communities by size descending with 0-indexed ids	missing	-	baseline
 tests/graph/community.test.ts::test::splits oversized communities further (graphify cluster.py:55-56)	missing	-	baseline
+tests/graph/diff.test.ts::function::graphOf	missing	-	baseline
 tests/graph/diff.test.ts::test::detects added edges	missing	-	baseline
 tests/graph/diff.test.ts::test::detects added nodes	missing	-	baseline
 tests/graph/diff.test.ts::test::detects removed edges	missing	-	baseline
@@ -379,6 +420,7 @@ tests/graph/diff.test.ts::test::produces a human-readable summary	missing	-	base
 tests/graph/diff.test.ts::test::returns no changes for identical graphs	missing	-	baseline
 tests/graph/diff.test.ts::test::summary pluralizes correctly	missing	-	baseline
 tests/graph/diff.test.ts::test::uses (source, target) as edge key for directed graphs	missing	-	baseline
+tests/graph/entry-points.test.ts::function::g	missing	-	baseline
 tests/graph/entry-points.test.ts::test::detectEntryPoints	missing	-	baseline
 tests/graph/entry-points.test.ts::test::falls back to all exports when every export has callers	missing	-	baseline
 tests/graph/entry-points.test.ts::test::falls back to zero-in-degree functions when there are no exports	missing	-	baseline
@@ -445,6 +487,7 @@ tests/graph/file-nodes.test.ts::test::extractGraph emits one FileNode per input 
 tests/graph/file-nodes.test.ts::test::file nodes	missing	-	baseline
 tests/graph/file-nodes.test.ts::test::graphToProlog emits file/2 facts	missing	-	baseline
 tests/graph/file-nodes.test.ts::test::skips files in unsupported languages	missing	-	baseline
+tests/graph/hubs.test.ts::function::g	missing	-	baseline
 tests/graph/hubs.test.ts::test::default topN is 10	missing	-	baseline
 tests/graph/hubs.test.ts::test::detectBridges	missing	-	baseline
 tests/graph/hubs.test.ts::test::detectHubs	missing	-	baseline
@@ -455,6 +498,7 @@ tests/graph/hubs.test.ts::test::respects topN option	missing	-	baseline
 tests/graph/hubs.test.ts::test::returns at most 3 entries (graphify analyze.py:370)	missing	-	baseline
 tests/graph/hubs.test.ts::test::returns empty list for empty graph	missing	-	baseline
 tests/graph/hubs.test.ts::test::ties broken lexically for determinism	missing	-	baseline
+tests/graph/hyperedges.test.ts::function::mkGraph	missing	-	baseline
 tests/graph/hyperedges.test.ts::test::Hyperedge analyses	missing	-	baseline
 tests/graph/hyperedges.test.ts::test::Hyperedge round-trip via snapshot	missing	-	baseline
 tests/graph/hyperedges.test.ts::test::Hyperedge type + facts emission	missing	-	baseline
@@ -465,6 +509,7 @@ tests/graph/hyperedges.test.ts::test::includes :- dynamic(hyperedge/2) declarati
 tests/graph/hyperedges.test.ts::test::saveSnapshot + loadSnapshot preserves hyperedges	missing	-	baseline
 tests/graph/hyperedges.test.ts::test::summary includes hyperedge count when present	missing	-	baseline
 tests/graph/hyperedges.test.ts::test::summary omits hyperedges key when empty	missing	-	baseline
+tests/graph/import-resolution.test.ts::function::write	missing	-	baseline
 tests/graph/import-resolution.test.ts::test::back-compat: extractGraph still works without repoPath option	missing	-	baseline
 tests/graph/import-resolution.test.ts::test::disambiguates same-basename files by importing directory	missing	-	baseline
 tests/graph/import-resolution.test.ts::test::does not silently match a same-basename file when intended target is missing	missing	-	baseline
@@ -476,6 +521,7 @@ tests/graph/import-resolution.test.ts::test::resolves directory imports to index
 tests/graph/import-resolution.test.ts::test::resolves imports to canonical file paths via suffix index	missing	-	baseline
 tests/graph/import-resolution.test.ts::test::resolves tsconfig-aliased imports (e.g. @/foo)	missing	-	baseline
 tests/graph/import-resolution.test.ts::test::tsconfig.json	missing	-	baseline
+tests/graph/layer-violation.test.ts::function::makeGraph	missing	-	baseline
 tests/graph/layer-violation.test.ts::test::allows calls to adjacent layer	missing	-	baseline
 tests/graph/layer-violation.test.ts::test::allows calls within the same layer	missing	-	baseline
 tests/graph/layer-violation.test.ts::test::detects a call that skips a layer	missing	-	baseline
@@ -489,6 +535,7 @@ tests/graph/map-mcp.test.ts::test::rejects mode='file' without path	missing	-	ba
 tests/graph/map-mcp.test.ts::test::returns file detail JSON with exports and imports	missing	-	baseline
 tests/graph/map-mcp.test.ts::test::returns overview markdown with exports and signatures	missing	-	baseline
 tests/graph/map-mcp.test.ts::test::returns symbol detail JSON with callers and callees	missing	-	baseline
+tests/graph/map.test.ts::function::collectDirNames	missing	-	baseline
 tests/graph/map.test.ts::test::buildFileDetail	missing	-	baseline
 tests/graph/map.test.ts::test::buildOverview	missing	-	baseline
 tests/graph/map.test.ts::test::buildSymbolDetail	missing	-	baseline
@@ -559,6 +606,8 @@ tests/graph/parser.test.ts::test::parser	missing	-	baseline
 tests/graph/parser.test.ts::test::parses JavaScript source	missing	-	baseline
 tests/graph/parser.test.ts::test::parses TypeScript source and returns tree with rootNode	missing	-	baseline
 tests/graph/parser.test.ts::test::returns null for unsupported extension	missing	-	baseline
+tests/graph/pr-21-fixes.test.ts::function::base	missing	-	baseline
+tests/graph/pr-21-fixes.test.ts::function::graph	missing	-	baseline
 tests/graph/pr-21-fixes.test.ts::test::PR #21 fix: graphDiff extended coverage	missing	-	baseline
 tests/graph/pr-21-fixes.test.ts::test::PR #21 fix: hyperedge_label/2 facts	missing	-	baseline
 tests/graph/pr-21-fixes.test.ts::test::PR #21 fix: lockfile bootstrap memo bounded	missing	-	baseline
@@ -592,6 +641,7 @@ tests/graph/rust.test.ts::test::marks pub items as exported, private items as no
 tests/graph/rust.test.ts::test::parser	missing	-	baseline
 tests/graph/rust.test.ts::test::parses Rust source natively (sync)	missing	-	baseline
 tests/graph/rust.test.ts::test::recurses into modules	missing	-	baseline
+tests/graph/snapshot.test.ts::function::mkGraph	missing	-	baseline
 tests/graph/snapshot.test.ts::test::deleteSnapshot removes a named snapshot	missing	-	baseline
 tests/graph/snapshot.test.ts::test::listSnapshots returns all saved snapshot names	missing	-	baseline
 tests/graph/snapshot.test.ts::test::loadSnapshot returns null for missing snapshot	missing	-	baseline
@@ -599,6 +649,8 @@ tests/graph/snapshot.test.ts::test::overwrites an existing snapshot with the sam
 tests/graph/snapshot.test.ts::test::sanitizes snapshot names to prevent path traversal	missing	-	baseline
 tests/graph/snapshot.test.ts::test::saveSnapshot + loadSnapshot round-trips a graph	missing	-	baseline
 tests/graph/snapshot.test.ts::test::snapshots	missing	-	baseline
+tests/graph/suffix-index.test.ts::const::REPO	missing	-	baseline
+tests/graph/suffix-index.test.ts::function::f	missing	-	baseline
 tests/graph/suffix-index.test.ts::test::buildSuffixIndex	missing	-	baseline
 tests/graph/suffix-index.test.ts::test::falls back through shorter suffixes	missing	-	baseline
 tests/graph/suffix-index.test.ts::test::ignores files outside the repo	missing	-	baseline
@@ -611,12 +663,14 @@ tests/graph/suffix-index.test.ts::test::returns null when the index is empty	mis
 tests/graph/suffix-index.test.ts::test::returns null when the suffix does not match any indexed file	missing	-	baseline
 tests/graph/suffix-index.test.ts::test::suffixResolveImport	missing	-	baseline
 tests/graph/suffix-index.test.ts::test::uses primary guess when provided	missing	-	baseline
+tests/graph/surprises.test.ts::function::g	missing	-	baseline
 tests/graph/surprises.test.ts::test::detectSurprisingConnections	missing	-	baseline
 tests/graph/surprises.test.ts::test::flags cross-community edges	missing	-	baseline
 tests/graph/surprises.test.ts::test::peripheral→hub edges earn a +1 bonus	missing	-	baseline
 tests/graph/surprises.test.ts::test::respects topN option	missing	-	baseline
 tests/graph/surprises.test.ts::test::returns empty list for empty graph	missing	-	baseline
 tests/graph/surprises.test.ts::test::scores descending with deterministic tiebreak	missing	-	baseline
+tests/graph/tsconfig-aliases.test.ts::function::writeFile	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::a.json	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::b.json	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::child paths override parent on conflict	missing	-	baseline
@@ -634,6 +688,8 @@ tests/graph/tsconfig-aliases.test.ts::test::tolerates malformed json gracefully	
 tests/graph/tsconfig-aliases.test.ts::test::tsconfig.base.json	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::tsconfig.json	missing	-	baseline
 tests/graph/tsconfig-aliases.test.ts::test::{ not valid json	missing	-	baseline
+tests/graph/type-env.test.ts::function::findNode	missing	-	baseline
+tests/graph/type-env.test.ts::function::parseTs	missing	-	baseline
 tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 0 (explicit annotations)	missing	-	baseline
 tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 1 (constructor inference)	missing	-	baseline
 tests/graph/type-env.test.ts::test::buildTypeEnv — Tier 2 (assignment chain)	missing	-	baseline
@@ -669,6 +725,7 @@ tests/graph/type-env.test.ts::test::unwraps identity-like wrappers (Readonly<T>,
 tests/graph/type-env.test.ts::test::walks this.a.b.c through class field registry	missing	-	baseline
 tests/learner-addlearned-return.test.ts::test::SkillLearner addLearned return check	missing	-	baseline
 tests/learner-addlearned-return.test.ts::test::returns null when addLearned rejects a duplicate name	missing	-	baseline
+tests/learning.test.ts::const::PROMOTION_THRESHOLD	missing	-	baseline
 tests/learning.test.ts::test::SkillLearner	missing	-	baseline
 tests/learning.test.ts::test::deduplication	missing	-	baseline
 tests/learning.test.ts::test::does not promote templates with low success rate	missing	-	baseline
@@ -680,6 +737,32 @@ tests/learning.test.ts::test::rejects near-duplicate templates	missing	-	baselin
 tests/learning.test.ts::test::rejects templates with missing required fields	missing	-	baseline
 tests/learning.test.ts::test::returns null when LLM produces invalid JSON	missing	-	baseline
 tests/learning.test.ts::test::template extraction	missing	-	baseline
+tests/local-embeddings.test.ts::function::baseEnv	missing	-	baseline
+tests/local-embeddings.test.ts::function::fakeSession	missing	-	baseline
+tests/local-embeddings.test.ts::function::resolveLoad	missing	-	baseline
+tests/local-embeddings.test.ts::method::dispose	missing	-	baseline
+tests/local-embeddings.test.ts::method::embed	missing	-	baseline
+tests/local-embeddings.test.ts::test::LocalEmbeddingAdapter	missing	-	baseline
+tests/local-embeddings.test.ts::test::accepts truthy CHIASMUS_LOCAL_EMBED values (true/yes/on)	missing	-	baseline
+tests/local-embeddings.test.ts::test::can be disposed without ever loading the model	missing	-	baseline
+tests/local-embeddings.test.ts::test::can be enabled even without a model (selection warns)	missing	-	baseline
+tests/local-embeddings.test.ts::test::chunks embed() calls by batchSize	missing	-	baseline
+tests/local-embeddings.test.ts::test::defaults modelsDir to chiasmusHome/models when not specified	missing	-	baseline
+tests/local-embeddings.test.ts::test::discovers the dimension from the first embedding and reports it afterwards	missing	-	baseline
+tests/local-embeddings.test.ts::test::does not cache a failed load — a subsequent embed retries	missing	-	baseline
+tests/local-embeddings.test.ts::test::does not load the model until the first embed()	missing	-	baseline
+tests/local-embeddings.test.ts::test::enables via env vars alone	missing	-	baseline
+tests/local-embeddings.test.ts::test::enables via the config block and carries model/dimension/modelsDir	missing	-	baseline
+tests/local-embeddings.test.ts::test::env values override config values	missing	-	baseline
+tests/local-embeddings.test.ts::test::is declared as an optionalDependency so it resolves on global + npx installs	missing	-	baseline
+tests/local-embeddings.test.ts::test::is disabled when nothing is configured	missing	-	baseline
+tests/local-embeddings.test.ts::test::is disabled when the config block is present but enabled is false	missing	-	baseline
+tests/local-embeddings.test.ts::test::loads the model exactly once across concurrent embed() calls	missing	-	baseline
+tests/local-embeddings.test.ts::test::node-llama-cpp packaging	missing	-	baseline
+tests/local-embeddings.test.ts::test::parses batchSize from env	missing	-	baseline
+tests/local-embeddings.test.ts::test::reports a configured dimension eagerly, before any embed	missing	-	baseline
+tests/local-embeddings.test.ts::test::resolveLocalEmbeddingConfig	missing	-	baseline
+tests/local-embeddings.test.ts::test::returns [] for empty input without loading the model	missing	-	baseline
 tests/mcp-search.test.ts::test::chiasmus_search MCP tool	missing	-	baseline
 tests/mcp-search.test.ts::test::chiasmus_search without embedding adapter configured	missing	-	baseline
 tests/mcp-search.test.ts::test::is listed in available tools	missing	-	baseline
@@ -744,6 +827,7 @@ tests/mcp-shutdown.test.ts::test::handler does not throw if library.close throws
 tests/mcp-shutdown.test.ts::test::invokes library.close() when a signal is received	missing	-	baseline
 tests/mcp-shutdown.test.ts::test::registers SIGINT and SIGTERM handlers	missing	-	baseline
 tests/mcp-shutdown.test.ts::test::setupShutdownHandlers	missing	-	baseline
+tests/mcp-tool-gating.test.ts::function::listToolNames	missing	-	baseline
 tests/mcp-tool-gating.test.ts::test::MCP tool gating by configured capability	missing	-	baseline
 tests/mcp-tool-gating.test.ts::test::always lists capability-independent tools (graph, map)	missing	-	baseline
 tests/mcp-tool-gating.test.ts::test::hides chiasmus_learn when no LLM is configured	missing	-	baseline
@@ -831,6 +915,11 @@ tests/search/embedding-cache.test.ts::test::partitionMissing separates hits from
 tests/search/embedding-cache.test.ts::test::putMany rejects length mismatch	missing	-	baseline
 tests/search/embedding-cache.test.ts::test::putMany stores each content-vector pair	missing	-	baseline
 tests/search/embedding-cache.test.ts::test::save + load round-trips via disk	missing	-	baseline
+tests/search/engine.test.ts::class::LazyDimAdapter	missing	-	baseline
+tests/search/engine.test.ts::function::write	missing	-	baseline
+tests/search/engine.test.ts::method::LazyDimAdapter.constructor	missing	-	baseline
+tests/search/engine.test.ts::method::LazyDimAdapter.dimension	missing	-	baseline
+tests/search/engine.test.ts::method::LazyDimAdapter.embed	missing	-	baseline
 tests/search/engine.test.ts::test::buildSearchCorpus	missing	-	baseline
 tests/search/engine.test.ts::test::builds one corpus entry per function/method define	missing	-	baseline
 tests/search/engine.test.ts::test::each result carries file path, line, and signature from the graph	missing	-	baseline
@@ -840,6 +929,7 @@ tests/search/engine.test.ts::test::returns topK results ranked by similarity	mis
 tests/search/engine.test.ts::test::runSearch (MockEmbeddingAdapter)	missing	-	baseline
 tests/search/engine.test.ts::test::text includes the function signature when available	missing	-	baseline
 tests/search/engine.test.ts::test::works when the adapter's dimension is unknown until the first embed()	missing	-	baseline
+tests/search/vector-store.test.ts::function::unit	missing	-	baseline
 tests/search/vector-store.test.ts::test::VectorStore (R9)	missing	-	baseline
 tests/search/vector-store.test.ts::test::has() checks for id presence	missing	-	baseline
 tests/search/vector-store.test.ts::test::inserts vectors and finds nearest by cosine similarity	missing	-	baseline
@@ -850,6 +940,7 @@ tests/search/vector-store.test.ts::test::returns empty array when store is empty
 tests/search/vector-store.test.ts::test::serialize → parse round-trips	missing	-	baseline
 tests/search/vector-store.test.ts::test::topK > size returns all vectors	missing	-	baseline
 tests/search/vector-store.test.ts::test::upsert replaces an existing id	missing	-	baseline
+tests/session.test.ts::function::track	missing	-	baseline
 tests/session.test.ts::test::SolverSession	missing	-	baseline
 tests/session.test.ts::test::assigns unique session IDs	missing	-	baseline
 tests/session.test.ts::test::creates isolated Prolog sessions	missing	-	baseline
