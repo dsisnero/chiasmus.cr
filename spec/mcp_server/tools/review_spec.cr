@@ -13,5 +13,9 @@ describe Chiasmus::MCPServer::Tools::ReviewTool do
     suggestions.should_not be_empty
     suggestions.any? { |item| item["template"].as_s == "taint-propagation" }.should be_true
     serialized["suggested_templates"]?.should be_nil
+
+    severity_levels = serialized["reporting"]["severityLevels"].as_a.map(&.as_s)
+    severity_levels.should contain("CRITICAL")
+    serialized["reporting"]["severity_levels"]?.should be_nil
   end
 end

@@ -369,6 +369,8 @@ module Chiasmus
         include JSON::Serializable
 
         getter format : String
+
+        @[JSON::Field(key: "severityLevels")]
         getter severity_levels : Array(String)
         getter instructions : String
 

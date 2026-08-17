@@ -395,7 +395,7 @@ src/llm/openai-compatible.ts::method::OpenAICompatibleEmbeddingAdapter.construct
 src/llm/types.ts::interface::EmbeddingAdapter	interface	intentional_divergence	-	-	-	Crig replaces vendor-specific embedding adapter interface
 src/mcp-server.ts::const::GRAPH_ANALYSES	const	ported	src/chiasmus/mcp_server/server.cr:1	GRAPH_ANALYSES	-	Ported as GRAPH_ANALYSES in MCP server
 src/mcp-server.ts::function::commonPathAncestor	function	ported	src/chiasmus/mcp_server/server.cr:1	common_path_ancestor	-	Ported as common_path_ancestor
-src/mcp-server.ts::function::handleReview	function	ported	src/chiasmus/mcp_server/tools/review.cr:10	Chiasmus::MCPServer::Tools::ReviewTool#invoke	spec/mcp_server/tools/review_spec.cr	Ported review-plan handler; suggestedTemplates follows the upstream wire key.
+src/mcp-server.ts::function::handleReview	function	ported	src/chiasmus/mcp_server/tools/review.cr:10	Chiasmus::MCPServer::Tools::ReviewTool#invoke	spec/mcp_server/tools/review_spec.cr	Ported review-plan handler; suggestedTemplates and reporting.severityLevels follow upstream wire keys.
 src/mcp-server.ts::function::setupShutdownHandlers	function	ported	src/chiasmus/mcp_server/server.cr:1	setup_shutdown_handlers	-	Ported as setup_shutdown_handlers
 src/mcp-server.ts::function::shutdown	function	ported	src/chiasmus/mcp_server/server.cr:1	-	-	Ported as shutdown handler
 src/review.ts::function::buildReporting	function	ported	src/chiasmus/review.cr:1	build_reporting	-	Ported as build_reporting
