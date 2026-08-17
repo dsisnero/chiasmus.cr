@@ -360,6 +360,7 @@ TSV
       exit_code = Chiasmus::Complete::CLI.run(
         [
           "--inventory", File.join(dir, "plans", "inventory", "port.tsv"),
+          "--root", dir,
           "--source-facts", File.join(dir, "source.pl"),
           "--parity-report", parity_report_path,
         ],
