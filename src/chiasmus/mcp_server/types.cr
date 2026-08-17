@@ -115,6 +115,8 @@ module Chiasmus
 
         getter status : String
         getter model : Hash(String, String)? = nil
+
+        @[JSON::Field(key: "unsatCore")]
         getter unsat_core : Array(String)? = nil
         getter answers : Array(PrologAnswerJSON)? = nil
         getter trace : Array(String)? = nil

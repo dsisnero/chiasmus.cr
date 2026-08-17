@@ -115,6 +115,9 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
 
       result.status.should eq("success")
       solver_result(result).status.should eq("unsat")
+      serialized = JSON.parse(result.to_json)
+      serialized["result"]["unsatCore"].as_a.should_not be_nil
+      serialized["result"]["unsat_core"]?.should be_nil
     end
 
     it "returns structured error for malformed Z3 input" do
