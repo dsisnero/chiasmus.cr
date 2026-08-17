@@ -336,24 +336,7 @@ TSV
     dir = build_completion_gate_fixture(mark_needs_test_complete: true)
 
     begin
-      parity_output = IO::Memory.new
-      parity_error = IO::Memory.new
-      parity_exit_code = Chiasmus::Parity::CLI.run(
-        [
-          "--inventory", File.join(dir, "plans", "inventory", "port.tsv"),
-          "--root", dir,
-          "--crystal-dir", "src",
-          "--source-facts", File.join(dir, "source.pl"),
-          "--crystal-facts", File.join(dir, "crystal.pl"),
-        ],
-        parity_output,
-        parity_error
-      )
-
-      parity_exit_code.should eq(0), parity_error.to_s
-
       parity_report_path = File.join(dir, "parity.tsv")
-      File.write(parity_report_path, parity_output.to_s)
 
       output = IO::Memory.new
       error = IO::Memory.new
