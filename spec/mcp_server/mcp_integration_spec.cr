@@ -439,7 +439,7 @@ describe "All 12 tools through MCP transport" do
   end
 
   describe "chiasmus_skills" do
-    it "lists starter templates (needs current_server)" do
+    it "lists every starter as upstream-shaped collection payloads (needs current_server)" do
       agent = Chiasmus::LLM::MockAdapter.create_agent
       server = Chiasmus::MCPServer::Server.with_agent(agent)
       Chiasmus::MCPServer.current_server = server
@@ -447,8 +447,12 @@ describe "All 12 tools through MCP transport" do
       mcp_server, client = connect_server_and_client
       begin
         result = call_tool(client, "chiasmus_skills")
-        result["status"].as_s.should eq("success")
-        result["templates"].as_a.size.should be >= 8
+        templates = result.as_a
+        templates.size.should eq(Chiasmus::Skills::STARTER_TEMPLATES.size)
+        templates.each do |item|
+          item["template"]["name"].as_s.should_not be_empty
+          item["metadata"]["reuseCount"].as_i.should be >= 0
+        end
       ensure
         disconnect(mcp_server, client)
         server.skill_library.close rescue nil
@@ -468,7 +472,7 @@ describe "All 12 tools through MCP transport" do
         })
 
         result["template"]["name"].as_s.should eq("policy-contradiction")
-        result["metadata"]["reuse_count"].as_i.should be >= 0
+        result["metadata"]["reuseCount"].as_i.should be >= 0
         related = result["related"].as_a
         related.should_not be_empty
         related.first["name"].as_s.should_not be_empty
@@ -499,19 +503,29 @@ describe "All 12 tools through MCP transport" do
       end
     end
 
-    it "filters by solver type" do
+    it "searches and filters with upstream-shaped collection payloads" do
       agent = Chiasmus::LLM::MockAdapter.create_agent
       server = Chiasmus::MCPServer::Server.with_agent(agent)
       Chiasmus::MCPServer.current_server = server
 
       mcp_server, client = connect_server_and_client
       begin
+        search = call_tool(client, "chiasmus_skills", {
+          "query" => JSON::Any.new("check if access control policies conflict"),
+        }).as_a
+        search.should_not be_empty
+        search.first["template"]["name"].as_s.should eq("policy-contradiction")
+        search.first["metadata"]["successCount"].as_i.should be >= 0
+        search.first["score"].as_f.should be >= 0.0
+
         result = call_tool(client, "chiasmus_skills", {
           "solver" => JSON::Any.new("prolog"),
         })
-        result["status"].as_s.should eq("success")
-        result["templates"].as_a.each do |tmpl|
-          tmpl["solver"].as_s.should eq("prolog")
+        templates = result.as_a
+        templates.size.should eq(6)
+        templates.each do |item|
+          item["template"]["solver"].as_s.should eq("prolog")
+          item["metadata"]["reuseCount"].as_i.should be >= 0
         end
       ensure
         disconnect(mcp_server, client)
@@ -775,8 +789,7 @@ describe "All 12 tools through MCP transport" do
             result = call_tool(client, "chiasmus_skills", {
               "query" => JSON::Any.new("validation"),
             })
-            result["status"].as_s.should eq("success")
-            names = result["templates"].as_a.map(&.["name"].as_s)
+            names = result.as_a.map(&.["template"]["name"].as_s)
             names.should contain("mcp-test-template")
           ensure
             disconnect(mcp_server, client)
@@ -1055,6 +1068,31 @@ describe "CallToolResult structured_content" do
       disconnect(mcp_server, client)
     end
   end
+
+  it "omits object-only structured_content for collection payloads" do
+    agent = Chiasmus::LLM::MockAdapter.create_agent
+    server = Chiasmus::MCPServer::Server.with_agent(agent)
+    Chiasmus::MCPServer.current_server = server
+    mcp_server, client = connect_server_and_client
+
+    begin
+      skills = client.call_tool("chiasmus_skills", {
+        "query" => JSON::Any.new("check if access control policies conflict"),
+      }).as(MCP::Protocol::CallToolResult)
+      skills.structured_content.should be_nil
+
+      batch = client.call_tool("chiasmus_verify", {
+        "solver"  => JSON::Any.new("prolog"),
+        "input"   => JSON::Any.new("edge(a,b)."),
+        "queries" => JSON.parse(%(["edge(a,X)."])),
+      }).as(MCP::Protocol::CallToolResult)
+      batch.structured_content.should be_nil
+    ensure
+      disconnect(mcp_server, client)
+      server.skill_library.close rescue nil
+      Chiasmus::MCPServer.current_server = nil
+    end
+  end
 end
 
 # =============================================================================
@@ -1198,15 +1236,34 @@ func hello() {}
     end
   end
   describe "chiasmus_verify batch queries through transport" do
-    it "runs multiple Prolog queries against the same program" do
+    it "returns ordered raw results for multiple Prolog queries" do
       mcp_server, client = connect_server_and_client
       begin
         result = call_tool(client, "chiasmus_verify", {
           "solver"  => JSON::Any.new("prolog"),
-          "spec"    => JSON::Any.new("edge(a,b). edge(b,c)."),
+          "input"   => JSON::Any.new("edge(a,b). edge(b,c)."),
           "queries" => JSON.parse(%(["edge(a,X).", "edge(b,X)."])),
         })
-        result["status"].as_s.should eq("success")
+        results = result.as_a
+        results.size.should eq(2)
+        results[0]["answers"].as_a.first["bindings"]["X"].as_s.should eq("b")
+        results[1]["answers"].as_a.first["bindings"]["X"].as_s.should eq("c")
+      ensure
+        disconnect(mcp_server, client)
+      end
+    end
+
+    it "stops a raw batch payload at its first solver error" do
+      mcp_server, client = connect_server_and_client
+      begin
+        result = call_tool(client, "chiasmus_verify", {
+          "solver"  => JSON::Any.new("prolog"),
+          "input"   => JSON::Any.new("edge(a,b). edge(b,c)."),
+          "queries" => JSON.parse("[\"edge(a,X).\", \"invalid(((\", \"edge(b,X).\"]"),
+        }).as_a
+        result.size.should eq(2)
+        result[0]["status"].as_s.should eq("success")
+        result[1]["status"].as_s.should eq("error")
       ensure
         disconnect(mcp_server, client)
       end

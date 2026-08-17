@@ -60,7 +60,7 @@ substitutions.
 | `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
 | `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
-## Remaining Feature-Sized Phases (P28-P37)
+## Feature-Sized Phases (P28-P38)
 
 Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
 an existing equivalent spec) before changing implementation. On completion, update
@@ -77,10 +77,13 @@ parity check; generated manifests remain generated artifacts.
 | P33 ✓ | Formalization pipeline | `formalize/engine` (9 source IDs): instruction assembly, response cleanup, selection, fill/fix, lint loop, and solve. | Completed: bounded lint remediation now includes upstream-style auto-fix/error feedback and oscillation detection before solver correction; Crig supplies the equivalent async completion boundary. |
 | P34 ✓ | Solver sessions and correction | `correction-loop`, `session`, `z3-solver`, and `prolog-solver` (11 source IDs). | Completed: lifecycle, disposal, correction, and error semantics are specified; crolog’s stable per-query wall-clock/answer limits replace the upstream Node per-query inference-budget override. |
 | P35 ✓ | LLM-provider and local-embedding compatibility | Cloud/mock adapters (11 source IDs) plus local embeddings/configuration: env/config precedence and the supported Ollama alternative. | Completed: Crig replaces vendor adapter transport; Azure env/provider routing is covered. Node-only `node-llama-cpp` lifecycle semantics remain an explicit Ollama-backed intentional divergence, reconciled in P28. |
-| P36 ✓ | MCP-server composition | `mcp-server`, configuration defaults, and review focus validation (12 source IDs). | Completed: tool registration/gating and review focus validation are characterized end-to-end; server construction now supports an isolated explicit Chiasmus home. Crig completion and Node-only local embeddings are documented divergences. |
+| P36 ✓ | MCP-server composition | `mcp-server`, configuration defaults, and review focus validation (12 source IDs). | Completed: tool registration/gating, review focus validation, and isolated server construction are characterized. Crig completion and Node-only local embeddings are documented divergences. Wire-payload compatibility is completed separately by P38. |
 | P37 ✓ | Benchmark-suite parity | Upstream benchmark scenario solvers, runners, and result interfaces (20 rows). | Completed: all five deterministic Chiasmus-vs-traditional scenarios and typed results are covered by Crystal benchmark specs; Crystal Spec replaces TypeScript runSuite. |
+| P38 ✓ | MCP collection-payload wire compatibility | `chiasmus_skills` query/list and `chiasmus_verify` Prolog batch now preserve the upstream top-level array contracts while retaining the Crystal `{status: ...}` extension on object-shaped responses. | Completed: transport specs cover query `{template, metadata, score}`, unqualified/filtered `{template, metadata}` listings, ordered batch `SolverResult[]`, stop-on-first-error, and absent object-only `structured_content`; focused tool/MCP specs, build, and strict parity checks pass. |
 
-Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, and P37 last. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
+Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, and P38. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
+
+P38 deliberately excludes solve-history serialization, learn extraction/rejection payloads, and graph/map raw-output conventions. Those are separate user-visible contracts and will be planned as a later feature rather than folded into a sequence of helper-sized patches.
 
 ## Inventory Safety And Vendor Updates
 

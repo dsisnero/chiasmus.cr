@@ -92,9 +92,28 @@ module Chiasmus
       struct SkillsResponse < Response
         getter templates : Array(TemplateJSON)
         getter suggestions : Array(JSON::Any)? = nil
+        getter collection : Array(SkillWithMetadataJSON)? = nil
+        getter search_results : Array(SkillSearchResultJSON)? = nil
 
-        def initialize(@templates : Array(TemplateJSON), @suggestions : Array(JSON::Any)? = nil)
+        def initialize(
+          @templates : Array(TemplateJSON),
+          @suggestions : Array(JSON::Any)? = nil,
+          @collection : Array(SkillWithMetadataJSON)? = nil,
+          @search_results : Array(SkillSearchResultJSON)? = nil,
+        )
           super("success")
+        end
+
+        # The upstream MCP API uses arrays for query/list results. Keep typed
+        # fields for direct Crystal callers while serializing the public shape.
+        def to_json(json : JSON::Builder)
+          if search_results = @search_results
+            search_results.to_json(json)
+          elsif collection = @collection
+            collection.to_json(json)
+          else
+            json.array { }
+          end
         end
       end
 
@@ -214,6 +233,16 @@ module Chiasmus
         end
       end
 
+      struct SkillWithMetadataJSON
+        include JSON::Serializable
+
+        getter template : TemplateJSON
+        getter metadata : SkillMetadataJSON
+
+        def initialize(@template : TemplateJSON, @metadata : SkillMetadataJSON)
+        end
+      end
+
       struct SkillMetadataJSON
         include JSON::Serializable
 
@@ -246,6 +275,17 @@ module Chiasmus
 
         def self.error(error_message : String) : ErrorResponse
           ErrorResponse.new(error_message)
+        end
+
+        def to_json(json : JSON::Builder)
+          if results = @results
+            results.to_json(json)
+          else
+            json.object do
+              json.field "status", @status
+              json.field "result", @result if @result
+            end
+          end
         end
       end
 
@@ -658,6 +698,13 @@ module Chiasmus
           template: template_to_json(result.template),
           metadata: skill_metadata_to_json(result.metadata),
           score: result.score
+        )
+      end
+
+      def self.skill_with_metadata_to_json(item : Skills::SkillWithMetadata) : SkillWithMetadataJSON
+        SkillWithMetadataJSON.new(
+          template: template_to_json(item.template),
+          metadata: skill_metadata_to_json(item.metadata)
         )
       end
 

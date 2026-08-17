@@ -41,7 +41,8 @@ module Chiasmus
             results = library.search(query, search_options)
 
             Types::SkillsResponse.new(
-              templates: results.map { |search_result| Types.skill_search_result_to_json(search_result).template }
+              templates: results.map { |search_result| Types.skill_search_result_to_json(search_result).template },
+              search_results: results.map { |search_result| Types.skill_search_result_to_json(search_result) }
             )
           else
             templates = library.list
@@ -51,7 +52,8 @@ module Chiasmus
             end
 
             Types::SkillsResponse.new(
-              templates: templates.map { |item| Types.template_to_json(item.template) }
+              templates: templates.map { |item| Types.template_to_json(item.template) },
+              collection: templates.map { |item| Types.skill_with_metadata_to_json(item) }
             )
           end
         rescue ex
