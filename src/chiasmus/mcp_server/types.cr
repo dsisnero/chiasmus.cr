@@ -381,6 +381,8 @@ module Chiasmus
         getter focus : String
         getter summary : String
         getter phases : Array(ReviewPhaseJSON)
+
+        @[JSON::Field(key: "suggestedTemplates")]
         getter suggested_templates : Array(SuggestedTemplateJSON)
         getter reporting : ReviewReportingJSON
 

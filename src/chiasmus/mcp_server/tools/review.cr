@@ -106,7 +106,7 @@ module Chiasmus
 
         def self.output_schema : MCP::Protocol::Tool::Input
           MCP::Protocol::Tool::Input.new(
-            properties: JSON.parse(%({"status":{"type":"string"},"files":{"type":"array"},"focus":{"type":"string"},"summary":{"type":"string"},"phases":{"type":"array"}})).as_h
+            properties: JSON.parse(%({"status":{"type":"string"},"files":{"type":"array"},"focus":{"type":"string"},"summary":{"type":"string"},"phases":{"type":"array"},"suggestedTemplates":{"type":"array"},"reporting":{"type":"object"}})).as_h
           )
         end
       end

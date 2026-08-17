@@ -717,11 +717,15 @@ describe "All 12 tools through MCP transport" do
         begin
           result = call_tool(client, "chiasmus_review", {
             "files" => JSON.parse([path].to_json),
-            "focus" => JSON::Any.new("quick"),
+            "focus" => JSON::Any.new("security"),
           })
           result["status"].as_s.should eq("success")
-          result["focus"].as_s.should eq("quick")
+          result["focus"].as_s.should eq("security")
           result["phases"].as_a.should_not be_empty
+          suggestions = result["suggestedTemplates"].as_a
+          suggestions.should_not be_empty
+          suggestions.any? { |item| item["template"].as_s == "taint-propagation" }.should be_true
+          result["suggested_templates"]?.should be_nil
         ensure
           disconnect(mcp_server, client)
         end
