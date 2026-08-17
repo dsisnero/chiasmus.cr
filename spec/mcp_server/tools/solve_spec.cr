@@ -64,6 +64,37 @@ describe Chiasmus::MCPServer::Tools::SolveTool do
     serialized["template_used"]?.should be_nil
   end
 
+  it "serializes correction history as ordered public status entries" do
+    server = nil.as(Chiasmus::MCPServer::Server(FormalizeSpecCompletionModel)?)
+    responses = [
+      "(bogus)",
+      "(declare-const x Int)\n(assert (> x 5))",
+    ]
+    server = Chiasmus::MCPServer::Server(FormalizeSpecCompletionModel).with_agent_builder(
+      FormalizeSpecClient.new(responses, [] of String).agent("mock")
+    )
+    Chiasmus::MCPServer.current_server = server
+    tool = Chiasmus::MCPServer::Tools::SolveTool.new
+
+    result = tool.invoke({"problem" => JSON::Any.new("Find an integer greater than 5")})
+
+    result.status.should eq("success")
+    serialized = JSON.parse(result.to_json)
+    history = serialized["history"].as_a
+    history.size.should eq(2)
+    history[0]["round"].as_i.should eq(0)
+    history[0]["status"].as_s.should eq("error")
+    history[0]["error"].as_s.should_not be_empty
+    history[0]["input"]?.should be_nil
+    history[0]["result"]?.should be_nil
+    history[1]["round"].as_i.should eq(1)
+    history[1]["status"].as_s.should eq("sat")
+    history[1]["error"]?.should be_nil
+  ensure
+    server.try(&.skill_library.close) rescue nil
+    Chiasmus::MCPServer.current_server = nil
+  end
+
   it "returns template used in response" do
     server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
     Chiasmus::MCPServer.current_server = server

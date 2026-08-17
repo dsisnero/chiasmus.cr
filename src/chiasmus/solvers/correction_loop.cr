@@ -41,6 +41,7 @@ module Chiasmus
 
         # Record attempt
         attempt = CorrectionAttempt.new(
+          round: round,
           input: current_input,
           result: result,
           error: result.is_a?(ErrorResult) ? result.error : nil

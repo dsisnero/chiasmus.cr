@@ -1,4 +1,5 @@
 require "../spec_helper"
+require "../support/formalize_scripted_agent"
 require "mcp"
 
 # Comprehensive MCP protocol integration tests.
@@ -629,6 +630,35 @@ describe "All 14 tools through MCP transport" do
         result["message"].as_s.should contain("verify")
       ensure
         disconnect(mcp_server, client)
+        Chiasmus::MCPServer.current_server = nil
+      end
+    end
+
+    it "returns compact correction history through the transport" do
+      responses = ["(bogus)", "(declare-const x Int)\n(assert (> x 5))"]
+      server = Chiasmus::MCPServer::Server(FormalizeSpecCompletionModel).with_agent_builder(
+        FormalizeSpecClient.new(responses, [] of String).agent("mock")
+      )
+      Chiasmus::MCPServer.current_server = server
+
+      mcp_server, client = connect_server_and_client
+      begin
+        result = call_tool(client, "chiasmus_solve", {
+          "problem" => JSON::Any.new("Find an integer greater than 5"),
+        })
+
+        history = result["history"].as_a
+        history.map { |entry| entry["round"].as_i }.should eq([0, 1])
+        history.map { |entry| entry["status"].as_s }.should eq(["error", "sat"])
+        history[0]["error"].as_s.should_not be_empty
+        history[1]["error"]?.should be_nil
+        history.each do |entry|
+          entry["input"]?.should be_nil
+          entry["result"]?.should be_nil
+        end
+      ensure
+        disconnect(mcp_server, client)
+        server.skill_library.close rescue nil
         Chiasmus::MCPServer.current_server = nil
       end
     end

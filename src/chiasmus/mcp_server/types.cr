@@ -51,13 +51,13 @@ module Chiasmus
         @[JSON::Field(key: "templateUsed")]
         getter template_used : String?
         getter answers : Array(PrologAnswerJSON)
-        getter history : Array(CorrectionAttemptJSON)
+        getter history : Array(SolveHistoryEntryJSON)
         getter? fallback : Bool = false
         getter message : String? = nil
 
         def initialize(@result : SolverResultJSON, @converged : Bool, @rounds : Int32,
                        @template_used : String? = nil, @answers : Array(PrologAnswerJSON) = [] of PrologAnswerJSON,
-                       @history : Array(CorrectionAttemptJSON) = [] of CorrectionAttemptJSON,
+                       @history : Array(SolveHistoryEntryJSON) = [] of SolveHistoryEntryJSON,
                        @fallback : Bool = false, @message : String? = nil)
           super("success")
         end
@@ -157,14 +157,22 @@ module Chiasmus
         end
       end
 
-      struct CorrectionAttemptJSON
-        include JSON::Serializable
-
-        getter input : SolverInputJSON
-        getter result : SolverResultJSON?
+      struct SolveHistoryEntryJSON
+        getter round : Int32
+        getter status : String
         getter error : String?
 
-        def initialize(@input : SolverInputJSON, @result : SolverResultJSON? = nil, @error : String? = nil)
+        def initialize(@round : Int32, @status : String, @error : String? = nil)
+        end
+
+        # The upstream MCP payload omits error unless this correction attempt
+        # actually failed; retaining that distinction avoids null wire fields.
+        def to_json(json : JSON::Builder)
+          json.object do
+            json.field "round", @round
+            json.field "status", @status
+            json.field "error", @error if @status == "error" && @error
+          end
         end
       end
 

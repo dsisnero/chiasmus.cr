@@ -91,11 +91,12 @@ module Chiasmus
     end
 
     struct CorrectionAttempt
+      getter round : Int32
       getter input : SolverInput
       getter result : SolverResult?
       getter error : String?
 
-      def initialize(@input : SolverInput, @result : SolverResult?, @error : String?)
+      def initialize(@round : Int32, @input : SolverInput, @result : SolverResult?, @error : String?)
       end
     end
 

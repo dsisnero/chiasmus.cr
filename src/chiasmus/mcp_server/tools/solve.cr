@@ -33,11 +33,10 @@ module Chiasmus
             template_used: result.template_used,
             answers: result.answers.map { |answer| Types::PrologAnswerJSON.new(answer.bindings, answer.formatted) },
             history: result.history.map { |attempt|
-              Types::CorrectionAttemptJSON.new(
-                Types.solver_input_to_json(attempt.input),
-                attempt.result.try { |solver_result| Types.solver_result_to_json(solver_result) },
-                attempt.error
-              )
+              solver_result = attempt.result
+              status = solver_result.try(&.status) || "error"
+              error = solver_result.is_a?(Solvers::ErrorResult) ? solver_result.error : attempt.error
+              Types::SolveHistoryEntryJSON.new(attempt.round, status, error)
             }
           )
         rescue ex
@@ -92,7 +91,7 @@ module Chiasmus
 
         def self.output_schema : MCP::Protocol::Tool::Input
           MCP::Protocol::Tool::Input.new(
-            properties: JSON.parse(%({"status":{"type":"string"},"result":{"type":"object"},"converged":{"type":"boolean"},"rounds":{"type":"integer"},"templateUsed":{"type":"string"},"template":{"type":"string"},"solver":{"type":"string"},"instructions":{"type":"string"}})).as_h
+            properties: JSON.parse(%({"status":{"type":"string"},"result":{"type":"object"},"converged":{"type":"boolean"},"rounds":{"type":"integer"},"templateUsed":{"type":"string"},"answers":{"type":"array"},"history":{"type":"array"},"template":{"type":"string"},"solver":{"type":"string"},"instructions":{"type":"string"}})).as_h
           )
         end
       end
