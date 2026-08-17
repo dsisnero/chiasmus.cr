@@ -10,6 +10,7 @@ require "./tools/solve"
 require "./tools/learn"
 require "./tools/lint"
 require "./tools/graph"
+require "./tools/snapshot_status"
 require "./tools/map"
 require "./tools/search"
 require "./tools/read_symbol"
@@ -123,16 +124,16 @@ module Chiasmus
       end
 
       # Create a server instance with a specific agent
-      def self.with_agent(agent : Crig::Agent(M), env_managed : Bool = false) forall M
-        server = Server(M).new(refreshable_from_env: env_managed)
+      def self.with_agent(agent : Crig::Agent(M), env_managed : Bool = false, chiasmus_home : String? = nil) forall M
+        server = Server(M).new(refreshable_from_env: env_managed, chiasmus_home: chiasmus_home)
         server.with_agent(agent)
         MCPServer.current_server = server
         server
       end
 
       # Keep the builder-first Crig flow available for local callers and specs.
-      def self.with_agent_builder(builder : Crig::AgentBuilder(M), env_managed : Bool = false) forall M
-        with_agent(builder.build, env_managed: env_managed)
+      def self.with_agent_builder(builder : Crig::AgentBuilder(M), env_managed : Bool = false, chiasmus_home : String? = nil) forall M
+        with_agent(builder.build, env_managed: env_managed, chiasmus_home: chiasmus_home)
       end
 
       getter skill_library : Skills::Library
@@ -408,6 +409,7 @@ module Chiasmus
           {Tools::LearnTool, Tools::LearnTool.tool_name, Tools::LearnTool.tool_description, Tools::LearnTool.input_schema},
           {Tools::LintTool, Tools::LintTool.tool_name, Tools::LintTool.tool_description, Tools::LintTool.input_schema},
           {Tools::GraphTool, Tools::GraphTool.tool_name, Tools::GraphTool.tool_description, Tools::GraphTool.input_schema},
+          {Tools::SnapshotStatusTool, Tools::SnapshotStatusTool.tool_name, Tools::SnapshotStatusTool.tool_description, Tools::SnapshotStatusTool.input_schema},
           {Tools::MapTool, Tools::MapTool.tool_name, Tools::MapTool.tool_description, Tools::MapTool.input_schema},
           {Tools::SearchTool, Tools::SearchTool.tool_name, Tools::SearchTool.tool_description, Tools::SearchTool.input_schema},
           {Tools::ReadSymbolTool, Tools::ReadSymbolTool.tool_name, Tools::ReadSymbolTool.tool_description, Tools::ReadSymbolTool.input_schema},

@@ -191,6 +191,70 @@ describe "async cache persistence" do
     end
   end
 
+  it "records an asynchronous snapshot receipt through readiness" do
+    tmpdir = File.join(Dir.tempdir, "snapshot-receipt-#{Random::Secure.hex(8)}")
+    cache_dir = File.join(tmpdir, "cache")
+    repo_key = "snapshot-receipt-spec"
+    entered = Channel(Bool).new(1)
+    release = Channel(Bool).new(1)
+
+    begin
+      GraphCache.set_before_snapshot_write_hook_for_test do
+        entered.send(true)
+        release.receive?
+      end
+
+      GraphCache.save_snapshot_async("recoverable", CodeGraph.new, cache_dir, repo_key: repo_key)
+      entered.receive
+
+      receipt = GraphCache.snapshot_status("recoverable", cache_dir, repo_key: repo_key)
+      receipt.should_not be_nil
+      (receipt || raise "Expected snapshot receipt").state.should eq("writing")
+
+      release.send(true)
+      GraphCache.flush_snapshot_writes
+
+      ready = GraphCache.snapshot_status("recoverable", cache_dir, repo_key: repo_key)
+      ready.should_not be_nil
+      (ready || raise "Expected ready snapshot receipt").state.should eq("ready")
+      GraphCache.load_snapshot("recoverable", cache_dir, repo_key: repo_key).should_not be_nil
+
+      GraphCache.delete_snapshot("recoverable", cache_dir, repo_key: repo_key)
+      GraphCache.snapshot_status("recoverable", cache_dir, repo_key: repo_key).should be_nil
+    ensure
+      release.send(true) unless release.closed?
+      GraphCache.clear_before_snapshot_write_hook_for_test
+      GraphCache.flush_snapshot_writes
+      FileUtils.rm_rf(tmpdir)
+    end
+  end
+
+  it "records a failed receipt when an asynchronous snapshot write raises" do
+    tmpdir = File.join(Dir.tempdir, "failed-snapshot-receipt-#{Random::Secure.hex(8)}")
+    cache_dir = File.join(tmpdir, "cache")
+    repo_key = "failed-snapshot-receipt-spec"
+
+    begin
+      GraphCache.set_before_snapshot_write_hook_for_test do
+        raise "forced snapshot receipt failure"
+      end
+
+      expect_raises(Exception, /forced snapshot receipt failure/) do
+        GraphCache.save_snapshot_async_and_wait("failed", CodeGraph.new, cache_dir, repo_key: repo_key)
+      end
+
+      receipt = GraphCache.snapshot_status("failed", cache_dir, repo_key: repo_key)
+      receipt.should_not be_nil
+      failed = receipt || raise "Expected failed snapshot receipt"
+      failed.state.should eq("failed")
+      failed.error.not_nil!.should contain("forced snapshot receipt failure")
+    ensure
+      GraphCache.clear_before_snapshot_write_hook_for_test
+      GraphCache.flush_snapshot_writes
+      FileUtils.rm_rf(tmpdir)
+    end
+  end
+
   it "coalesces queued retries for the same snapshot target" do
     tmpdir = File.join(Dir.tempdir, "coalesced-snapshot-#{Random::Secure.hex(8)}")
     cache_dir = File.join(tmpdir, "cache")

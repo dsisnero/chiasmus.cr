@@ -310,6 +310,17 @@ module Chiasmus
         end
       end
 
+      struct SnapshotStatusResponse < Response
+        getter snapshot : String
+        getter state : String
+        getter updated_at : Int64
+        getter error : String? = nil
+
+        def initialize(@snapshot : String, @state : String, @updated_at : Int64, @error : String? = nil)
+          super("success")
+        end
+      end
+
       # Map tool response
       struct MapResponse < Response
         getter content : String
@@ -539,6 +550,13 @@ module Chiasmus
         getter save_snapshot : String?
         getter? include_insights : Bool = false
         getter against : String?
+      end
+
+      struct SnapshotStatusInput
+        include JSON::Serializable
+
+        getter snapshot : String
+        getter cache : GraphCacheOptions?
       end
 
       struct MapInput

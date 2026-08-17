@@ -4,6 +4,7 @@
 # files for named snapshots. SHA-256 content/path identities preserve worktree
 # reuse while SQLite transactions replace the former manifest/blob protocol.
 
+require "json"
 require "openssl"
 require "./types"
 require "./graph_codec"
@@ -14,6 +15,21 @@ require "tracing"
 module Chiasmus
   module Graph
     DEFAULT_MAX_BYTES = 64 * 1024 * 1024 # 64 MB
+
+    # A durable receipt for an asynchronously requested named snapshot. The
+    # snapshot JSON remains the authoritative graph data; this small sidecar
+    # lets a client recover after it loses the request response.
+    struct SnapshotStatus
+      include JSON::Serializable
+
+      getter snapshot : String
+      getter state : String
+      getter updated_at : Int64
+      getter error : String? = nil
+
+      def initialize(@snapshot : String, @state : String, @updated_at : Int64, @error : String? = nil)
+      end
+    end
 
     module GraphCache
       extend self
@@ -248,6 +264,7 @@ module Chiasmus
 
       def save_snapshot_async(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil
         validate_snapshot_name(name)
+        persist_snapshot_status(name, "queued", cache_dir, repo_key)
         async_snapshot_write_channel.send(SnapshotWriteRequest.new(name: name, graph: graph, cache_dir: cache_dir, repo_key: repo_key))
       end
 
@@ -256,6 +273,7 @@ module Chiasmus
       # snapshots while preserving immediate observability for a follow-up diff.
       def save_snapshot_async_and_wait(name : String, graph : CodeGraph, cache_dir : String, repo_key : String? = nil) : Nil
         validate_snapshot_name(name)
+        persist_snapshot_status(name, "queued", cache_dir, repo_key)
         acknowledgement = Channel(Exception?).new(1)
         async_snapshot_write_channel.send(
           SnapshotWriteRequest.new(
@@ -291,6 +309,15 @@ module Chiasmus
         nil
       end
 
+      def snapshot_status(name : String, cache_dir : String, repo_key : String? = nil) : SnapshotStatus?
+        validate_snapshot_name(name)
+        path = snapshot_status_path(name, cache_dir, repo_key)
+        return nil unless File.exists?(path)
+        SnapshotStatus.from_json(File.read(path))
+      rescue
+        nil
+      end
+
       def list_snapshots(cache_dir : String, repo_key : String? = nil) : Array(String)
         paths = resolve_cache_paths(cache_dir, repo_key)
         snap_dir = File.join(paths["repo_dir"], "snapshots")
@@ -307,6 +334,8 @@ module Chiasmus
           paths = resolve_cache_paths(cache_dir, repo_key)
           target = File.join(paths["repo_dir"], "snapshots", "#{name}.json")
           File.delete(target) if File.exists?(target)
+          receipt = snapshot_status_path(name, cache_dir, repo_key)
+          File.delete(receipt) if File.exists?(receipt)
         end
       rescue
       end
@@ -447,13 +476,16 @@ module Chiasmus
           error : Exception? = nil
           begin
             save_started_at = Time.instant
+            persist_snapshot_status(request.name, "writing", request.cache_dir, request.repo_key)
             save_snapshot(request.name, request.graph, request.cache_dir, repo_key: request.repo_key)
+            persist_snapshot_status(request.name, "ready", request.cache_dir, request.repo_key)
             Tracing.info("chiasmus.graph.async_snapshot_write",
               snapshot: request.name,
               elapsed_ms: (Time.instant - save_started_at).total_milliseconds,
             )
           rescue ex
             error = ex
+            persist_snapshot_status(request.name, "failed", request.cache_dir, request.repo_key, ex.message || ex.class.name)
             STDERR.puts "[Chiasmus] async snapshot write failed: #{ex.message}"
           ensure
             request.acknowledgements.each(&.send(error))
@@ -502,6 +534,22 @@ module Chiasmus
 
       private def snapshot_target_key(name : String, cache_dir : String, repo_key : String?) : String
         "#{canonical_path(cache_dir)}\u0000#{resolve_repo_key(repo_key)}\u0000#{name}"
+      end
+
+      private def snapshot_status_path(name : String, cache_dir : String, repo_key : String?) : String
+        paths = resolve_cache_paths(cache_dir, repo_key)
+        File.join(paths["repo_dir"], "snapshot-receipts", "#{name}.json")
+      end
+
+      private def persist_snapshot_status(name : String, state : String, cache_dir : String, repo_key : String?, error : String? = nil) : Nil
+        target = snapshot_status_path(name, cache_dir, repo_key)
+        Dir.mkdir_p(File.dirname(target))
+        receipt = SnapshotStatus.new(name, state, Time.utc.to_unix_ms, error)
+        tmp = unique_tmp_path(target)
+        File.write(tmp, receipt.to_json)
+        File.rename(tmp, target)
+      ensure
+        File.delete(tmp) if tmp && File.exists?(tmp)
       end
 
       private def before_file_cache_write_hook : Proc(Nil)?

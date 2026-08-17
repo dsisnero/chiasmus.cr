@@ -60,7 +60,7 @@ substitutions.
 | `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
 | `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
-## Feature-Sized Phases (P28-P39)
+## Feature-Sized Phases (P28-P40)
 
 Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
 an existing equivalent spec) before changing implementation. On completion, update
@@ -81,8 +81,9 @@ parity check; generated manifests remain generated artifacts.
 | P37 ✓ | Benchmark-suite parity | Upstream benchmark scenario solvers, runners, and result interfaces (20 rows). | Completed: all five deterministic Chiasmus-vs-traditional scenarios and typed results are covered by Crystal benchmark specs; Crystal Spec replaces TypeScript runSuite. |
 | P38 ✓ | MCP collection-payload wire compatibility | `chiasmus_skills` query/list and `chiasmus_verify` Prolog batch now preserve the upstream top-level array contracts while retaining the Crystal `{status: ...}` extension on object-shaped responses. | Completed: transport specs cover query `{template, metadata, score}`, unqualified/filtered `{template, metadata}` listings, ordered batch `SolverResult[]`, stop-on-first-error, and absent object-only `structured_content`; focused tool/MCP specs, build, and strict parity checks pass. |
 | P39 ✓ | MCP graph snapshot runtime capability | Graph extraction uses Crystal 1.21 runtime parallel execution contexts without legacy compiler flags; `CHIASMUS_GRAPH_PARALLEL=0` remains the explicit fiber-only opt-out. | Completed: ordinary release builds and install artifacts have no legacy flags; resolver and multi-file snapshot/cache-reuse regressions pass, along with scoped format/lint/build gates. |
+| P40 ✓ | Durable MCP snapshot-status receipts | Persist an atomic per-snapshot lifecycle receipt (`queued → writing → ready\|failed`) and expose it through `chiasmus_snapshot_status`, so a client can recover after a timed-out or cancelled graph-save response without retrying blind. | Completed: cache lifecycle specs cover ready, failed, and deletion cleanup receipts; MCP transport polls a ready save without re-extraction; existing save→diff coverage remains green, along with focused gates and strict parity checks. |
 
-Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, and P39. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
+Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, and P40. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
 
 P38 deliberately excludes solve-history serialization, learn extraction/rejection payloads, and graph/map raw-output conventions. Those are separate user-visible contracts and will be planned as a later feature rather than folded into a sequence of helper-sized patches.
 

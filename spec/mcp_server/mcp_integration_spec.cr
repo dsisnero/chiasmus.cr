@@ -2,7 +2,7 @@ require "../spec_helper"
 require "mcp"
 
 # Comprehensive MCP protocol integration tests.
-# Tests all 13 chiasmus tools through the full MCP stack:
+# Tests all 14 chiasmus tools through the full MCP stack:
 #   InMemoryTransport → MCP::Server → MCP::Client.call_tool
 #
 # Plus tool gating and the in-memory healthcheck.
@@ -33,6 +33,7 @@ private def register_all_tools_on(mcp_server : MCP::Server::Server)
     {Chiasmus::MCPServer::Tools::LearnTool, Chiasmus::MCPServer::Tools::LearnTool.tool_name, Chiasmus::MCPServer::Tools::LearnTool.tool_description, Chiasmus::MCPServer::Tools::LearnTool.input_schema},
     {Chiasmus::MCPServer::Tools::LintTool, Chiasmus::MCPServer::Tools::LintTool.tool_name, Chiasmus::MCPServer::Tools::LintTool.tool_description, Chiasmus::MCPServer::Tools::LintTool.input_schema},
     {Chiasmus::MCPServer::Tools::GraphTool, Chiasmus::MCPServer::Tools::GraphTool.tool_name, Chiasmus::MCPServer::Tools::GraphTool.tool_description, Chiasmus::MCPServer::Tools::GraphTool.input_schema},
+    {Chiasmus::MCPServer::Tools::SnapshotStatusTool, Chiasmus::MCPServer::Tools::SnapshotStatusTool.tool_name, Chiasmus::MCPServer::Tools::SnapshotStatusTool.tool_description, Chiasmus::MCPServer::Tools::SnapshotStatusTool.input_schema},
     {Chiasmus::MCPServer::Tools::MapTool, Chiasmus::MCPServer::Tools::MapTool.tool_name, Chiasmus::MCPServer::Tools::MapTool.tool_description, Chiasmus::MCPServer::Tools::MapTool.input_schema},
     {Chiasmus::MCPServer::Tools::SearchTool, Chiasmus::MCPServer::Tools::SearchTool.tool_name, Chiasmus::MCPServer::Tools::SearchTool.tool_description, Chiasmus::MCPServer::Tools::SearchTool.input_schema},
     {Chiasmus::MCPServer::Tools::ReadSymbolTool, Chiasmus::MCPServer::Tools::ReadSymbolTool.tool_name, Chiasmus::MCPServer::Tools::ReadSymbolTool.tool_description, Chiasmus::MCPServer::Tools::ReadSymbolTool.input_schema},
@@ -172,7 +173,7 @@ end
 
 describe "MCP Server initialization via transport" do
   describe "initialize + tools/list" do
-    it "lists all 13 expected tools" do
+    it "lists all 14 expected tools" do
       mcp_server, client = connect_server_and_client
       begin
         result = client.list_tools
@@ -188,6 +189,7 @@ describe "MCP Server initialization via transport" do
             "chiasmus_learn",
             "chiasmus_lint",
             "chiasmus_graph",
+            "chiasmus_snapshot_status",
             "chiasmus_map",
             "chiasmus_search",
             "chiasmus_read_symbol",
@@ -282,6 +284,38 @@ describe "MCP Server initialization via transport" do
       end
     end
 
+    describe "chiasmus_snapshot_status through transport" do
+      it "reports a ready receipt without starting another graph extraction" do
+        cache_dir = File.join(Dir.tempdir, "chiasmus-mcp-snapshot-status-#{Random::Secure.hex(8)}")
+        repo_key = "mcp-snapshot-status"
+        begin
+          Chiasmus::Graph::GraphCache.save_snapshot_async_and_wait(
+            "recoverable",
+            Chiasmus::Graph::CodeGraph.new,
+            cache_dir,
+            repo_key: repo_key,
+          )
+
+          mcp_server, client = connect_server_and_client
+          begin
+            result = call_tool(client, "chiasmus_snapshot_status", {
+              "snapshot" => JSON::Any.new("recoverable"),
+              "cache"    => JSON.parse(%({"cache_dir":"#{cache_dir}","repo_key":"#{repo_key}"})),
+            })
+
+            result["status"].as_s.should eq("success")
+            result["snapshot"].as_s.should eq("recoverable")
+            result["state"].as_s.should eq("ready")
+            result["updated_at"].as_i64.should be > 0_i64
+          ensure
+            disconnect(mcp_server, client)
+          end
+        ensure
+          FileUtils.rm_rf(cache_dir)
+        end
+      end
+    end
+
     describe "chiasmus_map byte ranges through transport" do
       it "file mode returns line_end for symbols" do
         path, cleanup = temp_source_file("go", "package main\n\nfunc bar(x int) int {\n\treturn x * 2\n}\n")
@@ -318,9 +352,9 @@ describe "MCP Server initialization via transport" do
 end
 
 # =============================================================================
-# All 12 tools through the MCP transport layer
+# All 14 tools through the MCP transport layer
 # =============================================================================
-describe "All 12 tools through MCP transport" do
+describe "All 14 tools through MCP transport" do
   describe "chiasmus_verify" do
     it "returns sat for Z3 tautology" do
       mcp_server, client = connect_server_and_client
@@ -441,7 +475,8 @@ describe "All 12 tools through MCP transport" do
   describe "chiasmus_skills" do
     it "lists every starter as upstream-shaped collection payloads (needs current_server)" do
       agent = Chiasmus::LLM::MockAdapter.create_agent
-      server = Chiasmus::MCPServer::Server.with_agent(agent)
+      chiasmus_home = File.join(Dir.tempdir, "chiasmus-mcp-skills-#{Random::Secure.hex(8)}")
+      server = Chiasmus::MCPServer::Server.with_agent(agent, chiasmus_home: chiasmus_home)
       Chiasmus::MCPServer.current_server = server
 
       mcp_server, client = connect_server_and_client
@@ -457,6 +492,7 @@ describe "All 12 tools through MCP transport" do
         disconnect(mcp_server, client)
         server.skill_library.close rescue nil
         Chiasmus::MCPServer.current_server = nil
+        FileUtils.rm_rf(chiasmus_home)
       end
     end
 
