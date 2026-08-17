@@ -87,7 +87,7 @@ DESC
                 "description" => JSON::Any.new("Solver type: 'z3' or 'prolog'"),
                 "enum"        => JSON::Any.new(["z3", "prolog"].map { |v| JSON::Any.new(v) }),
               }),
-              "spec" => JSON::Any.new({
+              "input" => JSON::Any.new({
                 "type"        => JSON::Any.new("string"),
                 "description" => JSON::Any.new("Formal specification in solver format"),
               }),
@@ -109,7 +109,7 @@ DESC
                 "description" => JSON::Any.new("Input format: 'raw' or 'mermaid' (prolog only)"),
               }),
             },
-            required: ["solver", "spec"]
+            required: ["solver", "input"]
           )
         end
 

@@ -78,7 +78,7 @@ describe "Chiasmus MCP Server Transport" do
             desc.should contain("z3")
           end
           verify_tool.input_schema.properties.has_key?("solver").should be_true
-          verify_tool.input_schema.properties.has_key?("spec").should be_true
+          verify_tool.input_schema.properties.has_key?("input").should be_true
         end
       end
     end

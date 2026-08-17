@@ -13,6 +13,18 @@ private def solver_result(result)
 end
 
 describe Chiasmus::MCPServer::Tools::VerifyTool do
+  describe ".input_schema" do
+    it "advertises input as the required formal specification parameter" do
+      schema = Chiasmus::MCPServer::Tools::VerifyTool.input_schema
+
+      schema.properties.has_key?("input").should be_true
+      schema.properties.has_key?("spec").should be_false
+      required = schema.required || raise "expected required parameters"
+      required.should contain("solver")
+      required.should contain("input")
+    end
+  end
+
   describe "#invoke" do
     it "requires solver and input parameters" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
