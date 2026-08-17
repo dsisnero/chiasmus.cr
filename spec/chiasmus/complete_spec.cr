@@ -515,6 +515,13 @@ TSV
       crystal_facts_path = File.join(dir, "crystal.pl")
       File.write(source_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(source_graph, ["main"]))
       File.write(crystal_facts_path, Chiasmus::Graph::Facts.graph_to_prolog(crystal_graph, ["main"]))
+      parity_report_path = File.join(dir, "parity.tsv")
+      File.write(parity_report_path, <<-TSV)
+# parser_mode=fixture
+# source_id	kind	inventory_status	match_status	confidence	crystal_name	crystal_kind	crystal_path	basis	structural_status	structural_details	notes
+src/app.ts::function::leaf	function	ported	matched	100	leaf	function	src/port.cr	explicit	structural_match	-	-
+src/util.ts::function::leaf	function	missing	missing	0	-	-	-	-	structural_missing	-	-
+TSV
 
       output = IO::Memory.new
       error = IO::Memory.new
@@ -522,9 +529,8 @@ TSV
         [
           "--inventory", File.join(dir, "plans", "inventory", "port.tsv"),
           "--root", dir,
-          "--crystal-dir", "src",
           "--source-facts", source_facts_path,
-          "--crystal-facts", crystal_facts_path,
+          "--parity-report", parity_report_path,
         ],
         output,
         error
