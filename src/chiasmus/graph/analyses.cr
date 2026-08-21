@@ -150,6 +150,18 @@ module Chiasmus
         result = tagged_result ? tagged_result.to_payload : ""
         new(analysis: analysis, result: result, warnings: warnings)
       end
+
+      # The tagged representation above is for Crystal round-tripping. MCP
+      # callers require the native analysis payload: facts remains Prolog text,
+      # while JSON-producing analyses become JSON objects/arrays on the wire.
+      def wire_result : JSON::Any
+        case payload = result
+        when String
+          analysis.facts? ? JSON::Any.new(payload) : JSON.parse(payload)
+        else
+          JSON.parse(payload.to_json)
+        end
+      end
     end
 
     module Analyses

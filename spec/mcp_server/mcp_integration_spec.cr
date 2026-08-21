@@ -742,6 +742,35 @@ describe "All 14 tools through MCP transport" do
           })
           result["status"].as_s.should eq("success")
           result["analysis"].as_s.should eq("summary")
+          result["result"].as_h["files"].as_i.should eq(1)
+          result["result"].as_h["functions"].as_i.should eq(2)
+          result["result"].as_h["callEdges"].as_i.should eq(1)
+        ensure
+          disconnect(mcp_server, client)
+        end
+      ensure
+        cleanup.call
+      end
+    end
+
+    it "returns array analyses and raw facts as their native payloads" do
+      path, cleanup = temp_source_file("go", "package main\nfunc main() { helper() }\nfunc helper() {}")
+      begin
+        mcp_server, client = connect_server_and_client
+        begin
+          callers = call_tool(client, "chiasmus_graph", {
+            "files"    => JSON.parse([path].to_json),
+            "analysis" => JSON::Any.new("callers"),
+            "target"   => JSON::Any.new("helper"),
+          })
+          callers["result"].as_a.map(&.as_s).should contain("main")
+
+          facts = call_tool(client, "chiasmus_graph", {
+            "files"    => JSON.parse([path].to_json),
+            "analysis" => JSON::Any.new("facts"),
+          })
+          facts["result"].as_s.should contain("defines(")
+          facts["result"].as_s.should contain("calls(")
         ensure
           disconnect(mcp_server, client)
         end

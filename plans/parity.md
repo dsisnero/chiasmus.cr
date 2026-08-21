@@ -60,7 +60,7 @@ substitutions.
 | `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
 | `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
-## Feature-Sized Phases (P28-P50)
+## Feature-Sized Phases (P28-P51)
 
 Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
 an existing equivalent spec) before changing implementation. On completion, update
@@ -92,10 +92,11 @@ parity check; generated manifests remain generated artifacts.
 | P48 ✓ | MCP graph cache-option parity | Treat graph extraction cache as upstream’s opt-in boolean while retaining Crystal’s explicit cache-options object extension. | Completed: input/schema specs cover boolean deserialization; omitted/false graph requests stay uncached; `true`, snapshots, and diffs retain the required persistent cache behavior. |
 | P49 ✓ | MCP graph partial-read resilience | Skip unreadable and oversized graph inputs with warnings, continue when any source is usable, and report a warning-bearing no-files result when none are usable. | Completed: graph and MCP specs cover ordered partial-read warnings, all-unreadable and empty inputs, the 10 MiB pre-read guard, and warnings retained by the save/diff guard. |
 | P50 ✓ | MCP graph request-shape validation | Validate raw graph arguments before deserialization or file work, preserving vendor errors for missing/wrong fields and non-string file entries. | Completed: direct and transport specs cover the exact required-fields and `files`-element errors, including an invalid entry that proves path normalization is not reached. |
+| P51 ✓ | MCP graph native-result projection | Emit graph analysis results as their vendor-compatible object, array, or text payloads rather than Crystal’s internal tagged JSON string. | Completed: transport coverage proves summary objects, callers arrays, and raw Prolog facts; internal `AnalysisResult` round-trip serialization remains separate. |
 
-Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, P40, P41, P42, and the subsequent MCP compatibility phases P43–P50. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
+Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, P40, P41, P42, and the subsequent MCP compatibility phases P43–P51. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
 
-P38 deliberately excludes solve-history serialization, learn extraction/rejection payloads, and graph/map raw-output conventions. Those are separate user-visible contracts and will be planned as a later feature rather than folded into a sequence of helper-sized patches.
+P38 deliberately excluded solve-history serialization and learn extraction/rejection payloads; those subsequent wire contracts are completed in P41 and P42. Map raw JSON is completed in P43 and graph native-result projection in P51.
 
 ## Inventory Safety And Vendor Updates
 
