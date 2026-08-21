@@ -340,8 +340,9 @@ module Chiasmus
 
       struct MapJSONResponse < Response
         getter payload : JSON::Any
+        getter warnings : Array(String)
 
-        def initialize(@payload : JSON::Any)
+        def initialize(@payload : JSON::Any, @warnings = [] of String)
           super("success")
         end
 
@@ -349,7 +350,17 @@ module Chiasmus
           json.object do
             json.field "status", @status
             @payload.as_h.each { |key, value| json.field key, value }
+            json.field "warnings", @warnings unless @warnings.empty?
           end
+        end
+      end
+
+      struct MapErrorResponse < Response
+        getter error : String
+        getter warnings : Array(String)
+
+        def initialize(@error : String, @warnings : Array(String))
+          super("error")
         end
       end
 

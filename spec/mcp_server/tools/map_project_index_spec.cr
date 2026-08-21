@@ -3,6 +3,79 @@ require "file_utils"
 require "tree-sitter-manager"
 
 describe Chiasmus::MCPServer::Tools::MapTool do
+  it "returns a JSON map with warnings when only some files are readable" do
+    dir = File.join(Dir.tempdir, "map-warnings-#{Random::Secure.hex(8)}")
+    path = File.join(dir, "ok.cr")
+    Dir.mkdir_p(dir)
+    File.write(path, "module Ok\nend\n")
+    begin
+      response = Chiasmus::MCPServer::Tools::MapTool.new.invoke({
+        "files"  => JSON.parse([path, File.join(dir, "missing.cr")].to_json),
+        "format" => JSON::Any.new("json"),
+        "cache"  => JSON::Any.new(File.join(dir, "cache")),
+      })
+      payload = JSON.parse(response.to_json)
+      payload["status"].as_s.should eq("success")
+      payload["warnings"].as_a.size.should eq(1)
+      payload["warnings"].as_a.first.as_s.should contain("missing.cr")
+    ensure
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "returns warning-bearing error when no requested files are readable" do
+    dir = File.join(Dir.tempdir, "map-no-files-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      response = Chiasmus::MCPServer::Tools::MapTool.new.invoke({
+        "files"  => JSON.parse([File.join(dir, "missing.cr")].to_json),
+        "format" => JSON::Any.new("json"),
+      })
+      payload = JSON.parse(response.to_json)
+      payload["status"].as_s.should eq("error")
+      payload["error"].as_s.should eq("No files could be read")
+      payload["warnings"].as_a.first.as_s.should contain("missing.cr")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "appends partial-read warnings to markdown maps" do
+    dir = File.join(Dir.tempdir, "map-markdown-warnings-#{Random::Secure.hex(8)}")
+    path = File.join(dir, "ok.cr")
+    Dir.mkdir_p(dir)
+    File.write(path, "module Ok\nend\n")
+    begin
+      response = Chiasmus::MCPServer::Tools::MapTool.new.invoke({
+        "files" => JSON.parse([path, File.join(dir, "missing.cr")].to_json),
+      }).as(Chiasmus::MCPServer::Types::MapResponse)
+      response.content.should contain("Warnings:")
+      response.content.should contain("missing.cr")
+    ensure
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "skips files exceeding the upstream ten-megabyte guard" do
+    dir = File.join(Dir.tempdir, "map-large-file-#{Random::Secure.hex(8)}")
+    path = File.join(dir, "large.cr")
+    Dir.mkdir_p(dir)
+    File.open(path, "w") { |file| file.truncate(10 * 1024 * 1024 + 1) }
+    begin
+      response = Chiasmus::MCPServer::Tools::MapTool.new.invoke({
+        "files"  => JSON.parse([path].to_json),
+        "format" => JSON::Any.new("json"),
+      })
+      payload = JSON.parse(response.to_json)
+      payload["error"].as_s.should eq("No files could be read")
+      payload["warnings"].as_a.first.as_s.should contain("file exceeds 10485760 bytes")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "applies overview include globs from tool arguments" do
     dir = File.join(Dir.tempdir, "map-include-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)

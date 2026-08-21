@@ -13,6 +13,7 @@ module Chiasmus
   module MCPServer
     module Tools
       class MapTool
+        MAX_FILE_SIZE = 10 * 1024 * 1024
         VALID_MODES   = ["overview", "file", "symbol"]
         VALID_FORMATS = ["markdown", "json"]
 
@@ -30,7 +31,14 @@ module Chiasmus
           return Types::ErrorResponse.new("mode='symbol' requires 'name' (symbol identifier)") if args.mode == "symbol" && args.name.nil?
 
           paths = SourcePaths.normalize_file_inputs!(args.files)
-          graph = load_graph(paths, self.class.cache_dir_for(args.cache)) || return Types::ErrorResponse.new("Unable to index all requested files")
+          source_files, warnings = load_map_sources(paths)
+          return Types::MapErrorResponse.new("No files could be read", warnings) if source_files.empty?
+          graph = if @project_index
+                    load_graph(paths, self.class.cache_dir_for(args.cache))
+                  else
+                    Graph::Extractor.extract_graph_async(source_files, cache_dir: self.class.cache_dir_for(args.cache), parallel_cpu: true).receive
+                  end
+          return Types::ErrorResponse.new("Unable to index all requested files") unless graph
 
           map = case args.mode
                 when "file"
@@ -50,8 +58,9 @@ module Chiasmus
           end
 
           rendered = Graph::CodebaseMap.render_map(map, args.format)
-          return Types::MapJSONResponse.new(JSON.parse(rendered)) if args.format == "json"
+          return Types::MapJSONResponse.new(JSON.parse(rendered), warnings) if args.format == "json"
 
+          rendered += "\n---\nWarnings:\n" + warnings.map { |warning| "- #{warning}" }.join("\n") unless warnings.empty?
           Types::MapResponse.new(content: rendered)
         rescue ex
           Types::ErrorResponse.new(ex.message || ex.class.name)
@@ -61,6 +70,23 @@ module Chiasmus
 
         private def load_graph(paths : Array(String), cache_dir : String?) : Graph::CodeGraph?
           IndexedGraphLoader.load_graph(paths, cache_dir, @project_index, "chiasmus.map.cache")
+        end
+
+        private def load_map_sources(paths : Array(String)) : Tuple(Array(Graph::SourceFile), Array(String))
+          sources = [] of Graph::SourceFile
+          warnings = [] of String
+          paths.each do |path|
+            begin
+              if File.info(path).size > MAX_FILE_SIZE
+                warnings << "Skipped #{path}: file exceeds #{MAX_FILE_SIZE} bytes"
+              else
+                sources << Graph::SourceFile.new(path: path, content: File.read(path))
+              end
+            rescue ex
+              warnings << "Skipped #{path}: #{ex.message}"
+            end
+          end
+          {sources, warnings}
         end
 
         # Boolean cache is the upstream MCP contract. A string remains a
