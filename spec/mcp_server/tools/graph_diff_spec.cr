@@ -70,10 +70,21 @@ describe "chiasmus_graph diff analysis via MCP" do
       "analysis" => "summary",
       "cache"    => {"cache_dir" => "/tmp/cache", "repo_key" => "my-project"},
     }.to_json)
-    input.cache.should_not be_nil
-    opts = input.cache || raise("Expected cache")
+    input.cache.should be_a(Chiasmus::MCPServer::Types::GraphCacheOptions)
+    opts = input.cache.as(Chiasmus::MCPServer::Types::GraphCacheOptions)
     opts.cache_dir.should eq("/tmp/cache")
     opts.repo_key.should eq("my-project")
+  end
+
+  it "GraphInput accepts upstream boolean cache opt-in and advertises it" do
+    input = Chiasmus::MCPServer::Types::GraphInput.from_json({
+      "files"    => ["/tmp/test.go"],
+      "analysis" => "summary",
+      "cache"    => true,
+    }.to_json)
+
+    input.cache.should eq(true)
+    Chiasmus::MCPServer::Tools::GraphTool.input_schema.properties["cache"].as_h["type"].as_s.should eq("boolean")
   end
 
   it "input schema includes save_snapshot parameter" do
@@ -134,6 +145,30 @@ describe "chiasmus_graph diff analysis via MCP" do
     FileUtils.rm_rf(cache_dir)
   end
 
+  it "automatically enables the default cache for save_snapshot" do
+    cache_dir = File.join(Dir.tempdir, "chiasmus-save-default-#{Random::Secure.hex(8)}")
+    go_file = File.join(Dir.tempdir, "save-default-test.go")
+    File.write(go_file, "package main\nfunc f() {}")
+
+    begin
+      with_env({"CHIASMUS_CACHE_DIR" => cache_dir}) do
+        result = Chiasmus::MCPServer::Tools::GraphTool.new.invoke({
+          "files"         => JSON::Any.new([JSON::Any.new(go_file)]),
+          "analysis"      => JSON::Any.new("summary"),
+          "save_snapshot" => JSON::Any.new("default-saved"),
+          "cache"         => JSON::Any.new(false),
+        })
+
+        result.status.should eq("success")
+        Chiasmus::Graph::GraphCache.load_snapshot("default-saved", cache_dir).should_not be_nil
+      end
+    ensure
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      File.delete(go_file) if File.exists?(go_file)
+      FileUtils.rm_rf(cache_dir)
+    end
+  end
+
   it "GraphInput accepts include_insights field" do
     input = Chiasmus::MCPServer::Types::GraphInput.from_json({
       "files"            => ["/tmp/test.go"],
@@ -162,7 +197,7 @@ describe "chiasmus_graph diff analysis via MCP" do
       "analysis" => "summary",
       "cache"    => {"cache_dir" => "/tmp/c", "max_bytes_per_repo" => 1048576},
     }.to_json)
-    opts = input.cache || raise("Expected cache")
+    opts = input.cache.as(Chiasmus::MCPServer::Types::GraphCacheOptions)
     opts.max_bytes_per_repo.should eq(1048576)
   end
 

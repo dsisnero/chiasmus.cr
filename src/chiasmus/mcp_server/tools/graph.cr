@@ -36,9 +36,7 @@ module Chiasmus
             include_insights: args.include_insights?
           )
 
-          cache_dir = args.cache.try(&.cache_dir) || Graph::GraphCache.default_cache_dir
-          repo_key = args.cache.try(&.repo_key)
-          max_bytes = args.cache.try(&.max_bytes_per_repo)
+          cache_dir, repo_key, max_bytes = self.class.cache_settings(args, analysis_type)
           result = run_indexed_analysis(absolute_files, request, cache_dir, repo_key, max_bytes, args.save_snapshot)
 
           if error = result.error
@@ -93,6 +91,34 @@ module Chiasmus
             analysis_ms: (Time.instant - started_at).total_milliseconds,
           )
           Graph::Analyses::AsyncAnalysisResult.new(value: value)
+        end
+
+        # Upstream only persists normal graph requests when cache is explicitly
+        # true. Diff and snapshot operations require durable graph state, so
+        # they continue to opt in automatically. The object form is our
+        # documented extension for callers that need cache configuration.
+        def self.cache_settings(
+          args : Types::GraphInput,
+          analysis_type : Graph::AnalysisType,
+        ) : Tuple(String?, String?, Int32?)
+          cache_dir : String? = nil
+          repo_key : String? = nil
+          max_bytes : Int32? = nil
+
+          case cache = args.cache
+          when Types::GraphCacheOptions
+            cache_dir = cache.cache_dir || Graph::GraphCache.default_cache_dir
+            repo_key = cache.repo_key
+            max_bytes = cache.max_bytes_per_repo
+          when true
+            cache_dir = Graph::GraphCache.default_cache_dir
+          end
+
+          if cache_dir.nil? && (args.save_snapshot || analysis_type == Graph::AnalysisType::Diff)
+            cache_dir = Graph::GraphCache.default_cache_dir
+          end
+
+          {cache_dir, repo_key, max_bytes}
         end
 
         private def run_and_index_analysis(
@@ -201,7 +227,7 @@ module Chiasmus
               "to"               => ToolSchemas::Common.to_property,
               "entry_points"     => ToolSchemas::Common.entry_points_property,
               "against"          => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against (required for diff analysis)"),
-              "cache"            => ToolSchemas::SchemaProperty.new("object", "Cache options for per-file extraction cache and snapshot persistence. Supply {cache_dir, repo_key, max_bytes_per_repo}."),
+              "cache"            => ToolSchemas::SchemaProperty.new("boolean", "Enable persistent per-file extraction cache (default false). Snapshots and diff analyses enable it automatically."),
               "save_snapshot"    => ToolSchemas::SchemaProperty.new("string", "Save the extracted graph under this snapshot name after analysis (requires cache)"),
               "include_insights" => ToolSchemas::SchemaProperty.new("boolean", "For analysis=facts: also emit community/2, cohesion/2, hub/2, bridge/2 facts"),
             },

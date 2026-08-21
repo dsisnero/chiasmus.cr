@@ -68,23 +68,43 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
     end
   end
 
-  it "uses the default extraction cache when cache options are omitted" do
+  it "only persists the default extraction cache when cache is explicitly true" do
     cache_dir = File.tempname("chiasmus-default-cache")
     file = File.tempname("default-cache", ".go")
     File.write(file, "package main\nfunc cached() {}\n")
 
     begin
       with_env({"CHIASMUS_CACHE_DIR" => cache_dir}) do
-        result = Chiasmus::MCPServer::Tools::GraphTool.new.invoke({
+        uncached = Chiasmus::MCPServer::Tools::GraphTool.new.invoke({
           "files"    => JSON.parse([file].to_json),
           "analysis" => JSON::Any.new("summary"),
         })
-        result.status.should eq("success")
+        uncached.status.should eq("success")
         Chiasmus::Graph::GraphCache.flush_async_writes
 
         paths = Chiasmus::Graph::GraphCache.resolve_cache_paths(cache_dir)
-        File.exists?(paths["database_path"]).should be_true
+        File.exists?(paths["database_path"]).should be_false
         File.exists?(paths["manifest_path"]).should be_false
+
+        disabled = Chiasmus::MCPServer::Tools::GraphTool.new.invoke({
+          "files"    => JSON.parse([file].to_json),
+          "analysis" => JSON::Any.new("summary"),
+          "cache"    => JSON::Any.new(false),
+        })
+        disabled.status.should eq("success")
+        Chiasmus::Graph::GraphCache.flush_async_writes
+
+        File.exists?(paths["database_path"]).should be_false
+
+        cached = Chiasmus::MCPServer::Tools::GraphTool.new.invoke({
+          "files"    => JSON.parse([file].to_json),
+          "analysis" => JSON::Any.new("summary"),
+          "cache"    => JSON::Any.new(true),
+        })
+        cached.status.should eq("success")
+        Chiasmus::Graph::GraphCache.flush_async_writes
+
+        File.exists?(paths["database_path"]).should be_true
       end
     ensure
       Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test

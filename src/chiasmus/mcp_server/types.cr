@@ -596,7 +596,10 @@ module Chiasmus
         getter from : String?
         getter to : String?
         getter entry_points : Array(String)?
-        getter cache : GraphCacheOptions?
+        # `true` is the upstream opt-in for persistent graph extraction. An
+        # object remains a Crystal extension for callers that need an explicit
+        # cache directory, repository key, or size limit.
+        getter cache : Bool | GraphCacheOptions?
         getter save_snapshot : String?
         getter? include_insights : Bool = false
         getter against : String?
