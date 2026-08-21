@@ -113,6 +113,42 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
     end
   end
 
+  it "returns graph warnings without discarding readable files" do
+    directory = File.join(Dir.tempdir, "graph-tool-partial-read-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(directory)
+    valid = File.join(directory, "valid.go")
+    missing = File.join(directory, "missing.go")
+    File.write(valid, "package main\nfunc retained() {}\n")
+
+    begin
+      response = Chiasmus::MCPServer::Tools::GraphTool.new.invoke({
+        "files"    => JSON.parse([valid, missing].to_json),
+        "analysis" => JSON::Any.new("summary"),
+      })
+
+      response.status.should eq("success")
+      payload = JSON.parse(response.to_json)
+      warnings = payload["warnings"].as_a.map(&.as_s)
+      warnings.size.should eq(1)
+      warnings.first.should contain("Skipped #{missing}:")
+    ensure
+      FileUtils.rm_rf(directory)
+    end
+  end
+
+  it "returns a graph result and warnings when every requested file is unreadable" do
+    missing = File.join(Dir.tempdir, "graph-tool-missing-#{Random::Secure.hex(8)}.go")
+    response = Chiasmus::MCPServer::Tools::GraphTool.new.invoke({
+      "files"    => JSON.parse([missing].to_json),
+      "analysis" => JSON::Any.new("summary"),
+    })
+
+    response.status.should eq("success")
+    payload = JSON.parse(response.to_json)
+    payload["result"].as_s.should contain("No files could be read")
+    payload["warnings"].as_a.first.as_s.should contain("Skipped #{missing}:")
+  end
+
   describe "tool metadata" do
     it "has correct tool name" do
       Chiasmus::MCPServer::Tools::GraphTool.tool_name.should eq("chiasmus_graph")
@@ -144,13 +180,16 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
       result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("Unknown analysis")
     end
 
-    it "handles file not found" do
+    it "returns a structured graph result when a file is not found" do
       result = invoke_graph({
         "files"    => JSON.parse(%(["/nonexistent/path.go"])),
         "analysis" => JSON::Any.new("summary"),
       })
-      result.status.should eq("error")
-      result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("Failed to read")
+      result.status.should eq("success")
+      graph = result.as(Chiasmus::MCPServer::Types::GraphResponse)
+      graph.result.to_s.should contain("No files could be read")
+      graph.warnings.size.should eq(1)
+      graph.warnings.first.should contain("Skipped /nonexistent/path.go:")
     end
   end
 

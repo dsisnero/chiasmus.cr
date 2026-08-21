@@ -108,7 +108,8 @@ module Chiasmus
 
     record AnalysisResult,
       analysis : AnalysisType,
-      result : String | Array(String) | Hash(String, String) | Hash(String, Bool) | Hash(String, Int32) | Hash(String, Array(Array(String))) do
+      result : String | Array(String) | Hash(String, String) | Hash(String, Bool) | Hash(String, Int32) | Hash(String, Array(Array(String))),
+      warnings : Array(String) = [] of String do
       include JSON::Serializable
 
       # Custom serialization using tagged container
@@ -120,12 +121,18 @@ module Chiasmus
           json.field "result" do
             TaggedAnalysisPayload.new(result).to_json(json)
           end
+          unless warnings.empty?
+            json.field "warnings" do
+              warnings.to_json(json)
+            end
+          end
         end
       end
 
       def self.new(pull : JSON::PullParser)
         analysis = AnalysisType::Summary
         tagged_result : TaggedAnalysisPayload? = nil
+        warnings = [] of String
 
         pull.read_object do |key|
           case key
@@ -133,13 +140,15 @@ module Chiasmus
             analysis = AnalysisType.parse(pull.read_string)
           when "result"
             tagged_result = TaggedAnalysisPayload.from_json(pull)
+          when "warnings"
+            warnings = Array(String).from_json(pull)
           else
             pull.skip
           end
         end
 
         result = tagged_result ? tagged_result.to_payload : ""
-        new(analysis: analysis, result: result)
+        new(analysis: analysis, result: result, warnings: warnings)
       end
     end
 
@@ -156,19 +165,30 @@ module Chiasmus
         telemetry_span = Tracing.span(Tracing::Level::INFO, "chiasmus.graph.run_analysis", files: file_paths.size, analysis: request.analysis.to_s)
         started_at = Time.instant
 
+        read_started_at = Time.instant
+        read_result = FileIO.read_source_files_with_warnings(file_paths)
+        files = read_result.files
+        warnings = read_result.warnings
+        read_elapsed_ms = (Time.instant - read_started_at).total_milliseconds
+        Tracing.info("chiasmus.graph.run_analysis.read_files", files: file_paths.size, elapsed_ms: read_elapsed_ms)
+
+        if !file_paths.empty? && files.empty?
+          return AnalysisResult.new(
+            analysis: request.analysis,
+            result: {"error" => "No files could be read"},
+            warnings: warnings,
+          )
+        end
+
         # Guard: save+diff against same snapshot would clobber baseline before diff runs
         if save_snapshot && request.analysis.diff? && request.against == save_snapshot
           telemetry_span.record(guard_rejected: "save_snapshot_equals_against", elapsed_ms: (Time.instant - started_at).total_milliseconds)
           return AnalysisResult.new(
             analysis: request.analysis,
-            result: {"error" => "save_snapshot and against cannot name the same snapshot ('#{save_snapshot}') — the save would overwrite the baseline before the diff runs. Use distinct names."}.to_json.as(AnalysisPayload)
+            result: {"error" => "save_snapshot and against cannot name the same snapshot ('#{save_snapshot}') — the save would overwrite the baseline before the diff runs. Use distinct names."},
+            warnings: warnings,
           )
         end
-
-        read_started_at = Time.instant
-        files = FileIO.read_source_files_or_raise(file_paths)
-        read_elapsed_ms = (Time.instant - read_started_at).total_milliseconds
-        Tracing.info("chiasmus.graph.run_analysis.read_files", files: file_paths.size, elapsed_ms: read_elapsed_ms)
 
         extract_started_at = Time.instant
         graph = Extractor.extract_graph(files, cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes)
@@ -203,7 +223,7 @@ module Chiasmus
           analysis_ms: analysis_elapsed_ms,
           total_ms: total_elapsed_ms,
         )
-        result
+        AnalysisResult.new(analysis: result.analysis, result: result.result, warnings: warnings)
       end
 
       def run_analysis_async(

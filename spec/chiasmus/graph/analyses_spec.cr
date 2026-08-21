@@ -445,10 +445,11 @@ describe Chiasmus::Graph::Analyses do
       cache_dir = File.join(Dir.tempdir, "chiasmus-guard-#{Random::Secure.hex(8)}")
       Dir.mkdir_p(cache_dir)
       go_file = File.join(Dir.tempdir, "guard-test-#{Random::Secure.hex(8)}.go")
+      missing_file = File.join(Dir.tempdir, "guard-missing-#{Random::Secure.hex(8)}.go")
       File.write(go_file, "package main\nfunc f() {}")
 
       result = Chiasmus::Graph::Analyses.run_analysis(
-        [go_file],
+        [go_file, missing_file],
         Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Diff, against: "same"),
         cache_dir: cache_dir,
         save_snapshot: "same",
@@ -457,6 +458,8 @@ describe Chiasmus::Graph::Analyses do
       # The code doesn't let through invalid requests, so check it returns an error
       result.analysis.should eq(Chiasmus::Graph::AnalysisType::Diff)
       result.result.to_s.should contain("cannot name the same snapshot")
+      result.warnings.size.should eq(1)
+      result.warnings.first.should contain("Skipped #{missing_file}:")
 
       File.delete(go_file)
       FileUtils.rm_rf(cache_dir)
@@ -488,7 +491,70 @@ describe Chiasmus::Graph::Analyses do
       end
     end
 
-    it "run_analysis_async returns file-read failures through the channel" do
+    it "skips an unreadable file and retains analysis of readable inputs" do
+      directory = File.join(Dir.tempdir, "analysis-partial-read-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(directory)
+      valid = File.join(directory, "valid.go")
+      missing = File.join(directory, "missing.go")
+      File.write(valid, "package main\nfunc retained() {}\n")
+
+      begin
+        result = Chiasmus::Graph::Analyses.run_analysis(
+          [valid, missing],
+          Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Summary)
+        )
+
+        result.result.as(Hash(String, Int32))["functions"].should be > 0
+        result.warnings.size.should eq(1)
+        result.warnings.first.should contain("Skipped #{missing}:")
+      ensure
+        FileUtils.rm_rf(directory)
+      end
+    end
+
+    it "returns a structured result with warnings when no requested file can be read" do
+      missing = File.join(Dir.tempdir, "analysis-missing-#{Random::Secure.hex(8)}.go")
+      second_missing = File.join(Dir.tempdir, "analysis-missing-#{Random::Secure.hex(8)}.go")
+
+      result = Chiasmus::Graph::Analyses.run_analysis(
+        [missing, second_missing],
+        Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Summary)
+      )
+
+      result.result.as(Hash(String, String))["error"].should eq("No files could be read")
+      result.warnings.size.should eq(2)
+      result.warnings[0].should contain("Skipped #{missing}:")
+      result.warnings[1].should contain("Skipped #{second_missing}:")
+    end
+
+    it "skips files larger than 10 MiB before extraction" do
+      oversized = File.join(Dir.tempdir, "analysis-oversized-#{Random::Secure.hex(8)}.go")
+      File.write(oversized, "x" * (10 * 1024 * 1024 + 1))
+
+      begin
+        result = Chiasmus::Graph::Analyses.run_analysis(
+          [oversized],
+          Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Summary)
+        )
+
+        result.result.as(Hash(String, String))["error"].should eq("No files could be read")
+        result.warnings.should eq(["Skipped #{oversized}: file exceeds 10485760 bytes"])
+      ensure
+        File.delete(oversized) if File.exists?(oversized)
+      end
+    end
+
+    it "returns an empty summary without warnings for an empty file list" do
+      result = Chiasmus::Graph::Analyses.run_analysis(
+        [] of String,
+        Chiasmus::Graph::AnalysisRequest.new(analysis: Chiasmus::Graph::AnalysisType::Summary)
+      )
+
+      result.result.as(Hash(String, Int32))["functions"].should eq(0)
+      result.warnings.should be_empty
+    end
+
+    it "run_analysis_async returns structured file-read warnings through the channel" do
       request = Chiasmus::Graph::AnalysisRequest.new(
         analysis: Chiasmus::Graph::AnalysisType::Summary
       )
@@ -501,10 +567,10 @@ describe Chiasmus::Graph::Analyses do
 
       async.should_not be_nil
       async_result = async || raise "expected async failure result"
-      async_result.value.should be_nil
-      async_result.error.should_not be_nil
-      error = async_result.error || raise "expected async failure error"
-      error.should contain("Failed to read")
+      async_result.error.should be_nil
+      value = async_result.value || raise "expected async result"
+      value.result.as(Hash(String, String))["error"].should eq("No files could be read")
+      value.warnings.size.should eq(1)
       async_channel.receive?.should be_nil
     end
   end

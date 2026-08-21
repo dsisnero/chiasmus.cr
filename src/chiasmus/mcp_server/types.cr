@@ -312,9 +312,25 @@ module Chiasmus
       struct GraphResponse < Response
         getter analysis : String
         getter result : JSON::Any
+        getter warnings : Array(String)
 
-        def initialize(@analysis : String, @result : JSON::Any)
+        def initialize(@analysis : String, @result : JSON::Any, @warnings : Array(String) = [] of String)
           super("success")
+        end
+
+        def to_json(json : JSON::Builder)
+          json.object do
+            json.field "status", status
+            json.field "analysis", analysis
+            json.field "result" do
+              result.to_json(json)
+            end
+            unless warnings.empty?
+              json.field "warnings" do
+                warnings.to_json(json)
+              end
+            end
+          end
         end
       end
 

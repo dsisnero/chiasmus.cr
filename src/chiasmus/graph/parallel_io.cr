@@ -7,6 +7,15 @@ module Chiasmus
       extend self
 
       DEFAULT_MAX_CONCURRENT = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
+      MAX_FILE_SIZE          = 10 * 1024 * 1024
+
+      record SourceReadResult,
+        files : Array(SourceFile),
+        warnings : Array(String)
+
+      private record SourceReadOutcome,
+        file : SourceFile? = nil,
+        warning : String? = nil
       @@before_read_hook = nil.as((String -> Nil)?)
       @@before_read_hook_mutex = Mutex.new
       @@default_max_concurrent_for_test = nil.as(Int32?)
@@ -29,6 +38,37 @@ module Chiasmus
           end
           .compact_map(&.itself)
           .reject(&.content.empty?)
+      end
+
+      # Read source files while retaining non-fatal per-path failures for MCP
+      # callers. File-size validation happens before File.read so an oversized
+      # input cannot monopolize extraction memory or the MCP transport.
+      def read_source_files_with_warnings(file_paths : Array(String), max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT) : SourceReadResult
+        outcomes = Utils::BoundedWork.map_ordered(file_paths, resolve_max_concurrent(max_concurrent)) do |path|
+          begin
+            if File.info(path).size > MAX_FILE_SIZE
+              SourceReadOutcome.new(warning: "Skipped #{path}: file exceeds #{MAX_FILE_SIZE} bytes")
+            else
+              run_before_read_hook(path)
+              SourceReadOutcome.new(file: SourceFile.new(path: path, content: File.read(path)))
+            end
+          rescue ex
+            SourceReadOutcome.new(warning: "Skipped #{path}: #{ex.message || ex.class.name}")
+          end
+        end
+
+        files = [] of SourceFile
+        warnings = [] of String
+        outcomes.each do |outcome|
+          next unless outcome
+          if file = outcome.file
+            files << file
+          end
+          if warning = outcome.warning
+            warnings << warning
+          end
+        end
+        SourceReadResult.new(files: files, warnings: warnings)
       end
 
       # Read files concurrently, raising on first failure.

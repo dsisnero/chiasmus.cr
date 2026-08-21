@@ -53,7 +53,8 @@ module Chiasmus
 
           Types::GraphResponse.new(
             analysis: args.analysis,
-            result: JSON::Any.new(result_value)
+            result: JSON::Any.new(result_value),
+            warnings: result_value_payload.warnings,
           )
         rescue ex : File::NotFoundError
           Types::ErrorResponse.new("File not found: #{ex.message}")
@@ -237,7 +238,7 @@ module Chiasmus
 
         def self.output_schema : MCP::Protocol::Tool::Input
           MCP::Protocol::Tool::Input.new(
-            properties: JSON.parse(%({"status":{"type":"string"},"analysis":{"type":"string"},"result":{"type":"object"}})).as_h
+            properties: JSON.parse(%({"status":{"type":"string"},"analysis":{"type":"string"},"result":{"type":"object"},"warnings":{"type":"array","items":{"type":"string"}}})).as_h
           )
         end
       end
