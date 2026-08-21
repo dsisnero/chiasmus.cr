@@ -872,6 +872,13 @@ describe "All 14 tools through MCP transport" do
           "files" => JSON.parse(%([])),
         })
         result["status"].as_s.should eq("error")
+        result["error"].as_s.should eq("'files' (non-empty string[]) is required")
+
+        mixed_files = call_tool(client, "chiasmus_review", {
+          "files" => JSON.parse(%(["/abs/src/server.ts", 42, null])),
+        })
+        mixed_files["status"].as_s.should eq("error")
+        mixed_files["error"].as_s.should eq("'files' must contain only strings")
       ensure
         disconnect(mcp_server, client)
       end

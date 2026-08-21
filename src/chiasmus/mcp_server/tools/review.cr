@@ -9,9 +9,11 @@ module Chiasmus
     module Tools
       class ReviewTool
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
-          args = Types::ReviewInput.from_json(arguments.to_json)
+          if error = self.class.validate_arguments(arguments)
+            return Types::ErrorResponse.new(error)
+          end
 
-          return Types::ErrorResponse.new("'files' (non-empty string[]) is required") if args.files.empty?
+          args = Types::ReviewInput.from_json(arguments.to_json)
 
           begin
             plan = Review.build_plan(args.files, args.focus, args.entry_points, args.delta_against)
@@ -32,6 +34,17 @@ module Chiasmus
             suggested_templates: plan.suggested_templates.map { |template| suggested_template_to_json(template) },
             reporting: review_reporting_to_json(plan.reporting)
           )
+        end
+
+        # Check raw MCP input before JSON::Serializable or Review.build_plan so
+        # malformed callers receive the stable upstream error contract.
+        def self.validate_arguments(arguments : Hash(String, JSON::Any)) : String?
+          files = arguments["files"]?.try(&.as_a?)
+          return "'files' (non-empty string[]) is required" unless files
+          return "'files' (non-empty string[]) is required" if files.empty?
+          return "'files' must contain only strings" if files.any? { |file| file.as_s?.nil? }
+
+          nil
         end
 
         private def review_phase_to_json(phase : Review::ReviewPhase) : Types::ReviewPhaseJSON

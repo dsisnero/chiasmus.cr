@@ -1,6 +1,29 @@
 require "../../spec_helper"
 
 describe Chiasmus::MCPServer::Tools::ReviewTool do
+  it "validates raw files shape before deserializing or building a review plan" do
+    tool = Chiasmus::MCPServer::Tools::ReviewTool.new
+
+    missing = tool.invoke({} of String => JSON::Any)
+    missing.status.should eq("error")
+    missing.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("'files' (non-empty string[]) is required")
+
+    non_array = tool.invoke({"files" => JSON::Any.new("not-an-array")})
+    non_array.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("'files' (non-empty string[]) is required")
+
+    empty = tool.invoke({"files" => JSON.parse(%([]))})
+    empty.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("'files' (non-empty string[]) is required")
+  end
+
+  it "rejects non-string files before review planning" do
+    result = Chiasmus::MCPServer::Tools::ReviewTool.new.invoke({
+      "files" => JSON.parse(%(["/abs/src/server.ts", 42, null])),
+    })
+
+    result.status.should eq("error")
+    result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("'files' must contain only strings")
+  end
+
   it "serializes suggested templates with the upstream camelCase key" do
     result = Chiasmus::MCPServer::Tools::ReviewTool.new.invoke({
       "files" => JSON.parse(%(["/abs/src/server.ts"])),
