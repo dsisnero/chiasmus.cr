@@ -60,7 +60,7 @@ substitutions.
 | `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
 | `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
-## Feature-Sized Phases (P28-P44)
+## Feature-Sized Phases (P28-P45)
 
 Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
 an existing equivalent spec) before changing implementation. On completion, update
@@ -86,6 +86,7 @@ parity check; generated manifests remain generated artifacts.
 | P42 ✓ | MCP learn-outcome wire compatibility | Return upstream-shaped learned-template details and represent rejected extraction as a successful `{extracted:false, reason}` outcome. | Completed: tool specs cover upstream success fields, persisted visibility, and duplicate rejection without an error envelope; focused gates and strict parity checks pass. |
 | P43 ✓ | MCP JSON-map wire compatibility | Emit `chiasmus_map format=json` projections at the top level instead of wrapping a JSON string in `content`. | Completed: file JSON transport coverage proves top-level map fields while markdown retains its content envelope; focused gates and strict parity checks pass. |
 | P44 ✓ | MCP map-overview controls | Support upstream `include` glob filtering and non-negative `max_exports` limits for `chiasmus_map` overview projections. | Completed: domain specs prove filtered files/facts/summary consistency and negative-limit clamping; tool specs prove JSON argument forwarding and schema exposure. |
+| P45 ✓ | MCP map request validation | Reject unknown map modes/formats and enforce mode-specific `path`/`name` requirements before file indexing. | Completed: tool specs cover exact upstream-compatible errors and schema enums, with invalid requests proving no file access is attempted. |
 
 Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, P40, P41, and P42. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
 

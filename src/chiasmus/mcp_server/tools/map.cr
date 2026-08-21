@@ -13,6 +13,9 @@ module Chiasmus
   module MCPServer
     module Tools
       class MapTool
+        VALID_MODES   = ["overview", "file", "symbol"]
+        VALID_FORMATS = ["markdown", "json"]
+
         def initialize(@project_index : Index::ProjectIndex? = nil)
         end
 
@@ -21,16 +24,18 @@ module Chiasmus
           args = Types::MapInput.from_json(arguments.to_json)
 
           return Types::ErrorResponse.new("'files' (non-empty string[]) is required") if args.files.empty?
+          return Types::ErrorResponse.new("Unknown mode: #{args.mode}. Use 'overview', 'file', or 'symbol'.") unless VALID_MODES.includes?(args.mode)
+          return Types::ErrorResponse.new("Unknown format: #{args.format}. Use 'markdown' or 'json'.") unless VALID_FORMATS.includes?(args.format)
+          return Types::ErrorResponse.new("mode='file' requires 'path' (absolute file path)") if args.mode == "file" && args.path.nil?
+          return Types::ErrorResponse.new("mode='symbol' requires 'name' (symbol identifier)") if args.mode == "symbol" && args.name.nil?
 
           paths = SourcePaths.normalize_file_inputs!(args.files)
           graph = load_graph(paths, args.cache || Graph::GraphCache.default_cache_dir) || return Types::ErrorResponse.new("Unable to index all requested files")
 
           map = case args.mode
                 when "file"
-                  return Types::ErrorResponse.new("'path' required for file mode") unless args.path
                   Graph::CodebaseMap.build_file_detail(graph, args.path.not_nil!)
                 when "symbol"
-                  return Types::ErrorResponse.new("'name' required for symbol mode") unless args.name
                   Graph::CodebaseMap.build_symbol_detail(graph, args.name.not_nil!)
                 else
                   Graph::CodebaseMap.build_overview(
@@ -85,10 +90,10 @@ module Chiasmus
           ToolSchemas::ToolInputSchema.new(
             properties: {
               "files"       => ToolSchemas::Common.files_property.to_json_schema,
-              "mode"        => ToolSchemas::SchemaProperty.new("string", "Map mode: overview, file, or symbol (default: overview)").to_json_schema,
+              "mode"        => ToolSchemas::SchemaProperty.new("string", "Map mode (default: overview)", VALID_MODES).to_json_schema,
               "path"        => ToolSchemas::SchemaProperty.new("string", "File path (required for file mode)").to_json_schema,
               "name"        => ToolSchemas::SchemaProperty.new("string", "Symbol name (required for symbol mode)").to_json_schema,
-              "format"      => ToolSchemas::SchemaProperty.new("string", "Output format: markdown (default) or json").to_json_schema,
+              "format"      => ToolSchemas::SchemaProperty.new("string", "Output format (default: markdown)", VALID_FORMATS).to_json_schema,
               "include"     => ToolSchemas::ArraySchemaProperty.new("Glob patterns to filter files in overview mode").to_json_schema,
               "max_exports" => ToolSchemas::SchemaProperty.new("number", "Max exports per file in overview mode (clamped to zero or above)").to_json_schema,
             }.transform_values { |v| JSON::Any.new(v) },
