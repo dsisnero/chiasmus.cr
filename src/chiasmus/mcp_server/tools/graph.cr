@@ -14,9 +14,11 @@ module Chiasmus
         end
 
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
-          args = Types::GraphInput.from_json(arguments.to_json)
+          if error = self.class.validate_arguments(arguments)
+            return Types::ErrorResponse.new(error)
+          end
 
-          return Types::ErrorResponse.new("Missing required parameters: files and analysis") unless args.files && args.analysis
+          args = Types::GraphInput.from_json(arguments.to_json)
 
           absolute_files = SourcePaths.normalize_file_inputs!(args.files)
 
@@ -92,6 +94,18 @@ module Chiasmus
             analysis_ms: (Time.instant - started_at).total_milliseconds,
           )
           Graph::Analyses::AsyncAnalysisResult.new(value: value)
+        end
+
+        # Validate the raw MCP arguments before JSON::Serializable or path
+        # normalization runs. This preserves the vendor's stable request-shape
+        # errors instead of leaking parser exceptions to clients.
+        def self.validate_arguments(arguments : Hash(String, JSON::Any)) : String?
+          files = arguments["files"]?.try(&.as_a?)
+          analysis = arguments["analysis"]?.try(&.as_s?)
+          return "Required: files (string[]), analysis (string)" unless files && analysis
+          return "'files' must contain only strings" if files.any? { |file| file.as_s?.nil? }
+
+          nil
         end
 
         # Upstream only persists normal graph requests when cache is explicitly

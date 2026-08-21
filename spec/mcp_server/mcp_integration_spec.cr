@@ -172,6 +172,26 @@ describe "MCP async tool calls through transport" do
   end
 end
 
+describe "chiasmus_graph request validation through transport" do
+  it "returns vendor-compatible errors for malformed graph arguments" do
+    mcp_server, client = connect_server_and_client
+    begin
+      missing = call_tool(client, "chiasmus_graph")
+      missing["status"].as_s.should eq("error")
+      missing["error"].as_s.should eq("Required: files (string[]), analysis (string)")
+
+      invalid_files = call_tool(client, "chiasmus_graph", {
+        "files"    => JSON.parse(%(["#{Dir.tempdir}", 42, null])),
+        "analysis" => JSON::Any.new("summary"),
+      })
+      invalid_files["status"].as_s.should eq("error")
+      invalid_files["error"].as_s.should eq("'files' must contain only strings")
+    ensure
+      disconnect(mcp_server, client)
+    end
+  end
+end
+
 describe "MCP Server initialization via transport" do
   describe "initialize + tools/list" do
     it "lists all 14 expected tools" do

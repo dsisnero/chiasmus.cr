@@ -165,10 +165,32 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
   end
 
   describe "error handling" do
-    it "requires files and analysis parameters" do
+    it "requires files as an array and analysis as a string before deserialization" do
       result = invoke_graph({"analysis" => JSON::Any.new("summary")})
       result.status.should eq("error")
-      result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("files")
+      result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("Required: files (string[]), analysis (string)")
+
+      non_array_files = invoke_graph({
+        "files"    => JSON::Any.new("not-an-array"),
+        "analysis" => JSON::Any.new("summary"),
+      })
+      non_array_files.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("Required: files (string[]), analysis (string)")
+
+      non_string_analysis = invoke_graph({
+        "files"    => JSON.parse(%([])),
+        "analysis" => JSON::Any.new(1_i64),
+      })
+      non_string_analysis.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("Required: files (string[]), analysis (string)")
+    end
+
+    it "rejects non-string file entries before source-path validation" do
+      result = invoke_graph({
+        "files"    => JSON.parse(%(["#{Dir.tempdir}", 42, null])),
+        "analysis" => JSON::Any.new("summary"),
+      })
+
+      result.status.should eq("error")
+      result.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("'files' must contain only strings")
     end
 
     it "rejects unknown analysis type" do
