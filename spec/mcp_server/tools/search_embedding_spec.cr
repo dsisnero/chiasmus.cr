@@ -28,6 +28,25 @@ private def with_env(vars : Hash(String, String?), &)
 end
 
 describe Chiasmus::MCPServer::Tools::SearchTool do
+  it "validates raw query and files before embedding configuration" do
+    tool = Chiasmus::MCPServer::Tools::SearchTool.new
+
+    missing = tool.invoke({} of String => JSON::Any)
+    missing.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("'query' (non-empty string) is required")
+
+    whitespace = tool.invoke({
+      "query" => JSON::Any.new("  "),
+      "files" => JSON.parse(%(["/abs/src/a.cr"])),
+    })
+    whitespace.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("'query' (non-empty string) is required")
+
+    mixed_files = tool.invoke({
+      "query" => JSON::Any.new("find me"),
+      "files" => JSON.parse(%(["/abs/src/a.cr", 42, null])),
+    })
+    mixed_files.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should eq("'files' (non-empty array of absolute paths) is required")
+  end
+
   describe "embedding provider resolution" do
     it "defaults to DeepSeek when DEEPSEEK_API_KEY is set" do
       with_env({

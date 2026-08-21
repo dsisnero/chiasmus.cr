@@ -38,6 +38,10 @@ module Chiasmus
         end
 
         def invoke(arguments : Hash(String, JSON::Any)) : Types::Response
+          if error = self.class.validate_arguments(arguments)
+            return Types::ErrorResponse.new(error)
+          end
+
           args = Types::SearchInput.from_json(arguments.to_json)
 
           return Types::ErrorResponse.new("'query' (non-empty string) is required") if args.query.strip.empty?
@@ -100,6 +104,19 @@ module Chiasmus
           Types::SearchResponse.new(hits: result, warnings: warnings.empty? ? nil : warnings)
         rescue ex
           Types::ErrorResponse.new("#{ex.class}: #{ex.message || "(no message)"}")
+        end
+
+        def self.validate_arguments(arguments : Hash(String, JSON::Any)) : String?
+          query = arguments["query"]?.try(&.as_s?)
+          return "'query' (non-empty string) is required" unless query
+          return "'query' (non-empty string) is required" if query.strip.empty?
+
+          files = arguments["files"]?.try(&.as_a?)
+          return "'files' (non-empty array of absolute paths) is required" unless files
+          return "'files' (non-empty array of absolute paths) is required" if files.empty?
+          return "'files' (non-empty array of absolute paths) is required" if files.any? { |file| file.as_s?.nil? }
+
+          nil
         end
 
         private def validate_search_files(file_contents : Hash(String, String), warnings : Array(String)) : Types::ErrorResponse?

@@ -60,7 +60,7 @@ substitutions.
 | `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
 | `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
-## Feature-Sized Phases (P28-P53)
+## Feature-Sized Phases (P28-P54)
 
 Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
 an existing equivalent spec) before changing implementation. On completion, update
@@ -95,6 +95,7 @@ parity check; generated manifests remain generated artifacts.
 | P51 ✓ | MCP graph native-result projection | Emit graph analysis results as their vendor-compatible object, array, or text payloads rather than Crystal’s internal tagged JSON string. | Completed: transport coverage proves summary objects, callers arrays, and raw Prolog facts; internal `AnalysisResult` round-trip serialization remains separate. |
 | P52 ✓ | MCP review request-shape validation | Validate raw review `files` before deserialization or plan construction, preserving vendor errors for missing, empty, malformed, and mixed-type inputs. | Completed: direct and transport specs cover exact non-empty-array and string-element error contracts while retaining successful review behavior. |
 | P53 ✓ | MCP review focus-schema parity | Advertise the upstream finite review-focus set in the MCP input schema. | Completed: schema spec locks the exact `all`, `security`, `architecture`, `correctness`, `quick` enum. |
+| P54 ✓ | MCP search request-shape validation | Validate raw search query/files before embedding configuration. | Completed: exact vendor errors cover empty/whitespace query and missing or mixed files. |
 
 Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, P40, P41, P42, and the subsequent MCP compatibility phases P43–P53. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
 
