@@ -609,7 +609,7 @@ module Chiasmus
         @[JSON::Field(key: "include")]
         getter include_patterns : Array(String)?
         getter max_exports : Int32?
-        getter cache : String?
+        getter cache : Bool | String?
       end
 
       struct SearchInput

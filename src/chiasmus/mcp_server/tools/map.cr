@@ -30,7 +30,7 @@ module Chiasmus
           return Types::ErrorResponse.new("mode='symbol' requires 'name' (symbol identifier)") if args.mode == "symbol" && args.name.nil?
 
           paths = SourcePaths.normalize_file_inputs!(args.files)
-          graph = load_graph(paths, args.cache || Graph::GraphCache.default_cache_dir) || return Types::ErrorResponse.new("Unable to index all requested files")
+          graph = load_graph(paths, self.class.cache_dir_for(args.cache)) || return Types::ErrorResponse.new("Unable to index all requested files")
 
           map = case args.mode
                 when "file"
@@ -61,6 +61,16 @@ module Chiasmus
 
         private def load_graph(paths : Array(String), cache_dir : String?) : Graph::CodeGraph?
           IndexedGraphLoader.load_graph(paths, cache_dir, @project_index, "chiasmus.map.cache")
+        end
+
+        # Boolean cache is the upstream MCP contract. A string remains a
+        # Crystal extension for callers that need an explicit cache location.
+        def self.cache_dir_for(cache : Bool | String?) : String?
+          case cache
+          when String then cache
+          when Bool   then cache ? Graph::GraphCache.default_cache_dir : nil
+          else             nil
+          end
         end
 
         def self.tool_name : String
@@ -96,6 +106,7 @@ module Chiasmus
               "format"      => ToolSchemas::SchemaProperty.new("string", "Output format (default: markdown)", VALID_FORMATS).to_json_schema,
               "include"     => ToolSchemas::ArraySchemaProperty.new("Glob patterns to filter files in overview mode").to_json_schema,
               "max_exports" => ToolSchemas::SchemaProperty.new("number", "Max exports per file in overview mode (clamped to zero or above)").to_json_schema,
+              "cache"       => ToolSchemas::BooleanSchemaProperty.new("Reuse persistent per-file extraction cache (default: false)").to_json_schema,
             }.transform_values { |v| JSON::Any.new(v) },
             required: ["files"]
           ).to_mcp_input
