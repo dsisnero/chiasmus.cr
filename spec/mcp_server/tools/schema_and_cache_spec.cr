@@ -52,4 +52,11 @@ describe "Tool schema unification" do
     r.status.should eq("error")
     r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should_not be_empty
   end
+
+  it "map tool advertises overview include and max_exports controls" do
+    properties = Chiasmus::MCPServer::Tools::MapTool.input_schema.properties
+
+    properties.has_key?("include").should be_true
+    properties.has_key?("max_exports").should be_true
+  end
 end

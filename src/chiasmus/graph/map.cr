@@ -64,14 +64,27 @@ module Chiasmus
     module CodebaseMap
       extend self
 
-      def build_overview(graph : CodeGraph, max_exports : Int32 = DEFAULT_MAX_EXPORTS) : OverviewMap
-        file_nodes = graph.files || [] of FileNode
+      def build_overview(
+        graph : CodeGraph,
+        max_exports : Int32 = DEFAULT_MAX_EXPORTS,
+        include_patterns : Array(String)? = nil,
+      ) : OverviewMap
+        include_globs = include_patterns || [] of String
+        file_nodes = (graph.files || [] of FileNode).select do |file_node|
+          include_globs.empty? || include_globs.any? { |glob| glob_match(file_node.path, glob) }
+        end
+        included_paths = file_nodes.map(&.path).to_set
+        max_exports = {max_exports, 0}.max
 
         defines_by_file = Hash(String, Array(DefinesFact)).new { |hash, key| hash[key] = [] of DefinesFact }
-        graph.defines.each { |definition| defines_by_file[definition.file] << definition }
+        graph.defines.each do |definition|
+          defines_by_file[definition.file] << definition if included_paths.includes?(definition.file)
+        end
 
         export_names = Hash(String, Set(String)).new { |hash, key| hash[key] = Set(String).new }
-        graph.exports.each { |export_fact| export_names[export_fact.file] << export_fact.name }
+        graph.exports.each do |export_fact|
+          export_names[export_fact.file] << export_fact.name if included_paths.includes?(export_fact.file)
+        end
 
         overview_files = [] of OverviewFile
         total_tokens = 0
@@ -108,8 +121,8 @@ module Chiasmus
             files: file_nodes.size,
             languages: languages.to_a.sort,
             tokens: total_tokens,
-            definitions: graph.defines.size,
-            exports: graph.exports.size,
+            definitions: defines_by_file.values.sum(&.size),
+            exports: export_names.values.sum(&.size),
           ),
           root: root,
         )

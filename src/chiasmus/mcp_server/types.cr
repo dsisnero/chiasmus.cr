@@ -606,6 +606,9 @@ module Chiasmus
         getter path : String?
         getter name : String?
         getter format : String = "markdown"
+        @[JSON::Field(key: "include")]
+        getter include_patterns : Array(String)?
+        getter max_exports : Int32?
         getter cache : String?
       end
 

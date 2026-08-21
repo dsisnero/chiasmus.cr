@@ -33,7 +33,11 @@ module Chiasmus
                   return Types::ErrorResponse.new("'name' required for symbol mode") unless args.name
                   Graph::CodebaseMap.build_symbol_detail(graph, args.name.not_nil!)
                 else
-                  Graph::CodebaseMap.build_overview(graph)
+                  Graph::CodebaseMap.build_overview(
+                    graph,
+                    max_exports: args.max_exports || Graph::DEFAULT_MAX_EXPORTS,
+                    include_patterns: args.include_patterns,
+                  )
                 end
 
           unless map
@@ -80,11 +84,13 @@ module Chiasmus
         def self.input_schema : MCP::Protocol::Tool::Input
           ToolSchemas::ToolInputSchema.new(
             properties: {
-              "files"  => ToolSchemas::Common.files_property.to_json_schema,
-              "mode"   => ToolSchemas::SchemaProperty.new("string", "Map mode: overview, file, or symbol (default: overview)").to_json_schema,
-              "path"   => ToolSchemas::SchemaProperty.new("string", "File path (required for file mode)").to_json_schema,
-              "name"   => ToolSchemas::SchemaProperty.new("string", "Symbol name (required for symbol mode)").to_json_schema,
-              "format" => ToolSchemas::SchemaProperty.new("string", "Output format: markdown (default) or json").to_json_schema,
+              "files"       => ToolSchemas::Common.files_property.to_json_schema,
+              "mode"        => ToolSchemas::SchemaProperty.new("string", "Map mode: overview, file, or symbol (default: overview)").to_json_schema,
+              "path"        => ToolSchemas::SchemaProperty.new("string", "File path (required for file mode)").to_json_schema,
+              "name"        => ToolSchemas::SchemaProperty.new("string", "Symbol name (required for symbol mode)").to_json_schema,
+              "format"      => ToolSchemas::SchemaProperty.new("string", "Output format: markdown (default) or json").to_json_schema,
+              "include"     => ToolSchemas::ArraySchemaProperty.new("Glob patterns to filter files in overview mode").to_json_schema,
+              "max_exports" => ToolSchemas::SchemaProperty.new("number", "Max exports per file in overview mode (clamped to zero or above)").to_json_schema,
             }.transform_values { |v| JSON::Any.new(v) },
             required: ["files"]
           ).to_mcp_input

@@ -104,6 +104,31 @@ describe CodebaseMap do
       file.export_count.should eq 12
     end
 
+    it "filters overview facts by include globs and clamps negative export limits" do
+      graph = make_graph(
+        [
+          {name: "typescript_export", file: "src/a.ts", kind: "function", line: 1, signature: nil},
+          {name: "go_export", file: "cmd/main.go", kind: "function", line: 1, signature: nil},
+        ],
+        [
+          FileNode.new(path: "src/a.ts", language: "typescript"),
+          FileNode.new(path: "cmd/main.go", language: "go"),
+        ],
+        exports: [
+          {file: "src/a.ts", name: "typescript_export"},
+          {file: "cmd/main.go", name: "go_export"},
+        ],
+      )
+
+      map = CodebaseMap.build_overview(graph, include_patterns: ["**/*.ts"], max_exports: -1)
+
+      map.summary.files.should eq 1
+      map.summary.definitions.should eq 1
+      map.summary.exports.should eq 1
+      map.root.dirs[0].files.map(&.path).should eq(["src/a.ts"])
+      map.root.dirs[0].files[0].top_exports.should be_empty
+    end
+
     it "renders markdown with summary header" do
       graph = make_graph(
         [{name: "foo", file: "src/a.ts", kind: "function", line: 1, signature: nil}],
