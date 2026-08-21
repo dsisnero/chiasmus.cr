@@ -337,14 +337,14 @@ module Chiasmus
         items.select { |item| seen.add?(item.id) }
       end
 
-      # Find the enclosing class name for a method node
+      # Find the enclosing type or module name for a method node.
       private def find_enclosing_class(node : TreeSitter::Node, source : String) : String?
         current = node.parent
         while current
           case current.type
           when "class_declaration", "abstract_class_declaration",
                "class_definition", "class_def", "struct_def",
-               "struct_item", "impl_item"
+               "module_def", "struct_item", "impl_item"
             name_node = current.child_by_field_name("name")
             return name_node.try(&.text(source))
           when "class_body", "block", "declaration_list"

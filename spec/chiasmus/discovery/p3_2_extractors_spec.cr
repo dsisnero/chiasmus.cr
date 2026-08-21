@@ -159,6 +159,20 @@ describe Chiasmus::Discovery::CrystalExtractor do
     methods.map(&.name).should contain("Foo.bar")
   end
 
+  it "extracts a qualified module singleton method from the parity fixture" do
+    extractor = Chiasmus::Discovery::CrystalExtractor.new
+    lang = load_lang("crystal")
+    pending "crystal grammar not available" unless lang
+    source = File.read(File.expand_path("../../testdata/parity/crystal/prolog_input.cr", __DIR__))
+    tree = TreeSitter::Parser.new(language: lang).parse(nil, source)
+    tree.root_node.has_error?.should be_false
+
+    methods = extractor.extract(tree.root_node, source, "src/prolog_input.cr")
+      .select { |item| item.kind == "method" }
+
+    methods.map(&.name).should contain("SpecParity.extract_prolog_query")
+  end
+
   it "extracts enum_def" do
     extractor = Chiasmus::Discovery::CrystalExtractor.new
     lang = load_lang("crystal")

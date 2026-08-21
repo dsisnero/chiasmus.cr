@@ -767,8 +767,15 @@ module Chiasmus
       end
 
       private def self.register_vendor_grammars(root_dir : String) : Nil
+        # A target repository may provide an explicit grammar override.
         vendor_dir = File.join(root_dir, "vendor", "grammars")
         Discovery.register_grammar_directory(vendor_dir) if Dir.exists?(vendor_dir)
+
+        # Isolated fixtures and external repositories must not need to carry
+        # their own Crystal grammar. Fall back to Chiasmus's bundled bundle,
+        # then GrammarLoader's process-wide XDG cache.
+        bundled_dir = File.expand_path("../../grammars", __DIR__)
+        Discovery.register_grammar_directory(bundled_dir) if Dir.exists?(bundled_dir)
       end
 
       private def self.tree_sitter_scan(root_dir : String, dirs : Array(String), force_parser : String?) : Array(SymbolItem)

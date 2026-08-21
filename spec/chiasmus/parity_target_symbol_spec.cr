@@ -63,7 +63,7 @@ TSV
         inventory_path: File.join(dir, "plans", "inventory", "port.tsv"),
         root_dir: dir,
         crystal_dirs: ["src"],
-        parser_mode: "regex",
+        parser_mode: "tree-sitter",
         source_facts_path: source_facts_path,
         crystal_facts_path: crystal_facts_path,
       )
