@@ -109,7 +109,7 @@ module Chiasmus
           ToolSchemas::ToolInputSchema.new(
             properties: {
               "files"         => ToolSchemas::Common.files_property.to_json_schema,
-              "focus"         => ToolSchemas::SchemaProperty.new("string", "Review focus: all, quick, architecture, security, correctness").to_json_schema,
+              "focus"         => ToolSchemas::SchemaProperty.new("string", "Which aspects to emphasize (default: 'all')", enum: ["all", "security", "architecture", "correctness", "quick"]).to_json_schema,
               "entry_points"  => ToolSchemas::Common.entry_points_property.to_json_schema,
               "delta_against" => ToolSchemas::SchemaProperty.new("string", "Snapshot name to diff against for PR-scoped review").to_json_schema,
             }.transform_values { |value| JSON::Any.new(value) },

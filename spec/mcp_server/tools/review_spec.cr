@@ -1,6 +1,13 @@
 require "../../spec_helper"
 
 describe Chiasmus::MCPServer::Tools::ReviewTool do
+  it "advertises the upstream focus enum" do
+    focus = Chiasmus::MCPServer::Tools::ReviewTool.input_schema.properties["focus"].as_h
+
+    focus["type"].as_s.should eq("string")
+    focus["enum"].as_a.map(&.as_s).should eq(["all", "security", "architecture", "correctness", "quick"])
+  end
+
   it "validates raw files shape before deserializing or building a review plan" do
     tool = Chiasmus::MCPServer::Tools::ReviewTool.new
 
