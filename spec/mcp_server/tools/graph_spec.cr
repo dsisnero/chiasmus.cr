@@ -145,7 +145,7 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
 
     response.status.should eq("success")
     payload = JSON.parse(response.to_json)
-    payload["result"].as_s.should contain("No files could be read")
+    payload["result"].as_h["error"].as_s.should eq("No files could be read")
     payload["warnings"].as_a.first.as_s.should contain("Skipped #{missing}:")
   end
 
