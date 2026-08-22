@@ -50,7 +50,7 @@ describe "Tool schema unification" do
       "cache" => JSON::Any.new("/tmp/chiasmus-test-cache"),
     })
     r.status.should eq("error")
-    r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should_not be_empty
+    r.as(Chiasmus::MCPServer::Types::MapErrorResponse).error.should_not be_empty
   end
 
   it "map tool advertises overview include and max_exports controls" do
