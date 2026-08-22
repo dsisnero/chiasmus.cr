@@ -490,6 +490,11 @@ module Chiasmus
           ensure
             request.acknowledgements.each(&.send(error))
           end
+
+          # Let the ingress dispatcher enqueue retry requests that arrived
+          # while this write was running before choosing the next target write.
+          # They are then coalesced into their latest graph/acknowledgements.
+          Fiber.yield
         end
       ensure
         restart_worker = false
