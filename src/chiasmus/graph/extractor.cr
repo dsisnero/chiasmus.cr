@@ -15,6 +15,11 @@ module Chiasmus
       extend self
 
       @@merge_mutex = Mutex.new
+      # tree_sitter's loaded-language registry and node StringPool are mutable
+      # process-global structures. They are not safe to access from multiple
+      # execution-context workers, so a parse must retain this lock through the
+      # associated tree walk as well.
+      @@tree_sitter_mutex = Mutex.new
       @@before_async_result_send_hook = nil.as((-> Nil)?)
       DEFAULT_MAX_CONCURRENT = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
 
@@ -266,31 +271,36 @@ module Chiasmus
             Set(String).new
           )
         else
-          tree = parser.parse_source(file.content, file.path)
-          return CodeGraph.new unless tree
+          parsed = false
+          with_tree_sitter_lock(parser) do
+            tree = parser.parse_source(file.content, file.path)
+            next unless tree
 
-          if lang.in?("typescript", "javascript", "tsx")
-            type_info << TypeEnv.collect_type_info(tree.root_node, file.content, file.path)
+            if lang.in?("typescript", "javascript", "tsx")
+              type_info << TypeEnv.collect_type_info(tree.root_node, file.content, file.path)
+            end
+
+            adapter = AdapterRegistry.get_adapter(lang)
+            if adapter
+              merge_adapter_graph(
+                adapter.extract(tree.root_node, file.content, file.path),
+                defines, calls, imports, exports, contains,
+                Set(String).new
+              )
+            else
+              extract_with_walkers(
+                lang, tree, file,
+                defines, calls, imports, exports, contains,
+                Set(String).new
+              )
+            end
+
+            # TreeSitter::Node does not retain its owning Tree. Keep the tree live
+            # through the complete adapter/walker traversal in optimized builds.
+            tree.root_node
+            parsed = true
           end
-
-          adapter = AdapterRegistry.get_adapter(lang)
-          if adapter
-            merge_adapter_graph(
-              adapter.extract(tree.root_node, file.content, file.path),
-              defines, calls, imports, exports, contains,
-              Set(String).new
-            )
-          else
-            extract_with_walkers(
-              lang, tree, file,
-              defines, calls, imports, exports, contains,
-              Set(String).new
-            )
-          end
-
-          # TreeSitter::Node does not retain its owning Tree. Keep the tree live
-          # through the complete adapter/walker traversal in optimized builds.
-          tree.root_node
+          return CodeGraph.new unless parsed
         end
 
         graph = CodeGraph.new(
@@ -321,6 +331,14 @@ module Chiasmus
           ".../#{parts[-4..].join("/")}"
         else
           path
+        end
+      end
+
+      private def with_tree_sitter_lock(parser, &block)
+        if parser == Parser
+          @@tree_sitter_mutex.synchronize { block.call }
+        else
+          block.call
         end
       end
 

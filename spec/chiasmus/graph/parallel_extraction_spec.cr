@@ -194,6 +194,21 @@ describe "parallel graph extraction" do
     )
   end
 
+  it "keeps tree-sitter traversal stable across CPU extraction workers" do
+    files = 32.times.map do |i|
+      SourceFile.new(
+        path: "/tmp/tree_sitter_parallel_#{i}.cr",
+        content: "module Parallel#{i}\n  class Worker#{i}\n    def run#{i}(value : String)\n      value.upcase\n    end\n  end\nend\n"
+      )
+    end.to_a
+
+    3.times do
+      graph = Extractor.extract_graph(files, max_concurrent: 16, parallel_cpu: true)
+      graph.defines.map(&.name).to_set.should contain("Worker31")
+      graph.calls.map(&.callee).to_set.should contain("upcase")
+    end
+  end
+
   it "uses bounded concurrency for Crystal parsing by default" do
     parser = TrackingParser.new("crystal")
     files = 4.times.map do |i|
