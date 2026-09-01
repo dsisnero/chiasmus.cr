@@ -1,4 +1,4 @@
-.PHONY: help install-deps ensure-shards install install-built install-with-build update format lint test clean build build_release build-clis release dist setup-grammars warm-cache
+.PHONY: help install-deps ensure-shards install install-built install-with-build update format lint test clean build build_release build-clis release dist setup-grammars warm-cache verify-runtime
 
 # Default: show help.
 help:
@@ -48,6 +48,7 @@ SHARD_FILES := shard.yml shard.lock $(shell find lib -name "shard.yml" 2>/dev/nu
 BUILD_DIR := .build
 SHARDS_STAMP := $(BUILD_DIR)/shards-installed
 BUILD_INPUTS := $(SRC) $(SHARD_FILES) Makefile
+TREE_SITTER_RUNTIME := $(shell find -L /opt/homebrew/opt/tree-sitter/lib /usr/local/opt/tree-sitter/lib -maxdepth 1 -type f \( -name 'libtree-sitter*.dylib' -o -name 'libtree-sitter*.so*' \) -print -quit 2>/dev/null)
 CLI_STAMPS := $(BUILD_DIR)/chiasmus-discover $(BUILD_DIR)/chiasmus-grammar $(BUILD_DIR)/chiasmus-parity $(BUILD_DIR)/chiasmus-plan $(BUILD_DIR)/chiasmus-complete $(BUILD_DIR)/chiasmus-facts
 INSTALL_FLAGS := --release
 INSTALL_ARTIFACTS := bin/chiasmus bin/chiasmus-agent bin/chiasmus-grammar bin/chiasmus-discover bin/chiasmus-facts
@@ -63,8 +64,19 @@ ensure-shards:
 
 $(BUILD_DIR)/chiasmus $(BUILD_DIR)/chiasmus-discover $(BUILD_DIR)/chiasmus-grammar $(BUILD_DIR)/chiasmus-parity $(BUILD_DIR)/chiasmus-plan $(BUILD_DIR)/chiasmus-complete $(BUILD_DIR)/chiasmus-facts $(BUILD_DIR)/chiasmus_release $(BUILD_DIR)/chiasmus_warmed $(INSTALL_ARTIFACTS): | ensure-shards
 
+verify-runtime:
+	@test -x bin/chiasmus
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		missing=$$(otool -L bin/chiasmus | awk '/libtree-sitter/{print $$1}' | while read -r library; do test -e "$$library" || printf '%s\n' "$$library"; done); \
+		if [ -n "$$missing" ]; then \
+			echo "chiasmus runtime is stale: missing tree-sitter library $$missing" >&2; \
+			exit 1; \
+		fi; \
+	fi
+
 build: $(BUILD_DIR)/chiasmus
-$(BUILD_DIR)/chiasmus: $(BUILD_INPUTS)
+	@$(MAKE) --no-print-directory verify-runtime
+$(BUILD_DIR)/chiasmus: $(BUILD_INPUTS) $(TREE_SITTER_RUNTIME)
 	@mkdir -p bin $(BUILD_DIR)
 	crystal build --release -o bin/chiasmus src/chiasmus_cli.cr
 	@touch $@
@@ -199,7 +211,7 @@ $(BUILD_DIR)/chiasmus_warmed: $(BUILD_DIR)/chiasmus_release
 # Install artifacts use the same baseline flags as `shards build --release`.
 # Their Makefile prerequisite intentionally invalidates them when these flags
 # change, while fresh artifacts made by Shards are reused unchanged.
-bin/chiasmus: $(BUILD_INPUTS)
+bin/chiasmus: $(BUILD_INPUTS) $(TREE_SITTER_RUNTIME)
 	@mkdir -p bin
 	crystal build $(INSTALL_FLAGS) -o $@ src/chiasmus_cli.cr
 
@@ -223,7 +235,7 @@ bin/chiasmus-facts: $(BUILD_INPUTS)
 # Rebuild only when a tracked input or the Makefile-defined compiler flags changed.
 install: $(INSTALL_ARTIFACTS) install-built
 
-install-built:
+install-built: verify-runtime
 	@test -x bin/chiasmus || (echo "Missing bin/chiasmus; build first or run 'make install-with-build'" && exit 1)
 	@test -x bin/chiasmus-agent || (echo "Missing bin/chiasmus-agent; build first or run 'make install-with-build'" && exit 1)
 	@test -x bin/chiasmus-grammar || (echo "Missing bin/chiasmus-grammar; build first or run 'make install-with-build'" && exit 1)
