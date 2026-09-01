@@ -78,7 +78,7 @@ build: $(BUILD_DIR)/chiasmus
 	@$(MAKE) --no-print-directory verify-runtime
 $(BUILD_DIR)/chiasmus: $(BUILD_INPUTS) $(TREE_SITTER_RUNTIME)
 	@mkdir -p bin $(BUILD_DIR)
-	crystal build --release -o bin/chiasmus src/chiasmus_cli.cr
+	shards build chiasmus --release
 	@touch $@
 
 build_release: release
