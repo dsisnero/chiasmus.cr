@@ -64,7 +64,7 @@ module Chiasmus
           corpus = Search::SearchEngine.build_search_corpus(graph, file_contents)
 
           if corpus.empty?
-            return Types::ErrorResponse.new("No searchable content found in files.")
+            return Types::SearchResponse.new([] of Types::SearchHitJSON, warnings: warnings.empty? ? nil : warnings)
           end
 
           resolution = self.class.resolve_embedding_resolution(@config) ||
@@ -119,10 +119,9 @@ module Chiasmus
           nil
         end
 
-        private def validate_search_files(file_contents : Hash(String, String), warnings : Array(String)) : Types::ErrorResponse?
+        private def validate_search_files(file_contents : Hash(String, String), warnings : Array(String)) : Types::SearchErrorResponse?
           return nil unless file_contents.empty?
-          return Types::ErrorResponse.new("No readable files in `files`. Warnings: #{warnings.join("; ")}") unless warnings.empty?
-          Types::ErrorResponse.new("No readable files in `files`.")
+          Types::SearchErrorResponse.new("No readable files in `files`.", warnings)
         end
 
         private def load_search_graph(source_files : Array(Graph::SourceFile)) : Graph::CodeGraph?
@@ -143,18 +142,16 @@ module Chiasmus
           warnings = [] of String
 
           results = Utils::BoundedWork.map_ordered(files, max_concurrent) do |path|
-            begin
-              st = File.info(path)
-              if !st.file?
-                SearchReadResult.new(path: path, warning: "skip (not a file): #{path}")
-              elsif st.size > MAX_FILE_SIZE
-                SearchReadResult.new(path: path, warning: "skip (over #{MAX_FILE_SIZE} bytes): #{path}")
-              else
-                SearchReadResult.new(path: path, content: reader.call(path))
-              end
-            rescue ex
-              SearchReadResult.new(path: path, warning: "read failed: #{path} — #{ex.message}")
+            st = File.info(path)
+            if !st.file?
+              SearchReadResult.new(path: path, warning: "skip (not a file): #{path}")
+            elsif st.size > MAX_FILE_SIZE
+              SearchReadResult.new(path: path, warning: "skip (over #{MAX_FILE_SIZE} bytes): #{path}")
+            else
+              SearchReadResult.new(path: path, content: reader.call(path))
             end
+          rescue ex
+            SearchReadResult.new(path: path, warning: "read failed: #{path} — #{ex.message}")
           end
 
           results.compact_map(&.itself).each do |result|

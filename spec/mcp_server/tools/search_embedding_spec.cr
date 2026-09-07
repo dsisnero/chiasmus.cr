@@ -28,6 +28,19 @@ private def with_env(vars : Hash(String, String?), &)
 end
 
 describe Chiasmus::MCPServer::Tools::SearchTool do
+  it "returns warning-bearing errors for unreadable files" do
+    missing = File.join(Dir.tempdir, "search-missing-#{Random::Secure.hex(8)}.cr")
+    result = Chiasmus::MCPServer::Tools::SearchTool.new.invoke({
+      "query" => JSON::Any.new("find"),
+      "files" => JSON.parse([missing].to_json),
+    })
+
+    result.should be_a(Chiasmus::MCPServer::Types::SearchErrorResponse)
+    error = result.as(Chiasmus::MCPServer::Types::SearchErrorResponse)
+    error.error.should eq("No readable files in `files`.")
+    error.warnings.first.should contain(missing)
+  end
+
   it "validates raw query and files before embedding configuration" do
     tool = Chiasmus::MCPServer::Tools::SearchTool.new
 

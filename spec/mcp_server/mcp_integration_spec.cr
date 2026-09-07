@@ -1001,6 +1001,23 @@ describe "All 14 tools through MCP transport" do
         disconnect(mcp_server, client)
       end
     end
+
+    it "preserves unreadable-file warnings in the structured error response" do
+      missing = File.join(Dir.tempdir, "chiasmus-search-missing-#{Random::Secure.hex(8)}.cr")
+      mcp_server, client = connect_server_and_client
+      begin
+        result = call_tool(client, "chiasmus_search", {
+          "query" => JSON::Any.new("test"),
+          "files" => JSON.parse([missing].to_json),
+        })
+
+        result["status"].as_s.should eq("error")
+        result["error"].as_s.should eq("No readable files in `files`.")
+        result["warnings"].as_a.first.as_s.should contain(missing)
+      ensure
+        disconnect(mcp_server, client)
+      end
+    end
   end
 
   describe "chiasmus_read_symbol" do

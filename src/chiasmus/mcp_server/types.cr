@@ -403,6 +403,15 @@ module Chiasmus
         end
       end
 
+      struct SearchErrorResponse < Response
+        getter error : String
+        getter warnings : Array(String)
+
+        def initialize(@error : String, @warnings : Array(String) = [] of String)
+          super("error")
+        end
+      end
+
       struct ReadSymbolResponse < Response
         getter name : String
         getter qualified_name : String?
