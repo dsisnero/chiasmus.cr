@@ -11,6 +11,12 @@ def chiasmus_parity_skill_dir : String
   candidates << env_dir.not_nil! if env_dir && !env_dir.empty?
   candidates << File.join(home, ".agents", "skills", "crystal_forge", "skills", "cross-language-crystal-parity")
   candidates << File.join(home, ".agents", "skills", "cross-language-crystal-parity")
+  candidates << File.join(home, ".codex", "skills", "crystal_forge", "skills", "cross-language-crystal-parity")
+  candidates << File.join(home, ".codex", "skills", "cross-language-crystal-parity")
+  candidates << File.join(home, ".config", "opencode", "skills", "crystal_forge", "skills", "cross-language-crystal-parity")
+  candidates << File.join(home, ".config", "opencode", "skills", "cross-language-crystal-parity")
+  candidates << File.join(home, ".claude", "skills", "crystal_forge", "skills", "cross-language-crystal-parity")
+  candidates << File.join(home, ".claude", "skills", "cross-language-crystal-parity")
 
   candidates.each do |dir|
     return dir if File.directory?(dir) && File.exists?(File.join(dir, "scripts", "plan_with_chiasmus.sh"))
