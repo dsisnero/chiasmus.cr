@@ -101,7 +101,7 @@ module Chiasmus
         return [] of Item unless lang
 
         parser = TreeSitter::Parser.new(language: lang)
-        tree = parser.parse(nil, content)
+        tree = parser.parse(content)
         root = tree.root_node
         items = extractor.extract(root, content, file_path)
 

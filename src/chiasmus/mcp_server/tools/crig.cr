@@ -29,12 +29,12 @@ end
 # Crig-native tool definition using rig_tool macro
 Crig.rig_tool("Run a direct Crig prompt using the configured LLM provider and return the model output.",
   {
-    "prompt"    => "The user prompt to send through Crig",
-    "preamble"  => "Optional agent preamble/system guidance",
-    "model"     => "Optional Crig/OpenAI model override",
-    "max_turns" => "Optional multi-turn budget for tool-enabled prompts",
+    prompt:    "The user prompt to send through Crig",
+    preamble:  "Optional agent preamble/system guidance",
+    model:     "Optional Crig/OpenAI model override",
+    max_turns: "Optional multi-turn budget for tool-enabled prompts",
   },
-  ["prompt"]
+  [:prompt]
 ) do
   def crig_prompt(
     prompt : String,
@@ -71,19 +71,17 @@ module Chiasmus
         end
 
         def self.tool_description : String
-          CRIG_PROMPT.definition("").description
+          CRIG_PROMPT.description
         end
 
         def self.input_schema : MCP::Protocol::Tool::Input
-          defn = CRIG_PROMPT.definition("")
           props = Hash(String, JSON::Any).new
           required = [] of String
-          if params = defn.parameters
-            if params_props = params["properties"]?
-              params_props.as_h.each { |k, v| props[k] = v }
-            end
-            params["required"]?.try(&.as_a).try(&.each { |req| required << req.as_s })
+          params = CRIG_PROMPT.parameters
+          if params_props = params["properties"]?
+            params_props.as_h.each { |k, v| props[k] = v }
           end
+          params["required"]?.try(&.as_a).try(&.each { |req| required << req.as_s })
           MCP::Protocol::Tool::Input.new(properties: props, required: required)
         end
 

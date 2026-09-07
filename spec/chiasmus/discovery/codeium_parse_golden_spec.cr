@@ -19,7 +19,7 @@ private def extract_for(grammar_lang, test_ext)
     end
   source = File.read(test_path)
   parser = TreeSitter::Parser.new(language: lang)
-  tree = parser.parse(nil, source)
+  tree = parser.parse(source)
   {tree, source, test_ext}
 end
 

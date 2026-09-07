@@ -46,7 +46,7 @@ module Chiasmus
         def build(lang : TreeSitter::Language, content : String) : TreeSitter::Tree?
           parser = TreeSitter::Parser.new(language: lang)
           io = IO::Memory.new(content)
-          parser.parse(nil, io)
+          parser.parse(io)
         end
       end
 

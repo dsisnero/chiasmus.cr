@@ -2,7 +2,7 @@ version: 2.0
 shards:
   ameba:
     git: https://github.com/crystal-ameba/ameba.git
-    version: 1.6.4
+    version: 1.7.0
 
   ansi:
     git: https://github.com/dsisnero/ansi.git
@@ -10,7 +10,7 @@ shards:
 
   baked_file_system:
     git: https://github.com/schovi/baked_file_system.git
-    version: 0.14.0+git.commit.425bf6195fb41173216e68e11e5f63e6fc9487da
+    version: 0.14.1+git.commit.559a49ab2a7242f60bfd0e939f6b0c70b96b575a
 
   bidi:
     git: https://github.com/dsisnero/bidi.git
@@ -32,25 +32,21 @@ shards:
     git: https://github.com/erdnaxeli/clip.git
     version: 0.2.4
 
-  cml:
-    git: https://github.com/dsisnero/cml.git
-    version: 0.5.0+git.commit.dc848d779ff3fc2f534e0f22f495d20171f3bb63
-
   colorful:
     git: https://github.com/dsisnero/colorful.git
     version: 0.1.0+git.commit.f6fbe31e048dab06783e34b82f52d7527763f7eb
 
   colorprofile:
     git: https://github.com/dsisnero/colorprofile.git
-    version: 0.1.0+git.commit.c689a6d8a71c5d8fb3b863a1eb6dc10e7fa0f931
+    version: 0.1.1
 
   crig:
     git: https://github.com/dsisnero/crig.git
-    version: 0.39.0+git.commit.d54298fa3dc48fd9111436954edda7f011c31e82
+    version: 0.39.1+git.commit.0692edfc113700d50d71b22307b7f373af738f53
 
   crig-postgres:
     git: https://github.com/dsisnero/crig-postgres.git
-    version: 0.1.0+git.commit.24e5d9ff3342a4a030246e87cd1dad2a12fc542d
+    version: 0.1.0+git.commit.872d02e6172402668d155f13038d5962d319d1cc
 
   crig-sqlite:
     git: https://github.com/dsisnero/crig-sqlite.git
@@ -64,17 +60,9 @@ shards:
     git: https://github.com/dsisnero/crolog.git
     version: 0.0.2+git.commit.984f92fe994877400e3dc32f0a6abdd03649316a
 
-  csuuid:
-    git: https://github.com/wyhaines/csuuid.cr.git
-    version: 1.0.2
-
   db:
     git: https://github.com/crystal-lang/crystal-db.git
     version: 0.14.0
-
-  debug:
-    git: https://github.com/sija/debug.cr.git
-    version: 2.0.4
 
   dir-walk:
     git: https://github.com/dsisnero/dir-walk.git
@@ -94,7 +82,7 @@ shards:
 
   lipgloss:
     git: https://github.com/dsisnero/lipgloss.git
-    version: 2.0.3
+    version: 2.0.4
 
   mcp:
     git: https://github.com/dsisnero/mcp.cr.git
@@ -104,45 +92,17 @@ shards:
     git: https://github.com/dsisnero/mosaic.git
     version: 0.1.0+git.commit.efe05c232d6da4cf24ccceafa5b26a01314bfa94
 
-  nbchannel:
-    git: https://github.com/wyhaines/nbchannel.cr.git
-    version: 0.1.0
-
-  opentelemetry-api:
-    git: https://github.com/wyhaines/opentelemetry-api.cr.git
-    version: 0.5.1
-
-  opentelemetry-sdk:
-    git: https://github.com/wyhaines/opentelemetry-sdk.cr.git
-    version: 0.6.2
-
-  parse_date:
-    git: https://github.com/wyhaines/parsedate.cr.git
-    version: 0.1.2
-
   pdfbox:
     git: https://github.com/dsisnero/pdfbox.git
     version: 0.1.0+git.commit.6d263f2c65c068b02d42885b2abd2fc9f592b2a8
 
   pg:
     git: https://github.com/will/crystal-pg.git
-    version: 0.29.0+git.commit.c16d54814405e2b9748d9bddc3d8ce0d41d2190f
-
-  protobuf:
-    git: https://github.com/jeromegn/protobuf.cr.git
-    version: 2.3.1
-
-  retriable:
-    git: https://github.com/sija/retriable.cr.git
-    version: 0.2.5
+    version: 0.30.0+git.commit.9ce74e0c72b93a7c4ceca8b2f6fee00038108c74
 
   similar:
     git: https://github.com/dsisnero/similar.cr.git
     version: 0.1.0+git.commit.52cfbb2cf1295fabc0a4bf2405819181bcae6046
-
-  splay_tree_map:
-    git: https://github.com/wyhaines/splay_tree_map.cr.git
-    version: 0.4.0
 
   sqlite3:
     git: https://github.com/dsisnero/crystal-sqlite3.git
@@ -161,8 +121,8 @@ shards:
     version: 0.1.4
 
   terminfo:
-    git: https://github.com/docelic/terminfo.git
-    version: 0.8.1
+    git: https://github.com/dsisnero/terminfo.git
+    version: 0.8.2
 
   text-splitter:
     git: https://github.com/dsisnero/text-splitter.cr.git
@@ -172,25 +132,21 @@ shards:
     git: https://github.com/naqvis/uni_text_seg.git
     version: 0.1.3
 
-  time-ext:
-    git: https://github.com/wyhaines/time-ext.cr.git
-    version: 1.0.1
-
   tracing:
     git: https://github.com/dsisnero/tracing.cr.git
-    version: 0.5.1
+    version: 0.5.2
 
   tree-sitter-manager:
     git: https://github.com/dsisnero/tree-sitter-manager.git
-    version: 0.1.0+git.commit.bcf867c04c2a1edcf3909044bbfbe2f3567f920c
+    version: 0.1.0+git.commit.9f7ceadb34d9a9c39b97d315bc022684df7b1ddf
 
   tree_sitter:
     git: https://github.com/dsisnero/crystal-tree-sitter.git
-    version: 0.1.0+git.commit.6b19a0497b60140984d59322e6216d7826f928a6
+    version: 0.4.0
 
   ultraviolet:
     git: https://github.com/dsisnero/ultraviolet.git
-    version: 1.0.1
+    version: 1.1.1
 
   uniwidth:
     git: https://github.com/naqvis/uni_char_width.git
@@ -198,5 +154,5 @@ shards:
 
   z3:
     git: https://github.com/taw/crystal-z3.git
-    version: 0.2.0+git.commit.8d7da29692b8e04a852c15be2eda5b49a31d1036
+    version: 0.2.0+git.commit.d48095999e27f5c78226ae1cd3940b418b1a60da
 

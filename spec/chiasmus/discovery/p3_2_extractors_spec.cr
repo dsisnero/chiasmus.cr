@@ -18,7 +18,7 @@ describe Chiasmus::Discovery::JavaScriptExtractor do
     pending "javascript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Counter {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.js")
     classes = items.select { |i| i.kind == "class" }
@@ -31,7 +31,7 @@ describe Chiasmus::Discovery::JavaScriptExtractor do
     pending "javascript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "function hello() {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.js")
     functions = items.select { |i| i.kind == "function" }
@@ -44,7 +44,7 @@ describe Chiasmus::Discovery::JavaScriptExtractor do
     pending "javascript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "const fn = () => {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.js")
     functions = items.select { |i| i.kind == "function" }
@@ -57,7 +57,7 @@ describe Chiasmus::Discovery::JavaScriptExtractor do
     pending "javascript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "const API_URL = 'http://localhost'\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.js")
     consts = items.select { |i| i.kind == "const" }
@@ -72,7 +72,7 @@ describe Chiasmus::Discovery::RubyExtractor do
     pending "ruby grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class MyClass\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.rb")
     classes = items.select { |i| i.kind == "class" }
@@ -85,7 +85,7 @@ describe Chiasmus::Discovery::RubyExtractor do
     pending "ruby grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "module Namespace\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.rb")
     interfaces = items.select { |i| i.kind == "interface" }
@@ -98,7 +98,7 @@ describe Chiasmus::Discovery::RubyExtractor do
     pending "ruby grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo\n  def bar\n  end\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.rb")
     methods = items.select { |i| i.kind == "method" }
@@ -113,7 +113,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     classes = items.select { |i| i.kind == "class" }
@@ -126,7 +126,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "struct Point\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     classes = items.select { |i| i.kind == "class" }
@@ -139,7 +139,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "module Chiasmus\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     interfaces = items.select { |i| i.kind == "interface" }
@@ -152,7 +152,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo\n  def bar\n  end\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     methods = items.select { |i| i.kind == "method" }
@@ -164,7 +164,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     lang = load_lang("crystal")
     pending "crystal grammar not available" unless lang
     source = File.read(File.expand_path("../../testdata/parity/crystal/prolog_input.cr", __DIR__))
-    tree = TreeSitter::Parser.new(language: lang).parse(nil, source)
+    tree = TreeSitter::Parser.new(language: lang).parse(source)
     tree.root_node.has_error?.should be_false
 
     methods = extractor.extract(tree.root_node, source, "src/prolog_input.cr")
@@ -179,7 +179,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "enum Color\n  Red\n  Green\n  Blue\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     enums = items.select { |i| i.kind == "class" || i.kind == "enum" }
@@ -192,7 +192,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "alias PInt32 = Pointer(Int32)\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     types = items.select { |i| i.kind == "type" }
@@ -205,7 +205,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "macro define_method(name, content)\n  def {{name}}\n    {{content}}\n  end\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     macros = items.select { |i| i.kind == "macro" }
@@ -218,7 +218,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "VERSION = \"1.0.0\"\nMAX_SIZE = 1024\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     consts = items.select { |i| i.kind == "const" }
@@ -232,7 +232,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "annotation MyAnnotation\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     annotations = items.select { |i| i.kind == "annotation" }
@@ -245,7 +245,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo\n  @name : String\n  @count : Int32 = 0\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     fields = items.select { |i| i.kind == "field" }
@@ -259,7 +259,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo\n  @@instances = 0\n  @@config = {} of String => String\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     fields = items.select { |i| i.kind == "field" }
@@ -273,7 +273,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "lib LibC\n  fun malloc(size : UInt64) : Void*\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     libs = items.select { |i| i.kind == "lib" }
@@ -286,7 +286,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "lib LibC\n  fun malloc(size : UInt64) : Void*\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     funs = items.select { |i| i.kind == "function" }
@@ -299,7 +299,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "lib LibC\n  type MyType = Void*\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     types = items.select { |i| i.kind == "type" }
@@ -312,7 +312,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "lib LibC\n  union MyUnion\n    x : Int32\n    y : Float64\n  end\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     unions = items.select { |i| i.kind == "class" }
@@ -325,7 +325,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "lib LibC\n  struct MyStruct\n    x : Int32\n    y : Float64\n  end\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     structs = items.select { |i| i.kind == "class" }
@@ -338,7 +338,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "abstract class Foo\n  abstract def bar(x : Int32) : String\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     methods = items.select { |i| i.kind == "method" }
@@ -351,7 +351,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo\n  include Enumerable(Int32)\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     includes = items.select { |i| i.kind == "definition.module" }
@@ -364,7 +364,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "Foo.bar(1)\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     refs = items.select { |i| i.kind == "reference.call_sel" }
@@ -378,7 +378,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo\n  def run\n    self.helper\n  end\nend\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     refs = items.select { |i| i.kind == "reference.call_sel" }
@@ -392,7 +392,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "@logger.info(\"started\")\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     refs = items.select { |i| i.kind == "reference.call_sel" }
@@ -406,7 +406,7 @@ describe Chiasmus::Discovery::CrystalExtractor do
     pending "crystal grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "MAX = 100\nname = \"test\"\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.cr")
     consts = items.select { |i| i.kind == "const" }
@@ -422,7 +422,7 @@ describe Chiasmus::Discovery::ScalaExtractor do
     pending "scala grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.scala")
     classes = items.select { |i| i.kind == "class" }
@@ -435,7 +435,7 @@ describe Chiasmus::Discovery::ScalaExtractor do
     pending "scala grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "object Bar {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.scala")
     classes = items.select { |i| i.kind == "class" }
@@ -448,7 +448,7 @@ describe Chiasmus::Discovery::ScalaExtractor do
     pending "scala grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "trait Runnable {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.scala")
     interfaces = items.select { |i| i.kind == "interface" }
@@ -461,7 +461,7 @@ describe Chiasmus::Discovery::ScalaExtractor do
     pending "scala grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "def greet(): Unit = {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.scala")
     functions = items.select { |i| i.kind == "function" }
@@ -477,7 +477,7 @@ describe Chiasmus::Discovery::GoExtractor do
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\ntype Server struct {\n  Name string\n  Port int\n}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.go")
     fields = items.select { |i| i.kind == "field" }
@@ -493,7 +493,7 @@ describe Chiasmus::Discovery::JavaExtractor do
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class X { private String name; int count; }\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
     fields = items.select { |i| i.kind == "field" }
@@ -509,7 +509,7 @@ describe Chiasmus::Discovery::JavaScriptExtractor do
     pending "javascript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Counter { count = 0; name = 'test'; }\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.js")
     fields = items.select { |i| i.kind == "field" }
@@ -525,7 +525,7 @@ describe Chiasmus::Discovery::PythonExtractor do
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo:\n  name = 'test'\n  count = 42\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.py")
     fields = items.select { |i| i.kind == "field" }
@@ -541,7 +541,7 @@ describe Chiasmus::Discovery::TypeScriptExtractor do
     pending "typescript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo { name: string; count: number; }\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.ts")
     fields = items.select { |i| i.kind == "field" }

@@ -17,7 +17,7 @@ describe Chiasmus::Discovery::PythonExtractor do
     lang = TreeSitterManager::GrammarLoader.load_language("python")
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
-    tree = parser.parse(nil, "class MyClass:\n  pass\n")
+    tree = parser.parse("class MyClass:\n  pass\n")
 
     items = extractor.extract(tree.root_node, tree.root_node.text("class MyClass:\n  pass\n"), "test.py")
     classes = items.select { |i| i.kind == "class" }
@@ -30,7 +30,7 @@ describe Chiasmus::Discovery::PythonExtractor do
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "def my_func():\n  pass\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.py")
     functions = items.select { |i| i.kind == "function" }
@@ -43,7 +43,7 @@ describe Chiasmus::Discovery::PythonExtractor do
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "API_KEY = 'secret'\nnormal_var = 1\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.py")
     consts = items.select { |i| i.kind == "const" }
@@ -57,7 +57,7 @@ describe Chiasmus::Discovery::PythonExtractor do
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "def test_addition():\n  pass\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.py")
     tests = items.select { |i| i.scope == "test" }
@@ -70,7 +70,7 @@ describe Chiasmus::Discovery::PythonExtractor do
     pending "python grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class Foo:\n  def bar(self):\n    pass\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.py")
     methods = items.select { |i| i.kind == "method" }
@@ -85,7 +85,7 @@ describe Chiasmus::Discovery::GoExtractor do
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\nfunc main() {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.go")
     functions = items.select { |i| i.kind == "function" }
@@ -98,7 +98,7 @@ describe Chiasmus::Discovery::GoExtractor do
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\ntype Server struct {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.go")
     classes = items.select { |i| i.kind == "class" }
@@ -111,7 +111,7 @@ describe Chiasmus::Discovery::GoExtractor do
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\ntype Speaker interface {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.go")
     interfaces = items.select { |i| i.kind == "interface" }
@@ -124,7 +124,7 @@ describe Chiasmus::Discovery::GoExtractor do
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\nfunc (s *Server) Start() {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.go")
     methods = items.select { |i| i.kind == "method" }
@@ -137,7 +137,7 @@ describe Chiasmus::Discovery::GoExtractor do
     pending "go grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "package main\nfunc TestServer(t *testing.T) {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.go")
     tests = items.select { |i| i.scope == "test" }
@@ -152,7 +152,7 @@ describe Chiasmus::Discovery::JavaExtractor do
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class MyClass {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
     classes = items.select { |i| i.kind == "class" }
@@ -165,7 +165,7 @@ describe Chiasmus::Discovery::JavaExtractor do
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "interface Runnable {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
     interfaces = items.select { |i| i.kind == "interface" }
@@ -178,7 +178,7 @@ describe Chiasmus::Discovery::JavaExtractor do
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "enum Color { RED, GREEN }\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
     enums = items.select { |i| i.kind == "enum" }
@@ -191,7 +191,7 @@ describe Chiasmus::Discovery::JavaExtractor do
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "record Point(int x, int y) {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
     classes = items.select { |i| i.kind == "class" }
@@ -210,7 +210,7 @@ describe Chiasmus::Discovery::JavaExtractor do
         int counter = 0;
       }
     JAVA
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
     consts = items.select { |i| i.kind == "const" }
@@ -225,7 +225,7 @@ describe Chiasmus::Discovery::JavaExtractor do
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "void topLevel() {}\nclass X { void foo() {} }\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
     methods = items.select { |i| i.kind == "method" }
@@ -241,7 +241,7 @@ describe Chiasmus::Discovery::JavaExtractor do
     pending "java grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "class X { void foo() {} }\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.java")
     methods = items.select { |i| i.kind == "method" }
@@ -256,7 +256,7 @@ describe Chiasmus::Discovery::RustExtractor do
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "struct Point { x: i32 }\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.rs")
     classes = items.select { |i| i.kind == "class" }
@@ -269,7 +269,7 @@ describe Chiasmus::Discovery::RustExtractor do
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "enum Option { Some, None }\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.rs")
     classes = items.select { |i| i.kind == "class" }
@@ -282,7 +282,7 @@ describe Chiasmus::Discovery::RustExtractor do
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "trait Display {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.rs")
     interfaces = items.select { |i| i.kind == "interface" }
@@ -295,7 +295,7 @@ describe Chiasmus::Discovery::RustExtractor do
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "fn main() {}\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.rs")
     functions = items.select { |i| i.kind == "function" }
@@ -308,7 +308,7 @@ describe Chiasmus::Discovery::RustExtractor do
     pending "rust grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
     source = "const MAX: i32 = 100;\n"
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     items = extractor.extract(tree.root_node, source, "test.rs")
     consts = items.select { |i| i.kind == "const" }

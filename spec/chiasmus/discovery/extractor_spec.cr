@@ -65,7 +65,7 @@ describe Chiasmus::Discovery::QueryExtractor do
     lang = typescript_language
     next pending "typescript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     extractor = Chiasmus::Discovery::TestExtractor.new
     items = extractor.extract(tree.root_node, source, "test.ts")
@@ -82,7 +82,7 @@ describe Chiasmus::Discovery::QueryExtractor do
     lang = typescript_language
     next pending "typescript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     extractor = Chiasmus::Discovery::TestExtractor.new
     items = extractor.extract(tree.root_node, source, "src/app.ts")
@@ -102,7 +102,7 @@ describe Chiasmus::Discovery::QueryExtractor do
     lang = typescript_language
     next pending "typescript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     extractor = Chiasmus::Discovery::TestExtractor.new
     extractor.clear_caches_for_test
@@ -127,7 +127,7 @@ describe Chiasmus::Discovery::QueryExtractor do
     lang = typescript_language
     next pending "typescript grammar not available" unless lang
     parser = TreeSitter::Parser.new(language: lang)
-    tree = parser.parse(nil, source)
+    tree = parser.parse(source)
 
     class_extractor = CacheKeyExtractor.new("(class_declaration name: (type_identifier) @name) @def")
     function_extractor = CacheKeyExtractor.new("(function_declaration name: (identifier) @name) @def")

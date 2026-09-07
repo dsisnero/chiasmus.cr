@@ -26,10 +26,8 @@ dependencies:
     github: dsisnero/dir-walk
   tree_sitter:
     github: dsisnero/crystal-tree-sitter
-    branch: fix/windows-uint16-portability
   tree-sitter-manager:
     github: dsisnero/tree-sitter-manager
-    branch: main
   z3:
     github: taw/crystal-z3
   crolog:
@@ -37,7 +35,13 @@ dependencies:
     branch: feat/add-missing-swipl-bindings
   crig:
     github: dsisnero/crig
-    commit: d54298fa3dc48fd9111436954edda7f011c31e82
+    branch: main
+  crig-postgres:
+    github: dsisnero/crig-postgres
+    branch: main
+  pg:
+    github: will/crystal-pg
+    branch: master
   json-schema:
     github: spider-gazelle/json-schema
   crig-sqlite:

@@ -12,9 +12,12 @@ module Chiasmus
 
     getter name : String = "chiasmus"
 
-    def definition(prompt : String) : Crig::Completion::ToolDefinition
-      # Create JSON schema for parameters
-      schema = {
+    def description : String
+      "Formal verification tool. Use Z3 or Prolog to solve logical problems."
+    end
+
+    def parameters : JSON::Any
+      JSON.parse({
         "type"       => "object",
         "properties" => {
           "problem" => {
@@ -33,12 +36,14 @@ module Chiasmus
           },
         },
         "required" => ["problem"],
-      }
+      }.to_json)
+    end
 
+    def definition(prompt : String) : Crig::Completion::ToolDefinition
       Crig::Completion::ToolDefinition.new(
         name: name,
-        description: "Formal verification tool. Use Z3 or Prolog to solve logical problems.",
-        parameters: JSON.parse(schema.to_json)
+        description: description,
+        parameters: parameters
       )
     end
 

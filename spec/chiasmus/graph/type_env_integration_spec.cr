@@ -13,7 +13,7 @@ private def parse_ts(source : String) : TreeSitter::Node?
   lang = typescript_language
   return nil unless lang
   parser = TreeSitter::Parser.new(language: lang)
-  tree = parser.parse(nil, source)
+  tree = parser.parse(source)
   tree.root_node
 end
 
