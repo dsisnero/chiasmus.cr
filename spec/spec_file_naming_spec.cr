@@ -18,6 +18,7 @@ describe "spec file naming" do
       next false if path == "spec/spec_helper.cr"
       next false if path.starts_with?("spec/support/")
       next false if path.starts_with?("spec/testdata/")
+      next false if File.basename(path).starts_with?("._")
       next false if File.extname(path).empty?
 
       ext = File.extname(path)

@@ -213,9 +213,12 @@ describe "chiasmus-complete CLI process" do
 
     status_result.not_nil!.exit_code.should eq(2), status_stderr
     incomplete_result.not_nil!.success?.should be_true, incomplete_stderr
-    status_stdout.should contain("status\tincomplete")
-    status_stdout.should contain("incomplete_count\t263")
-    incomplete_stdout.lines.size.should eq(263)
+
+    expected_status = File.read(File.join(dir, "completion_status.tsv"))
+    expected_incomplete_ids = File.read_lines(File.join(dir, "completion_incomplete.tsv"))[1..].map { |line| line.split('\t').first }.sort
+
+    status_stdout.should eq(expected_status)
+    incomplete_stdout.lines.sort.should eq(expected_incomplete_ids)
     incomplete_stdout.should contain("src/config.ts::function::loadConfig")
   ensure
     status_output.try(&.close)
