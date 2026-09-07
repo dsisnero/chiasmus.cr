@@ -415,8 +415,17 @@ module Chiasmus
     private def find_grammar_dir(language : String) : String?
       vendor_grammars_dir = File.expand_path("../../grammars", __DIR__)
 
-      # Check for tree-sitter-language directory
-      dir_name = "tree-sitter-#{language}"
+      # TypeScript packages the TSX grammar below its shared repository root.
+      if language == "tsx"
+        shared_dir = File.join(vendor_grammars_dir, "tree-sitter-typescript")
+        return shared_dir if Dir.exists?(shared_dir)
+      end
+
+      # Some language identifiers differ from their grammar directory names.
+      dir_name = case language
+                 when "csharp" then "tree-sitter-c-sharp"
+                 else               "tree-sitter-#{language}"
+                 end
       dir_path = File.join(vendor_grammars_dir, dir_name)
       return dir_path if Dir.exists?(dir_path)
 

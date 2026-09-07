@@ -14,6 +14,7 @@ describe TreeSitterManager::GrammarManager do
         test.run
       ensure
         FileUtils.rm_rf(temp_cache) if Dir.exists?(temp_cache)
+        TreeSitterManager::GrammarManager.test_reset
       end
     end
 

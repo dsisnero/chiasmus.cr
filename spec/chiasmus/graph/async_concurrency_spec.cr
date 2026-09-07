@@ -36,16 +36,6 @@ module Chiasmus::Graph::Parser
   end
 end
 
-class TreeSitterManager::GrammarManager
-  def self.test_reset(cache_dir : String? = nil)
-    @@mutex.synchronize do
-      @@instance = nil
-      @@cache_dir = cache_dir
-      @@initialized = false
-    end
-  end
-end
-
 private def with_xdg_dirs(cache_home : String, config_home : String, &)
   previous_cache = ENV["XDG_CACHE_HOME"]?
   previous_config = ENV["XDG_CONFIG_HOME"]?

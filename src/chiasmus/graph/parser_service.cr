@@ -40,6 +40,10 @@ module Chiasmus
         def load_language_from_grammar_path(language : String, grammar_path : String?) : TreeSitter::Language?
           TreeSitterManager::LanguageLoader.load_language_from_grammar_path(language, grammar_path)
         end
+
+        def load_language(language : String) : TreeSitter::Language?
+          TreeSitterManager::GrammarLoader.load_language(language)
+        end
       end
 
       class TreeBuilder
@@ -101,8 +105,10 @@ module Chiasmus
             end
           end
 
-          # Fallback: try vendor directory directly (for languages like csharp)
-          @language_gateway.load_language_from_grammar_path(language, nil)
+          # A stale or ABI-incompatible cache entry must not hide a bundled or
+          # explicitly registered grammar directory.
+          @language_gateway.load_language(language) ||
+            @language_gateway.load_language_from_grammar_path(language, nil)
         rescue
           nil
         end
