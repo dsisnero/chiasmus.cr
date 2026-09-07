@@ -98,7 +98,7 @@ shards:
 
   pg:
     git: https://github.com/will/crystal-pg.git
-    version: 0.30.0+git.commit.9ce74e0c72b93a7c4ceca8b2f6fee00038108c74
+    version: 0.30.0+git.commit.4b899a1c6fa47d02061999ac526a591d447fc428
 
   similar:
     git: https://github.com/dsisnero/similar.cr.git
@@ -138,11 +138,11 @@ shards:
 
   tree-sitter-manager:
     git: https://github.com/dsisnero/tree-sitter-manager.git
-    version: 0.1.0+git.commit.9f7ceadb34d9a9c39b97d315bc022684df7b1ddf
+    version: 0.1.0+git.commit.c60dbad1e13d6cee39a7e0e0e27a4993b4cef783
 
   tree_sitter:
     git: https://github.com/dsisnero/crystal-tree-sitter.git
-    version: 0.4.0
+    version: 0.4.0+git.commit.70f9b3c1c96685725677d288dbd863a8cd87be47
 
   ultraviolet:
     git: https://github.com/dsisnero/ultraviolet.git
