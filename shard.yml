@@ -34,7 +34,6 @@ dependencies:
     github: taw/crystal-z3
   crolog:
     github: dsisnero/crolog
-    branch: feat/add-missing-swipl-bindings
   crig:
     github: dsisnero/crig
     branch: main

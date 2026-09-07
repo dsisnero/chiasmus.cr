@@ -58,7 +58,7 @@ shards:
 
   crolog:
     git: https://github.com/dsisnero/crolog.git
-    version: 0.0.2+git.commit.984f92fe994877400e3dc32f0a6abdd03649316a
+    version: 0.0.3
 
   db:
     git: https://github.com/crystal-lang/crystal-db.git
