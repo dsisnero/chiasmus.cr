@@ -1,8 +1,12 @@
 # Chiasmus Crystal Parity Plan
 
-## Current Inventory State (vendor/chiasmus @ `d1f1291e`)
+## Current Inventory State (vendor/chiasmus @ `55d43881`)
 
-Ledger reconciled against the pinned vendor revision on 2026-08-16.
+The curated ledger was reconciled against `d1f1291e` on 2026-08-16. The vendor
+pointer advanced to `55d43881` (upstream v0.1.27–v0.1.28) on 2026-09-07; its
+new source and test declarations remain a pending, explicitly scoped refresh in
+P63–P64 below. The counts therefore describe the last reconciled baseline, not
+an assertion that the new vendor surface is already closed.
 
 _(The completed P20 notes below describe the earlier 07bbf4a → 576ed38 update; they are retained as implementation history.)_
 
@@ -60,7 +64,7 @@ substitutions.
 | `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
 | `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
-## Feature-Sized Phases (P28-P62)
+## Feature-Sized Phases (P28-P64)
 
 Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
 an existing equivalent spec) before changing implementation. On completion, update
@@ -104,8 +108,20 @@ parity check; generated manifests remain generated artifacts.
 | P60 | Skills and search result-contract audit | Reconcile template learning/list/query and semantic search payloads with the vendor test contract, including metadata omission, result ordering, persistence failures, and no-provider behavior. | Red specs are ported from `learning`, `skill-library`, `craft`, and `mcp-search` tests before implementation. Complete when mismatches are either ported or recorded as Crig/BM25 divergences with concrete Crystal refs and focused gates pass. |
 | P61 | Solver and formalization recovery semantics | Reconcile timeout, cancellation, correction history, malformed-output recovery, and resource disposal across Z3, Prolog, and formalization loops without weakening Crystal's crolog/Crig substitutions. | Red specs characterize vendor `z3-*`, `session`, `correction-loop`, `formalize`, and `validate` behaviors. Complete when concurrent solver requests and bounded correction flows have deterministic wire outcomes, with substitutions explicitly retained in the inventory. |
 | P62 | LLM and MCP facade conformance sweep | Audit provider/configuration routing through Crig and the complete MCP facade—tool gating, schemas, stdio startup, shutdown, and error envelopes—against the vendor integration tests. | Red transport/process specs precede changes. Complete when every vendor-only adapter behavior is either covered by Crig's equivalent seam or marked intentional divergence, the live stdio healthcheck passes, and full MCP-focused gates are green. |
+| P63 ☐ | Scheme, Racket, and Common Lisp graph support | Port the v0.1.27 grammar lifecycle and S-expression graph behavior: extension detection; shared Scheme/Racket grammar loading; Common Lisp package, export/import, call, and file-document extraction; cross-file package call resolution; unqualified `/` and `:` symbol lookup; and cache schema migration for file namespaces. Map `tests/graph/scheme.test.ts`, `tests/graph/commonlisp.test.ts`, `map.test.ts`, and the affected extractor/parser/facts tests before implementation. | Complete when red Crystal specs cover the vendor fixture corpus and direct + MCP graph/map/search outputs; the tree-sitter-manager installation path provides both grammars for release artifacts; v4 cache invalidation is safe; unsupported reader forms are ledgered; focused graph/MCP gates and refreshed source/test drift checks pass. |
+| P64 ☐ | Prolog batch-session integrity | Port the v0.1.28 `chiasmus_verify` batch contract: consult one program once, execute ordered queries in one isolated session, retain dynamic state between successful queries, stop on the first error, and dispose once. Characterize direct solver and MCP behavior from `tests/mcp-server.test.ts` and `tests/prolog-solver.test.ts`, including user-defined `member/2`, list/CLPFD availability, repeated reachability, and Mermaid fact-name hygiene. | Complete when red specs prove ordered shared-session results and process health after repeated graph queries; crolog's native worker/session ownership is used instead of the vendor SWI-WASM teardown mechanism; any intentional runtime differences are inventory-ledgered; solver/graph/MCP gates and refreshed source/test drift checks pass. |
 
-Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, P40, P41, P42, and the subsequent MCP compatibility phases P43–P55. P56 → P57 protect snapshot runtime behavior; P59 verifies graph parity after that work. P60, P61, and P62 then proceed in the requested subsystem order: skills/search, solvers/formalization, then LLM adapters/MCP facade. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
+Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, P40, P41, P42, and the subsequent MCP compatibility phases P43–P55. P56 → P57 protect snapshot runtime behavior; P59 verifies graph parity after that work. P63 establishes the new S-expression extraction layer before P59 absorbs its regression corpus. P64 establishes Prolog batch/session health before P61 re-audits solver recovery semantics. P60, P61, and P62 then proceed in the requested subsystem order: skills/search, solvers/formalization, then LLM adapters/MCP facade. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
+
+### Vendor refresh `d1f1291e` → `55d43881` (2026-09-07)
+
+| Feature-sized impact | Upstream change | Planned phase |
+|---|---|---|
+| S-expression graph extraction | Adds vendored Scheme and Common Lisp WASM grammars, Scheme/Racket/Common Lisp file extensions, a shared WASM-language cache, and the new `extract-sexp.ts` walkers. | P63 ☐ |
+| Package-aware graph views | Adds Common Lisp package namespace metadata, cross-file call promotion, unqualified `:` symbol matching, and corresponding map/native-analysis behavior. | P63 ☐ |
+| Graph cache and documentation | Bumps the vendor cache schema to v4 for `FileNode.namespace`, and advertises the three new languages plus `;;;` file documentation. | P63 ☐ |
+| Prolog batch integrity | Replaces per-query `chiasmus_verify` consultation with one batch session; removes the collision-prone blanket `library(lists)` import; adds batch types/API and runtime-corruption regression coverage. | P64 ☐ |
+| Prolog fact hygiene | Renames generated Mermaid reachability helper use to `chiasmus_member/2` so user predicates cannot collide. | P64 ☐ |
 
 P38 deliberately excluded solve-history serialization and learn extraction/rejection payloads; those subsequent wire contracts are completed in P41 and P42. Map raw JSON is completed in P43 and graph native-result projection in P51.
 
