@@ -13,6 +13,7 @@ DEFAULT_LANGUAGES = [
   "go",
   "rust",
   "scala",
+  "csharp",
   "javascript",
   "typescript",
   "tsx",
