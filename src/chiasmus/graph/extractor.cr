@@ -149,21 +149,19 @@ module Chiasmus
         channel = Channel(CodeGraph).new(1)
 
         spawn do
-          begin
-            result = extract_graph(
-              files,
-              parser,
-              cache_dir: cache_dir,
-              repo_key: repo_key,
-              max_bytes: max_bytes,
-              max_concurrent: max_concurrent,
-              parallel_cpu: parallel_cpu
-            )
-            @@before_async_result_send_hook.try(&.call)
-            channel.send(result)
-          ensure
-            channel.close
-          end
+          result = extract_graph(
+            files,
+            parser,
+            cache_dir: cache_dir,
+            repo_key: repo_key,
+            max_bytes: max_bytes,
+            max_concurrent: max_concurrent,
+            parallel_cpu: parallel_cpu
+          )
+          @@before_async_result_send_hook.try(&.call)
+          channel.send(result)
+        ensure
+          channel.close
         end
 
         channel

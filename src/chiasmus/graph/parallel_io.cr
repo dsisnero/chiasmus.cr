@@ -45,16 +45,14 @@ module Chiasmus
       # input cannot monopolize extraction memory or the MCP transport.
       def read_source_files_with_warnings(file_paths : Array(String), max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT) : SourceReadResult
         outcomes = Utils::BoundedWork.map_ordered(file_paths, resolve_max_concurrent(max_concurrent)) do |path|
-          begin
-            if File.info(path).size > MAX_FILE_SIZE
-              SourceReadOutcome.new(warning: "Skipped #{path}: file exceeds #{MAX_FILE_SIZE} bytes")
-            else
-              run_before_read_hook(path)
-              SourceReadOutcome.new(file: SourceFile.new(path: path, content: File.read(path)))
-            end
-          rescue ex
-            SourceReadOutcome.new(warning: "Skipped #{path}: #{ex.message || ex.class.name}")
+          if File.info(path).size > MAX_FILE_SIZE
+            SourceReadOutcome.new(warning: "Skipped #{path}: file exceeds #{MAX_FILE_SIZE} bytes")
+          else
+            run_before_read_hook(path)
+            SourceReadOutcome.new(file: SourceFile.new(path: path, content: File.read(path)))
           end
+        rescue ex
+          SourceReadOutcome.new(warning: "Skipped #{path}: #{ex.message || ex.class.name}")
         end
 
         files = [] of SourceFile
@@ -81,11 +79,9 @@ module Chiasmus
 
       def read_source_files_or_raise(file_paths : Array(String), max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT, &reader : String -> String) : Array(SourceFile)
         Utils::BoundedWork.map_ordered_or_raise(file_paths, max_concurrent) do |path|
-          begin
-            SourceFile.new(path: path, content: reader.call(path))
-          rescue ex
-            raise "Failed to read #{path}: #{ex.message}"
-          end
+          SourceFile.new(path: path, content: reader.call(path))
+        rescue ex
+          raise "Failed to read #{path}: #{ex.message}"
         end
       end
 

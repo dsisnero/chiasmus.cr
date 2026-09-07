@@ -38,14 +38,12 @@ module Chiasmus
         channel = Channel(AsyncDiscoveryResult).new(1)
 
         spawn do
-          begin
-            result = discover(source_dir)
-            self.class.run_before_async_result_send_hook
-            channel.send(AsyncDiscoveryResult.new(value: result))
-          rescue ex
-            self.class.run_before_async_result_send_hook
-            channel.send(AsyncDiscoveryResult.new(error: ex))
-          end
+          result = discover(source_dir)
+          self.class.run_before_async_result_send_hook
+          channel.send(AsyncDiscoveryResult.new(value: result))
+        rescue ex
+          self.class.run_before_async_result_send_hook
+          channel.send(AsyncDiscoveryResult.new(error: ex))
         end
 
         channel
@@ -70,14 +68,12 @@ module Chiasmus
         channel = Channel(AsyncDiscoveryResult).new(1)
 
         spawn do
-          begin
-            result = discover_files(files)
-            self.class.run_before_async_result_send_hook
-            channel.send(AsyncDiscoveryResult.new(value: result))
-          rescue ex
-            self.class.run_before_async_result_send_hook
-            channel.send(AsyncDiscoveryResult.new(error: ex))
-          end
+          result = discover_files(files)
+          self.class.run_before_async_result_send_hook
+          channel.send(AsyncDiscoveryResult.new(value: result))
+        rescue ex
+          self.class.run_before_async_result_send_hook
+          channel.send(AsyncDiscoveryResult.new(error: ex))
         end
 
         channel

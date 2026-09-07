@@ -169,12 +169,10 @@ module Chiasmus
       channel = Channel(AsyncDiscoveryResult).new(1)
 
       spawn do
-        begin
-          result = Result.new(items: deduplicate(discover_with_regex(language, source, file_path)), parser_mode: parser_mode)
-          channel.send(AsyncDiscoveryResult.new(value: result))
-        rescue ex
-          channel.send(AsyncDiscoveryResult.new(error: ex))
-        end
+        result = Result.new(items: deduplicate(discover_with_regex(language, source, file_path)), parser_mode: parser_mode)
+        channel.send(AsyncDiscoveryResult.new(value: result))
+      rescue ex
+        channel.send(AsyncDiscoveryResult.new(error: ex))
       end
 
       channel
@@ -184,13 +182,11 @@ module Chiasmus
       channel = Channel(AsyncDiscoveryResult).new(1)
 
       spawn do
-        begin
-          items = files.flat_map { |path, content| discover_with_regex(language, content, path) }
-          result = Result.new(items: deduplicate(items), parser_mode: parser_mode)
-          channel.send(AsyncDiscoveryResult.new(value: result))
-        rescue ex
-          channel.send(AsyncDiscoveryResult.new(error: ex))
-        end
+        items = files.flat_map { |path, content| discover_with_regex(language, content, path) }
+        result = Result.new(items: deduplicate(items), parser_mode: parser_mode)
+        channel.send(AsyncDiscoveryResult.new(value: result))
+      rescue ex
+        channel.send(AsyncDiscoveryResult.new(error: ex))
       end
 
       channel

@@ -76,15 +76,13 @@ module Chiasmus
           sources = [] of Graph::SourceFile
           warnings = [] of String
           paths.each do |path|
-            begin
-              if File.info(path).size > MAX_FILE_SIZE
-                warnings << "Skipped #{path}: file exceeds #{MAX_FILE_SIZE} bytes"
-              else
-                sources << Graph::SourceFile.new(path: path, content: File.read(path))
-              end
-            rescue ex
-              warnings << "Skipped #{path}: #{ex.message}"
+            if File.info(path).size > MAX_FILE_SIZE
+              warnings << "Skipped #{path}: file exceeds #{MAX_FILE_SIZE} bytes"
+            else
+              sources << Graph::SourceFile.new(path: path, content: File.read(path))
             end
+          rescue ex
+            warnings << "Skipped #{path}: #{ex.message}"
           end
           {sources, warnings}
         end

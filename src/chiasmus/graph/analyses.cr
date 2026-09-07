@@ -251,25 +251,23 @@ module Chiasmus
         channel = Channel(AsyncAnalysisResult).new(1)
 
         spawn do
-          begin
-            result = run_analysis(
-              file_paths,
-              request,
-              cache_dir: cache_dir,
-              snapshot_cache_dir: snapshot_cache_dir,
-              repo_key: repo_key,
-              max_bytes: max_bytes,
-              save_snapshot: save_snapshot,
-              await_snapshot: await_snapshot
-            )
-            @@before_async_result_send_hook.try(&.call)
-            channel.send(AsyncAnalysisResult.new(value: result))
-          rescue ex
-            @@before_async_result_send_hook.try(&.call)
-            channel.send(AsyncAnalysisResult.new(error: ex.message || ex.class.name))
-          ensure
-            channel.close
-          end
+          result = run_analysis(
+            file_paths,
+            request,
+            cache_dir: cache_dir,
+            snapshot_cache_dir: snapshot_cache_dir,
+            repo_key: repo_key,
+            max_bytes: max_bytes,
+            save_snapshot: save_snapshot,
+            await_snapshot: await_snapshot
+          )
+          @@before_async_result_send_hook.try(&.call)
+          channel.send(AsyncAnalysisResult.new(value: result))
+        rescue ex
+          @@before_async_result_send_hook.try(&.call)
+          channel.send(AsyncAnalysisResult.new(error: ex.message || ex.class.name))
+        ensure
+          channel.close
         end
 
         channel
@@ -293,16 +291,14 @@ module Chiasmus
         channel = Channel(AsyncAnalysisResult).new(1)
 
         spawn do
-          begin
-            result = run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
-            @@before_async_result_send_hook.try(&.call)
-            channel.send(AsyncAnalysisResult.new(value: result))
-          rescue ex
-            @@before_async_result_send_hook.try(&.call)
-            channel.send(AsyncAnalysisResult.new(error: ex.message || ex.class.name))
-          ensure
-            channel.close
-          end
+          result = run_analysis_from_graph(graph, request, snapshot_cache_dir: snapshot_cache_dir, repo_key: repo_key)
+          @@before_async_result_send_hook.try(&.call)
+          channel.send(AsyncAnalysisResult.new(value: result))
+        rescue ex
+          @@before_async_result_send_hook.try(&.call)
+          channel.send(AsyncAnalysisResult.new(error: ex.message || ex.class.name))
+        ensure
+          channel.close
         end
 
         channel

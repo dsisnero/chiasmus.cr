@@ -482,11 +482,9 @@ module Chiasmus
           channel = Channel(SemanticGraph).new(1)
 
           spawn do
-            begin
-              channel.send(refine(graph))
-            ensure
-              channel.close
-            end
+            channel.send(refine(graph))
+          ensure
+            channel.close
           end
 
           channel

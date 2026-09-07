@@ -40,11 +40,9 @@ module Chiasmus
         response = Channel(Solvers::SolverResult).new(1)
 
         spawn do
-          begin
-            response.send(solve(input))
-          rescue ex
-            response.send(Solvers::ErrorResult.new(ex.message || ex.class.name))
-          end
+          response.send(solve(input))
+        rescue ex
+          response.send(Solvers::ErrorResult.new(ex.message || ex.class.name))
         end
 
         response

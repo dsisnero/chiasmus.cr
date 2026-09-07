@@ -51,20 +51,18 @@ module Chiasmus
         @worker_done = done
 
         spawn(name: "chiasmus-session-#{session_id}") do
-          begin
-            loop do
-              request = chan.receive?
-              break unless request
-              begin
-                result = PrologRuntime.shared.solve(request.program, request.query, request.explain)
-                request.response.send(result)
-              rescue ex
-                request.response.send(ErrorResult.new(ex.message || ex.class.name))
-              end
+          loop do
+            request = chan.receive?
+            break unless request
+            begin
+              result = PrologRuntime.shared.solve(request.program, request.query, request.explain)
+              request.response.send(result)
+            rescue ex
+              request.response.send(ErrorResult.new(ex.message || ex.class.name))
             end
-          ensure
-            done.send(true)
           end
+        ensure
+          done.send(true)
         end
       end
 
@@ -92,11 +90,9 @@ module Chiasmus
           solve_prolog_async(input.program, input.query, input.explain, response)
         else
           spawn do
-            begin
-              response.send(@solver.solve(input))
-            rescue ex
-              response.send(ErrorResult.new(ex.message || ex.class.name))
-            end
+            response.send(@solver.solve(input))
+          rescue ex
+            response.send(ErrorResult.new(ex.message || ex.class.name))
           end
         end
 
