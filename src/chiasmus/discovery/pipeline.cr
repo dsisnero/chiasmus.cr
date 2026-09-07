@@ -9,9 +9,9 @@ module Chiasmus
     #
     # File reads and per-file extraction are bounded with the shared worker
     # helper so directory scans can overlap without unbounded fan-out.
-    # This stays on default fibers rather than ExecutionContext::Parallel
-    # because the workload is dominated by file I/O plus tree-sitter parsing,
-    # not proven CPU-only work.
+    # Tree-sitter parsing is CPU-intensive, but current native grammar loading
+    # and traversal regress severely across Parallel contexts. Keep this on
+    # bounded fibers until that dependency path is safe and efficient there.
     class Pipeline
       @@before_async_result_send_hook = nil.as((-> Nil)?)
       @@before_async_result_send_hook_mutex = Mutex.new

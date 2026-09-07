@@ -198,7 +198,7 @@ module ConcurrencyPerf
     all_items = [] of Chiasmus::Discovery::Item
     files.each do |file_path, content|
       parser = TreeSitter::Parser.new(language: language)
-      tree = parser.parse(nil, content)
+      tree = parser.parse(content)
       root = tree.root_node
       all_items.concat(extractor.extract(root, content, file_path))
       tree.root_node

@@ -1,5 +1,6 @@
 require "../../graph/extractor"
 require "../../graph/parallel_io"
+require "../../index/project_index"
 require "../../utils/bounded_work"
 require "tracing"
 
