@@ -34,6 +34,46 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
   end
 
   describe "file preparation" do
+    it "returns a typed warning-bearing error when every requested file is unreadable" do
+      missing = File.join(Dir.tempdir, "chiasmus-search-missing-#{Random::Secure.hex(8)}.cr")
+      tool = Chiasmus::MCPServer::Tools::SearchTool.new
+
+      response = tool.invoke({
+        "query" => JSON::Any.new("find function"),
+        "files" => JSON.parse([missing].to_json),
+      })
+
+      response.should be_a(Chiasmus::MCPServer::Types::SearchErrorResponse)
+      error = response.as(Chiasmus::MCPServer::Types::SearchErrorResponse)
+      error.status.should eq("error")
+      error.error.should eq("No readable files in `files`.")
+      error.warnings.size.should eq(1)
+      error.warnings.first.should contain("read failed: #{missing}")
+    end
+
+    it "preserves a successful empty corpus without requiring an embedding provider" do
+      tmpdir = File.join(Dir.tempdir, "search-tool-empty-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(tmpdir)
+      path = File.join(tmpdir, "empty.cr")
+      File.write(path, "# no definitions\n")
+
+      begin
+        tool = Chiasmus::MCPServer::Tools::SearchTool.new
+        response = tool.invoke({
+          "query" => JSON::Any.new("find function"),
+          "files" => JSON.parse([path].to_json),
+        })
+
+        response.should be_a(Chiasmus::MCPServer::Types::SearchResponse)
+        search = response.as(Chiasmus::MCPServer::Types::SearchResponse)
+        search.status.should eq("success")
+        search.hits.should be_empty
+        search.warnings.should be_nil
+      ensure
+        FileUtils.rm_rf(tmpdir)
+      end
+    end
+
     it "reads files with bounded concurrency" do
       tmpdir = File.join(Dir.tempdir, "search-tool-files-#{Random::Secure.hex(8)}")
       Dir.mkdir_p(tmpdir)
