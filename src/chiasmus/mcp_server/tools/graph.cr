@@ -180,7 +180,10 @@ module Chiasmus
             repo_key: repo_key,
             max_bytes: max_bytes,
             save_snapshot: save_snapshot,
-            await_snapshot: save_snapshot != nil
+            # Snapshot encoding and disk I/O run on GraphCache's dedicated
+            # worker. Do not hold the MCP response open for that fixed cost;
+            # clients can poll chiasmus_snapshot_status for readiness.
+            await_snapshot: false
           ).receive
           async_elapsed_ms = (Time.instant - started_at).total_milliseconds
           Tracing.info("chiasmus.graph.run_extracted_analysis",

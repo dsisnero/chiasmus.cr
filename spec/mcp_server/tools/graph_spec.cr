@@ -28,6 +28,43 @@ private def invoke_graph(args : Hash(String, JSON::Any)) : Chiasmus::MCPServer::
 end
 
 describe Chiasmus::MCPServer::Tools::GraphTool do
+  it "returns before an asynchronous snapshot write finishes" do
+    cache_dir = File.tempname("chiasmus-graph-async-snapshot-cache")
+    source = File.tempname("chiasmus-graph-async-snapshot", ".cr")
+    File.write(source, "class SnapshotProbe\nend\n")
+    entered = Channel(Bool).new(1)
+    release = Channel(Bool).new(1)
+    response = Channel(Chiasmus::MCPServer::Types::Response).new(1)
+
+    begin
+      Chiasmus::Graph::GraphCache.set_before_snapshot_write_hook_for_test do
+        entered.send(true)
+        release.receive?
+      end
+
+      spawn do
+        response.send(invoke_graph({
+          "files"         => JSON.parse([source].to_json),
+          "analysis"      => JSON::Any.new("summary"),
+          "cache"         => JSON.parse({"cache_dir" => cache_dir, "repo_key" => "async-snapshot"}.to_json),
+          "save_snapshot" => JSON::Any.new("baseline"),
+        }))
+      end
+
+      result = TreeSitterManager::Timeout.with_timeout_async(2_000, response)
+      result.should_not be_nil
+      result.not_nil!.status.should eq("success")
+      TreeSitterManager::Timeout.with_timeout_async(500, entered).should eq(true)
+    ensure
+      release.send(true) unless release.closed?
+      Chiasmus::Graph::GraphCache.clear_before_snapshot_write_hook_for_test
+      Chiasmus::Graph::GraphCache.flush_snapshot_writes
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      File.delete(source) if File.exists?(source)
+      FileUtils.rm_rf(cache_dir)
+    end
+  end
+
   it "persists a multi-file snapshot and reuses its warmed file cache" do
     cache_dir = File.tempname("chiasmus-multi-snapshot-cache")
     source_dir = File.tempname("chiasmus-multi-snapshot-source")
@@ -60,6 +97,7 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
         "save_snapshot" => JSON::Any.new("latest"),
       })
       second.status.should eq("success")
+      Chiasmus::Graph::GraphCache.flush_async_writes
       Chiasmus::Graph::GraphCache.load_snapshot("latest", cache_dir, repo_key: "multi-snapshot").should_not be_nil
     ensure
       Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test

@@ -160,6 +160,7 @@ describe "chiasmus_graph diff analysis via MCP" do
         })
 
         result.status.should eq("success")
+        Chiasmus::Graph::GraphCache.flush_async_writes
         Chiasmus::Graph::GraphCache.load_snapshot("default-saved", cache_dir).should_not be_nil
       end
     ensure
