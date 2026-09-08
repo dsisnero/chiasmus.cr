@@ -78,4 +78,110 @@ describe "S-expression graph extraction" do
     graph.imports.map(&.name).should eq(["cl", "alexandria"])
     graph.exports.map(&.name).should eq(["app:run"])
   end
+
+  it "extracts Scheme record constructors and accessors" do
+    graph = extract_sexp_graph <<-SCHEME, "point.scm"
+      (define-record-type point
+        (make-point x y)
+        point?
+        (x point-x set-point-x!)
+        (y point-y))
+      SCHEME
+
+    graph.defines.select { |definition| definition.kind == Chiasmus::Graph::SymbolKind::Class }.map(&.name).should eq(["point"])
+    graph.defines.select { |definition| definition.kind == Chiasmus::Graph::SymbolKind::Function }.map(&.name).should eq(["make-point", "point?", "point-x", "set-point-x!", "point-y"])
+  end
+
+  it "extracts Guile module imports and explicit exports" do
+    graph = extract_sexp_graph <<-SCHEME, "module.scm"
+      (define-module (my mod)
+        #:use-module (ice-9 match)
+        #:export (go))
+      (define (go) 1)
+      (define (internal) 2)
+      SCHEME
+
+    graph.imports.map(&.name).should eq(["ice-9.match"])
+    graph.exports.map(&.name).should eq(["go"])
+  end
+
+  it "extracts imports, exports, and definitions nested in an R7RS library" do
+    graph = extract_sexp_graph <<-SCHEME, "library.sld"
+      (define-library (my lib)
+        (export go)
+        (import (scheme base))
+        (begin
+          (define (go) 1)))
+      SCHEME
+
+    graph.imports.map(&.name).should eq(["scheme.base"])
+    graph.exports.map(&.name).should eq(["go"])
+    graph.defines.map(&.name).should eq(["go"])
+  end
+
+  it "does not emit calls to Scheme lambda parameters or internal definitions" do
+    graph = extract_sexp_graph <<-SCHEME, "scope.scm"
+      (define (helper x) x)
+      (define (outer proc x)
+        (define (inner y) (helper y))
+        (proc x)
+        (inner x))
+      SCHEME
+
+    graph.calls.map(&.callee).should eq(["helper"])
+  end
+
+  it "attributes Common Lisp defmethod calls to its generic function and ignores lexical locals" do
+    graph = extract_sexp_graph <<-LISP, "methods.lisp"
+      (defgeneric area (shape))
+      (defmethod area ((shape point))
+        (let ((helper 1))
+          (compute-area shape)))
+      (defun compute-area (shape) shape)
+      LISP
+
+    graph.calls.map { |call| "#{call.caller}->#{call.callee}" }.should eq(["area->compute-area"])
+  end
+
+  it "filters Common Lisp iteration forms and their bound variables from call edges" do
+    graph = extract_sexp_graph <<-LISP, "iteration.lisp"
+      (defun f (pairs)
+        (dolist (pair pairs)
+          (multiple-value-bind (quotient remainder) (floor 7 2)
+            (list pair quotient remainder))))
+      LISP
+
+    callees = graph.calls.map(&.callee)
+    callees.should_not contain("dolist")
+    callees.should_not contain("multiple-value-bind")
+    callees.should_not contain("pair")
+    callees.should_not contain("quotient")
+    callees.should_not contain("remainder")
+    callees.should_not contain("pairs")
+  end
+
+  it "extracts bare Racket require paths and unwrapped require specs" do
+    graph = extract_sexp_graph <<-RACKET, "main.rkt"
+      #lang racket
+      (require racket/list "helper.rkt" (only-in racket/string string-join))
+      RACKET
+
+    graph.imports.map(&.name).should eq(["racket/list", "helper.rkt", "racket/string"])
+  end
+
+  it "does not emit lexical local-function parameters as Common Lisp calls" do
+    graph = extract_sexp_graph <<-LISP, "locals.lisp"
+      (defun a () 1)
+      (defun helper () 1)
+      (defun f (x)
+        (labels ((h (a) (helper) (a)))
+          (h x)))
+      LISP
+
+    callees = graph.calls.map(&.callee)
+    graph.calls.map { |call| "#{call.caller}->#{call.callee}" }.should contain("f->helper")
+    callees.should_not contain("h")
+    callees.should_not contain("a")
+    callees.should_not contain("x")
+  end
 end

@@ -160,7 +160,7 @@ module Chiasmus
         "define", "define*", "define-public", "define/contract", "define/public", "define-values", "define-syntax", "define-syntax-rule",
         "defun", "defmacro", "defgeneric", "defmethod", "defvar", "defparameter", "defconstant", "defglobal", "defclass", "defstruct", "deftype", "define-condition",
         "lambda", "let", "let*", "letrec", "let-values", "letrec-values", "if", "when", "unless", "cond", "case", "begin", "and", "or", "not", "quote", "quasiquote",
-        "set!", "setf", "progn", "loop", "dolist", "dotimes", "labels", "flet", "macrolet", "funcall", "apply", "declare", "in-package", "defpackage", "define-package", "export", "provide", "import", "require", "use-modules", "load", "define-library", "define-module",
+        "set!", "setq", "setf", "progn", "loop", "dolist", "dotimes", "multiple-value-bind", "destructuring-bind", "labels", "flet", "macrolet", "funcall", "apply", "declare", "in-package", "defpackage", "define-package", "export", "provide", "import", "require", "use-modules", "load", "define-library", "define-module",
       }
 
       def extract(file : SourceFile) : CodeGraph
@@ -171,7 +171,7 @@ module Chiasmus
         calls = [] of CallsFact
         imports = [] of ImportsFact
         exports = [] of ExportsFact
-        forms_to_scan(forms).each { |form| collect_imports(form, file.path, imports) }
+        forms.each { |form| collect_imports(form, file.path, imports) }
         forms_to_scan(forms).each { |form| collect_definitions(form, file.path, language, namespace, defines) }
 
         explicit_exports = explicit_exports_for(forms, language)
@@ -270,8 +270,17 @@ module Chiasmus
           target = args.first?
           macro_name = target && target.list? ? plain_name(target.children.first?) : plain_name(target)
           add_definition(defines, file, macro_name, SymbolKind::Function, form.line, nil)
-        elsif name.in?("struct", "define-struct", "define-record-type")
+        elsif name.in?("struct", "define-struct")
           add_definition(defines, file, plain_name(args.first?), SymbolKind::Class, form.line, nil)
+        elsif name == "define-record-type"
+          add_definition(defines, file, plain_name(args.first?), SymbolKind::Class, form.line, nil)
+          add_definition(defines, file, plain_name(args[1]?.try(&.children).try(&.first?)), SymbolKind::Function, form.line, nil)
+          add_definition(defines, file, plain_name(args[2]?), SymbolKind::Function, form.line, nil)
+          args[3..].each do |field|
+            next unless field.list?
+            add_definition(defines, file, plain_name(field.children[1]?), SymbolKind::Function, form.line, nil)
+            add_definition(defines, file, plain_name(field.children[2]?), SymbolKind::Function, form.line, nil)
+          end
         end
       end
 
@@ -297,10 +306,10 @@ module Chiasmus
             imports << ImportsFact.new(file: file, name: source, source: source)
           end
         when "define-module"
-          form.children.each do |entry|
+          form.children.each_with_index do |entry, index|
             next unless entry.symbol? && entry.text.try(&.starts_with?("#:use-module"))
+            add_import(file, form.children[index + 1]?, imports)
           end
-          form.children.each { |entry| collect_imports(entry, file, imports) if entry.list? }
         when "defpackage", "define-package"
           form.children[2..].each do |option|
             next unless option.list?
@@ -317,7 +326,7 @@ module Chiasmus
 
       # ameba:enable Metrics/CyclomaticComplexity
 
-      private def add_import(file : String, form : Form, imports : Array(ImportsFact), slash : Bool = false) : Nil
+      private def add_import(file : String, form : Form?, imports : Array(ImportsFact), slash : Bool = false) : Nil
         candidate = import_name(form, slash)
         return unless candidate
         imports << ImportsFact.new(file: file, name: candidate, source: candidate)
@@ -326,6 +335,7 @@ module Chiasmus
       private def import_name(form : Form?, slash : Bool) : String?
         return nil unless form
         return string_value(form) if form.string?
+        return plain_name(form) if form.symbol?
         return nil unless form.list?
         if head(form).in?("only", "except", "prefix", "rename", "only-in", "except-in", "prefix-in", "rename-in")
           return import_name(form.children[1]?, slash)
@@ -350,6 +360,19 @@ module Chiasmus
             end
           end
           return true
+        end
+        if form.list? && language != "commonlisp" && head(form) == "define-module"
+          form.children.each_with_index do |entry, index|
+            next unless entry.symbol? && entry.text.try(&.starts_with?("#:export"))
+            form.children[index + 1]?.try(&.children).try do |names|
+              names.each do |exported|
+                if name = plain_name(exported)
+                  exports << name
+                end
+              end
+            end
+            return true
+          end
         end
         if form.list? && language == "commonlisp" && head(form).in?("defpackage", "define-package")
           found = false
@@ -397,7 +420,9 @@ module Chiasmus
           body = [form]
         end
         return unless caller
-        walk_calls(body, caller, namespace, callable, Set(String).new, calls, call_set)
+        bound = bound_parameters_for(head_name, args)
+        bound.concat(internal_definition_names(body)) unless language == "commonlisp"
+        walk_calls(body, caller, namespace, callable, bound, calls, call_set)
       end
 
       # ameba:enable Metrics/CyclomaticComplexity
@@ -411,9 +436,36 @@ module Chiasmus
         return unless form.list?
         name = head(form)
         return unless name
+        if name.in?("labels", "flet")
+          nested = bound.dup
+          bindings = form.children[1]?
+          bindings.try(&.children).try do |entries|
+            entries.each do |entry|
+              next unless entry.list?
+              if local = plain_name(entry.children.first?)
+                nested << local
+              end
+            end
+            entries.each do |entry|
+              next unless entry.list?
+              local_scope = nested.dup
+              local_scope.concat(lambda_parameters(entry.children[1]?))
+              walk_calls(entry.children[2..], caller, namespace, callable, local_scope, calls, call_set)
+            end
+          end
+          walk_calls(form.children[2..], caller, namespace, callable, nested, calls, call_set)
+          return
+        end
         if name.in?("let", "let*", "letrec", "labels", "flet")
           nested = bound.dup
-          if bindings = form.children[1]?
+          binding_index = 1
+          if name == "let" && form.children[1]?.try(&.symbol?)
+            if local = plain_name(form.children[1]?)
+              nested << local
+            end
+            binding_index = 2
+          end
+          if bindings = form.children[binding_index]?
             bindings.children.each do |entry|
               if entry.list?
                 if local = plain_name(entry.children.first?)
@@ -423,6 +475,27 @@ module Chiasmus
             end
           end
           walk_calls(form.children[1..], caller, namespace, callable, nested, calls, call_set)
+          return
+        end
+        if name == "lambda"
+          nested = bound.dup
+          nested.concat(lambda_parameters(form.children[1]?))
+          walk_calls(form.children[2..], caller, namespace, callable, nested, calls, call_set)
+          return
+        end
+        if name == "dolist"
+          nested = bound.dup
+          if binding = form.children[1]?.try(&.children).try(&.first?)
+            local = plain_name(binding)
+            nested << local if local
+          end
+          walk_calls(form.children[1..], caller, namespace, callable, nested, calls, call_set)
+          return
+        end
+        if name.in?("multiple-value-bind", "destructuring-bind")
+          nested = bound.dup
+          nested.concat(lambda_parameters(form.children[1]?))
+          walk_calls(form.children[2..], caller, namespace, callable, nested, calls, call_set)
           return
         end
         unless SPECIAL_FORMS.includes?(name) || bound.includes?(name)
@@ -451,6 +524,47 @@ module Chiasmus
         return if call_set.includes?(key)
         call_set << key
         calls << CallsFact.new(caller: caller, callee: callee)
+      end
+
+      private def bound_parameters_for(head_name : String?, args : Array(Form)) : Set(String)
+        case head_name
+        when "defun", "defmacro", "defgeneric", "defmethod"
+          lambda_parameters(args[1]?)
+        when "defvar", "defparameter", "defconstant", "defglobal"
+          Set(String).new
+        else
+          target = args.first?
+          target && target.list? ? lambda_parameters_from_forms(target.children[1..]) : Set(String).new
+        end
+      end
+
+      private def internal_definition_names(forms : Array(Form)) : Set(String)
+        names = Set(String).new
+        forms.each do |form|
+          next unless form.list? && SCHEME_DEFINES.includes?(head(form))
+          target = form.children[1]?
+          name = plain_name(target) || plain_name(target.try(&.children).try(&.first?))
+          names << name if name
+        end
+        names
+      end
+
+      private def lambda_parameters(form : Form?) : Set(String)
+        return Set(String).new unless form && form.list?
+        lambda_parameters_from_forms(form.children)
+      end
+
+      private def lambda_parameters_from_forms(forms : Array(Form)) : Set(String)
+        names = Set(String).new
+        forms.each do |form|
+          if name = plain_name(form)
+            names << name unless name.starts_with?("&") || name.starts_with?("#:")
+          elsif form.list?
+            name = plain_name(form.children.first?)
+            names << name if name
+          end
+        end
+        names
       end
 
       private def resolve_name(name : String, namespace : String?, callable : Set(String)) : String

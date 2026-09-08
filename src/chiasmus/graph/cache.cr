@@ -15,6 +15,9 @@ require "tracing"
 module Chiasmus
   module Graph
     DEFAULT_MAX_BYTES = 64 * 1024 * 1024 # 64 MB
+    # Bump when an extracted graph gains fields that affect later graph-wide
+    # resolution. Version 4 adds FileNode.namespace for Common Lisp packages.
+    EXTRACTION_CACHE_VERSION = "4"
 
     # A durable receipt for an asynchronously requested named snapshot. The
     # snapshot JSON remains the authoritative graph data; this small sidecar
@@ -79,9 +82,17 @@ module Chiasmus
       @@store_mutex = Mutex.new
       @@stores = Hash(String, SQLiteCacheStore).new
 
-      # SHA-256(content + \0 + path) → hex digest
+      # SHA-256(extraction schema version + \0 + content + \0 + path) → hex
+      # digest. This rejects stale per-file payloads after extractor changes.
       def file_hash(content : String, abs_path : String) : String
-        OpenSSL::Digest.new("SHA256").update(content).update("\u0000").update(abs_path).final.hexstring
+        OpenSSL::Digest.new("SHA256")
+          .update(EXTRACTION_CACHE_VERSION)
+          .update("\u0000")
+          .update(content)
+          .update("\u0000")
+          .update(abs_path)
+          .final
+          .hexstring
       end
 
       def default_repo_key(cwd : String = Dir.current) : String
@@ -623,7 +634,14 @@ module Chiasmus
       end
 
       private def git_blob_hash(blob_oid : String, logical_path : String) : String
-        OpenSSL::Digest.new("SHA256").update(blob_oid).update("\u0000").update(logical_path).final.hexstring
+        OpenSSL::Digest.new("SHA256")
+          .update(EXTRACTION_CACHE_VERSION)
+          .update("\u0000")
+          .update(blob_oid)
+          .update("\u0000")
+          .update(logical_path)
+          .final
+          .hexstring
       end
 
       private def rewrite_cached_graph_paths(graph : CodeGraph, from_path : String, to_path : String) : CodeGraph

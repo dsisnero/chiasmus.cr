@@ -44,6 +44,9 @@ benchmark/tests/p5-validation.test.ts::test::finds the age gap (frontend allows 
 benchmark/tests/p5-validation.test.ts::test::finds the username_length gap (frontend allows 21-30, backend max 20)	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the age gap	missing	-	baseline
 benchmark/tests/p5-validation.test.ts::test::provides a concrete example for the username_length gap	missing	-	baseline
+src/graph/extract-sexp.ts::test::class	missing	-	baseline
+src/graph/extract-sexp.ts::test::function	missing	-	baseline
+src/graph/extract-sexp.ts::test::variable	missing	-	baseline
 tests/anthropic-adapter.test.ts::test::AnthropicAdapter	missing	-	baseline
 tests/anthropic-adapter.test.ts::test::defaults to claude-sonnet-4-6 when no model is configured	missing	-	baseline
 tests/anthropic-adapter.test.ts::test::honors an explicit model override	missing	-	baseline
@@ -398,6 +401,52 @@ tests/graph/clojure.test.ts::test::walks deftype method bodies	missing	-	baselin
 tests/graph/clojure.test.ts::test::walks extend-protocol method bodies	missing	-	baseline
 tests/graph/clojure.test.ts::test::walks extend-type method bodies	missing	-	baseline
 tests/graph/clojure.test.ts::test::walks top-level forms using the ns name as caller	missing	-	baseline
+tests/graph/commonlisp.test.ts::function::defs	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::Common Lisp support	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::accepts :kw, #:kw and string package designators	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::analysis integration	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::attributes a defmethod body to the generic function	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::attributes top-level side-effecting forms to a file-level caller	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::calls	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::captures the lambda list as the signature	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::connects a bare call to the same package in another file	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::cross-file resolution	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::defines	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::does not connect files in different packages	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::does not define anything for defmethod	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::does not emit edges to destructuring and iteration variables	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::does not emit edges to lambda-list parameters	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::does not emit edges to locally bound names	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::does not emit self-edges	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::emits an edge for a #'function reference passed to a HOF	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::emits an edge for an in-file define referenced as a value	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::exports every defun when no defpackage :export list exists	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::extracts call edges between defuns	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::extracts defclass / defstruct / define-condition as classes	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::extracts defvar / defparameter / defconstant as variables	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::extracts the defun family as functions	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::file node	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::filters special forms and core macros out of the call graph	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::honours a defpackage :export list	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::leaves calls to names not defined in the file unqualified	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::leaves names bare when the file has no in-package form	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::leaves other languages' call edges alone	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::lets a local binding shadow a top-level definition	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::lists the new extensions as supported	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::looks inside backquote for call sites	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::maps Lisp extensions to commonlisp	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::normalizes an explicit pkg::name reference to pkg:name	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::packages	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::parser	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::parses Common Lisp source via WASM	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::qualifies call edges consistently with defines	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::qualifies defines with the in-package package	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::records defpackage :use entries as imports	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::records the definition line	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::records the language and a ;;;-style file doc	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::resolves a bare call made from a top-level form	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::resolves a bare target name to its package-qualified node	missing	-	baseline
+tests/graph/commonlisp.test.ts::test::skips (defun (setf place) ...) rather than inventing a name	missing	-	baseline
 tests/graph/community.test.ts::function::g	missing	-	baseline
 tests/graph/community.test.ts::test::cohesion score is intra_edges / max_possible	missing	-	baseline
 tests/graph/community.test.ts::test::detectCommunities	missing	-	baseline
@@ -482,6 +531,7 @@ tests/graph/facts.test.ts::test::leaves simple atoms unquoted	missing	-	baseline
 tests/graph/facts.test.ts::test::produces queryable call facts	missing	-	baseline
 tests/graph/facts.test.ts::test::quotes atoms with special characters	missing	-	baseline
 tests/graph/facts.test.ts::test::round-trips an atom containing a literal backslash	missing	-	baseline
+tests/graph/facts.test.ts::test::survives repeated graph reachability sessions without corrupting the WASM runtime	missing	-	baseline
 tests/graph/file-nodes.test.ts::test::does not emit duplicate FileNodes for the same path	missing	-	baseline
 tests/graph/file-nodes.test.ts::test::extractGraph emits one FileNode per input file with language	missing	-	baseline
 tests/graph/file-nodes.test.ts::test::file nodes	missing	-	baseline
@@ -561,6 +611,8 @@ tests/graph/map.test.ts::test::renderMap	missing	-	baseline
 tests/graph/map.test.ts::test::renders file detail as markdown with exports section	missing	-	baseline
 tests/graph/map.test.ts::test::renders markdown with summary header and file entries	missing	-	baseline
 tests/graph/map.test.ts::test::renders valid JSON for overview	missing	-	baseline
+tests/graph/map.test.ts::test::resolves an unqualified name against namespace-qualified defines	missing	-	baseline
+tests/graph/map.test.ts::test::resolves an unqualified name against package-qualified defines	missing	-	baseline
 tests/graph/map.test.ts::test::returns defining files, callers, and callees	missing	-	baseline
 tests/graph/map.test.ts::test::returns empty arrays for an unknown symbol	missing	-	baseline
 tests/graph/map.test.ts::test::returns exports with signatures and lines	missing	-	baseline
@@ -641,6 +693,59 @@ tests/graph/rust.test.ts::test::marks pub items as exported, private items as no
 tests/graph/rust.test.ts::test::parser	missing	-	baseline
 tests/graph/rust.test.ts::test::parses Rust source natively (sync)	missing	-	baseline
 tests/graph/rust.test.ts::test::recurses into modules	missing	-	baseline
+tests/graph/scheme.test.ts::function::defs	missing	-	baseline
+tests/graph/scheme.test.ts::test::) as an import	missing	-	baseline
+tests/graph/scheme.test.ts::test::Racket and Guile define forms	missing	-	baseline
+tests/graph/scheme.test.ts::test::Scheme support	missing	-	baseline
+tests/graph/scheme.test.ts::test::attributes calls inside internal defines to the enclosing top-level fn	missing	-	baseline
+tests/graph/scheme.test.ts::test::attributes top-level side-effecting forms to a file-level caller	missing	-	baseline
+tests/graph/scheme.test.ts::test::calls	missing	-	baseline
+tests/graph/scheme.test.ts::test::captures the arglist as the signature	missing	-	baseline
+tests/graph/scheme.test.ts::test::defines	missing	-	baseline
+tests/graph/scheme.test.ts::test::does not emit edges to internal define names	missing	-	baseline
+tests/graph/scheme.test.ts::test::does not emit edges to lambda parameters	missing	-	baseline
+tests/graph/scheme.test.ts::test::does not emit edges to locally bound names	missing	-	baseline
+tests/graph/scheme.test.ts::test::does not emit self-edges	missing	-	baseline
+tests/graph/scheme.test.ts::test::does not register internal defines as top-level definitions	missing	-	baseline
+tests/graph/scheme.test.ts::test::emits an edge for a function passed to a higher-order function	missing	-	baseline
+tests/graph/scheme.test.ts::test::emits an edge for an in-file define referenced as a value	missing	-	baseline
+tests/graph/scheme.test.ts::test::exports	missing	-	baseline
+tests/graph/scheme.test.ts::test::exports every top-level define when the file declares none	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts (define (name args) body) as a function	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts (load	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts Guile define-public and define*	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts Guile use-modules	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts R7RS (import ...) library names	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts Racket require specs	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts call edges between top-level definitions	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts define-record-type as a class plus its accessors	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts define-values bindings as variables	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts define/contract and friends	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts imports declared inside define-library	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts macro definitions	missing	-	baseline
+tests/graph/scheme.test.ts::test::extracts struct / define-struct as classes	missing	-	baseline
+tests/graph/scheme.test.ts::test::file	missing	-	baseline
+tests/graph/scheme.test.ts::test::file node	missing	-	baseline
+tests/graph/scheme.test.ts::test::filters special forms out of the call graph	missing	-	baseline
+tests/graph/scheme.test.ts::test::honours Guile #:export in define-module	missing	-	baseline
+tests/graph/scheme.test.ts::test::honours an explicit (export ...) list	missing	-	baseline
+tests/graph/scheme.test.ts::test::honours an explicit (provide ...) list	missing	-	baseline
+tests/graph/scheme.test.ts::test::imports	missing	-	baseline
+tests/graph/scheme.test.ts::test::lets a local binding shadow a top-level definition	missing	-	baseline
+tests/graph/scheme.test.ts::test::lists the new extensions as supported	missing	-	baseline
+tests/graph/scheme.test.ts::test::looks inside quasiquote for call sites	missing	-	baseline
+tests/graph/scheme.test.ts::test::maps .rkt to racket	missing	-	baseline
+tests/graph/scheme.test.ts::test::maps Scheme extensions to scheme	missing	-	baseline
+tests/graph/scheme.test.ts::test::parser	missing	-	baseline
+tests/graph/scheme.test.ts::test::parses Racket source with the Scheme grammar	missing	-	baseline
+tests/graph/scheme.test.ts::test::parses Scheme source via WASM	missing	-	baseline
+tests/graph/scheme.test.ts::test::records the definition line	missing	-	baseline
+tests/graph/scheme.test.ts::test::records the language and a ;;;-style file doc	missing	-	baseline
+tests/graph/scheme.test.ts::test::rejects a two-semicolon comment as file doc	missing	-	baseline
+tests/graph/scheme.test.ts::test::treats (define name (lambda ...)) as a function with the lambda arglist	missing	-	baseline
+tests/graph/scheme.test.ts::test::treats (define name value) as a variable	missing	-	baseline
+tests/graph/scheme.test.ts::test::unwraps only/except/prefix/rename import wrappers	missing	-	baseline
+tests/graph/scheme.test.ts::test::uses bare (unqualified) names	missing	-	baseline
 tests/graph/snapshot.test.ts::function::mkGraph	missing	-	baseline
 tests/graph/snapshot.test.ts::test::deleteSnapshot removes a named snapshot	missing	-	baseline
 tests/graph/snapshot.test.ts::test::listSnapshots returns all saved snapshot names	missing	-	baseline
@@ -785,6 +890,7 @@ tests/mcp-server.test.ts::test::chiasmus_skills	missing	-	baseline
 tests/mcp-server.test.ts::test::chiasmus_solve	missing	-	baseline
 tests/mcp-server.test.ts::test::chiasmus_verify	missing	-	baseline
 tests/mcp-server.test.ts::test::chiasmus_verify batch queries	missing	-	baseline
+tests/mcp-server.test.ts::test::consults once and shares the session module across a batch	missing	-	baseline
 tests/mcp-server.test.ts::test::created template appears in chiasmus_skills search	missing	-	baseline
 tests/mcp-server.test.ts::test::creates a template via MCP	missing	-	baseline
 tests/mcp-server.test.ts::test::documents that `converged` is not a verdict on the property	missing	-	baseline
@@ -842,8 +948,10 @@ tests/prolog-input.test.ts::test::returns full text as program with 'true.' quer
 tests/prolog-input.test.ts::test::trims trailing whitespace from program	missing	-	baseline
 tests/prolog-solver.test.ts::test::PrologSolver	missing	-	baseline
 tests/prolog-solver.test.ts::test::allows raising the budget for analyses that need more headroom	missing	-	baseline
+tests/prolog-solver.test.ts::test::autoloads list predicates without a blanket weak import	missing	-	baseline
 tests/prolog-solver.test.ts::test::derivation traces	missing	-	baseline
 tests/prolog-solver.test.ts::test::disposal	missing	-	baseline
+tests/prolog-solver.test.ts::test::does not corrupt the runtime when a program defines a lists predicate	missing	-	baseline
 tests/prolog-solver.test.ts::test::does not duplicate the final clause when input has no trailing whitespace	missing	-	baseline
 tests/prolog-solver.test.ts::test::does not leak internal wrapper variables into bindings	missing	-	baseline
 tests/prolog-solver.test.ts::test::handles arithmetic	missing	-	baseline
@@ -851,12 +959,12 @@ tests/prolog-solver.test.ts::test::handles ground queries (no variables)	missing
 tests/prolog-solver.test.ts::test::handles list operations	missing	-	baseline
 tests/prolog-solver.test.ts::test::honors a custom maxInferences on the solver input	missing	-	baseline
 tests/prolog-solver.test.ts::test::imports library(clpfd) into the session module	missing	-	baseline
-tests/prolog-solver.test.ts::test::imports library(lists) into the session module	missing	-	baseline
 tests/prolog-solver.test.ts::test::inference budget	missing	-	baseline
 tests/prolog-solver.test.ts::test::instrumentation	missing	-	baseline
 tests/prolog-solver.test.ts::test::isolates concurrent solves with overlapping predicate names	missing	-	baseline
 tests/prolog-solver.test.ts::test::isolates predicates across sequential solves	missing	-	baseline
 tests/prolog-solver.test.ts::test::module isolation	missing	-	baseline
+tests/prolog-solver.test.ts::test::parses CLP(FD) operators used directly in a query	missing	-	baseline
 tests/prolog-solver.test.ts::test::renders a ground goal as clean `true` with no spurious bindings	missing	-	baseline
 tests/prolog-solver.test.ts::test::resolves recursive rules	missing	-	baseline
 tests/prolog-solver.test.ts::test::resolves simple fact queries	missing	-	baseline

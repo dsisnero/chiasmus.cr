@@ -149,6 +149,29 @@ describe Chiasmus::MCPServer::Tools::GraphTool do
     payload["warnings"].as_a.first.as_s.should contain("Skipped #{missing}:")
   end
 
+  it "analyzes package-qualified Common Lisp definitions through the MCP graph tool" do
+    path = File.tempname("chiasmus-graph-package", ".lisp")
+    File.write(path, <<-LISP)
+      (in-package #:app)
+      (defun start () (bootstrap))
+      (defun bootstrap () 1)
+      LISP
+
+    begin
+      response = invoke_graph({
+        "files"    => JSON.parse([path].to_json),
+        "analysis" => JSON::Any.new("summary"),
+      })
+
+      response.status.should eq("success")
+      summary = response.as(Chiasmus::MCPServer::Types::GraphResponse).result.as_h
+      summary["functions"].as_i.should eq(2)
+      summary["callEdges"].as_i.should eq(1)
+    ensure
+      File.delete(path) if File.exists?(path)
+    end
+  end
+
   describe "tool metadata" do
     it "has correct tool name" do
       Chiasmus::MCPServer::Tools::GraphTool.tool_name.should eq("chiasmus_graph")

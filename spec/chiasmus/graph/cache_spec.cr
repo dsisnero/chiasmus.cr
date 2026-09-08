@@ -17,6 +17,19 @@ end
 
 describe GraphCache do
   describe ".file_hash" do
+    it "includes the extraction schema version so namespace-aware graphs invalidate prior cache entries" do
+      expected = OpenSSL::Digest.new("SHA256")
+        .update("4")
+        .update("\u0000")
+        .update("hello")
+        .update("\u0000")
+        .update("/abs/a.ts")
+        .final
+        .hexstring
+
+      GraphCache.file_hash("hello", "/abs/a.ts").should eq(expected)
+    end
+
     it "produces deterministic SHA-256 hex digest" do
       h1 = GraphCache.file_hash("hello", "/abs/a.ts")
       h2 = GraphCache.file_hash("hello", "/abs/a.ts")
