@@ -636,7 +636,8 @@ module Chiasmus
             language: file_node.language,
             line_count: file_node.line_count,
             token_estimate: file_node.token_estimate,
-            file_doc: file_node.file_doc
+            file_doc: file_node.file_doc,
+            namespace: file_node.namespace
           )
         end
 

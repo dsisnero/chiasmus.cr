@@ -88,7 +88,8 @@ module Chiasmus
       language : String,
       line_count : Int32? = nil,
       token_estimate : Int32? = nil,
-      file_doc : String? = nil
+      file_doc : String? = nil,
+      namespace : String? = nil
 
     record CodeGraph,
       defines : Array(DefinesFact) = [] of DefinesFact,

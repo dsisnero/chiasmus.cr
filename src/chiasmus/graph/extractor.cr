@@ -2,6 +2,7 @@ require "./parser"
 require "./walkers"
 require "./adapter_registry"
 require "./clojure_source_extractor"
+require "./sexp_source_extractor"
 require "./type_env"
 require "./resolve_calls"
 require "./cache"
@@ -121,6 +122,7 @@ module Chiasmus
           files: file_nodes.empty? ? nil : file_nodes,
           type_info: type_info.empty? ? nil : type_info
         )
+        graph = SexpSourceExtractor.resolve_common_lisp_package_calls(graph)
         telemetry_span.record(
           cache_status: cache_status,
           disk_hits: cached.size,
@@ -251,6 +253,7 @@ module Chiasmus
 
         lang = parser.language_for_file(file.path)
         return CodeGraph.new unless lang
+        return SexpSourceExtractor.extract(file) if lang.in?("scheme", "racket", "commonlisp")
 
         line_count = file.content.count('\n') + (file.content[-1]? != '\n' ? 1 : 0)
         token_estimate = (file.content.size / 3.5).ceil.to_i32

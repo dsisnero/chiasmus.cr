@@ -179,11 +179,12 @@ module Chiasmus
       end
 
       def build_symbol_detail(graph : CodeGraph, name : String) : SymbolDetail?
-        defs = graph.defines.select { |definition| definition.name == name }
+        targets = resolve_symbol_names(graph, name)
+        defs = graph.defines.select { |definition| targets.includes?(definition.name) }
         return nil if defs.empty?
 
-        callers = graph.calls.select { |call_fact| call_fact.callee == name }.map(&.caller).uniq.sort
-        callees = graph.calls.select { |call_fact| call_fact.caller == name }.map(&.callee).uniq.sort
+        callers = graph.calls.select { |call_fact| targets.includes?(call_fact.callee) }.map(&.caller).uniq.sort
+        callees = graph.calls.select { |call_fact| targets.includes?(call_fact.caller) }.map(&.callee).uniq.sort
 
         SymbolDetail.new(
           kind: "symbol",
@@ -192,6 +193,18 @@ module Chiasmus
           callers: callers,
           callees: callees,
         )
+      end
+
+      # A short symbol name addresses all namespace- or package-qualified
+      # graph nodes. A caller that supplies a separator has already chosen an
+      # exact target, preserving the existing qualified-name contract.
+      private def resolve_symbol_names(graph : CodeGraph, name : String) : Set(String)
+        names = graph.defines.map(&.name).to_set
+        graph.calls.each { |call_fact| names << call_fact.caller << call_fact.callee }
+        return Set{name} if names.includes?(name)
+        return Set(String).new if name.includes?('/') || name.includes?(':')
+
+        names.select { |candidate| candidate.ends_with?("/#{name}") || candidate.ends_with?(":#{name}") }.to_set
       end
 
       def render_map(map : OverviewMap | FileDetail | SymbolDetail, format : String = "markdown") : String
