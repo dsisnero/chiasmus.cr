@@ -306,6 +306,70 @@ describe "MCP Server initialization via transport" do
     end
 
     describe "chiasmus_snapshot_status through transport" do
+      it "continues a disconnected save through status polling and a later diff" do
+        path, cleanup = temp_source_file("go", "package main\nfunc recoverable() {}")
+        cache_dir = File.join(Dir.tempdir, "chiasmus-mcp-snapshot-recovery-#{Random::Secure.hex(8)}")
+        entered = Channel(Bool).new(1)
+        release = Channel(Bool).new(1)
+
+        begin
+          Chiasmus::Graph::GraphCache.set_before_snapshot_write_hook_for_test do
+            entered.send(true)
+            release.receive?
+          end
+
+          original_server, original_client = connect_server_and_client
+          begin
+            saved = call_tool(original_client, "chiasmus_graph", {
+              "files"         => JSON.parse([path].to_json),
+              "analysis"      => JSON::Any.new("summary"),
+              "save_snapshot" => JSON::Any.new("recoverable"),
+              "cache"         => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
+            })
+            saved["status"].as_s.should eq("success")
+          ensure
+            disconnect(original_server, original_client)
+          end
+
+          TreeSitterManager::Timeout.with_timeout_async(2_000, entered).should eq(true)
+
+          recovery_server, recovery_client = connect_server_and_client
+          begin
+            pending = call_tool(recovery_client, "chiasmus_snapshot_status", {
+              "snapshot" => JSON::Any.new("recoverable"),
+              "cache"    => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
+            })
+            pending["snapshot"].as_s.should eq("recoverable")
+            {"queued", "writing"}.should contain(pending["state"].as_s)
+
+            release.send(true)
+            Chiasmus::Graph::GraphCache.flush_snapshot_writes
+
+            ready = call_tool(recovery_client, "chiasmus_snapshot_status", {
+              "snapshot" => JSON::Any.new("recoverable"),
+              "cache"    => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
+            })
+            ready["state"].as_s.should eq("ready")
+
+            diff = call_tool(recovery_client, "chiasmus_graph", {
+              "files"    => JSON.parse([path].to_json),
+              "analysis" => JSON::Any.new("diff"),
+              "against"  => JSON::Any.new("recoverable"),
+              "cache"    => JSON.parse(%({"cache_dir": "#{cache_dir}"})),
+            })
+            diff["status"].as_s.should eq("success")
+          ensure
+            disconnect(recovery_server, recovery_client)
+          end
+        ensure
+          release.send(true) unless release.closed?
+          Chiasmus::Graph::GraphCache.clear_before_snapshot_write_hook_for_test
+          Chiasmus::Graph::GraphCache.flush_snapshot_writes
+          cleanup.call
+          FileUtils.rm_rf(cache_dir)
+        end
+      end
+
       it "reports a ready receipt without starting another graph extraction" do
         cache_dir = File.join(Dir.tempdir, "chiasmus-mcp-snapshot-status-#{Random::Secure.hex(8)}")
         repo_key = "mcp-snapshot-status"
