@@ -1,11 +1,14 @@
 #!/usr/bin/env crystal
 
-# This script uses the new chiasmus-grammar CLI to set up required grammars
-# It's a thin wrapper that provides backward compatibility
+# Install the Chiasmus grammar baseline through the manager-backed CLI.
+# `compile` is intentionally not used here: it requires checked-out grammar
+# sources and the native `tree-sitter` CLI, while `batch` downloads, builds,
+# and caches grammar libraries through tree-sitter-manager.
 
 require "process"
 
-# Default languages for static binary
+# Default grammars for Chiasmus builds and distributions. Racket files use the
+# Scheme grammar; Common Lisp covers .lisp, .lsp, .cl, and .asd files.
 DEFAULT_LANGUAGES = [
   "ruby",
   "python",
@@ -18,6 +21,8 @@ DEFAULT_LANGUAGES = [
   "typescript",
   "tsx",
   "crystal",
+  "scheme",
+  "commonlisp",
 ]
 
 def run_command(cmd : String, args : Array(String) = [] of String) : Bool
@@ -41,7 +46,7 @@ end
 
 def main
   puts "Setting up required grammars using chiasmus-grammar CLI..."
-  puts "This script provides backward compatibility with the old setup_grammars.cr"
+  puts "Grammars are downloaded and cached by tree-sitter-manager."
   puts
 
   # Build the CLI if needed
@@ -53,37 +58,12 @@ def main
     end
   end
 
-  success_count = 0
-  fail_count = 0
-
-  DEFAULT_LANGUAGES.each do |language|
-    puts "Processing #{language}..."
-
-    # Use the new CLI to add/compile the grammar
-    if run_command("bin/chiasmus-grammar", ["compile", language])
-      success_count += 1
-      puts "  ✓ #{language}"
-    else
-      fail_count += 1
-      puts "  ✗ #{language}"
-    end
-
-    puts
-  end
-
-  puts "=" * 60
-  puts "Summary:"
-  puts "  Successfully compiled: #{success_count}/#{DEFAULT_LANGUAGES.size}"
-  puts "  Failed: #{fail_count}/#{DEFAULT_LANGUAGES.size}"
-  puts
-
-  if fail_count > 0
-    puts "⚠ Warning: Some grammars failed to compile!"
-    puts "The static binary may not include all required parsers."
+  unless run_command("bin/chiasmus-grammar", ["batch", DEFAULT_LANGUAGES.join(",")])
+    puts "⚠ Grammar installation failed. Re-run with DEBUG=1 for command output."
     exit 1
-  else
-    puts "✅ All required grammars are available!"
   end
+
+  puts "✅ All required grammars are available!"
 end
 
 main

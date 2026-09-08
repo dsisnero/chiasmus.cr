@@ -120,6 +120,7 @@ cd chiasmus.cr
 shards install
 make build
 make build-clis
+make setup-grammars
 ```
 
 ### Verify the server
@@ -189,7 +190,30 @@ build. For local embeddings, run Ollama and configure
 `CHIASMUS_EMBED_PROVIDER=ollama` with an embedding model such as
 `nomic-embed-text`.
 
-### Grammar lookup
+### Grammar installation and lookup
+
+`shards install` downloads the `tree-sitter-manager` library only. It does not
+build a dependency's executable target or put `tree-sitter-manager` on `PATH`.
+`make build-clis` builds this project's manager-backed wrapper instead:
+
+```bash
+make build-clis
+make setup-grammars
+```
+
+`make setup-grammars` installs Chiasmus's preinstalled baseline, including
+Scheme and Common Lisp. Racket files use the Scheme grammar. To install only
+those S-expression grammars, run:
+
+```bash
+./bin/chiasmus-grammar batch scheme,commonlisp
+```
+
+The wrapper delegates downloads, native builds, and cache management to
+`tree-sitter-manager`; a checked-out grammar source tree or the separate
+native `tree-sitter` command is not needed for normal installation. Use
+`chiasmus-grammar compile LANGUAGE` only when intentionally compiling a local
+grammar source under `./grammars`.
 
 Graph extraction and discovery look for grammars in this order:
 
@@ -222,6 +246,8 @@ The graph subsystem has dedicated walkers for the primary languages Chiasmus is 
 - Bash
 - Protobuf
 - Clojure
+- Scheme and Racket
+- Common Lisp
 
 The language registry also tracks additional languages and extensions for grammar management and future expansion.
 

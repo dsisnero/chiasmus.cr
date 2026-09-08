@@ -28,4 +28,13 @@ describe "tree-sitter CLI entrypoints" do
       guard_position.should be < require_position
     end
   end
+
+  it "installs the Chiasmus grammar baseline through the manager-backed batch command" do
+    source = File.read("scripts/setup_grammars_new.cr")
+
+    source.should contain("\"scheme\"")
+    source.should contain("\"commonlisp\"")
+    source.should contain("run_command(\"bin/chiasmus-grammar\", [\"batch\", DEFAULT_LANGUAGES.join(\",\")])")
+    source.should_not contain("[\"compile\", language]")
+  end
 end

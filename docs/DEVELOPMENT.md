@@ -150,16 +150,28 @@ Relevant references:
 
 ## Grammar Management
 
-The supported workflow is the `chiasmus-grammar` CLI, not ad-hoc manual parser copying.
+The supported workflow is the project `chiasmus-grammar` CLI, not ad-hoc
+manual parser copying. `shards install` fetches the tree-sitter-manager
+library, but does not build its executable target or add it to `PATH`.
 
-Examples:
+Build Chiasmus's manager-backed wrapper, then install the Chiasmus baseline:
 
 ```bash
-./bin/chiasmus-grammar list
-./bin/chiasmus-grammar status --verbose
-./bin/chiasmus-grammar setup --force
-./bin/chiasmus-grammar compile python
+make build-clis
+make setup-grammars
+./bin/chiasmus-grammar status
 ```
+
+The baseline includes Scheme and Common Lisp; `.rkt` files use the Scheme
+grammar. For just those grammars, run:
+
+```bash
+./bin/chiasmus-grammar batch scheme,commonlisp
+```
+
+`batch` delegates grammar download, native build, and caching to
+tree-sitter-manager. `compile LANGUAGE` is only for a deliberately checked-out
+source under `./grammars` and requires the separate native `tree-sitter` CLI.
 
 Grammar lookup prefers:
 

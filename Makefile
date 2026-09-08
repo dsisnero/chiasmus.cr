@@ -148,7 +148,7 @@ dist: release build-clis
 
 	# Copy grammar libraries from cache
 	@echo "Copying grammar libraries from cache..."
-	@for lang in ruby python java go rust scala javascript typescript tsx crystal bash c cpp c-sharp dart kotlin perl php proto; do \
+	@for lang in ruby python java go rust scala javascript typescript tsx crystal scheme commonlisp bash c cpp c-sharp dart kotlin perl php proto; do \
 		ext=dylib; \
 		lib_name=libtree-sitter-$$lang.$$ext; \
 		\
@@ -185,6 +185,8 @@ dist: release build-clis
 	@echo "- TypeScript" >> dist/chiasmus/README.md
 	@echo "- TSX" >> dist/chiasmus/README.md
 	@echo "- Crystal" >> dist/chiasmus/README.md
+	@echo "- Scheme (also used for Racket)" >> dist/chiasmus/README.md
+	@echo "- Common Lisp" >> dist/chiasmus/README.md
 	@echo "" >> dist/chiasmus/README.md
 	@echo "## Usage" >> dist/chiasmus/README.md
 	@echo "./chiasmus --help" >> dist/chiasmus/README.md
@@ -198,7 +200,7 @@ dist: release build-clis
 	@echo "Distribution package created: dist/chiasmus-$(shell date +%Y%m%d).tar.gz"
 
 # Set up grammars using the new CLI
-setup-grammars: build
+setup-grammars: build-clis
 	@echo "Setting up grammars using chiasmus-grammar CLI..."
 	@./scripts/setup_grammars_new.cr
 
