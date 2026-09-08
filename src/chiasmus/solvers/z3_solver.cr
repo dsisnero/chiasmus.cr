@@ -13,6 +13,8 @@ module Chiasmus
       end
 
       def initialize(@command : String = "z3", @timeout : Time::Span = DEFAULT_TIMEOUT)
+        @disposed = false
+        @state_lock = Mutex.new
       end
 
       def type : SolverType
@@ -20,6 +22,8 @@ module Chiasmus
       end
 
       def solve(input : SolverInput) : Solvers::SolverResult
+        return Solvers::ErrorResult.new("Solver has been disposed") if disposed?
+
         case input
         when Z3SolverInput
           result = solve_z3(input.smtlib)
@@ -32,6 +36,7 @@ module Chiasmus
       def dispose : Nil
         # The process belongs to the shared runtime, not an individual solver
         # facade. Shutting it down here could cancel another client's request.
+        @state_lock.synchronize { @disposed = true }
       end
 
       # The synchronous Solver API is retained for compatibility. Callers that
@@ -59,6 +64,10 @@ module Chiasmus
         else
           Solvers::ErrorResult.new(result.error)
         end
+      end
+
+      private def disposed? : Bool
+        @state_lock.synchronize { @disposed }
       end
 
       private def solve_z3(smtlib : String) : SolverResult

@@ -38,6 +38,28 @@ SCRIPT
 end
 
 describe Chiasmus::Solvers::Z3Solver do
+  it "rejects new work after disposal without stopping the shared runtime" do
+    directory, command = fake_z3_command
+    disposed_solver = Chiasmus::Solvers::Z3Solver.new(command: command)
+    live_solver = Chiasmus::Solvers::Z3Solver.new(command: command)
+
+    begin
+      disposed_solver.solve(Chiasmus::Solvers::Z3SolverInput.new("(assert true)")).should be_a(Chiasmus::Solvers::SatResult)
+      disposed_solver.dispose
+      disposed_solver.dispose # disposal is idempotent for a solver facade
+
+      result = disposed_solver.solve(Chiasmus::Solvers::Z3SolverInput.new("(assert true)"))
+
+      result.should be_a(Chiasmus::Solvers::ErrorResult)
+      result.as(Chiasmus::Solvers::ErrorResult).error.should match(/disposed/i)
+      live_solver.solve(Chiasmus::Solvers::Z3SolverInput.new("(assert true)")).should be_a(Chiasmus::Solvers::SatResult)
+    ensure
+      live_solver.dispose
+      Chiasmus::Solvers::Z3Process.reset
+      FileUtils.rm_rf(directory)
+    end
+  end
+
   it "times out a hung request, resets its process, and recovers on the next request" do
     directory, command = fake_z3_command
     solver = Chiasmus::Solvers::Z3Solver.new(command: command, timeout: 250.milliseconds)

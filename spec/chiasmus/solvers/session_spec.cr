@@ -11,6 +11,24 @@ end
 
 describe Chiasmus::Solvers::SolverSession do
   describe ".create" do
+    it "keeps Z3 sessions isolated when one session is disposed" do
+      next pending("z3 not installed") unless Process.run("which", ["z3"], output: Process::Redirect::Close, error: Process::Redirect::Close).success?
+
+      first = Chiasmus::Solvers::SolverSession.create("z3")
+      second = Chiasmus::Solvers::SolverSession.create("z3")
+
+      begin
+        first.id.should_not eq(second.id)
+        first.solve(Chiasmus::Solvers::Z3SolverInput.new("(assert true)")).should be_a(Chiasmus::Solvers::SatResult)
+        first.dispose
+
+        second.solve(Chiasmus::Solvers::Z3SolverInput.new("(assert true)")).should be_a(Chiasmus::Solvers::SatResult)
+      ensure
+        first.dispose
+        second.dispose
+      end
+    end
+
     it "generates unique session IDs" do
       s1 = Chiasmus::Solvers::SolverSession.create("prolog")
       s2 = Chiasmus::Solvers::SolverSession.create("prolog")

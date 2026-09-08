@@ -593,17 +593,17 @@ src/search/vector-store.ts::method::VectorStore.remove	method	ported	src/chiasmu
 src/search/vector-store.ts::method::VectorStore.search	method	ported	src/chiasmus/search/vector_store.cr:72	VectorStore#search	-	Ported
 src/search/vector-store.ts::method::VectorStore.serialize	method	ported	src/chiasmus/search/vector_store.cr:92	VectorStore#serialize	-	Ported
 src/search/vector-store.ts::method::VectorStore.size	method	ported	src/chiasmus/search/vector_store.cr:64	VectorStore#size	-	Ported
-src/solvers/correction-loop.ts::function::correctionLoop	function	ported	src/chiasmus/solvers/correction_loop.cr:26	Solvers.correction_loop	-	Ported bounded correction lifecycle
+src/solvers/correction-loop.ts::function::correctionLoop	function	ported	src/chiasmus/solvers/correction_loop.cr:26	Solvers.correction_loop	spec/chiasmus/solvers/correction_loop_spec.cr	Ported bounded correction lifecycle with deterministic error history, bounded retries, and valid-UNSAT convergence.
 src/solvers/prolog-solver.ts::function::getPl	function	intentional_divergence	src/chiasmus/solvers/prolog_solver.cr:118	PrologRuntime.shared	-	Crolog owns the shared SWI runtime on a dedicated actor instead of exposing Node getPl
 src/solvers/prolog-solver.ts::method::dispose	method	ported	src/chiasmus/solvers/prolog_solver.cr:58	PrologSolver#dispose	-	Ported runtime client release
 src/solvers/prolog-solver.ts::method::solve	method	ported	src/chiasmus/solvers/prolog_solver.cr:32	PrologSolver#solve	-	Ported through Crolog worker actor
 src/solvers/session.ts::method::SolverSession.constructor	method	ported	src/chiasmus/solvers/session.cr:25	SolverSession#initialize	-	Ported session initialization
-src/solvers/session.ts::method::SolverSession.create	method	ported	src/chiasmus/solvers/session.cr:31	SolverSession.create	-	Ported factory
-src/solvers/session.ts::method::SolverSession.dispose	method	ported	src/chiasmus/solvers/session.cr:126	SolverSession#dispose	-	Ported worker teardown
-src/solvers/session.ts::method::SolverSession.solve	method	ported	src/chiasmus/solvers/session.cr:71	SolverSession#solve	-	Ported dispatch
+src/solvers/session.ts::method::SolverSession.create	method	ported	src/chiasmus/solvers/session.cr:31	SolverSession.create	spec/chiasmus/solvers/session_spec.cr	Ported factory with isolated IDs and Z3/Prolog session coverage.
+src/solvers/session.ts::method::SolverSession.dispose	method	ported	src/chiasmus/solvers/session.cr:126	SolverSession#dispose	spec/chiasmus/solvers/session_spec.cr	Ported worker teardown; disposing one Z3 facade does not interrupt another session.
+src/solvers/session.ts::method::SolverSession.solve	method	ported	src/chiasmus/solvers/session.cr:71	SolverSession#solve	spec/chiasmus/solvers/session_spec.cr	Ported dispatch through per-session Prolog actor and shared serialized Z3 runtime.
 src/solvers/z3-solver.ts::function::createZ3Solver	function	ported	src/chiasmus/solvers/z3_solver.cr:15	Z3Solver.new	-	Ported Crystal factory
-src/solvers/z3-solver.ts::method::dispose	method	ported	src/chiasmus/solvers/z3_solver.cr:32	Z3Solver#dispose	-	Ported process cleanup
-src/solvers/z3-solver.ts::method::solve	method	ported	src/chiasmus/solvers/z3_solver.cr:22	Z3Solver#solve	-	Ported solver invocation
+src/solvers/z3-solver.ts::method::dispose	method	ported	src/chiasmus/solvers/z3_solver.cr:35	Z3Solver#dispose	spec/chiasmus/solvers/z3_solver_spec.cr	Facade disposal is idempotent and rejects subsequent work without stopping the shared process runtime.
+src/solvers/z3-solver.ts::method::solve	method	ported	src/chiasmus/solvers/z3_solver.cr:24	Z3Solver#solve	spec/chiasmus/solvers/z3_solver_spec.cr	Ported serialized invocation, timeout recovery, concurrent-request handling, and disposed-facade rejection.
 src/graph/extract-sexp.ts::const::CL_BINDING_HEADS	const	ported	src/chiasmus/graph/sexp_source_extractor.cr:119	SexpSourceExtractor	 spec/chiasmus/graph/sexp_source_extractor_spec.cr	Absorbed into Common Lisp lexical-binding handling
 src/graph/extract-sexp.ts::const::CL_CLASS_HEADS	const	ported	src/chiasmus/graph/sexp_source_extractor.cr:117	SexpSourceExtractor	 spec/chiasmus/graph/sexp_source_extractor_spec.cr	Absorbed into COMMON_LISP_CLASSES
 src/graph/extract-sexp.ts::const::CL_CONTAINER_HEADS	const	ported	src/chiasmus/graph/sexp_source_extractor.cr:185	SexpSourceExtractor	 spec/chiasmus/graph/sexp_source_extractor_spec.cr	Absorbed into forms_to_scan
