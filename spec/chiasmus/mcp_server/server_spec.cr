@@ -1,6 +1,20 @@
 require "../../spec_helper"
 require "mcp"
 
+describe Chiasmus::MCPServer::ShutdownCoordinator do
+  it "runs cleanup exactly once when transport and signal shutdown race" do
+    cleanup_count = 0
+    coordinator = Chiasmus::MCPServer::ShutdownCoordinator.new { cleanup_count += 1 }
+    results = Channel(Bool).new(2)
+
+    spawn { results.send(coordinator.close) }
+    spawn { results.send(coordinator.close) }
+
+    {results.receive, results.receive}.count(&.itself).should eq(1)
+    cleanup_count.should eq(1)
+  end
+end
+
 describe "Chiasmus MCP Server Transport" do
   mcp_server = uninitialized MCP::Server::Server
   client = uninitialized MCP::Client::Client

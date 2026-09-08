@@ -55,6 +55,31 @@ module Chiasmus
       end
     end
 
+    # Signals and transport closure can arrive concurrently. Keep cleanup
+    # linearized so the server's wait group is released once and shared stores
+    # are not closed twice.
+    class ShutdownCoordinator
+      def initialize(&@cleanup : ->)
+        @lock = Mutex.new
+        @closed = false
+      end
+
+      def close : Bool
+        should_cleanup = @lock.synchronize do
+          if @closed
+            false
+          else
+            @closed = true
+            true
+          end
+        end
+        return false unless should_cleanup
+
+        @cleanup.call
+        true
+      end
+    end
+
     abstract class BaseServer
       abstract def skill_library : Skills::Library
       abstract def skill_learner : Skills::Learner?
@@ -259,8 +284,7 @@ module Chiasmus
 
         mcp = build_mcp_transport
         wg = WaitGroup.new(1)
-
-        mcp.on_close do
+        shutdown = ShutdownCoordinator.new do
           STDERR.puts "[Chiasmus] MCP server shutting down"
           Graph::GraphCache.flush_async_writes rescue nil
           Graph::GraphCache.close_file_cache_stores rescue nil
@@ -269,14 +293,18 @@ module Chiasmus
           wg.done
         end
 
+        mcp.on_close do
+          shutdown.close
+        end
+
         Signal::INT.trap do
           mcp.close rescue nil
-          wg.done
+          shutdown.close
         end
 
         Signal::TERM.trap do
           mcp.close rescue nil
-          wg.done
+          shutdown.close
         end
 
         # Async self-healthcheck: validates server tools and state after startup

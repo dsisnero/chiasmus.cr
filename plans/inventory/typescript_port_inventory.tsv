@@ -396,8 +396,8 @@ src/llm/types.ts::interface::EmbeddingAdapter	interface	intentional_divergence	-
 src/mcp-server.ts::const::GRAPH_ANALYSES	const	ported	src/chiasmus/mcp_server/server.cr:1	GRAPH_ANALYSES	-	Ported as GRAPH_ANALYSES in MCP server
 src/mcp-server.ts::function::commonPathAncestor	function	ported	src/chiasmus/mcp_server/server.cr:1	common_path_ancestor	-	Ported as common_path_ancestor
 src/mcp-server.ts::function::handleReview	function	ported	src/chiasmus/mcp_server/tools/review.cr:10	Chiasmus::MCPServer::Tools::ReviewTool#invoke	spec/mcp_server/tools/review_spec.cr, spec/mcp_server/mcp_integration_spec.cr	Ported review-plan handler with raw request-shape validation and upstream focus enum; suggestedTemplates and reporting.severityLevels follow upstream wire keys.
-src/mcp-server.ts::function::setupShutdownHandlers	function	ported	src/chiasmus/mcp_server/server.cr:1	setup_shutdown_handlers	-	Ported as setup_shutdown_handlers
-src/mcp-server.ts::function::shutdown	function	ported	src/chiasmus/mcp_server/server.cr:1	-	-	Ported as shutdown handler
+src/mcp-server.ts::function::setupShutdownHandlers	function	ported	src/chiasmus/mcp_server/server.cr:61	ShutdownCoordinator	spec/chiasmus/mcp_server/server_spec.cr	Ported signal/transport shutdown coordination with exactly-once cleanup under concurrent close paths.
+src/mcp-server.ts::function::shutdown	function	ported	src/chiasmus/mcp_server/server.cr:275	Server#run	spec/chiasmus/mcp_server/server_spec.cr	Ported stdio shutdown cleanup through the idempotent coordinator before releasing the server wait group.
 src/review.ts::function::buildReporting	function	ported	src/chiasmus/review.cr:1	build_reporting	-	Ported as build_reporting
 src/review.ts::function::buildReviewPlan	function	ported	src/chiasmus/review.cr:1	build_review_plan	-	Ported as build_review_plan
 src/review.ts::function::buildSummary	function	ported	src/chiasmus/review.cr:1	build_summary	-	Ported as build_summary
