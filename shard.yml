@@ -29,7 +29,7 @@ dependencies:
     branch: fix/thread-safe-node-string-pool-v04
   tree-sitter-manager:
     github: dsisnero/tree-sitter-manager
-    branch: fix/require-loadable-grammar-library
+    branch: main
   z3:
     github: taw/crystal-z3
   crolog:
