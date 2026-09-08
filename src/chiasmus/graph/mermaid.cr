@@ -26,20 +26,20 @@ module Chiasmus
 
       FLOWCHART_RULES = <<-PROLOG.strip
         % Cycle-safe reachability for flowcharts
-        member(X, [X|_]).
-        member(X, [_|T]) :- member(X, T).
+        chiasmus_member(X, [X|_]).
+        chiasmus_member(X, [_|T]) :- chiasmus_member(X, T).
         reaches(A, B) :- reaches(A, B, [A]).
         reaches(A, B, _) :- edge(A, B).
-        reaches(A, B, Visited) :- edge(A, Mid), \\+ member(Mid, Visited), reaches(Mid, B, [Mid|Visited]).
+        reaches(A, B, Visited) :- edge(A, Mid), \\+ chiasmus_member(Mid, Visited), reaches(Mid, B, [Mid|Visited]).
       PROLOG
 
       STATE_RULES = <<-PROLOG.strip
         % Cycle-safe reachability for state diagrams
-        member(X, [X|_]).
-        member(X, [_|T]) :- member(X, T).
+        chiasmus_member(X, [X|_]).
+        chiasmus_member(X, [_|T]) :- chiasmus_member(X, T).
         can_reach(A, B) :- can_reach(A, B, [A]).
         can_reach(A, B, _) :- transition(A, B, _).
-        can_reach(A, B, Visited) :- transition(A, Mid, _), \\+ member(Mid, Visited), can_reach(Mid, B, [Mid|Visited]).
+        can_reach(A, B, Visited) :- transition(A, Mid, _), \\+ chiasmus_member(Mid, Visited), can_reach(Mid, B, [Mid|Visited]).
       PROLOG
 
       def parse(input : String) : String

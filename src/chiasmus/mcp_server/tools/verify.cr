@@ -150,13 +150,7 @@ DESC
         private def execute_prolog_batch(spec : String, queries : Array(String), explain : Bool) : Array(Solvers::SolverResult)
           solver = Solvers::Factory.build(Solvers::SolverType::Prolog)
           begin
-            results = [] of Solvers::SolverResult
-            queries.each do |query|
-              result = solver.solve(Solvers::PrologSolverInput.new(program: spec, query: query, explain: explain))
-              results << result
-              break if result.is_a?(Solvers::ErrorResult)
-            end
-            results
+            solver.solve_batch(Solvers::PrologBatchInput.new(program: spec, queries: queries, explain: explain))
           ensure
             solver.dispose
           end

@@ -62,7 +62,8 @@ describe Chiasmus::Graph::Mermaid do
     it "includes reachability rules" do
       prolog = Chiasmus::Graph::Mermaid.parse("graph TD\n  A --> B")
       prolog.should contain("reaches(")
-      prolog.should contain("member(")
+      prolog.should contain("chiasmus_member(")
+      prolog.should_not match(/^member\(/m)
     end
 
     it "handles flowchart keyword" do

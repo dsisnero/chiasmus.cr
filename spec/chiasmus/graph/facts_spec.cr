@@ -65,6 +65,28 @@ describe Chiasmus::Graph::Facts do
     program.should contain("dead(Name)")
   end
 
+  it "uses a collision-resistant membership predicate for reachability" do
+    graph = Chiasmus::Graph::CodeGraph.new(
+      calls: [
+        Chiasmus::Graph::CallsFact.new(caller: "a", callee: "b"),
+        Chiasmus::Graph::CallsFact.new(caller: "b", callee: "c"),
+      ],
+    )
+
+    program = Chiasmus::Graph::Facts.graph_to_prolog(graph)
+    program.should contain("chiasmus_member(X, [X|_]).")
+    program.should_not match(/^member\(/m)
+
+    next pending("swipl not installed") unless swipl_available?
+    solver = Chiasmus::Solvers::PrologSolver.new
+    begin
+      result = solver.solve("member(_, _) :- fail.\n#{program}", "reaches(a, c).")
+      result.should be_a(Chiasmus::Solvers::SuccessResult)
+    ensure
+      solver.dispose
+    end
+  end
+
   it "emits qualified_name facts when a define carries one" do
     graph = Chiasmus::Graph::CodeGraph.new(
       defines: [

@@ -16,19 +16,19 @@ module Chiasmus
       )
 
       BUILTIN_RULES = <<-PROLOG.strip
-        % List membership (not built-in in Tau Prolog without lists module)
-        member(X, [X|_]).
-        member(X, [_|T]) :- member(X, T).
+        % Collision-resistant list membership predicate.
+        chiasmus_member(X, [X|_]).
+        chiasmus_member(X, [_|T]) :- chiasmus_member(X, T).
 
         % Cycle-safe reachability via visited list
         reaches(A, B) :- reaches(A, B, [A]).
         reaches(A, B, _) :- calls(A, B).
-        reaches(A, B, Visited) :- calls(A, Mid), \\+ member(Mid, Visited), reaches(Mid, B, [Mid|Visited]).
+        reaches(A, B, Visited) :- calls(A, Mid), \\+ chiasmus_member(Mid, Visited), reaches(Mid, B, [Mid|Visited]).
 
         % Path finding (returns the call chain)
         path(A, B, Path) :- path(A, B, [A], Path).
         path(A, B, _, [A, B]) :- calls(A, B).
-        path(A, B, Visited, [A|Rest]) :- calls(A, Mid), \\+ member(Mid, Visited), path(Mid, B, [Mid|Visited], Rest).
+        path(A, B, Visited, [A|Rest]) :- calls(A, Mid), \\+ chiasmus_member(Mid, Visited), path(Mid, B, [Mid|Visited], Rest).
 
         % Dead code: defined function not called by anyone and not an entry point
         dead(Name) :- defines(_, Name, function, _, _), \\+ calls(_, Name), \\+ entry_point(Name).

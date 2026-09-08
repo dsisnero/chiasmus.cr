@@ -18,6 +18,34 @@ private def with_prolog_solver(&)
 end
 
 describe Chiasmus::Solvers::PrologSolver do
+  it "keeps dynamic state across ordered batch queries" do
+    next pending("swipl not installed") unless swipl_available?
+
+    with_prolog_solver do |solver|
+      results = solver.solve_batch(
+        ":- dynamic(seen/1).",
+        ["assertz(seen(first)).", "seen(X)."]
+      )
+
+      results.size.should eq(2)
+      results.first.should be_a(Chiasmus::Solvers::SuccessResult)
+      results.last.should be_a(Chiasmus::Solvers::SuccessResult)
+      results.last.as(Chiasmus::Solvers::SuccessResult).answers.first.bindings["X"].should eq("first")
+    end
+  end
+
+  it "returns one error result for an empty batch" do
+    next pending("swipl not installed") unless swipl_available?
+
+    with_prolog_solver do |solver|
+      results = solver.solve_batch("", [] of String)
+
+      results.size.should eq(1)
+      results.first.should be_a(Chiasmus::Solvers::ErrorResult)
+      results.first.as(Chiasmus::Solvers::ErrorResult).error.should contain("At least one Prolog query")
+    end
+  end
+
   it "resolves simple fact queries" do
     next pending("swipl not installed") unless swipl_available?
 

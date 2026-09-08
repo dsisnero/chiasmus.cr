@@ -233,6 +233,20 @@ describe Chiasmus::MCPServer::Tools::VerifyTool do
       a2.first.bindings["X"].should eq("d")
     end
 
+    it "keeps dynamic state between ordered prolog batch queries" do
+      tool = Chiasmus::MCPServer::Tools::VerifyTool.new
+      result = tool.invoke({
+        "solver"  => JSON::Any.new("prolog"),
+        "input"   => JSON::Any.new(":- dynamic(seen/1)."),
+        "queries" => JSON.parse(%(["assertz(seen(first)).", "seen(X)."])),
+      })
+
+      result.status.should eq("success")
+      batch = as_verify(result).results || raise "Expected results"
+      batch.size.should eq(2)
+      batch.last.answers.not_nil!.first.bindings["X"].should eq("first")
+    end
+
     it "rejects prolog queries arrays containing non-strings" do
       tool = Chiasmus::MCPServer::Tools::VerifyTool.new
       result = tool.invoke({

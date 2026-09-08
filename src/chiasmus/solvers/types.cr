@@ -90,6 +90,21 @@ module Chiasmus
       end
     end
 
+    # Ordered queries evaluated against one consulted Prolog program.
+    struct PrologBatchInput
+      getter type : SolverType
+      getter program : String
+      getter queries : Array(String)
+      getter? explain : Bool
+
+      def initialize(@program : String, @queries : Array(String), @explain : Bool = false, @type : SolverType = SolverType::Prolog)
+      end
+
+      def explain : Bool
+        @explain
+      end
+    end
+
     struct CorrectionAttempt
       getter round : Int32
       getter input : SolverInput
@@ -119,6 +134,11 @@ module Chiasmus
     abstract class Solver
       abstract def type : SolverType
       abstract def solve(input : SolverInput) : SolverResult
+
+      def solve_batch(input : PrologBatchInput) : Array(SolverResult)
+        [ErrorResult.new("Batch solving is only supported by Prolog")] of SolverResult
+      end
+
       abstract def dispose : Nil
     end
   end

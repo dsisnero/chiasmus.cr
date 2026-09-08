@@ -51,6 +51,20 @@ module Chiasmus
         result
       end
 
+      def solve_batch(input : PrologBatchInput) : Array(SolverResult)
+        return [ErrorResult.new("Expected prolog input type")] of SolverResult unless input.type == SolverType::Prolog
+
+        solve_batch(input.program, input.queries, input.explain)
+      end
+
+      def solve_batch(program : String, queries : Array(String), explain : Bool = false) : Array(SolverResult)
+        if queries.empty?
+          return [ErrorResult.new("At least one Prolog query is required")] of SolverResult
+        end
+
+        ensure_session.solve_batch(PrologBatchInput.new(program, queries, explain))
+      end
+
       def solve_async(program : String, query : String, explain : Bool = false) : Channel(SolverResult)
         ensure_session.solve_async(PrologSolverInput.new(program: program, query: query, explain: explain))
       end
@@ -87,7 +101,15 @@ module Chiasmus
         explain : Bool,
         response : Channel(SolverResult)
 
-      @@worker_channel : Channel(SolveRequest)?
+      record BatchSolveRequest,
+        program : String,
+        queries : Array(String),
+        explain : Bool,
+        response : Channel(Array(SolverResult))
+
+      private alias Request = SolveRequest | BatchSolveRequest
+
+      @@worker_channel : Channel(Request)?
       @@worker_done : Channel(Bool)?
       {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
         @@worker_context : Fiber::ExecutionContext::Isolated?
@@ -129,7 +151,7 @@ module Chiasmus
 
       def self.shutdown : Nil
         Tracing.info("chiasmus.prolog.runtime.shutdown")
-        chan = nil.as(Channel(SolveRequest)?)
+        chan = nil.as(Channel(Request)?)
         done = nil.as(Channel(Bool)?)
         {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
           context = nil.as(Fiber::ExecutionContext::Isolated?)
@@ -164,7 +186,7 @@ module Chiasmus
         @@worker_channel_lock.synchronize do
           return unless @@worker_channel.nil?
 
-          chan = Channel(SolveRequest).new(32)
+          chan = Channel(Request).new(32)
           done = Channel(Bool).new(1)
           startup = Channel(Exception?).new(1)
           {% if compare_versions(Crystal::VERSION, "1.21.0") >= 0 %}
@@ -194,7 +216,7 @@ module Chiasmus
       end
 
       private def run_worker_loop(
-        chan : Channel(SolveRequest),
+        chan : Channel(Request),
         startup : Channel(Exception?),
         done : Channel(Bool),
       ) : Nil
@@ -208,10 +230,19 @@ module Chiasmus
             break unless request
 
             begin
-              result = solve_sync(request.program, request.query, request.explain)
-              request.response.send(result)
+              case request
+              when SolveRequest
+                request.response.send(solve_sync(request.program, request.query, request.explain))
+              when BatchSolveRequest
+                request.response.send(solve_batch_sync(request.program, request.queries, request.explain))
+              end
             rescue ex
-              request.response.send(ErrorResult.new(ex.message || ex.class.name))
+              case request
+              when SolveRequest
+                request.response.send(ErrorResult.new(ex.message || ex.class.name))
+              when BatchSolveRequest
+                request.response.send([ErrorResult.new(ex.message || ex.class.name)] of SolverResult)
+              end
             end
           end
         rescue ex
@@ -230,7 +261,24 @@ module Chiasmus
         response.receive
       end
 
+      def solve_batch(program : String, queries : Array(String), explain : Bool) : Array(SolverResult)
+        chan = @@worker_channel
+        raise "PrologRuntime worker not started" unless chan
+
+        response = Channel(Array(SolverResult)).new(1)
+        chan.send(BatchSolveRequest.new(program, queries, explain, response))
+        response.receive
+      end
+
       private def solve_sync(program : String, query : String, explain : Bool) : SolverResult
+        solve_batch_sync(program, [query], explain).first? || ErrorResult.new("At least one Prolog query is required")
+      end
+
+      private def solve_batch_sync(program : String, queries : Array(String), explain : Bool) : Array(SolverResult)
+        if queries.empty?
+          return [ErrorResult.new("At least one Prolog query is required")] of SolverResult
+        end
+
         Tracing.info("chiasmus.prolog.solve_sync.start", explain: explain)
         source = explain ? instrument_for_tracing(program) : program
         temp_file = write_program(source)
@@ -238,9 +286,25 @@ module Chiasmus
         module_name = next_module_name
 
         consult_result = call_goal("load_files(#{quote_atom(temp_path)}, [module(#{module_name}), silent(true)])")
-        return ErrorResult.new(consult_result) if consult_result
+        return [ErrorResult.new(consult_result)] of SolverResult if consult_result
         Tracing.info("chiasmus.prolog.solve_sync.consulted", explain: explain)
 
+        results = [] of SolverResult
+        queries.each do |query|
+          result = solve_session_query(module_name, query, explain)
+          results << result
+          clear_trace(module_name) if explain
+          break if result.is_a?(ErrorResult)
+        end
+        results
+      ensure
+        if temp_path
+          unload_file(temp_path)
+          File.delete(temp_path) if File.exists?(temp_path)
+        end
+      end
+
+      private def solve_session_query(module_name : String, query : String, explain : Bool) : SolverResult
         variables = extract_query_variables(query)
         results = run_findall(module_name, query, variables)
         if error = results.error
@@ -248,23 +312,15 @@ module Chiasmus
         end
 
         answers = build_answers(results.rows, variables)
-        Tracing.info(
-          "chiasmus.prolog.solve_sync.answers",
-          explain: explain,
-          answer_count: answers.size
-        )
+        Tracing.info("chiasmus.prolog.solve_sync.answers", explain: explain, answer_count: answers.size)
         trace = explain ? collect_trace(module_name) : nil
-        Tracing.info(
-          "chiasmus.prolog.solve_sync.trace",
-          explain: explain,
-          trace_entries: trace.try(&.size) || 0
-        )
+        Tracing.info("chiasmus.prolog.solve_sync.trace", explain: explain, trace_entries: trace.try(&.size) || 0)
         SuccessResult.new(answers, trace)
-      ensure
-        if temp_path
-          unload_file(temp_path)
-          File.delete(temp_path) if File.exists?(temp_path)
-        end
+      end
+
+      private def clear_trace(module_name : String) : Nil
+        call_goal("#{module_name}:retractall(trace_goal(_))")
+      rescue
       end
 
       private struct QueryRowsResult

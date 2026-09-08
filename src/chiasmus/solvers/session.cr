@@ -22,8 +22,16 @@ module Chiasmus
         explain : Bool,
         response : Channel(SolverResult)
 
+      record PrologBatchRequest,
+        program : String,
+        queries : Array(String),
+        explain : Bool,
+        response : Channel(Array(SolverResult))
+
+      private alias Request = PrologRequest | PrologBatchRequest
+
       def initialize(@id : String, @solver : Solver)
-        @channel = Channel(PrologRequest).new(4)
+        @channel = Channel(Request).new(4)
         @worker_done = nil.as(Channel(Bool)?)
         @disposed = false
       end
@@ -55,10 +63,19 @@ module Chiasmus
             request = chan.receive?
             break unless request
             begin
-              result = PrologRuntime.shared.solve(request.program, request.query, request.explain)
-              request.response.send(result)
+              case request
+              when PrologRequest
+                request.response.send(PrologRuntime.shared.solve(request.program, request.query, request.explain))
+              when PrologBatchRequest
+                request.response.send(PrologRuntime.shared.solve_batch(request.program, request.queries, request.explain))
+              end
             rescue ex
-              request.response.send(ErrorResult.new(ex.message || ex.class.name))
+              case request
+              when PrologRequest
+                request.response.send(ErrorResult.new(ex.message || ex.class.name))
+              when PrologBatchRequest
+                request.response.send([ErrorResult.new(ex.message || ex.class.name)] of SolverResult)
+              end
             end
           end
         ensure
@@ -97,6 +114,21 @@ module Chiasmus
         end
 
         response
+      end
+
+      def solve_batch(input : PrologBatchInput) : Array(SolverResult)
+        raise "Session disposed" if @disposed
+        return [ErrorResult.new("Batch solving is only supported by Prolog")] of SolverResult unless input.type == SolverType::Prolog
+
+        chan = @channel || raise "Prolog worker not started"
+        response = Channel(Array(SolverResult)).new(1)
+        chan.send(PrologBatchRequest.new(input.program, input.queries, input.explain, response))
+        select
+        when result = response.receive
+          result
+        when timeout(PROLOG_QUERY_TIMEOUT)
+          [ErrorResult.new("Prolog batch timed out after #{PROLOG_QUERY_TIMEOUT}")] of SolverResult
+        end
       end
 
       private def solve_prolog(program : String, query : String, explain : Bool) : SolverResult
