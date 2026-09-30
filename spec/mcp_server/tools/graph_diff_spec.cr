@@ -55,6 +55,46 @@ describe "chiasmus_graph diff analysis via MCP" do
     FileUtils.rm_rf(cache_dir)
   end
 
+  it "re-extracts current sources for a diff when the resident index is stale" do
+    cache_dir = File.join(Dir.tempdir, "chiasmus-graph-indexed-diff-#{Random::Secure.hex(8)}")
+    go_file = File.join(Dir.tempdir, "graph-indexed-diff-#{Random::Secure.hex(8)}.go")
+    repo_key = "indexed-diff"
+    File.write(go_file, "package main\nfunc current() {}\n")
+
+    baseline = Chiasmus::Graph::CodeGraph.new(
+      defines: [
+        Chiasmus::Graph::DefinesFact.new(
+          file: go_file,
+          name: "original",
+          kind: Chiasmus::Graph::SymbolKind::Function,
+          span: Chiasmus::Graph::Span.line_range(2),
+        ),
+      ],
+      files: [Chiasmus::Graph::FileNode.new(go_file, "go")],
+    )
+    Chiasmus::Graph::GraphCache.save_snapshot("baseline", baseline, cache_dir, repo_key: repo_key)
+    index = Chiasmus::Index::ProjectIndex.new([baseline])
+
+    begin
+      result = Chiasmus::MCPServer::Tools::GraphTool.new(index).invoke({
+        "files"    => JSON::Any.new([JSON::Any.new(go_file)]),
+        "analysis" => JSON::Any.new("diff"),
+        "against"  => JSON::Any.new("baseline"),
+        "cache"    => JSON.parse(%({"cache_dir": "#{cache_dir}", "repo_key": "#{repo_key}"})),
+      })
+
+      result.status.should eq("success")
+      graph_result = result.as(Chiasmus::MCPServer::Types::GraphResponse).result.as_h
+      graph_result["added_nodes"].as_a.map(&.as_s).should contain("current")
+      graph_result["removed_nodes"].as_a.map(&.as_s).should contain("original")
+    ensure
+      index.close
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      File.delete(go_file) if File.exists?(go_file)
+      FileUtils.rm_rf(cache_dir)
+    end
+  end
+
   it "GraphInput accepts save_snapshot field" do
     input = Chiasmus::MCPServer::Types::GraphInput.from_json({
       "files"         => ["/tmp/test.go"],

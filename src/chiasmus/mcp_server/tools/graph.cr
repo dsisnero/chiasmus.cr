@@ -68,7 +68,12 @@ module Chiasmus
         ) : Graph::Analyses::AsyncAnalysisResult
           index = @project_index
           return run_extracted_analysis(files, request, cache_dir, repo_key, max_bytes, save_snapshot) unless index
-          return run_extracted_analysis(files, request, cache_dir, repo_key, max_bytes, save_snapshot) if save_snapshot
+          # A snapshot is an on-disk, point-in-time contract. Diffing it must
+          # read the caller's current sources rather than a resident index,
+          # whose watcher update can still be in flight (or watches a different
+          # repository than the requested paths). Snapshot saves already take
+          # this path for the same reason.
+          return run_extracted_analysis(files, request, cache_dir, repo_key, max_bytes, save_snapshot) if save_snapshot || request.analysis.diff?
 
           lookup = index.lookup(files)
           graph = lookup.graph
