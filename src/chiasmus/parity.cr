@@ -8,6 +8,10 @@ require "./graph/types"
 require "./utils/bounded_work"
 require "./utils/config"
 require "./index/directory_walk"
+require "./parity/naming"
+require "./parity/rules"
+require "./parity/reconcile"
+require "./parity/surface"
 
 module Chiasmus
   module Parity
@@ -398,6 +402,7 @@ module Chiasmus
         exports = graph ? nil : ([] of Graph::ExportsFact)
         contains = graph ? nil : ([] of Graph::ContainsFact)
         qualified_names = [] of Tuple(String, String, String)
+        signatures = [] of Tuple(String, String, String)
         entry_points = [] of String
         entry_point_files = [] of Tuple(String, String)
 
@@ -416,6 +421,9 @@ module Chiasmus
           elsif stripped.starts_with?("qualified_name(")
             args = parse_args(stripped["qualified_name(".size...-2])
             qualified_names << {atom(args[0]), atom(args[1]), atom(args[2])}
+          elsif stripped.starts_with?("signature(")
+            args = parse_args(stripped["signature(".size...-2])
+            signatures << {atom(args[0]), atom(args[1]), atom(args[2])}
           elsif stripped.starts_with?("calls_in(")
             args = parse_args(stripped["calls_in(".size...-2])
             scoped_calls << Graph::IR::ScopedCallEdge.new(
@@ -469,6 +477,7 @@ module Chiasmus
           contains: contains || ([] of Graph::ContainsFact),
         )
         attach_qualified_names!(graph, qualified_names) unless qualified_names.empty?
+        attach_signatures!(graph, signatures) unless signatures.empty?
 
         StructuralFacts.new(
           graph: graph,
@@ -685,12 +694,46 @@ module Chiasmus
       end
 
       private def attach_qualified_names!(graph : Graph::CodeGraph, qualified_names : Array(Tuple(String, String, String))) : Nil
-        lookup = qualified_names.to_h do |file, name, qualified_name|
-          { {file, name}, qualified_name }
-        end
+        # A file can define the same simple name more than once (nested enums,
+        # overloads), so `{file, name}` alone is ambiguous. Facts are emitted in
+        # `graph.defines` order, so consume the queued qualified names in order
+        # per `{file, name}`.
+        queues = Hash({String, String}, Array(String)).new { |hash, key| hash[key] = [] of String }
+        qualified_names.each { |file, name, qualified_name| queues[{file, name}] << qualified_name }
+
+        offsets = Hash({String, String}, Int32).new(0)
         graph.defines.map! do |fact|
-          qualified_name = lookup[{fact.file, fact.name}]?
-          qualified_name ? fact.copy_with(qualified_name: qualified_name) : fact
+          key = {fact.file, fact.name}
+          queue = queues[key]?
+          unless queue
+            next fact
+          end
+
+          offset = offsets[key]
+          next fact if offset >= queue.size
+
+          offsets[key] = offset + 1
+          fact.copy_with(qualified_name: queue[offset])
+        end
+      end
+
+      private def attach_signatures!(graph : Graph::CodeGraph, signatures : Array(Tuple(String, String, String))) : Nil
+        queues = Hash({String, String}, Array(String)).new { |hash, key| hash[key] = [] of String }
+        signatures.each { |file, name, signature| queues[{file, name}] << signature }
+
+        offsets = Hash({String, String}, Int32).new(0)
+        graph.defines.map! do |fact|
+          key = {fact.file, fact.name}
+          queue = queues[key]?
+          unless queue
+            next fact
+          end
+
+          offset = offsets[key]
+          next fact if offset >= queue.size
+
+          offsets[key] = offset + 1
+          fact.copy_with(signature: queue[offset])
         end
       end
 
@@ -1560,6 +1603,116 @@ module Chiasmus
       AnalysisResult.new(rows: matcher.analyze(inventory), parser_mode: parser)
     end
 
+    # Joins a curated port inventory against `Reconcile` mappings to surface
+    # ledger-vs-structure divergences mechanically:
+    #   - `falsely_missing`: the ledger says `missing` but a Crystal counterpart
+    #     reconciles structurally.
+    #   - `falsely_ported`: the ledger says `ported` but no Crystal counterpart
+    #     reconciles structurally.
+    module InventoryJoin
+      extend self
+
+      record DivergenceRow,
+        source_id : String,
+        kind : String,
+        inventory_status : String,
+        map_status : String,
+        divergence : String,
+        target_name : String,
+        entity_id : String? = nil,
+        target_id : String? = nil,
+        target_file : String? = nil,
+        target_owner : String? = nil,
+        basis : String = "-"
+
+      def divergences(
+        inventory : Array(InventoryRow),
+        mappings : Array(Reconcile::Mapping),
+        rules : Rules::RuleSet,
+      ) : Array(DivergenceRow)
+        normalizer = Rules::Normalizer.new(rules)
+        by_name = Hash(String, Array(Reconcile::Mapping)).new { |hash, key| hash[key] = [] of Reconcile::Mapping }
+        by_canonical = Hash(String, Array(Reconcile::Mapping)).new { |hash, key| hash[key] = [] of Reconcile::Mapping }
+        mappings.each do |mapping|
+          by_name[mapping.source_name] << mapping
+          by_canonical[mapping.canonical] << mapping
+        end
+
+        inventory.map do |row|
+          # Prefer the exact fact mapping (avoids conflating distinct source
+          # entities that merely share a canonical key). Fall back to canonical
+          # + owner when the extractor emitted a bare qualified name.
+          candidates = by_name[row.source_name]? || [] of Reconcile::Mapping
+          if candidates.empty?
+            canonical = normalizer.canonical(Rules::Normalizer::Side::Source, row.source_name)
+            owner = inventory_owner(normalizer, rules, row)
+            candidates = (by_canonical[canonical]? || [] of Reconcile::Mapping).select do |mapping|
+              owner.nil? || mapping.source_owner.nil? || mapping.source_owner == owner
+            end
+          end
+
+          candidates = candidates.select { |mapping| kind_compatible?(row.kind, mapping.source_kind) }
+          map_status = best_status(candidates)
+          matched = candidates.find(&.status.==("matched"))
+          linked = matched || candidates.first?
+          DivergenceRow.new(
+            source_id: row.source_id,
+            kind: row.kind,
+            inventory_status: row.status,
+            map_status: map_status,
+            divergence: divergence_for(row.status, map_status),
+            target_name: matched.try(&.target_name) || "-",
+            entity_id: linked.try(&.source_id),
+            target_id: linked.try(&.target_id),
+            target_file: linked.try { |mapping| mapping.target_id.try(&.split("::").first) },
+            target_owner: linked.try(&.target_owner),
+            basis: linked.try(&.basis) || "-",
+          )
+        end
+      end
+
+      def kind_compatible?(inventory_kind : String, fact_kind : String) : Bool
+        return true if inventory_kind == fact_kind
+
+        case inventory_kind
+        when "const"     then ["variable", "const", "constant"].includes?(fact_kind)
+        when "enum"      then ["class", "type", "interface", "module"].includes?(fact_kind)
+        when "class"     then ["class", "module", "struct", "interface"].includes?(fact_kind)
+        when "interface" then ["interface", "module", "class"].includes?(fact_kind)
+        when "method"    then ["method", "function"].includes?(fact_kind)
+        else                  false
+        end
+      end
+
+      private def inventory_owner(normalizer : Rules::Normalizer, rules : Rules::RuleSet, row : InventoryRow) : String?
+        file = row.source_file
+        return nil unless file
+
+        leaf = File.dirname(file).split('/').reject(&.empty?).last?
+        return nil unless leaf
+
+        normalizer.key(normalizer.normalize(rules.source, leaf))
+      end
+
+      private def best_status(candidates : Array(Reconcile::Mapping)) : String
+        return "no_facts" if candidates.empty?
+        return "matched" if candidates.any? { |mapping| mapping.status == "matched" }
+        return "ambiguous" if candidates.any? { |mapping| mapping.status == "ambiguous" }
+
+        "unmapped"
+      end
+
+      private def divergence_for(inventory_status : String, map_status : String) : String
+        if inventory_status == "missing" && map_status == "matched"
+          "falsely_missing"
+        elsif inventory_status == "ported" && (map_status == "unmapped" || map_status == "no_facts")
+          "falsely_ported"
+        else
+          "-"
+        end
+      end
+    end
+
     module Completion
       extend self
 
@@ -1858,6 +2011,7 @@ module Chiasmus
         root_dir = "."
         crystal_dirs = [] of String
         rules_path : String? = nil
+        map_rules_path : String? = nil
         parser_mode : String? = nil
         source_facts_path : String? = nil
         crystal_facts_path : String? = nil
@@ -1870,10 +2024,11 @@ module Chiasmus
           opts.on("--root DIR", "Repo root for relative crystal dirs (default: .)") { |value| root_dir = value }
           opts.on("--crystal-dir DIR", "Crystal source/spec directory (repeatable)") { |value| crystal_dirs << value }
           opts.on("--rules FILE", "Optional conversion rules TSV") { |value| rules_path = value }
+          opts.on("--map-rules FILE", "Optional cross-language normalization rules YAML (used with --format maps)") { |value| map_rules_path = value }
           opts.on("--parser MODE", "Parser mode: auto|tree-sitter|regex") { |value| parser_mode = value }
           opts.on("--source-facts FILE", "Optional source graph facts for structural checks") { |value| source_facts_path = value }
           opts.on("--crystal-facts FILE", "Optional Crystal graph facts for structural checks") { |value| crystal_facts_path = value }
-          opts.on("--format FORMAT", "Output format: tsv|completion-facts") { |value| format = value }
+          opts.on("--format FORMAT", "Output format: tsv|completion-facts|maps|maps-prolog|surfaces|divergences") { |value| format = value }
           opts.on("--help", "Show this help") do
             help_requested = true
           end
@@ -1889,6 +2044,65 @@ module Chiasmus
 
         if help_requested
           output.puts parser
+          return 0
+        end
+
+        if format == "maps"
+          source_path = source_facts_path
+          crystal_path = crystal_facts_path
+          if source_path.nil? || crystal_path.nil?
+            error.puts "--source-facts and --crystal-facts are required for --format maps"
+            return 1
+          end
+          source_graph = Structural.load_graph(source_path)
+          target_graph = Structural.load_graph(crystal_path)
+          rules = Rules::RuleSet.load_if(map_rules_path)
+          render_maps(output, Reconcile.mappings(source_graph, target_graph, rules), map_rules_path)
+          return 0
+        end
+
+        if format == "divergences"
+          source_path = source_facts_path
+          crystal_path = crystal_facts_path
+          if inventory_path.empty? || source_path.nil? || crystal_path.nil?
+            error.puts "--inventory, --source-facts and --crystal-facts are required for --format divergences"
+            return 1
+          end
+          rules = Rules::RuleSet.load_if(map_rules_path)
+          mappings = Reconcile.mappings(Structural.load_graph(source_path), Structural.load_graph(crystal_path), rules)
+          inventory = Loader.read_inventory(inventory_path)
+          render_divergences(output, InventoryJoin.divergences(inventory, mappings, rules))
+          return 0
+        end
+
+        if format == "maps-prolog"
+          source_path = source_facts_path
+          crystal_path = crystal_facts_path
+          if source_path.nil? || crystal_path.nil?
+            error.puts "--source-facts and --crystal-facts are required for --format maps-prolog"
+            return 1
+          end
+          rules = Rules::RuleSet.load_if(map_rules_path)
+          source_graph = Structural.load_graph(source_path)
+          target_graph = Structural.load_graph(crystal_path)
+          mappings = Reconcile.mappings(source_graph, target_graph, rules)
+          divergences = inventory_path.empty? ? nil : InventoryJoin.divergences(Loader.read_inventory(inventory_path), mappings, rules)
+          render_maps_prolog(output, source_graph, target_graph, mappings, divergences, rules)
+          return 0
+        end
+
+        if format == "surfaces"
+          source_path = source_facts_path
+          crystal_path = crystal_facts_path
+          if source_path.nil? || crystal_path.nil?
+            error.puts "--source-facts and --crystal-facts are required for --format surfaces"
+            return 1
+          end
+          rules = Rules::RuleSet.load_if(map_rules_path)
+          source_graph = Structural.load_graph(source_path)
+          target_graph = Structural.load_graph(crystal_path)
+          mappings = Reconcile.mappings(source_graph, target_graph, rules)
+          render_surfaces(output, Surface.compare(source_graph, target_graph, mappings, rules))
           return 0
         end
 
@@ -1945,6 +2159,182 @@ module Chiasmus
             row.notes,
           ].join('\t')
         end
+      end
+
+      private def render_maps(output : IO, mappings : Array(Reconcile::Mapping), rules_path : String?) : Nil
+        counts = Hash(String, Int32).new(0)
+        mappings.each { |mapping| counts[mapping.status] += 1 }
+
+        output.puts "# rules=#{rules_path || "-"}"
+        output.puts "# total=#{mappings.size} matched=#{counts["matched"]} ambiguous=#{counts["ambiguous"]} unmapped=#{counts["unmapped_source"]}"
+        output.puts "source_id\tsource_name\tsource_kind\tsource_owner\tcanonical\ttarget_id\ttarget_name\ttarget_kind\ttarget_owner\tstatus\tbasis"
+        mappings.each do |mapping|
+          output.puts [
+            mapping.source_id,
+            mapping.source_name,
+            mapping.source_kind,
+            mapping.source_owner || "-",
+            mapping.canonical,
+            mapping.target_id || "-",
+            mapping.target_name || "-",
+            mapping.target_kind || "-",
+            mapping.target_owner || "-",
+            mapping.status,
+            mapping.basis,
+          ].join('\t')
+        end
+      end
+
+      private def render_divergences(output : IO, rows : Array(InventoryJoin::DivergenceRow)) : Nil
+        falsely_missing = rows.count { |row| row.divergence == "falsely_missing" }
+        falsely_ported = rows.count { |row| row.divergence == "falsely_ported" }
+
+        output.puts "# falsely_missing=#{falsely_missing} falsely_ported=#{falsely_ported} total=#{rows.size}"
+        output.puts "source_id\tkind\tinventory_status\tmap_status\tdivergence\ttarget_name\ttarget_id\ttarget_file\ttarget_owner\tbasis"
+        rows.each do |row|
+          output.puts [
+            row.source_id,
+            row.kind,
+            row.inventory_status,
+            row.map_status,
+            row.divergence,
+            row.target_name,
+            row.target_id || "-",
+            row.target_file || "-",
+            row.target_owner || "-",
+            row.basis,
+          ].join('\t')
+        end
+      end
+
+      private def render_surfaces(output : IO, reports : Array(Surface::SurfaceReport)) : Nil
+        counts = Hash(String, Int32).new(0)
+        reports.each { |report| counts[report.status] += 1 }
+
+        output.puts "# surface_match=#{counts["surface_match"]} surface_mismatch=#{counts["surface_mismatch"]} surface_unmodeled=#{counts["surface_unmodeled"]} total=#{reports.size}"
+        output.puts "source_id\ttarget_id\tstatus\tsource_arity\ttarget_arity\tsource_return\ttarget_return\treturn_match\tdetails"
+        reports.each do |report|
+          output.puts [
+            report.source_id,
+            report.target_id || "-",
+            report.status,
+            report.source_arity.to_s,
+            report.target_arity.to_s,
+            report.source_return || "-",
+            report.target_return || "-",
+            report.return_type_match.to_s,
+            report.details,
+          ].join('\t')
+        end
+      end
+
+      MAPS_QUERY_RULES = <<-PROLOG
+      % --- chiasmus parity query rules -------------------------------------------
+      maps_to_matched(Id) :- maps_to(Id, Target), Target \\= none.
+      inventory_matched(Id) :- inventory_entity(Id, Entity), map_status(Entity, matched).
+      inventory_unmapped(Id) :- inventory_entity(Id, Entity), map_status(Entity, unmapped_source),
+          \\+ inventory_matched(Id).
+      falsely_missing(Id) :- inventory_item(Id, _, missing, _, _), inventory_matched(Id).
+      falsely_ported(Id) :- inventory_item(Id, _, ported, _, _),
+          ( \\+ inventory_entity(Id, _) ; inventory_unmapped(Id) ).
+      unmapped_source(Id) :- source_entity(Id), \\+ maps_to(Id, _).
+      renamed_but_present(S, T) :- maps_to(S, T), T \\= none,
+          entity(S, _, NS, _, _), entity(T, _, NT, _, _), NS \\= NT.
+      surface_drift(Entity) :- surface_status(Entity, surface_mismatch).
+      surface_ok(Id) :- \\+ (inventory_entity(Id, Entity), surface_drift(Entity)).
+      % Structural completion gate, foldable with chiasmus-complete.
+      complete(Id) :- inventory_item(Id, _, ported, _, _), inventory_matched(Id), surface_ok(Id).
+      incomplete(Id) :- inventory_item(Id, _, Status, _, _),
+          Status \\= skipped, Status \\= intentional_divergence, \\+ complete(Id).
+      % --- end query rules -------------------------------------------------------
+      PROLOG
+
+      private def render_maps_prolog(
+        output : IO,
+        source : Graph::CodeGraph,
+        target : Graph::CodeGraph,
+        mappings : Array(Reconcile::Mapping),
+        divergences : Array(InventoryJoin::DivergenceRow)?,
+        rules : Rules::RuleSet,
+      ) : Nil
+        normalizer = Rules::Normalizer.new(rules)
+        source_lang = rules.source_language.empty? ? "source" : rules.source_language
+        target_lang = rules.target_language.empty? ? "target" : rules.target_language
+
+        output.puts "% maps-prolog generated by chiasmus-parity"
+        output.puts "% source_language=#{source_lang} target_language=#{target_lang}"
+        output.puts
+
+        source_owners = Reconcile.owners(source, rules, Rules::Normalizer::Side::Source)
+        target_owners = Reconcile.owners(target, rules, Rules::Normalizer::Side::Target)
+
+        source.defines.each do |fact|
+          id = Reconcile.entity_id(fact)
+          output.puts "entity(#{atom(id)}, #{atom(fact.kind.to_s.downcase)}, #{atom(Reconcile.display_name(fact))}, #{atom(source_owners[id]? || "none")}, #{source_lang})."
+        end
+        target.defines.each do |fact|
+          id = Reconcile.entity_id(fact)
+          output.puts "entity(#{atom(id)}, #{atom(fact.kind.to_s.downcase)}, #{atom(Reconcile.display_name(fact))}, #{atom(target_owners[id]? || "none")}, #{target_lang})."
+        end
+
+        source.defines.each do |fact|
+          id = Reconcile.entity_id(fact)
+          output.puts "normalized(#{atom(id)}, #{atom(normalizer.canonical(Rules::Normalizer::Side::Source, Reconcile.display_name(fact)))})."
+        end
+        target.defines.each do |fact|
+          id = Reconcile.entity_id(fact)
+          output.puts "normalized(#{atom(id)}, #{atom(normalizer.canonical(Rules::Normalizer::Side::Target, Reconcile.display_name(fact)))})."
+        end
+
+        source.defines.each { |fact| output.puts "source_entity(#{atom(Reconcile.entity_id(fact))})." }
+        target.defines.each { |fact| output.puts "target_entity(#{atom(Reconcile.entity_id(fact))})." }
+
+        mappings.each do |mapping|
+          target_id = mapping.target_id
+          output.puts "maps_to(#{atom(mapping.source_id)}, #{target_id ? atom(target_id) : "none"})."
+        end
+        mappings.each do |mapping|
+          output.puts "map_status(#{atom(mapping.source_id)}, #{atom(mapping.status)})."
+        end
+
+        Surface.compare(source, target, mappings, rules).each do |report|
+          output.puts "surface_status(#{atom(report.source_id)}, #{atom(report.status)})."
+        end
+
+        rules.renames.each { |rename| output.puts "rename(#{atom(rename.source)}, #{atom(rename.target)})." }
+        rules.consolidate.each { |rule| output.puts "consolidate(#{atom(rule.source)}, #{atom(rule.target)})." }
+        rules.owner_aliases.each { |alias_rule| output.puts "owner_alias(#{atom(alias_rule.source)}, #{atom(alias_rule.target)})." }
+
+        emit_members(output, source)
+        emit_members(output, target)
+
+        if rows = divergences
+          rows.each do |row|
+            output.puts "inventory_item(#{atom(row.source_id)}, #{atom(row.kind)}, #{atom(row.inventory_status)}, -, -)."
+          end
+          rows.each do |row|
+            entity_id = row.entity_id
+            output.puts "inventory_entity(#{atom(row.source_id)}, #{atom(entity_id)})." if entity_id
+          end
+          rows.each do |row|
+            output.puts "divergence(#{atom(row.source_id)}, #{atom(row.divergence)}, #{atom(row.target_name)})." unless row.divergence == "-"
+          end
+        end
+
+        output.puts
+        output.puts MAPS_QUERY_RULES
+      end
+
+      private def emit_members(output : IO, graph : Graph::CodeGraph) : Nil
+        graph.contains.each do |fact|
+          output.puts "member(#{atom(fact.parent)}, #{atom(fact.child)}, member)."
+        end
+      end
+
+      private def atom(value : String) : String
+        return value if value.matches?(/^[a-z][a-z0-9_]*$/)
+
+        "'#{value.gsub("'", "''")}'"
       end
     end
 
