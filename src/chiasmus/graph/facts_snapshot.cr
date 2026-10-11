@@ -19,6 +19,7 @@ module Chiasmus
         dir : String,
         entry_points : Array(String),
         include_insights : Bool,
+        excludes : Array(String) = [] of String,
       ) : String
         digest = OpenSSL::Digest.new("SHA256")
           .update(language)
@@ -28,6 +29,8 @@ module Chiasmus
           .update(entry_points.join(","))
           .update("\u0000")
           .update(include_insights ? "1" : "0")
+          .update("\u0000")
+          .update(excludes.join(","))
           .final
           .hexstring
         "facts-#{digest[0, 24]}"

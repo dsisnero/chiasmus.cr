@@ -35,6 +35,7 @@ module Chiasmus
       language = "crystal"
       dir = "."
       entry_points = [] of String
+      exclude_patterns = [] of String
       insights = false
       profile = ENV["CHIASMUS_FACTS_PROFILE"]? == "1"
       help_requested = false
@@ -47,6 +48,7 @@ module Chiasmus
         opts.on("--language LANG", "Language to analyze (default: crystal)") { |v| language = v }
         opts.on("--dir DIR", "Source directory to scan (default: .)") { |v| dir = v }
         opts.on("--entry-point NAME", "Entry point for reachability/dead-code (repeatable)") { |v| entry_points << v }
+        opts.on("--exclude GLOB", "Exclude paths/segments matching GLOB (repeatable; e.g. debugger or '**/examples/**')") { |v| exclude_patterns << v }
         opts.on("--insights", "Also emit community/2, cohesion/2, hub/2, bridge/2 facts") { insights = true }
         opts.on("--profile", "Emit timing profile to stderr") { profile = true }
         opts.on("--cache-dir DIR", "Enable persistent per-file extraction cache in DIR") { |v| cache_dir = v }
@@ -72,7 +74,7 @@ module Chiasmus
       register_grammar_directories(dir)
 
       started_at = Time.instant
-      files = scan_files(language, dir)
+      files = scan_files(language, dir, exclude_patterns)
       if files.empty?
         error.puts "No #{language} files found in #{dir}"
         return 1
@@ -100,7 +102,7 @@ module Chiasmus
       snapshot_metadata = nil.as(Graph::FactsSnapshot::Metadata?)
       if effective_cache_dir = cache_dir
         effective_repo_key = (repo_key || Graph::GraphCache.default_repo_key).to_s
-        snapshot_name = Graph::FactsSnapshot.snapshot_name(language, dir, entry_points, insights)
+        snapshot_name = Graph::FactsSnapshot.snapshot_name(language, dir, entry_points, insights, exclude_patterns)
         Graph::GraphCache.save_snapshot_async(snapshot_name, graph, effective_cache_dir, repo_key: effective_repo_key)
         snapshot_metadata = Graph::FactsSnapshot::Metadata.new(
           cache_dir: effective_cache_dir,
@@ -174,15 +176,36 @@ module Chiasmus
       ].map { |path| File.expand_path(path) }
     end
 
-    private def scan_files(language : String, dir : String) : Array(String)
+    private def scan_files(language : String, dir : String, exclude_patterns : Array(String) = [] of String) : Array(String)
       extensions = LANGUAGE_EXTENSIONS[language]? || [".#{language}"]
       files = [] of String
+      base = dir.sub(/^\.\//, "").sub(/\/$/, "")
 
       Index::DirectoryWalk.files(dir, max_depth: 50).each do |path|
         next if path.split('/').any?(&.starts_with?("._"))
-        files << path if extensions.any? { |ext| path.ends_with?(ext) }
+        next unless extensions.any? { |ext| path.ends_with?(ext) }
+
+        relative = path.sub(/^\.\//, "")
+        relative = relative[base.size..].lstrip('/') if !base.empty? && relative.starts_with?(base)
+        next if excluded_path?(relative, exclude_patterns)
+
+        files << path
       end
       files
+    end
+
+    private def excluded_path?(relative : String, patterns : Array(String)) : Bool
+      return false if patterns.empty?
+
+      segments = relative.split('/')
+      patterns.any? do |pattern|
+        next false if pattern.empty?
+        if pattern.includes?('*') || pattern.includes?('?')
+          File.match?(pattern, relative)
+        else
+          segments.includes?(pattern) || relative == pattern || relative.starts_with?("#{pattern}/")
+        end
+      end
     end
 
     private def elapsed_ms(started_at : Time::Instant) : Float64

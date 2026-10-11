@@ -40,4 +40,33 @@ describe Chiasmus::FactsCLI do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "excludes paths matching --exclude globs" do
+    dir = File.join(Dir.tempdir, "chiasmus-facts-cli-exclude-#{Random::Secure.hex(8)}")
+    keep_dir = File.join(dir, "keep")
+    skip_dir = File.join(dir, "debugger")
+    Dir.mkdir_p(keep_dir)
+    Dir.mkdir_p(skip_dir)
+    File.write(File.join(keep_dir, "kept.cr"), "def kept_method\nend\n")
+    File.write(File.join(skip_dir, "skipped.cr"), "def skipped_method\nend\n")
+
+    output = IO::Memory.new
+    error = IO::Memory.new
+
+    begin
+      exit_code = Chiasmus::FactsCLI.run(
+        ["--language", "crystal", "--dir", dir, "--exclude", "debugger"],
+        output: output,
+        error: error
+      )
+
+      exit_code.should eq(0)
+      text = output.to_s
+      text.should contain("files=1")
+      text.should contain("kept_method")
+      text.should_not contain("skipped_method")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
 end
