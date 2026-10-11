@@ -104,11 +104,17 @@ The server currently exposes these tool families:
 
 `shard.yml` defines multiple targets:
 
-- `chiasmus`: MCP server entrypoint
+- `chiasmus`: MCP server entrypoint (stdio / streamable HTTP)
 - `chiasmus-agent`: interactive CLI for graph-aware formal solving
-- `chiasmus-discover`: tree-sitter discovery CLI for parity manifests
 - `chiasmus-grammar`: grammar manager for install, compile, update, and cache operations
-- `chiasmus-parity`: parity inventory reporter
+- `chiasmus-discover`: tree-sitter discovery CLI for parity manifests
+- `chiasmus-facts`: extracts layer-A Prolog facts from a source tree
+- `chiasmus-parity`: curated-ledger parity report + reconciliation/diff formats
+- `chiasmus-plan`: plans a port from source facts (rank/slice/seed/track)
+- `chiasmus-complete`: completion gate over the curated ledger
+
+See [docs/CLI-BINARIES.md](docs/CLI-BINARIES.md) for each binary's synopsis,
+options, and exit codes.
 
 ## Quick Start
 

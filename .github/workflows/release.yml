@@ -88,6 +88,9 @@ jobs:
         crystal build --release -o dist/chiasmus/chiasmus-discover${{ matrix.ext }} src/chiasmus_discover.cr
         crystal build --release -o dist/chiasmus/chiasmus-grammar${{ matrix.ext }} src/chiasmus_grammar.cr
         crystal build --release -o dist/chiasmus/chiasmus-parity${{ matrix.ext }} src/chiasmus_parity.cr
+        crystal build --release -o dist/chiasmus/chiasmus-facts${{ matrix.ext }} src/chiasmus_facts.cr
+        crystal build --release -o dist/chiasmus/chiasmus-plan${{ matrix.ext }} src/chiasmus_plan.cr
+        crystal build --release -o dist/chiasmus/chiasmus-complete${{ matrix.ext }} src/chiasmus_complete.cr
 
     - name: Copy grammar libraries
       shell: bash

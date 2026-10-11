@@ -36,8 +36,12 @@
 
 ## Binaries
 
-- `chiasmus`: MCP server
+- [CLI-BINARIES.md](CLI-BINARIES.md): every executable — purpose, synopsis, options, exit codes
+- `chiasmus`: MCP server (stdio / streamable HTTP)
 - `chiasmus-agent`: interactive graph-aware formal-solving CLI
-- `chiasmus-discover`: parity/discovery extraction CLI
-- `chiasmus-grammar`: grammar management CLI
-- `chiasmus-parity`: parity reporting CLI
+- `chiasmus-grammar`: tree-sitter grammar manager
+- `chiasmus-discover`: declaration enumeration for parity manifests
+- `chiasmus-facts`: layer-A Prolog fact extraction
+- `chiasmus-parity`: curated-ledger parity report + reconciliation/diff formats
+- `chiasmus-plan`: port planner over source facts
+- `chiasmus-complete`: completion gate over the curated ledger

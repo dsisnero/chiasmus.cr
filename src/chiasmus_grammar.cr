@@ -1,5 +1,8 @@
 #!/usr/bin/env crystal
-# CLI for managing tree-sitter grammars in Chiasmus
+# chiasmus-grammar: tree-sitter grammar manager.
+#
+# Installs, compiles, updates, and caches the tree-sitter grammars the other
+# binaries need. See docs/CLI-BINARIES.md.
 
 # Prevent tree-sitter-manager from hijacking CLI args before our parser runs
 ENV["TREE_SITTER_MANAGER_NO_AUTO_RUN"] = "1"

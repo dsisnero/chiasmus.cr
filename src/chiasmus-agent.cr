@@ -1,3 +1,8 @@
+#!/usr/bin/env crystal
+# chiasmus-agent: interactive, graph-aware formal-solving CLI.
+#
+# Runs a formal solve (--ask) or a graph analysis over the provided code files.
+# See docs/CLI-BINARIES.md.
 require "./chiasmus"
 
 begin
