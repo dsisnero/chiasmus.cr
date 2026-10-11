@@ -89,7 +89,8 @@ module Chiasmus
 
           kind = is_class_method ? SymbolKind::Method : SymbolKind::Function
           qualified_name = crystal_qualified_name(scope_stack, crystal_method_name)
-          defines << DefinesFact.new(file: file_path, name: crystal_method_name, kind: kind, span: Span.from_node(node), qualified_name: qualified_name)
+          signature = crystal_method_signature_text(node, source)
+          defines << DefinesFact.new(file: file_path, name: crystal_method_name, kind: kind, span: Span.from_node(node), signature: signature, qualified_name: qualified_name)
           if enclosing = scope_stack.last?
             contains << ContainsFact.new(parent: enclosing, child: crystal_method_name)
           end
@@ -222,7 +223,11 @@ module Chiasmus
                           end
             next unless member_name
             next if member_name == name
-            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, span: Span.from_node(member))
+            # Attribute the enclosing enum so members carry owner identity.
+            enum_qualified = crystal_qualified_name(scope_stack, name)
+            qualified = "#{enum_qualified}.#{member_name}"
+            defines << DefinesFact.new(file: file_path, name: member_name, kind: SymbolKind::Variable, span: Span.from_node(member), qualified_name: qualified)
+            contains << ContainsFact.new(parent: name, child: qualified)
           end
         end
 
@@ -278,6 +283,22 @@ module Chiasmus
         end
 
         {name, is_class_method}
+      end
+
+      # `(param : Type, ...) -> ReturnType` from a `method_def`. Crystal has no
+      # named fields for these: the parameter list is a `param_list` child and
+      # the return type follows a `:` child.
+      private def crystal_method_signature_text(node : TreeSitter::Node, source : String) : String?
+        children = node.children.to_a
+        params = children.find(&.type.==("param_list"))
+        colon = children.index { |child| child.type == ":" }
+        return_type = colon ? children[colon + 1]? : nil
+        has_parens = children.any? { |child| child.type == "(" }
+        return nil unless params || return_type || has_parens
+
+        signature = "(#{params.try(&.text(source)) || ""})"
+        signature += " -> #{return_type.text(source)}" if return_type
+        signature.gsub(/\s+/, " ").strip
       end
 
       private def handle_crystal_call(
@@ -468,7 +489,7 @@ module Chiasmus
         return false unless name
         return false unless name.matches?(/^[A-Z][A-Z0-9_]*$/)
 
-        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, span: Span.from_node(node))
+        defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, span: Span.from_node(node), qualified_name: crystal_qualified_name(scope_stack, name))
         if enclosing = scope_stack.last?
           contains << ContainsFact.new(parent: enclosing, child: name)
         end

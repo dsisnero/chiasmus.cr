@@ -1,6 +1,7 @@
 require "spec"
 require "../../../src/chiasmus/graph/types"
 require "../../../src/chiasmus/graph/extractor"
+require "../../../src/chiasmus/graph/port_dom"
 require "tree-sitter-manager"
 
 describe "Java extractor" do
@@ -29,6 +30,43 @@ describe "Java extractor" do
     calc.should_not be_nil
     clc = calc || raise "Expected calc"
     clc.kind.should eq(Chiasmus::Graph::SymbolKind::Class)
+  end
+
+  it "extracts method signatures" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.java", <<-JAVA
+        class Calc {
+            int add(int a, int b) {
+                return a + b;
+            }
+        }
+      JAVA
+      ),
+    ])
+
+    add = graph.defines.find { |defn| defn.name == "add" }
+    add.should_not be_nil
+    (add || raise "expected add").signature.should eq("(int a, int b) -> int")
+  end
+
+  it "builds PortDom surfaces from extracted Java" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.java", <<-JAVA
+        class Calc {
+            int add(int a, int b) {
+                return a + b;
+            }
+        }
+      JAVA
+      ),
+    ])
+
+    method = Chiasmus::Graph::PortDom.build(graph).methods.find { |surface| surface.name == "add" }
+    method.should_not be_nil
+    surface = method || raise "expected add surface"
+    surface.params.map(&.name).should eq(["a", "b"])
+    surface.params.map(&.type.not_nil!.name).should eq(["int", "int"])
+    surface.return_type.not_nil!.name.should eq("int")
   end
 
   it "extracts methods with contains" do

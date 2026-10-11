@@ -76,6 +76,7 @@ module Chiasmus
 
         lines << ":- dynamic(defines/5)."
         lines << ":- dynamic(qualified_name/3)."
+        lines << ":- dynamic(signature/3)."
         lines << ":- dynamic(calls/2)."
         lines << ":- dynamic(calls_in/3)."
         lines << ":- dynamic(imports/3)."
@@ -92,6 +93,10 @@ module Chiasmus
         graph.defines.each do |fact|
           next unless qualified_name = fact.qualified_name
           lines << "qualified_name(#{escape_atom(fact.file)}, #{escape_atom(fact.name)}, #{escape_atom(qualified_name)})."
+        end
+        graph.defines.each do |fact|
+          next unless signature = fact.signature
+          lines << "signature(#{escape_atom(fact.file)}, #{escape_atom(fact.name)}, #{escape_atom(signature)})."
         end
         lines << "" unless graph.defines.empty?
 

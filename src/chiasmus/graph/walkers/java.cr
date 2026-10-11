@@ -43,7 +43,7 @@ module Chiasmus
           java_handle_declaration_scope(node, source, file_path, SymbolKind::Interface, scope_stack, defines, calls, imports, exports, contains, call_set)
         when "enum_declaration", "record_declaration"
           java_handle_declaration_scope(node, source, file_path, SymbolKind::Class, scope_stack, defines, calls, imports, exports, contains, call_set)
-          extract_java_enum_members(node, source, file_path, defines)
+          extract_java_enum_members(node, source, file_path, defines, contains)
           true
         else
           false
@@ -66,7 +66,8 @@ module Chiasmus
         return false unless name
 
         kind = java_in_class?(node) ? SymbolKind::Method : SymbolKind::Function
-        defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node))
+        signature = java_method_signature(node, source)
+        defines << DefinesFact.new(file: file_path, name: name, kind: kind, span: Span.from_node(node), signature: signature)
         if class_name = java_enclosing_class(node, source)
           contains << ContainsFact.new(parent: class_name, child: name)
         end
@@ -74,6 +75,17 @@ module Chiasmus
           walk_java_children(node, source, file_path, scope_stack, defines, calls, imports, exports, contains, call_set)
         end
         true
+      end
+
+      # `(Type name, ...) -> ReturnType` from the `parameters` and `type` fields.
+      private def java_method_signature(node : TreeSitter::Node, source : String) : String?
+        params = node.child_by_field_name("parameters")
+        return_type = node.child_by_field_name("type")
+        return nil unless params || return_type
+
+        signature = params.try(&.text(source)) || "()"
+        signature += " -> #{return_type.text(source)}" if return_type
+        signature.gsub(/\s+/, " ").strip
       end
 
       private def java_handle_declaration_scope(
@@ -192,7 +204,9 @@ module Chiasmus
         source : String,
         file_path : String,
         defines : Array(DefinesFact),
+        contains : Array(ContainsFact),
       ) : Nil
+        enum_name = node.child_by_field_name("name").try(&.text(source))
         (0...node.named_child_count).each do |child_idx|
           child = node.named_child(child_idx)
           next unless child
@@ -203,7 +217,11 @@ module Chiasmus
             next unless member.type == "enum_constant"
             name = member.child_by_field_name("name").try(&.text(source))
             next unless name
-            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, span: Span.from_node(member))
+            # Attribute the enclosing enum so members carry owner identity
+            # (fixes leaf-name collisions like XReferenceType.NORMAL vs BlendMode.Normal).
+            qualified = enum_name ? "#{enum_name}.#{name}" : name
+            defines << DefinesFact.new(file: file_path, name: name, kind: SymbolKind::Variable, span: Span.from_node(member), qualified_name: qualified)
+            contains << ContainsFact.new(parent: enum_name, child: qualified) if enum_name
           end
         end
       end

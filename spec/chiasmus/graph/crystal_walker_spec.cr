@@ -46,6 +46,21 @@ describe "Crystal walker call extraction" do
     result.result.as(Array(String)).to_set.should eq(Set{"Demo.Alpha.run", "Demo.Alpha.helper"})
   end
 
+  it "extracts method signatures" do
+    cr = <<-CR
+      class Widget
+        def render(width : Int32, label : String = "x") : Bool
+          true
+        end
+      end
+    CR
+
+    graph = Extractor.extract_graph([SourceFile.new(path: "/tmp/signature.cr", content: cr)])
+    render = graph.defines.find { |defn| defn.name == "render" }
+    render.should_not be_nil
+    (render || raise "expected render").signature.should eq(%((width : Int32, label : String = "x") -> Bool))
+  end
+
   it "does not treat local variables as function calls" do
     cr = <<-CR
       def calculate(x, y)
