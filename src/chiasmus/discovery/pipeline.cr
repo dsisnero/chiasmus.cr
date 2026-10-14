@@ -64,6 +64,15 @@ module Chiasmus
         Result.new(items: deduplicate(all_items), parser_mode: "tree-sitter")
       end
 
+      # Run the registered language extractor against a tree parsed by a caller.
+      # The caller is responsible for keeping the owning tree alive during this call.
+      def extract_from_tree(language : String, root_node : TreeSitter::Node, source : String, file_path : String) : Array(Item)
+        extractor = @registry.for_language(language)
+        return [] of Item unless extractor
+
+        extractor.extract(root_node, source, file_path)
+      end
+
       def discover_files_async(files : Array(Tuple(String, String))) : Channel(AsyncDiscoveryResult)
         channel = Channel(AsyncDiscoveryResult).new(1)
 

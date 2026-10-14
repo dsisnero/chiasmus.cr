@@ -1,4 +1,5 @@
 require "./parser"
+require "../discovery"
 require "./walkers"
 require "./adapter_registry"
 require "./clojure_source_extractor"
@@ -14,6 +15,8 @@ module Chiasmus
   module Graph
     module Extractor
       extend self
+
+      record UnifiedFileResult, graph : CodeGraph, discovery : Chiasmus::Discovery::Result
 
       @@merge_mutex = Mutex.new
       # tree_sitter's loaded-language registry and node StringPool are mutable
@@ -169,6 +172,29 @@ module Chiasmus
         channel
       end
 
+      # Parse one supported source file once, then run graph and symbol
+      # extraction while the tree-sitter lock and owning tree remain alive.
+      def extract_with_discovery(
+        file : SourceFile,
+        language : String,
+        parser = Parser,
+      ) : UnifiedFileResult?
+        return nil unless language.in?("java", "crystal", "go")
+
+        logical_language = parser.language_for_file(file.path)
+        return nil unless logical_language == language
+
+        with_tree_sitter_lock(parser) do
+          tree = parser.parse_source(file.content, file.path)
+          next unless tree
+
+          graph = extract_single_file_from_tree(file, language, tree)
+          discovery = Discovery.discover_tree(language, tree, file.content, file.path)
+          tree.root_node
+          UnifiedFileResult.new(graph: graph, discovery: discovery)
+        end
+      end
+
       def set_before_async_result_send_hook_for_test(&block : ->) : Nil
         @@before_async_result_send_hook = block
       end
@@ -243,6 +269,20 @@ module Chiasmus
         parser,
       ) : CodeGraph
         started_at = Time.instant
+        lang = parser.language_for_file(file.path)
+        return CodeGraph.new unless lang
+        return SexpSourceExtractor.extract(file) if lang.in?("scheme", "racket", "commonlisp")
+        return extract_clojure_file(file, lang, started_at) if lang == "clojure"
+
+        with_tree_sitter_lock(parser) do
+          tree = parser.parse_source(file.content, file.path)
+          next unless tree
+
+          extract_single_file_from_tree(file, lang, tree, started_at)
+        end || CodeGraph.new
+      end
+
+      private def extract_clojure_file(file : SourceFile, lang : String, started_at : Time::Instant) : CodeGraph
         defines = [] of DefinesFact
         calls = [] of CallsFact
         imports = [] of ImportsFact
@@ -250,10 +290,6 @@ module Chiasmus
         contains = [] of ContainsFact
         file_nodes = [] of FileNode
         type_info = [] of FileTypeInfo
-
-        lang = parser.language_for_file(file.path)
-        return CodeGraph.new unless lang
-        return SexpSourceExtractor.extract(file) if lang.in?("scheme", "racket", "commonlisp")
 
         line_count = file.content.count('\n') + (file.content[-1]? != '\n' ? 1 : 0)
         token_estimate = (file.content.size / 3.5).ceil.to_i32
@@ -265,44 +301,69 @@ module Chiasmus
         )
         file_nodes << fn
 
-        if lang == "clojure"
+        merge_adapter_graph(
+          ClojureSourceExtractor.extract(file),
+          defines, calls, imports, exports, contains,
+          Set(String).new
+        )
+
+        build_single_file_graph(file, lang, started_at, defines, calls, imports, exports, contains, file_nodes, type_info)
+      end
+
+      private def extract_single_file_from_tree(
+        file : SourceFile,
+        lang : String,
+        tree : TreeSitter::Tree,
+        started_at : Time::Instant = Time.instant,
+      ) : CodeGraph
+        defines = [] of DefinesFact
+        calls = [] of CallsFact
+        imports = [] of ImportsFact
+        exports = [] of ExportsFact
+        contains = [] of ContainsFact
+        file_nodes = [] of FileNode
+        type_info = [] of FileTypeInfo
+
+        line_count = file.content.count('\n') + (file.content[-1]? != '\n' ? 1 : 0)
+        token_estimate = (file.content.size / 3.5).ceil.to_i32
+        file_nodes << FileNode.new(path: file.path, language: lang, line_count: line_count, token_estimate: token_estimate)
+
+        if lang.in?("typescript", "javascript", "tsx")
+          type_info << TypeEnv.collect_type_info(tree.root_node, file.content, file.path)
+        end
+
+        adapter = AdapterRegistry.get_adapter(lang)
+        if adapter
           merge_adapter_graph(
-            ClojureSourceExtractor.extract(file),
+            adapter.extract(tree.root_node, file.content, file.path),
             defines, calls, imports, exports, contains,
             Set(String).new
           )
         else
-          parsed = false
-          with_tree_sitter_lock(parser) do
-            tree = parser.parse_source(file.content, file.path)
-            next unless tree
-
-            if lang.in?("typescript", "javascript", "tsx")
-              type_info << TypeEnv.collect_type_info(tree.root_node, file.content, file.path)
-            end
-
-            adapter = AdapterRegistry.get_adapter(lang)
-            if adapter
-              merge_adapter_graph(
-                adapter.extract(tree.root_node, file.content, file.path),
-                defines, calls, imports, exports, contains,
-                Set(String).new
-              )
-            else
-              extract_with_walkers(
-                lang, tree, file,
-                defines, calls, imports, exports, contains,
-                Set(String).new
-              )
-            end
-
-            # TreeSitter::Node does not retain its owning Tree. Keep the tree live
-            # through the complete adapter/walker traversal in optimized builds.
-            tree.root_node
-            parsed = true
-          end
-          return CodeGraph.new unless parsed
+          extract_with_walkers(
+            lang, tree, file,
+            defines, calls, imports, exports, contains,
+            Set(String).new
+          )
         end
+        tree.root_node
+
+        build_single_file_graph(file, lang, started_at, defines, calls, imports, exports, contains, file_nodes, type_info)
+      end
+
+      private def build_single_file_graph(
+        file : SourceFile,
+        lang : String,
+        started_at : Time::Instant,
+        defines : Array(DefinesFact),
+        calls : Array(CallsFact),
+        imports : Array(ImportsFact),
+        exports : Array(ExportsFact),
+        contains : Array(ContainsFact),
+        file_nodes : Array(FileNode),
+        type_info : Array(FileTypeInfo),
+      ) : CodeGraph
+        line_count = file.content.count('\n') + (file.content[-1]? != '\n' ? 1 : 0)
 
         graph = CodeGraph.new(
           defines: defines,
@@ -335,7 +396,7 @@ module Chiasmus
         end
       end
 
-      private def with_tree_sitter_lock(parser, &block)
+      private def with_tree_sitter_lock(parser, &block : -> T) : T forall T
         if parser == Parser
           @@tree_sitter_mutex.synchronize { block.call }
         else

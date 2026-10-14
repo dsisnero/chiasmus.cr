@@ -102,6 +102,13 @@ module Chiasmus
       Result.new(items: deduplicate(items), parser_mode: parser_mode)
     end
 
+    # Discover declarations from a tree already parsed by a coordinating caller.
+    def discover_tree(language : String, tree : TreeSitter::Tree, source : String, file_path : String) : Result
+      items = pipeline.extract_from_tree(language, tree.root_node, source, file_path)
+      tree.root_node
+      Result.new(items: deduplicate(items), parser_mode: "tree-sitter")
+    end
+
     def discover_file_async(
       language : String,
       source : String,
