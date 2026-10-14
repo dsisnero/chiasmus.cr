@@ -1,6 +1,38 @@
 require "../spec_helper"
 
 describe Chiasmus::FactsCLI do
+  it "keeps earlier facts snapshots readable after a source update" do
+    dir = File.join(Dir.tempdir, "chiasmus-facts-snapshot-history-#{Random::Secure.hex(8)}")
+    source_dir = File.join(dir, "src")
+    cache_dir = File.join(dir, "cache")
+    source_path = File.join(source_dir, "sample.cr")
+    old_facts = File.join(dir, "old.pl")
+    new_facts = File.join(dir, "new.pl")
+    Dir.mkdir_p(source_dir)
+
+    begin
+      File.write(source_path, "def before_update\nend\n")
+      old_output = IO::Memory.new
+      Chiasmus::FactsCLI.run(["--language", "crystal", "--dir", source_dir, "--cache-dir", cache_dir], output: old_output).should eq(0)
+      File.write(old_facts, old_output.to_s)
+
+      File.write(source_path, "def after_update\nend\n")
+      new_output = IO::Memory.new
+      Chiasmus::FactsCLI.run(["--language", "crystal", "--dir", source_dir, "--cache-dir", cache_dir], output: new_output).should eq(0)
+      File.write(new_facts, new_output.to_s)
+
+      old_graph = Chiasmus::Graph::FactsSnapshot.load_graph_from_facts(old_facts) || raise "old snapshot missing"
+      new_graph = Chiasmus::Graph::FactsSnapshot.load_graph_from_facts(new_facts) || raise "new snapshot missing"
+      old_graph.defines.map(&.name).should contain("before_update")
+      old_graph.defines.map(&.name).should_not contain("after_update")
+      new_graph.defines.map(&.name).should contain("after_update")
+      new_graph.defines.map(&.name).should_not contain("before_update")
+    ensure
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "emits timing profile data to stderr when profiling is enabled" do
     dir = File.join(Dir.tempdir, "chiasmus-facts-cli-profile-#{Random::Secure.hex(8)}")
     source_dir = File.join(dir, "src")

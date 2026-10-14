@@ -105,6 +105,7 @@ chiasmus-parity --inventory FILE [options]
   --source-facts FILE        source graph facts
   --crystal-facts FILE       Crystal graph facts
   --format FORMAT            tsv | completion-facts | maps | maps-prolog | surfaces | divergences
+  --bundle-dir DIR           write maps.tsv, surfaces.tsv, maps.pl, and optional divergences.tsv together
 ```
 
 `--format` values:
@@ -119,6 +120,14 @@ chiasmus-parity --inventory FILE [options]
 - `surfaces` — typed surface diff (arity drift on matched method pairs).
 - `divergences` — joins `maps` against the curated ledger, flagging
   `falsely_missing` / `falsely_ported`.
+
+Use `--bundle-dir DIR` with both facts files (and optionally `--inventory`) to
+load the graphs and reconcile once, then render all reconciliation formats.
+This reduces repeated work in the cross-language parity skill while leaving
+the individual `--format` invocations available for older scripts. With
+`chiasmus-facts --cache-dir DIR`, snapshots are named from the input contents
+and extractor version, so an older facts file continues to reference its
+original graph after a later run updates the same source tree.
 
 ## `chiasmus-plan` — port planner
 

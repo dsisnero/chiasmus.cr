@@ -1,5 +1,6 @@
 require "option_parser"
 require "./discovery"
+require "./language_registry"
 require "./graph/analyses"
 require "./graph/cache"
 require "./graph/facts_snapshot"
@@ -8,28 +9,6 @@ require "./index/directory_walk"
 module Chiasmus
   module FactsCLI
     extend self
-
-    LANGUAGE_EXTENSIONS = {
-      "python"     => [".py"],
-      "ruby"       => [".rb"],
-      "java"       => [".java"],
-      "go"         => [".go"],
-      "rust"       => [".rs"],
-      "scala"      => [".scala"],
-      "crystal"    => [".cr"],
-      "javascript" => [".js"],
-      "typescript" => [".ts"],
-      "tsx"        => [".tsx"],
-      "c"          => [".c", ".h"],
-      "cpp"        => [".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"],
-      "csharp"     => [".cs"],
-      "bash"       => [".sh"],
-      "dart"       => [".dart"],
-      "kotlin"     => [".kt", ".kts"],
-      "perl"       => [".pl", ".pm"],
-      "php"        => [".php"],
-      "proto"      => [".proto"],
-    }
 
     def run(args : Array(String), output : IO = STDOUT, error : IO = STDERR) : Int32
       language = "crystal"
@@ -102,7 +81,7 @@ module Chiasmus
       snapshot_metadata = nil.as(Graph::FactsSnapshot::Metadata?)
       if effective_cache_dir = cache_dir
         effective_repo_key = (repo_key || Graph::GraphCache.default_repo_key).to_s
-        snapshot_name = Graph::FactsSnapshot.snapshot_name(language, dir, entry_points, insights, exclude_patterns)
+        snapshot_name = Graph::FactsSnapshot.snapshot_name(language, dir, entry_points, insights, exclude_patterns, source_files)
         Graph::GraphCache.save_snapshot_async(snapshot_name, graph, effective_cache_dir, repo_key: effective_repo_key)
         snapshot_metadata = Graph::FactsSnapshot::Metadata.new(
           cache_dir: effective_cache_dir,
@@ -148,36 +127,11 @@ module Chiasmus
     end
 
     private def grammar_directories(scan_dir : String) : Array(String)
-      dirs = [] of String
-
-      env_dir = ENV["CHIASMUS_GRAMMAR_DIR"]?
-      dirs << env_dir if env_dir && Dir.exists?(env_dir)
-
-      bundled_dirs.each do |path|
-        dirs << path if Dir.exists?(path)
-      end
-
-      vendor_dir = File.join(scan_dir, "vendor", "grammars")
-      dirs << vendor_dir if Dir.exists?(vendor_dir)
-
-      repo_vendor = File.join(".", "vendor", "grammars")
-      dirs << repo_vendor if Dir.exists?(repo_vendor)
-
-      dirs.uniq
-    end
-
-    private def bundled_dirs : Array(String)
-      executable = File.expand_path(PROGRAM_NAME)
-      executable_dir = File.dirname(executable)
-
-      [
-        File.join(executable_dir, "grammars"),
-        File.join(executable_dir, "..", "grammars"),
-      ].map { |path| File.expand_path(path) }
+      LanguageRegistry.grammar_directories(scan_dir, include_current_directory_vendor: true)
     end
 
     private def scan_files(language : String, dir : String, exclude_patterns : Array(String) = [] of String) : Array(String)
-      extensions = LANGUAGE_EXTENSIONS[language]? || [".#{language}"]
+      extensions = LanguageRegistry.extensions(language)
       files = [] of String
       base = dir.sub(/^\.\//, "").sub(/\/$/, "")
 

@@ -20,6 +20,7 @@ module Chiasmus
         entry_points : Array(String),
         include_insights : Bool,
         excludes : Array(String) = [] of String,
+        source_files : Array(SourceFile) = [] of SourceFile,
       ) : String
         digest = OpenSSL::Digest.new("SHA256")
           .update(language)
@@ -31,9 +32,19 @@ module Chiasmus
           .update(include_insights ? "1" : "0")
           .update("\u0000")
           .update(excludes.join(","))
-          .final
-          .hexstring
-        "facts-#{digest[0, 24]}"
+          .update("\u0000")
+          .update(EXTRACTION_CACHE_VERSION)
+        source_files.sort_by(&.path).each do |source_file|
+          digest.update("\u0000")
+            .update(source_file.path.bytesize.to_s)
+            .update(":")
+            .update(source_file.path)
+            .update(source_file.content.bytesize.to_s)
+            .update(":")
+            .update(source_file.content)
+        end
+        fingerprint = digest.final.hexstring
+        "facts-#{fingerprint[0, 24]}"
       end
 
       def metadata_line(metadata : Metadata) : String

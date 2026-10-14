@@ -27,6 +27,45 @@ describe Chiasmus::Parity::Naming do
 end
 
 describe Chiasmus::Parity do
+  it "renders all reconciliation reports from a single bundle invocation" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-bundle-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      source = Chiasmus::Graph::CodeGraph.new(
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "src/demo.java", name: "Demo.run", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1), signature: "(int value) -> int")],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+      target = Chiasmus::Graph::CodeGraph.new(
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "src/demo.cr", name: "Demo.run", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1), signature: "(value : Int32) : Int32")],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+      source_path = File.join(dir, "source.pl")
+      target_path = File.join(dir, "target.pl")
+      inventory_path = File.join(dir, "inventory.tsv")
+      File.write(source_path, Chiasmus::Graph::Facts.graph_to_prolog(source))
+      File.write(target_path, Chiasmus::Graph::Facts.graph_to_prolog(target))
+      File.write(inventory_path, "src/demo.java::method::Demo.run\tmethod\tported\tsrc/demo.cr:1\t-\n")
+      args = ["--source-facts", source_path, "--crystal-facts", target_path, "--inventory", inventory_path]
+      bundle_dir = File.join(dir, "bundle")
+      error = IO::Memory.new
+
+      Chiasmus::Parity::CLI.run(args + ["--bundle-dir", bundle_dir], IO::Memory.new, error).should eq(0), error.to_s
+      {"maps" => "maps.tsv", "surfaces" => "surfaces.tsv", "maps-prolog" => "maps.pl", "divergences" => "divergences.tsv"}.each do |format, filename|
+        expected = IO::Memory.new
+        Chiasmus::Parity::CLI.run(args + ["--format", format], expected, error).should eq(0), error.to_s
+        File.read(File.join(bundle_dir, filename)).should eq(expected.to_s)
+      end
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "enables parity worker parallelism through CHIASMUS_PARITY_PARALLEL" do
     previous = ENV["CHIASMUS_PARITY_PARALLEL"]?
 

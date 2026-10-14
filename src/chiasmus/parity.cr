@@ -2015,6 +2015,7 @@ module Chiasmus
         parser_mode : String? = nil
         source_facts_path : String? = nil
         crystal_facts_path : String? = nil
+        bundle_dir : String? = nil
         format = "tsv"
         help_requested = false
 
@@ -2029,6 +2030,7 @@ module Chiasmus
           opts.on("--source-facts FILE", "Optional source graph facts for structural checks") { |value| source_facts_path = value }
           opts.on("--crystal-facts FILE", "Optional Crystal graph facts for structural checks") { |value| crystal_facts_path = value }
           opts.on("--format FORMAT", "Output format: tsv|completion-facts|maps|maps-prolog|surfaces|divergences") { |value| format = value }
+          opts.on("--bundle-dir DIR", "Write maps, surfaces, maps-Prolog, and divergences in one reconciliation") { |value| bundle_dir = value }
           opts.on("--help", "Show this help") do
             help_requested = true
           end
@@ -2044,6 +2046,17 @@ module Chiasmus
 
         if help_requested
           output.puts parser
+          return 0
+        end
+
+        if destination = bundle_dir
+          source_path = source_facts_path
+          crystal_path = crystal_facts_path
+          if source_path.nil? || crystal_path.nil?
+            error.puts "--source-facts and --crystal-facts are required for --bundle-dir"
+            return 1
+          end
+          render_bundle(destination, source_path, crystal_path, inventory_path, map_rules_path)
           return 0
         end
 
@@ -2161,6 +2174,29 @@ module Chiasmus
         end
       end
 
+      private def render_bundle(
+        destination : String,
+        source_path : String,
+        crystal_path : String,
+        inventory_path : String,
+        rules_path : String?,
+      ) : Nil
+        source_graph = Structural.load_graph(source_path)
+        target_graph = Structural.load_graph(crystal_path)
+        rules = Rules::RuleSet.load_if(rules_path)
+        mappings = Reconcile.mappings(source_graph, target_graph, rules)
+        surfaces = Surface.compare(source_graph, target_graph, mappings, rules)
+        divergences = inventory_path.empty? ? nil : InventoryJoin.divergences(Loader.read_inventory(inventory_path), mappings, rules)
+
+        Dir.mkdir_p(destination)
+        File.open(File.join(destination, "maps.tsv"), "w") { |report| render_maps(report, mappings, rules_path) }
+        File.open(File.join(destination, "surfaces.tsv"), "w") { |report| render_surfaces(report, surfaces) }
+        File.open(File.join(destination, "maps.pl"), "w") { |report| render_maps_prolog(report, source_graph, target_graph, mappings, divergences, rules, surfaces) }
+        if rows = divergences
+          File.open(File.join(destination, "divergences.tsv"), "w") { |report| render_divergences(report, rows) }
+        end
+      end
+
       private def render_maps(output : IO, mappings : Array(Reconcile::Mapping), rules_path : String?) : Nil
         counts = Hash(String, Int32).new(0)
         mappings.each { |mapping| counts[mapping.status] += 1 }
@@ -2256,6 +2292,7 @@ module Chiasmus
         mappings : Array(Reconcile::Mapping),
         divergences : Array(InventoryJoin::DivergenceRow)?,
         rules : Rules::RuleSet,
+        surfaces : Array(Surface::SurfaceReport)? = nil,
       ) : Nil
         normalizer = Rules::Normalizer.new(rules)
         source_lang = rules.source_language.empty? ? "source" : rules.source_language
@@ -2297,7 +2334,7 @@ module Chiasmus
           output.puts "map_status(#{atom(mapping.source_id)}, #{atom(mapping.status)})."
         end
 
-        Surface.compare(source, target, mappings, rules).each do |report|
+        (surfaces || Surface.compare(source, target, mappings, rules)).each do |report|
           output.puts "surface_status(#{atom(report.source_id)}, #{atom(report.status)})."
         end
 
