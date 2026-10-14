@@ -174,15 +174,13 @@ module Chiasmus
       # Store a versioned per-file extraction projection alongside, but not in
       # place of, the legacy graph entry. The caller owns the payload schema.
       def fetch_extraction_payload(path : String, content : String, language : String, fingerprint : String, cache_dir : String, repo_key : String? = nil) : NamedTuple(payload: String, origin_path: String)?
-        identity = build_cache_identities([{path: path, content: content}]).first
-        key = extraction_cache_key(identity, language, fingerprint, content)
+        key = extraction_cache_key(path, language, fingerprint, content)
         entry = sqlite_store(resolve_cache_paths(cache_dir, repo_key)["database_path"]).fetch(key[:path], key[:hash])
         entry ? {payload: entry.payload, origin_path: entry.origin_path} : nil
       end
 
       def save_extraction_payload(path : String, content : String, language : String, fingerprint : String, payload : String, cache_dir : String, repo_key : String? = nil, max_bytes : Int32 = DEFAULT_MAX_BYTES) : Nil
-        identity = build_cache_identities([{path: path, content: content}]).first
-        key = extraction_cache_key(identity, language, fingerprint, content)
+        key = extraction_cache_key(path, language, fingerprint, content)
         entry = SQLiteCacheEntry.new(key[:path], key[:hash], path, payload, payload.bytesize.to_i64, Time.utc.to_unix_ms)
         store = sqlite_store(resolve_cache_paths(cache_dir, repo_key)["database_path"])
         store.apply_batch([entry], [] of String)
@@ -669,7 +667,12 @@ module Chiasmus
           .hexstring
       end
 
-      private def extraction_cache_key(identity : CacheIdentity, language : String, fingerprint : String, content : String) : NamedTuple(path: String, hash: String)
+      private def extraction_cache_key(path : String, language : String, fingerprint : String, content : String) : NamedTuple(path: String, hash: String)
+        logical_path = if context = git_repo_context_for(path)
+                         repo_relative_path(context.repo_root, path) || path
+                       else
+                         path
+                       end
         hash = OpenSSL::Digest.new("SHA256")
           .update(EXTRACTION_CACHE_VERSION)
           .update("\u0000")
@@ -677,7 +680,7 @@ module Chiasmus
           .update("\u0000")
           .update(content)
           .final.hexstring
-        {path: "extraction:#{language}:#{identity.manifest_path}", hash: hash}
+        {path: "extraction:#{language}:#{logical_path}", hash: hash}
       end
 
       private def rewrite_cached_graph_paths(graph : CodeGraph, from_path : String, to_path : String) : CodeGraph
