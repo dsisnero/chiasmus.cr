@@ -7,6 +7,7 @@ require "./sexp_source_extractor"
 require "./type_env"
 require "./resolve_calls"
 require "./cache"
+require "./file_extraction"
 require "./parallel_io"
 require "../utils/bounded_work"
 require "tracing"
@@ -16,7 +17,10 @@ module Chiasmus
     module Extractor
       extend self
 
-      record UnifiedFileResult, graph : CodeGraph, discovery : Chiasmus::Discovery::Result
+      record UnifiedFileResult,
+        graph : CodeGraph,
+        discovery : Chiasmus::Discovery::Result,
+        typed : FileExtraction::Result
 
       private struct CachedDiscoveryItem
         include JSON::Serializable
@@ -45,21 +49,23 @@ module Chiasmus
         getter graph : String
         getter items : Array(CachedDiscoveryItem)
         getter parser_mode : String
+        getter typed : FileExtraction::Result
 
         def initialize(result : UnifiedFileResult)
           @graph = GraphCodec.encode(result.graph)
           @items = result.discovery.items.map { |item| CachedDiscoveryItem.new(item) }
           @parser_mode = result.discovery.parser_mode
+          @typed = result.typed
         end
 
         def to_result(from_path : String, to_path : String) : UnifiedFileResult
           graph = GraphCache.rewrite_extraction_graph_paths(GraphCodec.decode(@graph), from_path, to_path)
           discovery = Chiasmus::Discovery::Result.new(items: @items.map(&.to_item(from_path, to_path)), parser_mode: @parser_mode)
-          UnifiedFileResult.new(graph: graph, discovery: discovery)
+          UnifiedFileResult.new(graph: graph, discovery: discovery, typed: @typed.relocate(from_path, to_path))
         end
       end
 
-      UNIFIED_EXTRACTION_VERSION = "1"
+      UNIFIED_EXTRACTION_VERSION = "3"
 
       @@merge_mutex = Mutex.new
       # tree_sitter's loaded-language registry and node StringPool are mutable
@@ -276,8 +282,9 @@ module Chiasmus
 
           graph = extract_single_file_from_tree(file, language, tree)
           discovery = Discovery.discover_tree(language, tree, file.content, file.path)
+          typed = FileExtraction.extract(language, tree, file.content, file.path, graph, GraphCache.logical_source_path(file.path))
           tree.root_node
-          UnifiedFileResult.new(graph: graph, discovery: discovery)
+          UnifiedFileResult.new(graph: graph, discovery: discovery, typed: typed)
         end
       end
 

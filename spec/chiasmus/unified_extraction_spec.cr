@@ -33,6 +33,74 @@ describe Chiasmus::Graph::Extractor do
     combined.discovery.items.map(&.name).should contain("greet")
   end
 
+  it "retains Java declaration kinds and typed API fields beside legacy projections" do
+    source = <<-JAVA
+      package demo.api;
+      public class Greeter extends BaseGreeter {
+        private int count;
+        public static final int LIMIT = 4;
+        public Greeter(int initial) {}
+        protected static String greet(String name) { return name; }
+      }
+      enum Mode { FAST, SLOW }
+      JAVA
+    file = Chiasmus::Graph::SourceFile.new("Greeter.java", source)
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(file, "java") || raise "expected extraction"
+    declarations = result.typed.declarations
+
+    greeter = declarations.find { |declaration| declaration.name == "Greeter" && declaration.kind == "class" } || raise "missing class"
+    greeter.namespace.should eq("demo.api")
+    greeter.visibility.should eq("public")
+    (greeter.base_types || raise "missing base types").should contain("extends BaseGreeter")
+
+    field = declarations.find { |declaration| declaration.name == "count" } || raise "missing field"
+    field.kind.should eq("field")
+    field.owner.should eq("Greeter")
+    field.visibility.should eq("private")
+    field.mutable.should be_true
+    declarations.find { |declaration| declaration.name == "LIMIT" }.try(&.kind).should eq("constant")
+
+    constructor = declarations.find { |declaration| declaration.kind == "constructor" } || raise "missing constructor"
+    constructor.parameters.try(&.map(&.name)).should eq(["initial"])
+    method = declarations.find { |declaration| declaration.name == "greet" } || raise "missing method"
+    method.parameters.try(&.map(&.type_name)).should eq(["String"])
+    method.return_type.should eq("String")
+    method.static.should be_true
+    method.visibility.should eq("protected")
+    declarations.find { |declaration| declaration.name == "FAST" }.try(&.kind).should eq("enum_constant")
+
+    result.graph.defines.map(&.name).should contain("greet")
+    result.discovery.items.map(&.name).should contain("greet")
+  end
+
+  it "assigns stable local IDs to Java overloads and movable occurrences" do
+    source = "class Greeter { void greet(String value) {} void greet(int value) {} }"
+    first = Chiasmus::Graph::Extractor.extract_with_discovery(Chiasmus::Graph::SourceFile.new("src/Greeter.java", source), "java") || raise "missing first extraction"
+    shifted = Chiasmus::Graph::Extractor.extract_with_discovery(Chiasmus::Graph::SourceFile.new("src/Greeter.java", "\n\n#{source}"), "java") || raise "missing shifted extraction"
+    methods = first.typed.declarations.select { |declaration| declaration.name == "greet" }
+    shifted_methods = shifted.typed.declarations.select { |declaration| declaration.name == "greet" }
+
+    methods.size.should eq(2)
+    methods.map(&.declaration_id).uniq.size.should eq(2)
+    methods.map(&.declaration_id).should eq(shifted_methods.map(&.declaration_id))
+    methods.map(&.occurrence_id).should_not eq(shifted_methods.map(&.occurrence_id))
+    methods.all? { |declaration| declaration.declaration_id.try(&.starts_with?("decl:v1:")) }.should be_true
+    methods.all? { |declaration| declaration.occurrence_id.try(&.starts_with?("occ:v1:")) }.should be_true
+  end
+
+  it "applies Java interface implicit modifiers to typed declarations" do
+    source = "interface Service { int LIMIT = 4; void run(); }"
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(Chiasmus::Graph::SourceFile.new("Service.java", source), "java") || raise "missing extraction"
+    limit = result.typed.declarations.find { |declaration| declaration.name == "LIMIT" } || raise "missing constant"
+    run = result.typed.declarations.find { |declaration| declaration.name == "run" } || raise "missing method"
+    limit.kind.should eq("constant")
+    limit.static.should be_true
+    limit.mutable.should be_false
+    limit.visibility.should eq("public")
+    run.visibility.should eq("public")
+    run.abstract.should be_true
+  end
+
   it "reuses a combined extraction and invalidates it on content edits" do
     dir = File.join(Dir.tempdir, "chiasmus-unified-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)
@@ -59,9 +127,50 @@ describe Chiasmus::Graph::Extractor do
 
       parser.parse_count.should eq(2)
       warm.should eq(first)
+      warm.try(&.typed).should eq(first.try(&.typed))
       edited_result = edited || raise "expected edited extraction"
       edited_result.discovery.items.map(&.name).should contain("wave")
       edited_result.graph.defines.map(&.name).should contain("wave")
+    ensure
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "reuses typed declarations across checkout roots without retaining the old path" do
+    dir = File.join(Dir.tempdir, "chiasmus-typed-worktrees-#{Random::Secure.hex(8)}")
+    cache_dir = File.join(dir, "cache")
+    first_root = File.join(dir, "first")
+    second_root = File.join(dir, "second")
+    [first_root, second_root].each do |root|
+      Dir.mkdir_p(File.join(root, ".git"))
+      Dir.mkdir_p(File.join(root, "src"))
+      File.write(File.join(root, ".git", "HEAD"), "ref: refs/heads/main\n")
+    end
+
+    begin
+      content = "class Greeter { void greet(String name) {} }"
+      first_path = File.join(first_root, "src", "Greeter.java")
+      second_path = File.join(second_root, "src", "Greeter.java")
+      File.write(first_path, content)
+      File.write(second_path, content)
+      Chiasmus::Graph::GraphCache.logical_source_path(first_path).should eq("src/Greeter.java")
+      Chiasmus::Graph::GraphCache.logical_source_path(second_path).should eq("src/Greeter.java")
+      parser = CountingJavaParser.new
+      first = Chiasmus::Graph::Extractor.extract_with_discovery(
+        Chiasmus::Graph::SourceFile.new(first_path, content), "java", parser,
+        cache_dir: cache_dir, repo_key: "shared-worktree-spec"
+      ) || raise "missing first extraction"
+      second = Chiasmus::Graph::Extractor.extract_with_discovery(
+        Chiasmus::Graph::SourceFile.new(second_path, content), "java", parser,
+        cache_dir: cache_dir, repo_key: "shared-worktree-spec"
+      ) || raise "missing second extraction"
+
+      parser.parse_count.should eq(1)
+      first.typed.declarations.map(&.declaration_id).should eq(second.typed.declarations.map(&.declaration_id))
+      first.typed.declarations.map(&.occurrence_id).should eq(second.typed.declarations.map(&.occurrence_id))
+      second.typed.declarations.map(&.file).uniq.should eq([second_path])
+      second.graph.defines.map(&.file).uniq.should eq([second_path])
     ensure
       Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
       FileUtils.rm_rf(dir)

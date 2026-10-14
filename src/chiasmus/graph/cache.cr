@@ -100,6 +100,17 @@ module Chiasmus
         OpenSSL::Digest.new("SHA256").update(key_source).final.hexstring[0, 16]
       end
 
+      # A checkout-independent path for occurrence provenance when the file
+      # belongs to a Git worktree. Absolute non-repository paths have no safe
+      # logical identity until a caller supplies an explicit source root.
+      def logical_source_path(path : String) : String?
+        if context = git_repo_context_for(path)
+          return repo_relative_path(context.repo_root, path)
+        end
+        return nil if Path.new(path).absolute?
+        path
+      end
+
       # Resolve repo_key from nil → default_repo_key (SHA-256 of CWD).
       private def self.resolve_repo_key(repo_key : String?) : String
         repo_key || default_repo_key
