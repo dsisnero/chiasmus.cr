@@ -16,8 +16,8 @@ module Chiasmus
   module Graph
     DEFAULT_MAX_BYTES = 64 * 1024 * 1024 # 64 MB
     # Bump when an extracted graph gains fields that affect later graph-wide
-    # resolution. Version 4 adds FileNode.namespace for Common Lisp packages.
-    EXTRACTION_CACHE_VERSION = "4"
+    # resolution. Version 5 adds Java owner-qualified declaration names.
+    EXTRACTION_CACHE_VERSION = "5"
 
     # A durable receipt for an asynchronously requested named snapshot. The
     # snapshot JSON remains the authoritative graph data; this small sidecar

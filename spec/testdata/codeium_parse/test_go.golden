@@ -1,8 +1,8 @@
 class: Pattern0
 class: UnsupportedStruct
 definition.function: Pattern2
-definition.method: Method
-definition.method: Method2
+definition.method: Pattern0.Method
+definition.method: Pattern0.Method2
 definition.type: Alias
 field: a
 function: Pattern2

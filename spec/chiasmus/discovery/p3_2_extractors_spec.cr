@@ -471,6 +471,34 @@ end
 
 # P7.6 Class fields extraction specs
 describe Chiasmus::Discovery::GoExtractor do
+  it "keeps the receiver on enriched method records" do
+    extractor = Chiasmus::Discovery::GoExtractor.new
+    lang = load_lang("go")
+    pending "go grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "package main\ntype Server struct{}\nfunc (s *Server) Serve(x int) {}\n"
+    tree = parser.parse(source)
+
+    items = extractor.extract(tree.root_node, source, "test.go")
+    methods = items.select { |item| item.kind == "definition.method" }
+    methods.map(&.name).should contain("Server.Serve")
+    methods.map(&.name).should_not contain("Serve")
+  end
+
+  it "distinguishes grouped constants from types" do
+    extractor = Chiasmus::Discovery::GoExtractor.new
+    lang = load_lang("go")
+    pending "go grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = "package main\nconst (\n  First = 1\n  Second = 2\n)\ntype Count int\n"
+    tree = parser.parse(source)
+
+    items = extractor.extract(tree.root_node, source, "test.go")
+    items.select { |item| item.kind == "const" }.map(&.name).should contain("First")
+    items.select { |item| item.kind == "const" }.map(&.name).should contain("Second")
+    items.select { |item| item.kind == "definition.type" }.map(&.name).should contain("Count")
+  end
+
   it "extracts struct fields" do
     extractor = Chiasmus::Discovery::GoExtractor.new
     lang = load_lang("go")

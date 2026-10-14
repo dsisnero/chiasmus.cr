@@ -22,6 +22,7 @@ module Chiasmus
           "function"  => "(function_declaration name: (identifier) @name) @def",
           "method"    => "(method_declaration name: (field_identifier) @name) @def",
           "test"      => "(function_declaration name: (identifier) @name) @def",
+          "const"     => "(const_spec name: (identifier) @name) @def",
         }
       end
 

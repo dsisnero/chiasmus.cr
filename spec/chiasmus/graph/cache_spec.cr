@@ -17,9 +17,9 @@ end
 
 describe GraphCache do
   describe ".file_hash" do
-    it "includes the extraction schema version so namespace-aware graphs invalidate prior cache entries" do
+    it "includes the extraction schema version so changed walkers invalidate prior cache entries" do
       expected = OpenSSL::Digest.new("SHA256")
-        .update("4")
+        .update(EXTRACTION_CACHE_VERSION)
         .update("\u0000")
         .update("hello")
         .update("\u0000")

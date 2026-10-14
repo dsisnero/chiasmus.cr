@@ -49,6 +49,21 @@ describe "Java extractor" do
     (add || raise "expected add").signature.should eq("(int a, int b) -> int")
   end
 
+  it "keeps same-named methods under distinct Java owners" do
+    graph = Chiasmus::Graph::Extractor.extract_graph([
+      Chiasmus::Graph::SourceFile.new("test.java", <<-JAVA
+        class First { void run() {} }
+        class Second { void run() {} }
+      JAVA
+      ),
+    ])
+
+    methods = graph.defines.select { |definition| definition.name == "run" }
+    methods.map(&.qualified_name).should eq(["First.run", "Second.run"])
+    surfaces = Chiasmus::Graph::PortDom.build(graph).methods.select { |surface| surface.name == "run" }
+    surfaces.map(&.symbol_id).uniq.size.should eq(2)
+  end
+
   it "builds PortDom surfaces from extracted Java" do
     graph = Chiasmus::Graph::Extractor.extract_graph([
       Chiasmus::Graph::SourceFile.new("test.java", <<-JAVA

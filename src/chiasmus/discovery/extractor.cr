@@ -130,7 +130,8 @@ module Chiasmus
           name = extract_name_from_match(match, source, kind)
           next unless name
 
-          filtered = post_filter(kind, name, nil, source)
+          name_node = match.captures.find(&.rule.==("name")).try(&.node)
+          filtered = post_filter(kind, name, name_node, source)
           next unless filtered
 
           scope = kind.starts_with?("reference.") ? "source" : (kind == "test" ? "test" : "source")
