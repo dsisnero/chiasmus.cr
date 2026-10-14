@@ -1,5 +1,6 @@
 require "./discovery"
 require "./language_registry"
+require "./graph/extractor"
 require "./utils/bounded_work"
 require "./index/directory_walk"
 
@@ -15,7 +16,7 @@ module Chiasmus
     @@scan_max_concurrent_for_test_mutex = Mutex.new
 
     def run(args : Array(String), output : IO = STDOUT, error : IO = STDERR) : Int32
-      language, dir, force_parser = parse_args(args)
+      language, dir, force_parser, cache_dir = parse_args(args)
       return print_help(output) if language.nil?
       dir ||= "."
 
@@ -24,7 +25,11 @@ module Chiasmus
       files = scan_files(language, dir)
       return abort_no_files(language, dir, error) if files.empty?
 
-      result = Chiasmus::Discovery.discover_files(language, files, force_parser: force_parser)
+      result = if cache_dir && language.in?("java", "crystal", "go") && (force_parser.nil? || force_parser == "tree-sitter") && Chiasmus::Discovery.tree_sitter_available?(language)
+                 discover_with_shared_cache(language, dir, files, cache_dir)
+               else
+                 Chiasmus::Discovery.discover_files(language, files, force_parser: force_parser)
+               end
       output_result(result, output)
       0
     end
@@ -33,10 +38,11 @@ module Chiasmus
       scan_files(language, dir)
     end
 
-    private def parse_args(args : Array(String)) : Tuple(String?, String?, String?)
+    private def parse_args(args : Array(String)) : Tuple(String?, String?, String?, String?)
       language = "typescript"
       dir = "."
       force_parser = nil
+      cache_dir = ENV["CHIASMUS_CACHE_DIR"]?
 
       i = 0
       while i < args.size
@@ -50,13 +56,31 @@ module Chiasmus
         when "--parser"
           force_parser = args[i + 1]?
           i += 1
+        when "--cache-dir"
+          cache_dir = args[i + 1]?
+          i += 1
         when "--help", "-h"
-          return {nil, nil, nil}
+          return {nil, nil, nil, nil}
         end
         i += 1
       end
 
-      {language, dir, force_parser == "auto" ? nil : force_parser}
+      {language, dir, force_parser == "auto" ? nil : force_parser, cache_dir}
+    end
+
+    private def discover_with_shared_cache(language : String, dir : String, files : Array(Tuple(String, String)), cache_dir : String) : Chiasmus::Discovery::Result
+      items = [] of Chiasmus::Discovery::Item
+      files.each do |relative_path, content|
+        absolute_path = File.expand_path(File.join(dir, relative_path))
+        source = Graph::SourceFile.new(path: absolute_path, content: content)
+        if result = Graph::Extractor.extract_with_discovery(source, language, cache_dir: cache_dir)
+          result.discovery.items.each do |item|
+            id = item.id.sub(/^#{Regex.escape(absolute_path)}::/, "#{relative_path}::")
+            items << Chiasmus::Discovery::Item.new(id: id, kind: item.kind, scope: item.scope, name: item.name, file: relative_path, span: item.span)
+          end
+        end
+      end
+      Chiasmus::Discovery::Result.new(items: items, parser_mode: "tree-sitter")
     end
 
     private def register_grammar_directories(scan_dir : String) : Nil
@@ -106,6 +130,7 @@ module Chiasmus
         --language LANG    Language to discover (default: typescript)
         --dir DIR          Source directory to scan (default: .)
         --parser MODE      Parser mode: auto|tree-sitter|regex (default: auto)
+        --cache-dir DIR    Share versioned extraction cache with chiasmus-facts
         --help, -h         Show this help
 
       Output:

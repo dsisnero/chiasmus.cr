@@ -171,6 +171,28 @@ module Chiasmus
         {hits: hits, misses: misses}
       end
 
+      # Store a versioned per-file extraction projection alongside, but not in
+      # place of, the legacy graph entry. The caller owns the payload schema.
+      def fetch_extraction_payload(path : String, content : String, language : String, fingerprint : String, cache_dir : String, repo_key : String? = nil) : NamedTuple(payload: String, origin_path: String)?
+        identity = build_cache_identities([{path: path, content: content}]).first
+        key = extraction_cache_key(identity, language, fingerprint, content)
+        entry = sqlite_store(resolve_cache_paths(cache_dir, repo_key)["database_path"]).fetch(key[:path], key[:hash])
+        entry ? {payload: entry.payload, origin_path: entry.origin_path} : nil
+      end
+
+      def save_extraction_payload(path : String, content : String, language : String, fingerprint : String, payload : String, cache_dir : String, repo_key : String? = nil, max_bytes : Int32 = DEFAULT_MAX_BYTES) : Nil
+        identity = build_cache_identities([{path: path, content: content}]).first
+        key = extraction_cache_key(identity, language, fingerprint, content)
+        entry = SQLiteCacheEntry.new(key[:path], key[:hash], path, payload, payload.bytesize.to_i64, Time.utc.to_unix_ms)
+        store = sqlite_store(resolve_cache_paths(cache_dir, repo_key)["database_path"])
+        store.apply_batch([entry], [] of String)
+        store.evict_over_budget(max_bytes)
+      end
+
+      def rewrite_extraction_graph_paths(graph : CodeGraph, from_path : String, to_path : String) : CodeGraph
+        rewrite_cached_graph_paths(graph, from_path, to_path)
+      end
+
       # Save extracted graphs to cache. Atomic writes (tmp + rename).
       def save_file_cache(
         items : Array(CacheItem),
@@ -231,7 +253,10 @@ module Chiasmus
             abs_path
           end
         end
-        sqlite_store(paths["database_path"]).apply_batch([] of SQLiteCacheEntry, keys)
+        extraction_keys = keys.flat_map do |key|
+          ["java", "crystal", "go"].map { |language| "extraction:#{language}:#{key}" }
+        end
+        sqlite_store(paths["database_path"]).apply_batch([] of SQLiteCacheEntry, keys + extraction_keys)
       end
 
       # --- Snapshots ---
@@ -642,6 +667,17 @@ module Chiasmus
           .update(logical_path)
           .final
           .hexstring
+      end
+
+      private def extraction_cache_key(identity : CacheIdentity, language : String, fingerprint : String, content : String) : NamedTuple(path: String, hash: String)
+        hash = OpenSSL::Digest.new("SHA256")
+          .update(EXTRACTION_CACHE_VERSION)
+          .update("\u0000")
+          .update(fingerprint)
+          .update("\u0000")
+          .update(content)
+          .final.hexstring
+        {path: "extraction:#{language}:#{identity.manifest_path}", hash: hash}
       end
 
       private def rewrite_cached_graph_paths(graph : CodeGraph, from_path : String, to_path : String) : CodeGraph

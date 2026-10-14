@@ -64,8 +64,13 @@ Tree-sitter-backed declaration enumeration. Emits `{path}::{kind}::{name}` TSV
 matching the parity inventory conventions; used to bootstrap generated manifests.
 
 ```bash
-chiasmus-discover --language LANG --dir DIR [--parser auto|tree-sitter|regex] [--tsv]
+chiasmus-discover --language LANG --dir DIR [--parser auto|tree-sitter|regex] [--cache-dir DIR]
 ```
+
+For Java, Crystal, and Go, `--cache-dir` shares a versioned per-file
+graph-plus-discovery extraction with `chiasmus-facts --cache-dir`. Content edits
+invalidate that result on the next run. Other languages retain their existing
+discovery path while adapters are promoted.
 
 ## `chiasmus-facts` — fact extraction
 

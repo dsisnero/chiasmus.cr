@@ -238,10 +238,16 @@ parity skill enables the existing per-file facts cache and uses bundle mode
 when the binary supports it. Older incompatible bundled parity binaries fail
 preflight instead of starting an unusable reconciliation.
 
-This is **not** completion of the target architecture: existing `discover` and
-`facts` CLI calls still invoke separate extraction paths; the combined result
-is not yet the persistent `FileExtraction` cache payload; typed PortDOM fields
-and versioned declaration/PortConceptIds are still to be implemented; remaining
-language adapters have not been promoted. The next slice is to persist and
-consume the combined per-file result, then introduce IDs on that typed record
-without changing the curated inventory ledger.
+The next slice now persists the combined graph-plus-discovery result in the
+existing SQLite cache and coalesces concurrent requests for the same file.
+Java, Crystal, and Go `discover --cache-dir` and `facts --cache-dir` share it;
+cold/warm/edit tests cover stale-result invalidation and CLI output parity.
+The skill's discovery wrapper passes the shared cache directory only when its
+selected binary advertises the new flag.
+
+This is **not** completion of the target architecture: the combined payload is
+still a compatibility projection rather than a typed `FileExtraction`/PortDOM;
+versioned declaration/PortConceptIds, graph-wide resolution and parity caches,
+MCP consumption, and remaining language adapters are still to be implemented.
+The next slice is to introduce typed declarations and local IDs without
+changing the curated inventory ledger.

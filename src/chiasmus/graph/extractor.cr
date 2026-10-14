@@ -18,12 +18,57 @@ module Chiasmus
 
       record UnifiedFileResult, graph : CodeGraph, discovery : Chiasmus::Discovery::Result
 
+      private struct CachedDiscoveryItem
+        include JSON::Serializable
+
+        getter id : String
+        getter kind : String
+        getter scope : String
+        getter name : String
+        getter file : String
+        getter span : Span?
+
+        def initialize(item : Chiasmus::Discovery::Item)
+          @id, @kind, @scope, @name, @file, @span = item.id, item.kind, item.scope, item.name, item.file, item.span
+        end
+
+        def to_item(from_path : String, to_path : String) : Chiasmus::Discovery::Item
+          file = @file == from_path ? to_path : @file
+          id = @id.starts_with?("#{from_path}::") ? @id.sub(/^#{Regex.escape(from_path)}::/, "#{to_path}::") : @id
+          Chiasmus::Discovery::Item.new(id: id, kind: @kind, scope: @scope, name: @name, file: file, span: @span)
+        end
+      end
+
+      private struct CachedFileExtraction
+        include JSON::Serializable
+
+        getter graph : String
+        getter items : Array(CachedDiscoveryItem)
+        getter parser_mode : String
+
+        def initialize(result : UnifiedFileResult)
+          @graph = GraphCodec.encode(result.graph)
+          @items = result.discovery.items.map { |item| CachedDiscoveryItem.new(item) }
+          @parser_mode = result.discovery.parser_mode
+        end
+
+        def to_result(from_path : String, to_path : String) : UnifiedFileResult
+          graph = GraphCache.rewrite_extraction_graph_paths(GraphCodec.decode(@graph), from_path, to_path)
+          discovery = Chiasmus::Discovery::Result.new(items: @items.map(&.to_item(from_path, to_path)), parser_mode: @parser_mode)
+          UnifiedFileResult.new(graph: graph, discovery: discovery)
+        end
+      end
+
+      UNIFIED_EXTRACTION_VERSION = "1"
+
       @@merge_mutex = Mutex.new
       # tree_sitter's loaded-language registry and node StringPool are mutable
       # process-global structures. They are not safe to access from multiple
       # execution-context workers, so a parse must retain this lock through the
       # associated tree walk as well.
       @@tree_sitter_mutex = Mutex.new
+      @@unified_cache_locks_mutex = Mutex.new
+      @@unified_cache_locks = Hash(String, Mutex).new
       @@before_async_result_send_hook = nil.as((-> Nil)?)
       DEFAULT_MAX_CONCURRENT = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
 
@@ -85,7 +130,12 @@ module Chiasmus
         prewarm_crystal_grammar(to_extract, parser)
 
         fresh_results = Utils::BoundedWork.map_ordered(to_extract, max_concurrent, parallel: parallel_cpu) do |file|
-          extract_single_file(file, parser)
+          language = parser.language_for_file(file.path)
+          if cache_dir && cache_error.nil? && language && language.in?("java", "crystal", "go")
+            extract_with_discovery(file, language, parser, cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes).try(&.graph) || extract_single_file(file, parser)
+          else
+            extract_single_file(file, parser)
+          end
         end
 
         fresh_results.compact_map(&.itself).each do |fresh_graph|
@@ -178,12 +228,48 @@ module Chiasmus
         file : SourceFile,
         language : String,
         parser = Parser,
+        cache_dir : String? = nil,
+        repo_key : String? = nil,
+        max_bytes : Int32? = nil,
       ) : UnifiedFileResult?
         return nil unless language.in?("java", "crystal", "go")
 
         logical_language = parser.language_for_file(file.path)
         return nil unless logical_language == language
 
+        fingerprint = unified_extraction_fingerprint(language, parser)
+        if dir = cache_dir
+          key = "#{dir}\u0000#{repo_key}\u0000#{language}\u0000#{File.expand_path(file.path)}"
+          lock = @@unified_cache_locks_mutex.synchronize { @@unified_cache_locks[key] ||= Mutex.new }
+          return lock.synchronize do
+            extract_with_discovery_cached(file, language, parser, dir, repo_key, fingerprint, max_bytes)
+          end
+        end
+
+        extract_with_discovery_uncached(file, language, parser)
+      end
+
+      private def extract_with_discovery_cached(file : SourceFile, language : String, parser, cache_dir : String, repo_key : String?, fingerprint : String, max_bytes : Int32?) : UnifiedFileResult?
+        begin
+          if cached = GraphCache.fetch_extraction_payload(file.path, file.content, language, fingerprint, cache_dir, repo_key)
+            return CachedFileExtraction.from_json(cached[:payload]).to_result(cached[:origin_path], file.path)
+          end
+        rescue ex
+          STDERR.puts "[Chiasmus] extraction cache read failed for #{file.path}: #{ex.message}"
+        end
+
+        result = extract_with_discovery_uncached(file, language, parser)
+        if extracted = result
+          begin
+            GraphCache.save_extraction_payload(file.path, file.content, language, fingerprint, CachedFileExtraction.new(extracted).to_json, cache_dir, repo_key, max_bytes: max_bytes || GraphCache.default_max_bytes_per_repo)
+          rescue ex
+            STDERR.puts "[Chiasmus] extraction cache write failed for #{file.path}: #{ex.message}"
+          end
+        end
+        result
+      end
+
+      private def extract_with_discovery_uncached(file : SourceFile, language : String, parser) : UnifiedFileResult?
         with_tree_sitter_lock(parser) do
           tree = parser.parse_source(file.content, file.path)
           next unless tree
@@ -193,6 +279,17 @@ module Chiasmus
           tree.root_node
           UnifiedFileResult.new(graph: graph, discovery: discovery)
         end
+      end
+
+      private def unified_extraction_fingerprint(language : String, parser) : String
+        grammar = Chiasmus::Discovery.find_grammar_library(language)
+        grammar_stat = if grammar && File.file?(grammar)
+                         info = File.info(grammar)
+                         "#{grammar}:#{info.size}:#{info.modification_time.to_unix_ms}"
+                       else
+                         "unavailable"
+                       end
+        "#{UNIFIED_EXTRACTION_VERSION}:#{EXTRACTION_CACHE_VERSION}:#{parser.class.name}:#{grammar_stat}"
       end
 
       def set_before_async_result_send_hook_for_test(&block : ->) : Nil
