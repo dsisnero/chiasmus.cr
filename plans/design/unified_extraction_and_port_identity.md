@@ -189,7 +189,50 @@ metadata from an actual mismatch.
 change; deliberately corrected matches are explained; ambiguity remains a
 review status; one bundle produces all reports after one reconciliation.
 
-### 5. Skill and CLI adoption, then remaining languages
+### 5. Release a coherent toolchain before skill rollout
+
+Package `chiasmus-discover`, `chiasmus-facts`, `chiasmus-parity`, the other
+parity CLIs, and their grammar libraries as **one platform-specific toolchain**.
+Each archive carries a machine-readable manifest with the release tag and source
+commit, platform/architecture, build ID shared by every binary, grammar ABI and
+fingerprints, extraction/PortDOM/report schema versions, declared capabilities,
+and checksums for every included file. Expose the same build ID, schema versions,
+and capabilities from a stable `--version --json` or `--capabilities --json`
+interface; do not infer compatibility from human-oriented `--help` text. Define
+the minimum capability set required by each skill operation, rather than
+requiring identical Chiasmus and skill version numbers.
+
+The release workflow must test the **packaged archive**, not only build the
+binaries: verify checksums, launch each CLI from the unpacked layout, load its
+bundled grammars, and run a small Java→Crystal and Go→Crystal
+discover→facts→bundle reconciliation. Publish the archive and checksum/manifest
+only after those checks pass. Test the same installer against an untagged local
+development bundle without treating that bundle as a published release.
+
+Replace the skill's independent binary searches and all-platform copy script
+with one resolver. The skill pins a tested toolchain release; the resolver
+selects an explicit whole-toolchain override or the pin, downloads only the
+current platform on first use into a versioned user cache, verifies the
+manifest/checksums and required capabilities, runs a small self-test, then
+atomically activates it. An offline archive or preinstalled directory must use
+the same validation path. A local developer build may override the pin only as
+a complete, validated toolchain. Never silently combine `discover`, `facts`,
+`parity`, and grammars from different build IDs, downgrade a requested strict
+parser to regex, or replace a working installation with a failed download.
+Report one actionable compatibility error naming the missing capability and
+where to obtain a compatible toolchain. Keep the existing environment variables
+as transitional aliases, but reject mixed overrides. Record the resolved
+toolchain build ID, schema/grammar versions, and archive checksum in generated
+manifest metadata so reports are reproducible.
+
+**Gate:** a clean machine can run the pinned skill with one command and no
+manual binary copying; warm runs use the verified cached toolchain without a
+network request. Corrupted, wrong-platform, missing-grammar, mixed-build, old-
+schema, and unavailable-network cases fail clearly without altering the active
+installation. Release CI and downstream Java/Go parity smoke tests use exactly
+the archive that users install.
+
+### 6. Skill and CLI adoption, then remaining languages
 
 Update `cross-language-crystal-parity` only after new binary contracts are
 shipped: use the shared cache directory and bundle path, record binary/schema/
@@ -218,8 +261,10 @@ and mapping gaps, with warm-cache measurements and no stale results.
    typed fields; no CLI behavior switch until fixtures pass.
 2. Crystal adapter and Go const/receiver corrections; local ID/alias support.
 3. Persistent `FileExtraction` cache and fresh snapshot validation.
-4. Parity bundle/PortConceptId sidecar, then version-matched skill rollout.
-5. Remaining language adapters, one capability-reviewed batch at a time.
+4. Parity bundle/PortConceptId sidecar and machine-readable toolchain contract.
+5. Package and test one coherent release; add the skill's pinned, verified,
+   atomic toolchain resolver before switching its default binary lookup.
+6. Remaining language adapters, one capability-reviewed batch at a time.
 
 This ordering avoids another wholesale walker rewrite and gives Chiasmus users
 better graph facts as soon as each adapter is upgraded, while parity gains
