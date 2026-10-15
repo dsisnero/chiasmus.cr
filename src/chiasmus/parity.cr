@@ -11,6 +11,7 @@ require "./index/directory_walk"
 require "./parity/naming"
 require "./parity/rules"
 require "./parity/reconcile"
+require "./parity/port_concepts"
 require "./parity/surface"
 
 module Chiasmus
@@ -2192,6 +2193,7 @@ module Chiasmus
         File.open(File.join(destination, "maps.tsv"), "w") { |report| render_maps(report, mappings, rules_path) }
         File.open(File.join(destination, "surfaces.tsv"), "w") { |report| render_surfaces(report, surfaces) }
         File.open(File.join(destination, "maps.pl"), "w") { |report| render_maps_prolog(report, source_graph, target_graph, mappings, divergences, rules, surfaces) }
+        File.open(File.join(destination, "port-concepts.jsonl"), "w") { |report| PortConcepts.render(report, mappings, source_graph, target_graph, rules) }
         if rows = divergences
           File.open(File.join(destination, "divergences.tsv"), "w") { |report| render_divergences(report, rows) }
         end

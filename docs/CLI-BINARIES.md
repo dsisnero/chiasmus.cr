@@ -110,7 +110,7 @@ chiasmus-parity --inventory FILE [options]
   --source-facts FILE        source graph facts
   --crystal-facts FILE       Crystal graph facts
   --format FORMAT            tsv | completion-facts | maps | maps-prolog | surfaces | divergences
-  --bundle-dir DIR           write maps.tsv, surfaces.tsv, maps.pl, and optional divergences.tsv together
+  --bundle-dir DIR           write maps.tsv, surfaces.tsv, maps.pl, port-concepts.jsonl, and optional divergences.tsv together
 ```
 
 `--format` values:
@@ -128,6 +128,12 @@ chiasmus-parity --inventory FILE [options]
 
 Use `--bundle-dir DIR` with both facts files (and optionally `--inventory`) to
 load the graphs and reconcile once, then render all reconciliation formats.
+The versioned `port-concepts.jsonl` sidecar has one record per source mapping.
+It assigns a path-independent `port:v1` ID only to a unique one-to-one match
+authorized by an explicit rename rule. Direct, ambiguous, unmapped, and
+consolidated matches have a null ID. Legacy fact IDs remain as references;
+`source_declaration_id` and `target_declaration_id` are null until typed
+declaration inputs are joined into the parity run.
 This reduces repeated work in the cross-language parity skill while leaving
 the individual `--format` invocations available for older scripts. With
 `chiasmus-facts --cache-dir DIR`, snapshots are named from the input contents

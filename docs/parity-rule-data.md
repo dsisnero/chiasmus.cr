@@ -72,8 +72,8 @@ vendor/.../cos/COSBase.java::class::COSBase	COSBase	class	cos	base	src/pdfbox/co
 
 ```yaml
 version: 1
-source_language: java        # documentation only
-target_language: crystal     # documentation only
+source_language: java        # included in reviewed PortConceptId derivation
+target_language: crystal     # included in reviewed PortConceptId derivation
 
 match_owner: false           # break canonical-key ties by owner leaf
 match_inherited: false       # match base/interface members across concrete owners

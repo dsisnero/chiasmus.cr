@@ -307,5 +307,10 @@ This is **not** completion of the target architecture: the typed result is not
 yet a full PortDOM, declaration IDs are source-language-local rather than
 cross-language PortConceptIds, and graph-wide resolution/parity caches, MCP
 consumption, and remaining language adapters are still to be implemented.
-The next slice is to carry reviewed identities into parity matching and
-PortConceptId sidecars without changing the curated inventory ledger.
+The bundle now emits a versioned PortConceptId sidecar for unique matches
+authorized by explicit rename rules. IDs are stable across checkout/path
+movement; ambiguous, direct, consolidated, and duplicate correspondences are
+left without shared IDs. Existing TSV/Prolog views and the curated inventory
+ledger are unchanged. Typed declaration ID fields are null because the parity
+CLI still consumes legacy facts; the next slice is to join typed extraction
+inputs by declaration/legacy alias and preserve their local IDs in the sidecar.
