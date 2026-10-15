@@ -86,6 +86,7 @@ module Chiasmus
         max_bytes : Int32? = nil,
         max_concurrent : Int32 = DEFAULT_MAX_CONCURRENT,
         parallel_cpu : Bool = parallel_cpu_enabled?,
+        typed_results : Array(FileExtraction::Result)? = nil,
       ) : CodeGraph
         started_at = Time.instant
         telemetry_span = Tracing.span(Tracing::Level::INFO, "chiasmus.graph.extract", files: files.size)
@@ -94,7 +95,7 @@ module Chiasmus
 
         cache_error = nil.as(String?)
 
-        if cache_dir
+        if cache_dir && typed_results.nil?
           begin
             check_result = GraphCache.check_file_cache(
               files.map { |file_info| {path: file_info.path, content: file_info.content} },
@@ -137,14 +138,23 @@ module Chiasmus
 
         fresh_results = Utils::BoundedWork.map_ordered(to_extract, max_concurrent, parallel: parallel_cpu) do |file|
           language = parser.language_for_file(file.path)
-          if cache_dir && cache_error.nil? && language && language.in?("java", "crystal", "go")
-            extract_with_discovery(file, language, parser, cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes).try(&.graph) || extract_single_file(file, parser)
+          if language && language.in?("java", "crystal", "go") && (typed_results || (cache_dir && cache_error.nil?))
+            combined = extract_with_discovery(file, language, parser, cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes)
+            {graph: combined.try(&.graph) || extract_single_file(file, parser), typed: combined.try(&.typed)}
           else
-            extract_single_file(file, parser)
+            {graph: extract_single_file(file, parser), typed: nil.as(FileExtraction::Result?)}
           end
         end
 
-        fresh_results.compact_map(&.itself).each do |fresh_graph|
+        fresh_results.each do |result|
+          unless result
+            typed_results.try { |collector| collector << FileExtraction::Result.new([] of FileExtraction::Declaration) }
+            next
+          end
+          if collector = typed_results
+            collector << (result[:typed] || FileExtraction::Result.new([] of FileExtraction::Declaration))
+          end
+          fresh_graph = result[:graph]
           unless fresh_graph.defines.empty? &&
                  fresh_graph.calls.empty? &&
                  fresh_graph.imports.empty? &&

@@ -89,10 +89,17 @@ chiasmus-facts --language LANG --dir DIR [options]
   --cache-dir DIR        enable persistent per-file extraction cache
   --repo-key KEY         override cache repo key
   --cache-max-bytes N    max bytes retained in the cache repo
+  --declarations-out FILE  write typed per-file declarations as JSONL (Java, Crystal, Go)
   --profile              emit timing profile to stderr
 ```
 
 Exit `0` on success, `1` when no files are found or extraction fails.
+For Java, Crystal, and Go, `--declarations-out` writes one serialized
+`Graph::FileExtraction::Result` per scanned file. Facts on stdout are unchanged;
+the graph and typed declarations share one parse per file, including on a cold
+run without a cache. With `--cache-dir`, warm runs reuse the unified extraction
+and content edits invalidate it. Other languages reject this option until they
+have a typed adapter.
 
 ## `chiasmus-parity` — parity report + reconciliation
 
@@ -139,8 +146,9 @@ the local `source_declaration_id` and `target_declaration_id` fields. Each
 nonblank JSONL line is one serialized `Graph::FileExtraction::Result` with a
 `declarations` array. The join uses exact `legacy_aliases` only, accepts only
 the configured source/target language, and leaves stale or duplicate aliases
-unjoined. With no typed input, those fields remain null; the current
-`chiasmus-facts` CLI does not yet export typed JSONL directly.
+unjoined. With no typed input, those fields remain null. Produce the inputs
+with `chiasmus-facts --declarations-out FILE` on each side of a Java, Crystal,
+or Go port and pass the resulting files to `chiasmus-parity --bundle-dir`.
 This reduces repeated work in the cross-language parity skill while leaving
 the individual `--format` invocations available for older scripts. With
 `chiasmus-facts --cache-dir DIR`, snapshots are named from the input contents

@@ -314,5 +314,9 @@ left without shared IDs. Existing TSV/Prolog views and the curated inventory
 ledger are unchanged. The parity CLI can now consume typed per-file JSONL
 results and join declaration IDs by exact legacy alias, retaining local
 `decl:v1` IDs without changing the `port:v1` decision. Missing, duplicate, or
-wrong-language aliases remain unjoined. The next slice is to export typed
-JSONL from the shared `chiasmus-facts` extraction path without reparsing.
+wrong-language aliases remain unjoined. `chiasmus-facts --declarations-out`
+now exports those typed per-file results from its existing bounded graph
+extraction pass; tests cover one parse, cold/warm/edit cache behavior, and an
+end-to-end Java-to-Crystal parity join. The next slice is to teach the
+cross-language parity wrapper to pass those sidecars through when compatible
+toolchain binaries advertise both flags.

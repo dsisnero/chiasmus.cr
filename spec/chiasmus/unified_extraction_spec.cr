@@ -15,6 +15,48 @@ class CountingJavaParser
 end
 
 describe Chiasmus::Graph::Extractor do
+  it "collects facts and typed declarations from one parse per file" do
+    file = Chiasmus::Graph::SourceFile.new("Greeter.java", "class Greeter { void greet() {} }")
+    parser = CountingJavaParser.new
+    typed_results = [] of Chiasmus::Graph::FileExtraction::Result
+
+    graph = Chiasmus::Graph::Extractor.extract_graph([file], parser, typed_results: typed_results)
+
+    parser.parse_count.should eq(1)
+    graph.defines.map(&.name).should contain("greet")
+    typed_results.size.should eq(1)
+    typed_results.first.declarations.map(&.name).should contain("greet")
+  end
+
+  it "reuses typed extraction on a warm facts cache and reparses an edit once" do
+    dir = File.join(Dir.tempdir, "chiasmus-typed-graph-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      path = File.join(dir, "Greeter.java")
+      cache_dir = File.join(dir, "cache")
+      parser = CountingJavaParser.new
+      old_file = Chiasmus::Graph::SourceFile.new(path, "class Greeter { void greet() {} }")
+      edited_file = Chiasmus::Graph::SourceFile.new(path, "class Greeter { void wave() {} }")
+      typed_results = [] of Chiasmus::Graph::FileExtraction::Result
+
+      Chiasmus::Graph::Extractor.extract_graph([old_file], parser, cache_dir: cache_dir, typed_results: typed_results)
+      Chiasmus::Graph::Extractor.extract_graph([old_file], parser, cache_dir: cache_dir, typed_results: typed_results)
+      parser.parse_count.should eq(1)
+      typed_results.size.should eq(2)
+      typed_results.last.declarations.map(&.name).should contain("greet")
+
+      typed_results.clear
+      graph = Chiasmus::Graph::Extractor.extract_graph([edited_file], parser, cache_dir: cache_dir, typed_results: typed_results)
+      parser.parse_count.should eq(2)
+      graph.defines.map(&.name).should contain("wave")
+      typed_results.first.declarations.map(&.name).should contain("wave")
+    ensure
+      Chiasmus::Graph::GraphCache.flush_async_writes
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "runs graph and discovery extraction from one Java parse tree" do
     source = <<-JAVA
       class Greeter {

@@ -21,6 +21,7 @@ module Chiasmus
       cache_dir = ENV["CHIASMUS_FACTS_CACHE_DIR"]? || ENV["CHIASMUS_CACHE_DIR"]?
       repo_key = ENV["CHIASMUS_FACTS_REPO_KEY"]?
       cache_max_bytes = ENV["CHIASMUS_CACHE_MAX_PER_REPO"]?.try(&.to_i32?)
+      declarations_out : String? = nil
 
       parser = OptionParser.new do |opts|
         opts.banner = "Usage: chiasmus-facts --language LANG --dir DIR [options]"
@@ -33,6 +34,7 @@ module Chiasmus
         opts.on("--cache-dir DIR", "Enable persistent per-file extraction cache in DIR") { |v| cache_dir = v }
         opts.on("--repo-key KEY", "Override cache repo key (defaults to current working directory hash)") { |v| repo_key = v }
         opts.on("--cache-max-bytes BYTES", "Maximum bytes to retain in the cache repo") { |v| cache_max_bytes = v.to_i32 }
+        opts.on("--declarations-out FILE", "Write typed per-file declarations as JSONL") { |v| declarations_out = v }
         opts.on("--help", "Show this help") { help_requested = true }
         opts.on("-h", "Show this help") { help_requested = true }
       end
@@ -48,6 +50,11 @@ module Chiasmus
       if help_requested
         output.puts parser
         return 0
+      end
+
+      if declarations_out && !language.in?("java", "crystal", "go")
+        error.puts "typed declaration export currently supports java, crystal, and go"
+        return 1
       end
 
       register_grammar_directories(dir)
@@ -69,14 +76,30 @@ module Chiasmus
       source_files = Graph::FileIO.read_source_files_or_raise(files)
       read_files_ms = elapsed_ms(read_started_at)
 
+      if destination = declarations_out
+        expanded_destination = File.expand_path(destination)
+        if source_files.any? { |file| File.expand_path(file.path) == expanded_destination }
+          error.puts "--declarations-out must not overwrite a source file"
+          return 1
+        end
+      end
+
       extract_started_at = Time.instant
+      typed_results = declarations_out ? [] of Graph::FileExtraction::Result : nil
       graph = Graph::Extractor.extract_graph(
         source_files,
         cache_dir: cache_dir,
         repo_key: repo_key,
-        max_bytes: cache_max_bytes
+        max_bytes: cache_max_bytes,
+        typed_results: typed_results
       )
       extract_graph_ms = elapsed_ms(extract_started_at)
+
+      if destination = declarations_out
+        File.open(destination, "w") do |sidecar|
+          typed_results.try &.each { |result| sidecar.puts result.to_json }
+        end
+      end
 
       snapshot_metadata = nil.as(Graph::FactsSnapshot::Metadata?)
       if effective_cache_dir = cache_dir
