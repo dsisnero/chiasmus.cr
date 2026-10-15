@@ -109,6 +109,8 @@ chiasmus-parity --inventory FILE [options]
   --parser MODE              auto|tree-sitter|regex
   --source-facts FILE        source graph facts
   --crystal-facts FILE       Crystal graph facts
+  --source-declarations FILE optional source typed declaration JSONL for bundle sidecar
+  --target-declarations FILE optional target typed declaration JSONL for bundle sidecar
   --format FORMAT            tsv | completion-facts | maps | maps-prolog | surfaces | divergences
   --bundle-dir DIR           write maps.tsv, surfaces.tsv, maps.pl, port-concepts.jsonl, and optional divergences.tsv together
 ```
@@ -131,9 +133,14 @@ load the graphs and reconcile once, then render all reconciliation formats.
 The versioned `port-concepts.jsonl` sidecar has one record per source mapping.
 It assigns a path-independent `port:v1` ID only to a unique one-to-one match
 authorized by an explicit rename rule. Direct, ambiguous, unmapped, and
-consolidated matches have a null ID. Legacy fact IDs remain as references;
-`source_declaration_id` and `target_declaration_id` are null until typed
-declaration inputs are joined into the parity run.
+consolidated matches have a null ID. Legacy fact IDs remain as references.
+Optional `--source-declarations` and `--target-declarations` inputs populate
+the local `source_declaration_id` and `target_declaration_id` fields. Each
+nonblank JSONL line is one serialized `Graph::FileExtraction::Result` with a
+`declarations` array. The join uses exact `legacy_aliases` only, accepts only
+the configured source/target language, and leaves stale or duplicate aliases
+unjoined. With no typed input, those fields remain null; the current
+`chiasmus-facts` CLI does not yet export typed JSONL directly.
 This reduces repeated work in the cross-language parity skill while leaving
 the individual `--format` invocations available for older scripts. With
 `chiasmus-facts --cache-dir DIR`, snapshots are named from the input contents

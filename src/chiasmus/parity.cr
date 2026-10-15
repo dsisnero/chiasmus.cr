@@ -2016,6 +2016,8 @@ module Chiasmus
         parser_mode : String? = nil
         source_facts_path : String? = nil
         crystal_facts_path : String? = nil
+        source_declarations_path : String? = nil
+        target_declarations_path : String? = nil
         bundle_dir : String? = nil
         format = "tsv"
         help_requested = false
@@ -2030,6 +2032,8 @@ module Chiasmus
           opts.on("--parser MODE", "Parser mode: auto|tree-sitter|regex") { |value| parser_mode = value }
           opts.on("--source-facts FILE", "Optional source graph facts for structural checks") { |value| source_facts_path = value }
           opts.on("--crystal-facts FILE", "Optional Crystal graph facts for structural checks") { |value| crystal_facts_path = value }
+          opts.on("--source-declarations FILE", "Optional source typed declarations JSONL for bundle sidecar") { |value| source_declarations_path = value }
+          opts.on("--target-declarations FILE", "Optional target typed declarations JSONL for bundle sidecar") { |value| target_declarations_path = value }
           opts.on("--format FORMAT", "Output format: tsv|completion-facts|maps|maps-prolog|surfaces|divergences") { |value| format = value }
           opts.on("--bundle-dir DIR", "Write maps, surfaces, maps-Prolog, and divergences in one reconciliation") { |value| bundle_dir = value }
           opts.on("--help", "Show this help") do
@@ -2057,7 +2061,7 @@ module Chiasmus
             error.puts "--source-facts and --crystal-facts are required for --bundle-dir"
             return 1
           end
-          render_bundle(destination, source_path, crystal_path, inventory_path, map_rules_path)
+          render_bundle(destination, source_path, crystal_path, inventory_path, map_rules_path, source_declarations_path, target_declarations_path)
           return 0
         end
 
@@ -2181,11 +2185,15 @@ module Chiasmus
         crystal_path : String,
         inventory_path : String,
         rules_path : String?,
+        source_declarations_path : String?,
+        target_declarations_path : String?,
       ) : Nil
         source_graph = Structural.load_graph(source_path)
         target_graph = Structural.load_graph(crystal_path)
         rules = Rules::RuleSet.load_if(rules_path)
         mappings = Reconcile.mappings(source_graph, target_graph, rules)
+        source_typed = PortConcepts::TypedIndex.load(source_declarations_path, rules.source_language)
+        target_typed = PortConcepts::TypedIndex.load(target_declarations_path, rules.target_language)
         surfaces = Surface.compare(source_graph, target_graph, mappings, rules)
         divergences = inventory_path.empty? ? nil : InventoryJoin.divergences(Loader.read_inventory(inventory_path), mappings, rules)
 
@@ -2193,7 +2201,7 @@ module Chiasmus
         File.open(File.join(destination, "maps.tsv"), "w") { |report| render_maps(report, mappings, rules_path) }
         File.open(File.join(destination, "surfaces.tsv"), "w") { |report| render_surfaces(report, surfaces) }
         File.open(File.join(destination, "maps.pl"), "w") { |report| render_maps_prolog(report, source_graph, target_graph, mappings, divergences, rules, surfaces) }
-        File.open(File.join(destination, "port-concepts.jsonl"), "w") { |report| PortConcepts.render(report, mappings, source_graph, target_graph, rules) }
+        File.open(File.join(destination, "port-concepts.jsonl"), "w") { |report| PortConcepts.render(report, mappings, source_graph, target_graph, rules, source_typed, target_typed) }
         if rows = divergences
           File.open(File.join(destination, "divergences.tsv"), "w") { |report| render_divergences(report, rows) }
         end

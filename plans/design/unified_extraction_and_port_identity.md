@@ -311,6 +311,8 @@ The bundle now emits a versioned PortConceptId sidecar for unique matches
 authorized by explicit rename rules. IDs are stable across checkout/path
 movement; ambiguous, direct, consolidated, and duplicate correspondences are
 left without shared IDs. Existing TSV/Prolog views and the curated inventory
-ledger are unchanged. Typed declaration ID fields are null because the parity
-CLI still consumes legacy facts; the next slice is to join typed extraction
-inputs by declaration/legacy alias and preserve their local IDs in the sidecar.
+ledger are unchanged. The parity CLI can now consume typed per-file JSONL
+results and join declaration IDs by exact legacy alias, retaining local
+`decl:v1` IDs without changing the `port:v1` decision. Missing, duplicate, or
+wrong-language aliases remain unjoined. The next slice is to export typed
+JSONL from the shared `chiasmus-facts` extraction path without reparsing.

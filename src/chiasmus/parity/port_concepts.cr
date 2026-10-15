@@ -1,19 +1,52 @@
 require "json"
 require "openssl"
 require "./reconcile"
+require "../graph/file_extraction"
 
 module Chiasmus
   module Parity
     # A compatibility sidecar for reviewed cross-language correspondences.
     # Legacy fact IDs contain paths, so they are retained as references rather
-    # than used as the stable concept key. Typed declaration IDs are deliberately
-    # absent until the typed extraction inputs are wired into the parity run.
+    # than used as the stable concept key. Typed declaration IDs join only by
+    # exact legacy aliases, never by a name-only fallback.
     module PortConcepts
       VERSION = 1
 
+      class TypedIndex
+        def self.load(path : String?, language : String) : self
+          index = new
+          return index unless path
+
+          File.each_line(path) do |line|
+            next if line.strip.empty?
+
+            Graph::FileExtraction::Result.from_json(line).declarations.each do |declaration|
+              next unless language.empty? || declaration.language == language
+
+              index.add(declaration)
+            end
+          end
+          index
+        end
+
+        def initialize
+          @aliases = Hash(String, Array(String?)).new { |hash, key| hash[key] = [] of String? }
+        end
+
+        def add(declaration : Graph::FileExtraction::Declaration) : Nil
+          declaration.legacy_aliases.each { |legacy_alias| @aliases[legacy_alias] << declaration.declaration_id }
+        end
+
+        def declaration_id(legacy_id : String?) : String?
+          return nil unless legacy_id
+          values = @aliases[legacy_id]?
+          values && values.size == 1 ? values.first : nil
+        end
+      end
+
       extend self
 
-      def render(output : IO, mappings : Array(Reconcile::Mapping), source : Graph::CodeGraph, target : Graph::CodeGraph, rules : Rules::RuleSet) : Nil
+      def render(output : IO, mappings : Array(Reconcile::Mapping), source : Graph::CodeGraph, target : Graph::CodeGraph, rules : Rules::RuleSet, source_typed : TypedIndex = TypedIndex.new, target_typed : TypedIndex = TypedIndex.new) : Nil
         normalizer = Rules::Normalizer.new(rules)
         source_counts = semantic_counts(source)
         target_counts = semantic_counts(target)
@@ -37,8 +70,8 @@ module Chiasmus
             target_id:             mapping.target_id,
             target_name:           mapping.target_name,
             target_kind:           mapping.target_kind,
-            source_declaration_id: nil,
-            target_declaration_id: nil,
+            source_declaration_id: source_typed.declaration_id(mapping.source_id),
+            target_declaration_id: target_typed.declaration_id(mapping.target_id),
             port_concept_id:       concept_id,
             status:                mapping.status,
             basis:                 mapping.basis,
