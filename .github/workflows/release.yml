@@ -30,6 +30,13 @@ jobs:
       with:
         crystal: latest
 
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Test release manifest contract
+      run: python scripts/test_release_manifest.py
+
     # Platform-specific system dependencies (matching CI installs)
     - name: Install Linux dependencies
       if: runner.os == 'Linux'
@@ -102,9 +109,35 @@ jobs:
         esac
         for lang in ruby python java go rust scala javascript typescript tsx crystal; do
           lib=libtree-sitter-$lang.$ext
-          find vendor/grammars -name "$lib" -exec cp {} dist/chiasmus/grammars/ \; 2>/dev/null || echo "Warning: $lib not found"
+          grammar_file=$(find grammars -name "$lib" -print -quit)
+          if [ -n "$grammar_file" ]; then
+            cp "$grammar_file" dist/chiasmus/grammars/
+          else
+            echo "Warning: $lib not found"
+          fi
         done
         ls dist/chiasmus/grammars/
+
+    - name: Create and verify toolchain manifest
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          macOS) platform="darwin-${{ matrix.arch }}" ;;
+          Linux) platform="linux-${{ matrix.arch }}" ;;
+          Windows) platform="windows-${{ matrix.arch }}" ;;
+        esac
+        python scripts/release_manifest.py create \
+          --root dist/chiasmus \
+          --platform "$platform" \
+          --source-commit "${{ github.sha }}" \
+          --build-id "${{ github.sha }}-${platform}-${{ github.run_id }}-${{ github.run_attempt }}" \
+          --capabilities-json '{"discover":["tree-sitter"],"facts":["typed-declarations"],"parity":["bundle","typed-declarations","maps-prolog","surfaces"],"plan":[],"complete":[]}' \
+          --schemas-json '{"extraction_cache":"5","declaration_id":"v1","port_concept":1,"report":1}'
+        python scripts/release_manifest.py verify \
+          --root dist/chiasmus --platform "$platform" \
+          --require-capability discover.tree-sitter \
+          --require-capability facts.typed-declarations \
+          --require-capability parity.bundle
 
     - name: Package (unix)
       if: runner.os != 'Windows'
@@ -117,6 +150,31 @@ jobs:
       run: |
         cd dist
         7z a ../chiasmus-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref_name }}.zip chiasmus/
+
+    - name: Verify and smoke-test packaged archive
+      shell: bash
+      run: |
+        mkdir -p unpacked
+        case "${{ runner.os }}" in
+          macOS)
+            platform="darwin-${{ matrix.arch }}"
+            tar -xzf chiasmus-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref_name }}.tar.gz -C unpacked
+            ;;
+          Linux)
+            platform="linux-${{ matrix.arch }}"
+            tar -xzf chiasmus-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref_name }}.tar.gz -C unpacked
+            ;;
+          Windows)
+            platform="windows-${{ matrix.arch }}"
+            7z x chiasmus-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref_name }}.zip -ounpacked
+            ;;
+        esac
+        python scripts/release_manifest.py verify \
+          --root unpacked/chiasmus --platform "$platform" \
+          --require-capability discover.tree-sitter \
+          --require-capability facts.typed-declarations \
+          --require-capability parity.bundle
+        python scripts/release_smoke.py --root unpacked/chiasmus --platform "$platform"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -133,6 +191,7 @@ jobs:
         path: artifacts
         merge-multiple: true
     - run: ls -laR artifacts/
+    - run: cd artifacts && sha256sum chiasmus-* > SHA256SUMS
     - uses: softprops/action-gh-release@v2
       with:
         files: artifacts/*

@@ -322,3 +322,11 @@ passes those sidecars through when compatible toolchain binaries advertise the
 typed flags; older binaries continue to produce legacy reports. The next
 slice is a capability-reviewed graph-wide resolution/parity cache that reuses
 typed declarations without reparsing either side.
+
+Release archive verification has started independently of that cache slice:
+each platform build now writes a versioned file-hash manifest and CI verifies
+and smoke-tests the unpacked archive before publishing. The manifest's
+capabilities are currently declared and exercised by the smoke test, not yet
+reported independently by each binary. The skill still needs a whole-toolchain
+resolver and a published, compatible release before automatic latest-compatible
+selection can replace its stale bundled binaries.
