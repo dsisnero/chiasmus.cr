@@ -297,14 +297,15 @@ parameters, modifiers, inheritance text, AST provenance, and versioned local
 declaration/occurrence IDs. Tests cover overload identity, movement, interface
 implicit modifiers, and warm reuse across checkout roots. The Go adapter now
 preserves grouped constants/types, variables, struct fields, functions,
-receiver-owned methods, parameters, and local IDs. Crystal still uses the
-legacy graph projection for typed output; its declaration IDs remain unset
-rather than claiming unsupported precision.
+receiver-owned methods, parameters, and local IDs. The Crystal adapter now
+preserves module/class/struct/enum/alias kinds, constants, enum members,
+fields, typed methods, visibility, and local IDs. Initializer-only fields are
+included while explicit typed fields take precedence over duplicate writes;
+macro-generated constants are marked as inferred provenance.
 
 This is **not** completion of the target architecture: the typed result is not
 yet a full PortDOM, declaration IDs are source-language-local rather than
 cross-language PortConceptIds, and graph-wide resolution/parity caches, MCP
 consumption, and remaining language adapters are still to be implemented.
-The next slice is to extend typed coverage and capability tests for Crystal,
-then carry reviewed identities into parity matching without changing
-the curated inventory ledger.
+The next slice is to carry reviewed identities into parity matching and
+PortConceptId sidecars without changing the curated inventory ledger.

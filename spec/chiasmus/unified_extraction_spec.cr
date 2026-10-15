@@ -213,6 +213,166 @@ describe Chiasmus::Graph::Extractor do
     declarations.select { |item| item.name.in?("Left", "Right") }.map(&.return_type).should eq(["int", "int"])
   end
 
+  it "extracts Crystal namespaces, types, constants, and structured methods" do
+    source = <<-CR
+      module Demo
+        DEFAULT_LIMIT = 12
+
+        class Widget
+          private def render(width : Int32, label : String = "x") : Bool
+            rendered = width > 0 && !label.empty?
+            rendered
+          end
+        end
+      end
+      CR
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("spec/chiasmus/unified_extraction_spec.cr", source), "crystal"
+    ) || raise "missing extraction"
+    declarations = result.typed.declarations
+
+    namespace = declarations.find { |declaration| declaration.name == "Demo" } || raise "missing module"
+    type = declarations.find { |declaration| declaration.name == "Widget" } || raise "missing class"
+    constant = declarations.find { |declaration| declaration.name == "DEFAULT_LIMIT" } || raise "missing constant"
+    method = declarations.find { |declaration| declaration.name == "render" } || raise "missing method"
+
+    namespace.kind.should eq("module")
+    namespace.qualified_name.should eq("Demo")
+    namespace.extraction_method.should eq("tree_sitter_ast")
+    type.kind.should eq("class")
+    type.namespace.should eq("Demo")
+    type.qualified_name.should eq("Demo.Widget")
+    constant.kind.should eq("constant")
+    constant.namespace.should eq("Demo")
+    constant.qualified_name.should eq("Demo.DEFAULT_LIMIT")
+    method.kind.should eq("method")
+    method.namespace.should eq("Demo")
+    method.owner.should eq("Demo.Widget")
+    method.qualified_name.should eq("Demo.Widget.render")
+    method.parameters.try(&.map { |parameter| {parameter.name, parameter.type_name, parameter.variadic?} }).should eq([
+      {"width", "Int32", false}, {"label", "String", false},
+    ])
+    method.return_type.should eq("Bool")
+    method.visibility.should eq("private")
+    method.extraction_method.should eq("tree_sitter_ast")
+    [namespace, type, constant, method].each do |declaration|
+      declaration.declaration_id.should_not be_nil
+      declaration.declaration_id.try(&.starts_with?("decl:v1:")).should be_true
+      declaration.occurrence_id.should_not be_nil
+      declaration.occurrence_id.try(&.starts_with?("occ:v1:")).should be_true
+    end
+  end
+
+  it "keeps Crystal declaration IDs stable when source moves" do
+    source = <<-CR
+      module Demo
+        class Widget
+          def render(width : Int32) : Bool
+            width > 0
+          end
+        end
+      end
+      CR
+    first = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("spec/chiasmus/unified_extraction_spec.cr", source), "crystal"
+    ) || raise "missing first extraction"
+    shifted = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("spec/chiasmus/unified_extraction_spec.cr", "\n\n#{source}"), "crystal"
+    ) || raise "missing shifted extraction"
+    method = first.typed.declarations.find { |declaration| declaration.name == "render" } || raise "missing method"
+    shifted_method = shifted.typed.declarations.find { |declaration| declaration.name == "render" } || raise "missing shifted method"
+
+    method.declaration_id.should eq(shifted_method.declaration_id)
+    method.occurrence_id.should_not eq(shifted_method.occurrence_id)
+  end
+
+  it "preserves Crystal structs, aliases, enum members, fields, and class methods" do
+    source = <<-CR
+      module Demo
+        struct Entry
+          @name : String
+          @@count = 0
+
+          def self.build(name : String) : Entry
+            new
+          end
+        end
+
+        enum Mode
+          Fast
+          Slow
+        end
+
+        alias Label = String
+      end
+      CR
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("src/demo.cr", source), "crystal"
+    ) || raise "missing extraction"
+    declarations = result.typed.declarations
+    entry = declarations.find { |item| item.name == "Entry" } || raise "missing struct"
+    label = declarations.find { |item| item.name == "Label" } || raise "missing alias"
+    fast = declarations.find { |item| item.name == "Fast" } || raise "missing enum member"
+    slow = declarations.find { |item| item.name == "Slow" } || raise "missing enum member"
+    name_field = declarations.find { |item| item.name == "@name" } || raise "missing field"
+    count_field = declarations.find { |item| item.name == "@@count" } || raise "missing class field"
+    build = declarations.find { |item| item.name == "build" } || raise "missing class method"
+
+    entry.kind.should eq("struct")
+    label.kind.should eq("type_alias")
+    [fast, slow].map(&.kind).should eq(["enum_member", "enum_member"])
+    [fast, slow].map(&.owner).should eq(["Demo.Mode", "Demo.Mode"])
+    [name_field, count_field].map(&.kind).should eq(["field", "field"])
+    [name_field, count_field].map(&.owner).should eq(["Demo.Entry", "Demo.Entry"])
+    name_field.return_type.should eq("String")
+    build.kind.should eq("method")
+    build.static.should be_true
+    build.owner.should eq("Demo.Entry")
+    build.parameters.try(&.map(&.type_name)).should eq(["String"])
+    declarations.all? { |item| item.declaration_id.try(&.starts_with?("decl:v1:")) }.should be_true
+  end
+
+  it "finds initializer-only Crystal fields without duplicating typed field declarations" do
+    source = <<-CR
+      class User
+        @name : String
+
+        def initialize(name : String, age : Int32)
+          @name = name
+          @age = age
+        end
+      end
+      CR
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("src/user.cr", source), "crystal"
+    ) || raise "missing extraction"
+    fields = result.typed.declarations.select { |item| item.kind == "field" }
+    fields.map(&.name).should eq(["@name", "@age"])
+    fields.map(&.owner).should eq(["User", "User"])
+    fields.find { |item| item.name == "@name" }.try(&.return_type).should eq("String")
+    fields.find { |item| item.name == "@age" }.try(&.return_type).should be_nil
+  end
+
+  it "retains macro-generated Crystal constants with explicit inferred provenance" do
+    source = <<-CR
+      module Package
+        {% begin %}
+          {% version = "1.0" %}
+          VERSION = {{ version }}
+        {% end %}
+      end
+      CR
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("src/package.cr", source), "crystal"
+    ) || raise "missing extraction"
+    version = result.typed.declarations.find { |item| item.name == "VERSION" } || raise "missing generated constant"
+    version.kind.should eq("constant")
+    version.namespace.should eq("Package")
+    version.extraction_method.should eq("macro_inference")
+    version.declaration_id.should_not be_nil
+    version.occurrence_id.should_not be_nil
+  end
+
   it "reuses a combined extraction and invalidates it on content edits" do
     dir = File.join(Dir.tempdir, "chiasmus-unified-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)

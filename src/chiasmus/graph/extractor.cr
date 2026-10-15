@@ -65,7 +65,7 @@ module Chiasmus
         end
       end
 
-      UNIFIED_EXTRACTION_VERSION = "4"
+      UNIFIED_EXTRACTION_VERSION = "5"
 
       @@merge_mutex = Mutex.new
       # tree_sitter's loaded-language registry and node StringPool are mutable
