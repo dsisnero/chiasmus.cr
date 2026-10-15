@@ -52,7 +52,10 @@ module Chiasmus
           next unless capture.rule == "name"
           name = capture.node.text(source)
 
-          if inside_impl?(capture.node)
+          if rust_test_function?(capture.node, source)
+            qualified_name = (enclosing_modules(capture.node, source) + [name]).join("::")
+            items << Item.new(id: "#{file_path}::test::#{qualified_name}", kind: "test", scope: "test", name: qualified_name, file: file_path)
+          elsif inside_impl?(capture.node)
             impl_type = find_enclosing_impl_type(capture.node, source)
             full_name = impl_type ? "#{impl_type}.#{name}" : name
             items << Item.new(id: "#{file_path}::method::#{full_name}", kind: "method", scope: "source", name: full_name, file: file_path)
@@ -87,6 +90,33 @@ module Chiasmus
           current = current.parent
         end
         false
+      end
+
+      private def rust_test_function?(name_node : TreeSitter::Node, source : String) : Bool
+        function = name_node.parent
+        return false unless function && function.type == "function_item"
+        sibling = function.prev_sibling
+        while sibling && sibling.type.in?("attribute_item", "line_comment", "block_comment")
+          if sibling.type == "attribute_item" && sibling.text(source).matches?(/\A#\[\s*(?:[A-Za-z_][A-Za-z_0-9]*::)*test\b/)
+            return true
+          end
+          sibling = sibling.prev_sibling
+        end
+        false
+      end
+
+      private def enclosing_modules(node : TreeSitter::Node, source : String) : Array(String)
+        modules = [] of String
+        current = node.parent
+        while current
+          if current.type == "mod_item"
+            if name = current.child_by_field_name("name")
+              modules.unshift(name.text(source))
+            end
+          end
+          current = current.parent
+        end
+        modules
       end
 
       private def find_enclosing_impl_type(node : TreeSitter::Node, source : String) : String?

@@ -302,6 +302,40 @@ describe Chiasmus::Discovery::RustExtractor do
     functions.map(&.name).should contain("main")
   end
 
+  it "classifies inline cfg test functions as test declarations" do
+    extractor = Chiasmus::Discovery::RustExtractor.new
+    lang = TreeSitterManager::GrammarLoader.load_language("rust")
+    pending "rust grammar not available" unless lang
+    parser = TreeSitter::Parser.new(language: lang)
+    source = <<-RUST
+      fn helper() {}
+
+      #[cfg(test)]
+      mod tests {
+        #[test]
+        fn adds_values() {}
+
+        #[tokio::test]
+        async fn awaits_values() {}
+      }
+    RUST
+    tree = parser.parse(source)
+
+    items = extractor.extract(tree.root_node, source, "test.rs")
+    tests = items.select { |item| item.scope == "test" }
+    functions = items.select { |item| item.kind == "function" }
+
+    tests.map(&.id).to_set.should eq(Set{
+      "test.rs::test::tests::adds_values",
+      "test.rs::test::tests::awaits_values",
+    })
+    tests.each do |item|
+      item.kind.should eq("test")
+      item.scope.should eq("test")
+    end
+    functions.map(&.name).should eq(["helper"])
+  end
+
   it "extracts UPPERCASE const_item" do
     extractor = Chiasmus::Discovery::RustExtractor.new
     lang = TreeSitterManager::GrammarLoader.load_language("rust")
