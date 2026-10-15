@@ -263,7 +263,7 @@ module Chiasmus
           end
         end
         extraction_keys = keys.flat_map do |key|
-          ["java", "crystal", "go"].map { |language| "extraction:#{language}:#{key}" }
+          ["java", "crystal", "go", "rust"].map { |language| "extraction:#{language}:#{key}" }
         end
         sqlite_store(paths["database_path"]).apply_batch([] of SQLiteCacheEntry, keys + extraction_keys)
       end

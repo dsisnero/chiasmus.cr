@@ -87,6 +87,41 @@ describe Chiasmus::FactsCLI do
     end
   end
 
+  it "exports detailed Rust declarations with chiasmus-facts" do
+    dir = File.join(Dir.tempdir, "chiasmus-facts-rust-declarations-#{Random::Secure.hex(8)}")
+    source_dir = File.join(dir, "src")
+    declarations_path = File.join(dir, "declarations.jsonl")
+    FileUtils.mkdir_p(source_dir)
+    source_path = File.join(source_dir, "lib.rs")
+    File.write(source_path, <<-RUST)
+      pub mod demo {
+        pub struct Worker;
+        impl Worker { pub fn run(value: u32) -> bool { true } }
+      }
+      RUST
+    output = IO::Memory.new
+    error = IO::Memory.new
+
+    begin
+      Chiasmus::FactsCLI.run(
+        ["--language", "rust", "--dir", source_dir, "--declarations-out", declarations_path],
+        output: output,
+        error: error
+      ).should eq(0), error.to_s
+      result = JSON.parse(File.read(declarations_path))
+      declarations = result["declarations"].as_a
+      worker = declarations.find { |item| item["name"].as_s == "Worker" } || raise "missing struct"
+      run = declarations.find { |item| item["name"].as_s == "run" } || raise "missing method"
+      worker["kind"].as_s.should eq("struct")
+      run["qualified_name"].as_s.should eq("demo.Worker.run")
+      run["parameters"].as_a.first["type_name"].as_s.should eq("u32")
+      run["return_type"].as_s.should eq("bool")
+      run["declaration_id"].as_s.should start_with("decl:v1:")
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "keeps the declarations sidecar coherent across cache cold, warm, and edited runs" do
     dir = File.join(Dir.tempdir, "chiasmus-facts-declarations-cache-#{Random::Secure.hex(8)}")
     source_dir = File.join(dir, "src")

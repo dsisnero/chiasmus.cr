@@ -138,7 +138,7 @@ module Chiasmus
 
         fresh_results = Utils::BoundedWork.map_ordered(to_extract, max_concurrent, parallel: parallel_cpu) do |file|
           language = parser.language_for_file(file.path)
-          if language && language.in?("java", "crystal", "go") && (typed_results || (cache_dir && cache_error.nil?))
+          if language && language.in?("java", "crystal", "go", "rust") && (typed_results || (cache_dir && cache_error.nil?))
             combined = extract_with_discovery(file, language, parser, cache_dir: cache_dir, repo_key: repo_key, max_bytes: max_bytes)
             {graph: combined.try(&.graph) || extract_single_file(file, parser), typed: combined.try(&.typed)}
           else
@@ -248,7 +248,7 @@ module Chiasmus
         repo_key : String? = nil,
         max_bytes : Int32? = nil,
       ) : UnifiedFileResult?
-        return nil unless language.in?("java", "crystal", "go")
+        return nil unless language.in?("java", "crystal", "go", "rust")
 
         logical_language = parser.language_for_file(file.path)
         return nil unless logical_language == language

@@ -123,6 +123,8 @@ module Chiasmus
                          go_declarations(tree.root_node, source, file_path, logical_path)
                        elsif language == "crystal"
                          crystal_declarations(tree.root_node, source, file_path, logical_path)
+                       elsif language == "rust"
+                         rust_declarations(tree.root_node, source, file_path, logical_path)
                        else
                          graph.defines.map do |definition|
                            name = definition.qualified_name || definition.name
@@ -477,3 +479,4 @@ module Chiasmus
 end
 
 require "./file_extraction/crystal"
+require "./file_extraction/rust"

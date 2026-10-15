@@ -52,8 +52,8 @@ module Chiasmus
         return 0
       end
 
-      if declarations_out && !language.in?("java", "crystal", "go")
-        error.puts "typed declaration export currently supports java, crystal, and go"
+      if declarations_out && !language.in?("java", "crystal", "go", "rust")
+        error.puts "typed declaration export currently supports java, crystal, go, and rust"
         return 1
       end
 

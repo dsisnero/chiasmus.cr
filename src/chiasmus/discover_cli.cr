@@ -25,7 +25,7 @@ module Chiasmus
       files = scan_files(language, dir)
       return abort_no_files(language, dir, error) if files.empty?
 
-      result = if cache_dir && language.in?("java", "crystal", "go") && (force_parser.nil? || force_parser == "tree-sitter") && Chiasmus::Discovery.tree_sitter_available?(language)
+      result = if cache_dir && language.in?("java", "crystal", "go", "rust") && (force_parser.nil? || force_parser == "tree-sitter") && Chiasmus::Discovery.tree_sitter_available?(language)
                  discover_with_shared_cache(language, dir, files, cache_dir)
                else
                  Chiasmus::Discovery.discover_files(language, files, force_parser: force_parser)

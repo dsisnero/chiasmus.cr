@@ -512,4 +512,126 @@ describe Chiasmus::Graph::Extractor do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "extracts typed Rust items, members, and callable signatures beside legacy facts" do
+    source = <<-RUST
+      pub mod demo {
+        pub const LIMIT: usize = 8;
+        pub struct Worker { pub name: String, retries: u32 }
+        pub enum State { Ready, Busy(u32) }
+        pub trait Service {
+          fn run(&self, input: &str) -> Result<(), Error>;
+        }
+        impl Worker {
+          pub fn build(name: String) -> Self { todo!() }
+          fn retry(&mut self, count: u32) -> bool { true }
+        }
+        pub fn start(worker: &Worker, limit: usize) -> Result<(), Error> { todo!() }
+      }
+      RUST
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("src/lib.rs", source), "rust"
+    ) || raise "missing extraction"
+    declarations = result.typed.declarations
+
+    worker = declarations.find { |item| item.name == "Worker" } || raise "missing struct"
+    state = declarations.find { |item| item.name == "State" } || raise "missing enum"
+    trait = declarations.find { |item| item.name == "Service" } || raise "missing trait"
+    limit = declarations.find { |item| item.name == "LIMIT" } || raise "missing constant"
+    name_field = declarations.find { |item| item.name == "name" && item.kind == "field" } || raise "missing field"
+    ready = declarations.find { |item| item.name == "Ready" } || raise "missing enum variant"
+    run = declarations.find { |item| item.name == "run" } || raise "missing trait method"
+    build = declarations.find { |item| item.name == "build" } || raise "missing impl method"
+    start = declarations.find { |item| item.name == "start" } || raise "missing function"
+
+    worker.kind.should eq("struct")
+    state.kind.should eq("enum")
+    trait.kind.should eq("trait")
+    [worker, state, trait, limit].each { |item| item.namespace.should eq("demo") }
+    limit.kind.should eq("constant")
+    limit.return_type.should eq("usize")
+    name_field.owner.should eq("demo.Worker")
+    name_field.return_type.should eq("String")
+    ready.kind.should eq("enum_variant")
+    ready.owner.should eq("demo.State")
+    run.kind.should eq("method")
+    run.owner.should eq("demo.Service")
+    run.parameters.try(&.map { |parameter| {parameter.name, parameter.type_name} }).should eq([
+      {"self", "&self"}, {"input", "&str"},
+    ])
+    run.return_type.should eq("Result<(), Error>")
+    build.kind.should eq("method")
+    build.owner.should eq("demo.Worker")
+    build.parameters.try(&.map { |parameter| {parameter.name, parameter.type_name} }).should eq([{"name", "String"}])
+    build.return_type.should eq("Self")
+    start.kind.should eq("function")
+    start.namespace.should eq("demo")
+    start.parameters.try(&.map { |parameter| {parameter.name, parameter.type_name} }).should eq([
+      {"worker", "&Worker"}, {"limit", "usize"},
+    ])
+    start.return_type.should eq("Result<(), Error>")
+    result.graph.defines.map(&.name).should contain("build")
+    result.discovery.items.map(&.name).should contain("Worker")
+  end
+
+  it "assigns Rust local IDs, legacy aliases, and movement-sensitive occurrences" do
+    source = <<-RUST
+      mod demo {
+        struct Worker;
+        impl Worker {
+          fn run(input: u32) -> bool { true }
+        }
+      }
+      RUST
+    first = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("src/lib.rs", source), "rust"
+    ) || raise "missing first extraction"
+    shifted = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("src/lib.rs", "\n\n#{source}"), "rust"
+    ) || raise "missing shifted extraction"
+    method = first.typed.declarations.find { |item| item.name == "run" } || raise "missing method"
+    shifted_method = shifted.typed.declarations.find { |item| item.name == "run" } || raise "missing shifted method"
+
+    method.declaration_id.try(&.starts_with?("decl:v1:")).should be_true
+    method.occurrence_id.try(&.starts_with?("occ:v1:")).should be_true
+    method.declaration_id.should eq(shifted_method.declaration_id)
+    method.occurrence_id.should_not eq(shifted_method.occurrence_id)
+    method.legacy_aliases.should eq(["src/lib.rs::method::demo.Worker.run"])
+  end
+
+  it "relocates cached Rust typed declarations between checkout roots" do
+    dir = File.join(Dir.tempdir, "chiasmus-rust-typed-worktrees-#{Random::Secure.hex(8)}")
+    cache_dir = File.join(dir, "cache")
+    first_root = File.join(dir, "first")
+    second_root = File.join(dir, "second")
+    [first_root, second_root].each do |root|
+      Dir.mkdir_p(File.join(root, ".git"))
+      Dir.mkdir_p(File.join(root, "src"))
+      File.write(File.join(root, ".git", "HEAD"), "ref: refs/heads/main\n")
+    end
+
+    begin
+      content = "pub mod demo { pub struct Worker; impl Worker { pub fn run(value: u32) -> bool { true } } }\n"
+      first_path = File.join(first_root, "src", "lib.rs")
+      second_path = File.join(second_root, "src", "lib.rs")
+      File.write(first_path, content)
+      File.write(second_path, content)
+      first = Chiasmus::Graph::Extractor.extract_with_discovery(
+        Chiasmus::Graph::SourceFile.new(first_path, content), "rust",
+        cache_dir: cache_dir, repo_key: "rust-shared-worktree-spec"
+      ) || raise "missing first extraction"
+      second = Chiasmus::Graph::Extractor.extract_with_discovery(
+        Chiasmus::Graph::SourceFile.new(second_path, content), "rust",
+        cache_dir: cache_dir, repo_key: "rust-shared-worktree-spec"
+      ) || raise "missing relocated extraction"
+
+      first.typed.declarations.map(&.declaration_id).should eq(second.typed.declarations.map(&.declaration_id))
+      first.typed.declarations.map(&.occurrence_id).should eq(second.typed.declarations.map(&.occurrence_id))
+      second.typed.declarations.map(&.file).uniq.should eq([second_path])
+      second.typed.declarations.all? { |item| item.legacy_aliases.all? { |alias_id| alias_id.starts_with?(second_path) } }.should be_true
+    ensure
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(dir)
+    end
+  end
 end
