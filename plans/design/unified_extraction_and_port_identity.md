@@ -295,14 +295,16 @@ The Java adapter preserves precise class/interface/enum/record, method,
 constructor, field, constant, and enum-constant kinds, with owners, structured
 parameters, modifiers, inheritance text, AST provenance, and versioned local
 declaration/occurrence IDs. Tests cover overload identity, movement, interface
-implicit modifiers, and warm reuse across checkout roots. Crystal and Go still
-use the legacy graph projection for typed output; their declaration IDs remain
-unset rather than claiming unsupported precision.
+implicit modifiers, and warm reuse across checkout roots. The Go adapter now
+preserves grouped constants/types, variables, struct fields, functions,
+receiver-owned methods, parameters, and local IDs. Crystal still uses the
+legacy graph projection for typed output; its declaration IDs remain unset
+rather than claiming unsupported precision.
 
 This is **not** completion of the target architecture: the typed result is not
 yet a full PortDOM, declaration IDs are source-language-local rather than
 cross-language PortConceptIds, and graph-wide resolution/parity caches, MCP
 consumption, and remaining language adapters are still to be implemented.
-The next slice is to extend typed coverage and capability tests for Crystal
-and Go, then carry reviewed identities into parity matching without changing
+The next slice is to extend typed coverage and capability tests for Crystal,
+then carry reviewed identities into parity matching without changing
 the curated inventory ledger.

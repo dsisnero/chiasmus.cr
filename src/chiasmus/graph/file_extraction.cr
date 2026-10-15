@@ -119,6 +119,8 @@ module Chiasmus
       def extract(language : String, tree : TreeSitter::Tree, source : String, file_path : String, graph : CodeGraph, logical_path : String? = nil) : Result
         declarations = if language == "java"
                          java_declarations(tree.root_node, source, file_path, logical_path)
+                       elsif language == "go"
+                         go_declarations(tree.root_node, source, file_path, logical_path)
                        else
                          graph.defines.map do |definition|
                            name = definition.qualified_name || definition.name
@@ -298,6 +300,175 @@ module Chiasmus
       private def occurrence_id(logical_path : String?, node : TreeSitter::Node) : String?
         return nil unless logical_path
         DeclarationIdentity.occurrence_id(OccurrenceIdentityInput.new(logical_path, Span.from_node(node), node.type))
+      end
+
+      private def go_declarations(root : TreeSitter::Node, source : String, file_path : String, logical_path : String?) : Array(Declaration)
+        declarations = [] of Declaration
+        namespace = root.children.find(&.type.==("package_clause")).try do |package|
+          package.children.find(&.type.==("package_identifier")).try(&.text(source))
+        end
+        root.children.each do |node|
+          case node.type
+          when "const_declaration"
+            go_walk_specs(node, "const_spec") do |spec|
+              go_named_nodes(spec, "name").each do |name_node|
+                declarations << go_simple_declaration(name_node, spec, source, file_path, logical_path, namespace, "constant")
+              end
+            end
+          when "var_declaration"
+            go_walk_specs(node, "var_spec") do |spec|
+              go_named_nodes(spec, "name").each do |name_node|
+                declarations << go_simple_declaration(name_node, spec, source, file_path, logical_path, namespace, "variable")
+              end
+            end
+          when "type_declaration"
+            go_walk_specs(node, "type_spec") do |spec|
+              type_node = spec.child_by_field_name("type")
+              next unless type_node
+              kind = case type_node.type
+                     when "interface_type" then "interface"
+                     when "struct_type"    then "class"
+                     else                       "defined_type"
+                     end
+              go_named_nodes(spec, "name").each do |name_node|
+                declarations << go_simple_declaration(name_node, spec, source, file_path, logical_path, namespace, kind)
+                if type_node.type == "struct_type"
+                  go_walk_specs(type_node, "field_declaration") do |field|
+                    go_named_nodes(field, "name").each do |field_name|
+                      declarations << go_field_declaration(field_name, field, name_node.text(source), source, file_path, logical_path, namespace)
+                    end
+                  end
+                end
+              end
+            end
+            go_walk_specs(node, "type_alias") do |spec|
+              go_named_nodes(spec, "name").each do |name_node|
+                declarations << go_simple_declaration(name_node, spec, source, file_path, logical_path, namespace, "type_alias")
+              end
+            end
+          when "function_declaration", "method_declaration"
+            if declaration = go_callable_declaration(node, source, file_path, logical_path, namespace)
+              declarations << declaration
+            end
+          end
+        end
+        declarations
+      end
+
+      private def go_walk_specs(node : TreeSitter::Node, spec_type : String, &block : TreeSitter::Node ->) : Nil
+        node.children.each do |child|
+          if child.type == spec_type
+            yield child
+          else
+            go_walk_specs(child, spec_type, &block)
+          end
+        end
+      end
+
+      private def go_named_nodes(node : TreeSitter::Node, field : String) : Array(TreeSitter::Node)
+        if node.type.in?("const_spec", "var_spec", "parameter_declaration", "field_declaration")
+          name_type = node.type == "field_declaration" ? "field_identifier" : "identifier"
+          names = [] of TreeSitter::Node
+          node.children.each do |child|
+            if child.type == name_type
+              names << child
+            elsif child.type != ","
+              break
+            end
+          end
+          return names
+        end
+        if name = node.child_by_field_name(field)
+          return name.type == "identifier_list" ? name.children.select(&.named?).to_a : [name]
+        end
+        node.children.select { |child| child.type.in?("identifier", "type_identifier", "field_identifier") }.to_a
+      end
+
+      private def go_simple_declaration(name_node : TreeSitter::Node, spec : TreeSitter::Node, source : String, file_path : String, logical_path : String?, namespace : String?, kind : String) : Declaration
+        name = name_node.text(source)
+        type_name = spec.child_by_field_name("type").try(&.text(source))
+        legacy_kind = case kind
+                      when "constant"                   then "const"
+                      when "defined_type", "type_alias" then "class"
+                      else                                   kind
+                      end
+        Declaration.new(
+          language: "go", namespace: namespace, owner: nil, kind: kind, name: name,
+          qualified_name: name, file: file_path, span: Span.from_node(spec),
+          ast_node_type: spec.type, extraction_method: "tree_sitter_ast",
+          return_type: type_name, visibility: go_visibility(name),
+          mutable: kind == "constant" ? false : (kind == "variable" ? true : nil),
+          legacy_aliases: ["#{file_path}::#{legacy_kind}::#{name}"],
+          declaration_id: go_declaration_id(namespace, nil, kind, name, nil),
+          occurrence_id: occurrence_id(logical_path, name_node),
+        )
+      end
+
+      private def go_field_declaration(name_node : TreeSitter::Node, field : TreeSitter::Node, owner : String, source : String, file_path : String, logical_path : String?, namespace : String?) : Declaration
+        name = name_node.text(source)
+        Declaration.new(
+          language: "go", namespace: namespace, owner: owner, kind: "field", name: name,
+          qualified_name: "#{owner}.#{name}", file: file_path, span: Span.from_node(field),
+          ast_node_type: field.type, extraction_method: "tree_sitter_ast",
+          return_type: field.child_by_field_name("type").try(&.text(source)),
+          visibility: go_visibility(name), mutable: true,
+          legacy_aliases: ["#{file_path}::field::#{owner}.#{name}"],
+          declaration_id: go_declaration_id(namespace, owner, "field", name, nil),
+          occurrence_id: occurrence_id(logical_path, name_node),
+        )
+      end
+
+      private def go_callable_declaration(node : TreeSitter::Node, source : String, file_path : String, logical_path : String?, namespace : String?) : Declaration?
+        name_node = node.child_by_field_name("name")
+        return nil unless name_node
+        name = name_node.text(source)
+        kind = node.type == "method_declaration" ? "method" : "function"
+        owner = go_receiver_owner(node.child_by_field_name("receiver"), source)
+        qualified_name = owner ? "#{owner}.#{name}" : name
+        parameters = node.child_by_field_name("parameters").try { |list| go_parameters(list, source) }
+        return_type = node.child_by_field_name("result").try(&.text(source))
+        Declaration.new(
+          language: "go", namespace: namespace, owner: owner, kind: kind, name: name,
+          qualified_name: qualified_name, file: file_path, span: Span.from_node(node),
+          ast_node_type: node.type, extraction_method: "tree_sitter_ast",
+          parameters: parameters, return_type: return_type, signature: java_signature(parameters, return_type),
+          visibility: go_visibility(name),
+          legacy_aliases: ["#{file_path}::#{kind}::#{qualified_name}"],
+          declaration_id: go_declaration_id(namespace, owner, kind, name, parameters),
+          occurrence_id: occurrence_id(logical_path, node),
+        )
+      end
+
+      private def go_receiver_owner(receiver : TreeSitter::Node?, source : String) : String?
+        return nil unless receiver
+        parameter = receiver.children.find(&.type.==("parameter_declaration"))
+        type_name = parameter.try(&.child_by_field_name("type")).try(&.text(source))
+        type_name.try(&.lchop('*').split('[').first)
+      end
+
+      private def go_parameters(list : TreeSitter::Node, source : String) : Array(Parameter)
+        list.children.flat_map do |child|
+          next [] of Parameter unless child.type.in?("parameter_declaration", "variadic_parameter_declaration")
+          type_name = child.child_by_field_name("type").try(&.text(source))
+          names = go_named_nodes(child, "name")
+          names = [child] if names.empty?
+          names.map do |name_node|
+            name = name_node == child ? "_" : name_node.text(source)
+            Parameter.new(name: name, type_name: type_name, variadic: child.type == "variadic_parameter_declaration")
+          end
+        end.to_a
+      end
+
+      private def go_visibility(name : String) : String
+        name.matches?(/^[A-Z]/) ? "public" : "package"
+      end
+
+      private def go_declaration_id(namespace : String?, owner : String?, kind : String, name : String, parameters : Array(Parameter)?) : String
+        overload_key = parameters.try { |items| "(#{items.map { |item| item.type_name || "?" }.join(",")})" }
+        DeclarationIdentity.declaration_id(DeclarationIdentityInput.new(
+          language: "go", namespace: namespace, owner_chain: owner ? [owner] : [] of String,
+          kind: kind, name: name, overload_key: overload_key,
+        ))
       end
     end
   end

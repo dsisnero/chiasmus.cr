@@ -2,18 +2,18 @@
 
 ## Current Inventory State (vendor/chiasmus @ `55d43881`)
 
-The curated ledger was reconciled against `d1f1291e` on 2026-08-16. The vendor
-pointer advanced to `55d43881` (upstream v0.1.27–v0.1.28) on 2026-09-07. P63
-and P64 are reconciled. The counts therefore describe the last reconciled
-baseline and the current vendor surface is tracked by the generated manifests.
+The pinned vendor pointer is `55d43881` (upstream v0.1.27–v0.1.28). The
+counts below reflect the current curated and generated manifests at that
+revision. A separately modified `vendor/chiasmus` checkout is newer and has
+not been reconciled into those manifests.
 
 _(The completed P20 notes below describe the earlier 07bbf4a → 576ed38 update; they are retained as implementation history.)_
 
 | Manifest | Tracked | Ported | Partial | Intentional divergence | Missing |
 |---|---|---:|---:|---:|---:|
-| `typescript_port_inventory.tsv` | 605 | 507 | 0 | 98 | 0 |
-| `typescript_source_parity.tsv` | 605 | n/a | n/a | n/a | n/a |
-| `typescript_test_parity.tsv` | 1082 | n/a | n/a | n/a | n/a |
+| `typescript_port_inventory.tsv` | 669 | 564 | 0 | 105 | 0 |
+| `typescript_source_parity.tsv` | 669 | n/a | n/a | n/a | n/a |
+| `typescript_test_parity.tsv` | 1190 | n/a | n/a | n/a | n/a |
 
 Current workflow split:
 
@@ -23,7 +23,7 @@ Current workflow split:
 - `check_port_inventory.sh` proves curated source coverage only.
 - `check_test_parity.sh` is the exhaustive test drift gate.
 
-### Intentional Divergences (98 items)
+### Intentional Divergences (105 items)
 
 | Subsystem | Items | Rationale |
 |---|---|---|
@@ -38,9 +38,9 @@ Current workflow split:
 ### Reconciled Inventory Scope
 
 P28 established a source-only curated ledger and refreshed both generated manifests.
-The 1,082 upstream tests—including helpers, fixtures, and benchmark test declarations—
+The current 1,190 upstream tests—including helpers, fixtures, and benchmark test declarations—
 belong solely in `typescript_test_parity.tsv`; they are not source implementation rows.
-All 605 source declarations are now mapped as ported, partial, or intentionally
+All 669 source declarations are now mapped as ported or intentionally
 divergent. The 20 Node `node-llama-cpp` local-embedding declarations are intentionally
 divergent: Crystal validates the configuration and routes configured local models to
 Ollama, but does not claim Node model lifecycle parity.
@@ -63,7 +63,7 @@ substitutions.
 | `config.ts`, `review.ts` | 2 | P36 | Map defaults and focus validation. |
 | `llm/local-embeddings.ts`, local embedding config | 25 | P35 | Port local-model configuration and lifecycle, or document a supported alternative. |
 
-## Feature-Sized Phases (P28-P64)
+## Feature-Sized Phases (P28-P65)
 
 Each phase starts red: characterize the upstream behavior in a Crystal spec (or map
 an existing equivalent spec) before changing implementation. On completion, update
@@ -109,6 +109,7 @@ parity check; generated manifests remain generated artifacts.
 | P62 ✓ | LLM and MCP facade conformance sweep | Completed 2026-09-08: audited Crig provider/configuration routing and MCP tool gating, schemas, healthcheck, stdio startup, shutdown, and error envelopes. Signal and transport closure now share an exactly-once cleanup coordinator, preventing double wait-group completion or duplicate store closure. | Red-to-green concurrent shutdown coordination, in-memory transport, stdio-healthcheck, tool-gating, factory/config, and MCP integration gates pass. Vendor-specific adapter objects remain explicit Crig substitutions in the inventory. |
 | P63 ✓ | Scheme, Racket, and Common Lisp graph support | Completed 2026-09-08: extension detection; managed grammar lifecycle; S-expression extraction for Scheme, Racket, and Common Lisp; package-aware cross-file calls; namespace lookup; and v4 cache invalidation. The Crystal source-reader fallback intentionally treats reader-dispatch syntax as opaque; ordinary list forms, strings, comments, quotes, and quasiquotes are covered by the regression corpus. | Red-to-green specs cover definitions, imports/exports, lexical scopes, records, package resolution, cache invalidation, map lookup, and MCP graph output. Source/test parity manifests refresh cleanly. |
 | P64 ✓ | Prolog batch-session integrity | Completed 2026-09-08: `chiasmus_verify` batch queries now consult one program once, run in order on the crolog-owned isolated worker, retain dynamic state, stop on error, and clean up once. Generated graph and Mermaid reachability rules use `chiasmus_member/2`, avoiding collisions with user `member/2`. | Red-to-green direct solver and MCP specs prove state retention, empty-batch error handling, stop-on-error behavior, and collision-safe reachability. The `PrologBatchInput`, solver, and session API rows are ledgered; source/test parity and solver/graph/MCP gates pass. |
+| P65 ✓ | Typed Go declaration surface | Completed 2026-10-14: the shared one-parse extraction preserves Go package, receiver ownership, grouped constants, named types, variables, struct fields, functions, methods, typed parameters/results, and local declaration/occurrence IDs without changing legacy graph or discovery. This is a Chiasmus extraction extension, not a missing TypeScript upstream API; no source-inventory rows change. | Red-to-green unified extraction specs cover grouped const/type declarations, receiver methods, source movement, variables/fields/functions, aliases, and multi-name values. Format, lint, and full Crystal specs pass. Strict inventory/source/test checks pass against the pinned `55d43881` upstream tree (669 source items, 1,190 tests); the separately modified `vendor/chiasmus` checkout has newer declarations and requires its own intentional inventory refresh. |
 
 Dependency order: P28 first; then P29 → P30, P31 and P32 independently, P33, P34 and P35 independently, P36, P37, P38, P39, P40, P41, P42, and the subsequent MCP compatibility phases P43–P55. P56 → P57 protect snapshot runtime behavior; P59 verifies graph parity after that work. P63 established the S-expression extraction layer before P59 absorbs its regression corpus. P64 established Prolog batch/session health before P61 re-audits solver recovery semantics. P60, P61, and P62 then proceed in the requested subsystem order: skills/search, solvers/formalization, then LLM adapters/MCP facade. Test-helper rows are closed with their owning feature phase rather than treated as standalone product work.
 

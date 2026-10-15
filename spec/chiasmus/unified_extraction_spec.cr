@@ -101,6 +101,118 @@ describe Chiasmus::Graph::Extractor do
     run.abstract.should be_true
   end
 
+  it "distinguishes grouped Go constants and types in typed declarations" do
+    source = <<-GO
+      package demo
+
+      const (
+        DefaultLimit = 12
+        MaxLimit = DefaultLimit * 2
+      )
+
+      type (
+        Widget struct { Name string }
+        Named interface { Label() string }
+      )
+      GO
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(Chiasmus::Graph::SourceFile.new("model.go", source), "go") || raise "missing extraction"
+    declarations = result.typed.declarations
+
+    default_limit = declarations.find { |declaration| declaration.name == "DefaultLimit" } || raise "missing grouped constant"
+    max_limit = declarations.find { |declaration| declaration.name == "MaxLimit" } || raise "missing second grouped constant"
+    widget = declarations.find { |declaration| declaration.name == "Widget" } || raise "missing grouped struct type"
+    named = declarations.find { |declaration| declaration.name == "Named" } || raise "missing grouped interface type"
+
+    default_limit.kind.should eq("constant")
+    max_limit.kind.should eq("constant")
+    widget.kind.should eq("class")
+    named.kind.should eq("interface")
+    [default_limit, max_limit, widget, named].each do |declaration|
+      declaration.namespace.should eq("demo")
+      declaration.extraction_method.should eq("tree_sitter_ast")
+    end
+  end
+
+  it "extracts Go receiver methods with structured signatures and stable declaration IDs" do
+    source = <<-GO
+      package demo
+
+      type Animal struct{}
+
+      func (a *Animal) Speak(prefix string, times int) string {
+        return prefix
+      }
+      GO
+    shifted_source = "\n\n#{source}"
+    first = Chiasmus::Graph::Extractor.extract_with_discovery(Chiasmus::Graph::SourceFile.new("src/animal.go", source), "go") || raise "missing first extraction"
+    shifted = Chiasmus::Graph::Extractor.extract_with_discovery(Chiasmus::Graph::SourceFile.new("src/animal.go", shifted_source), "go") || raise "missing shifted extraction"
+    method = first.typed.declarations.find { |declaration| declaration.name == "Speak" } || raise "missing receiver method"
+    shifted_method = shifted.typed.declarations.find { |declaration| declaration.name == "Speak" } || raise "missing shifted receiver method"
+
+    method.kind.should eq("method")
+    method.owner.should eq("Animal")
+    method.qualified_name.should eq("Animal.Speak")
+    method.namespace.should eq("demo")
+    method.parameters.try(&.map(&.name)).should eq(["prefix", "times"])
+    method.parameters.try(&.map(&.type_name)).should eq(["string", "int"])
+    method.return_type.should eq("string")
+    method.declaration_id.should_not be_nil
+    method.occurrence_id.should_not be_nil
+    method.declaration_id.should eq(shifted_method.declaration_id)
+    method.occurrence_id.should_not eq(shifted_method.occurrence_id)
+    method.ast_node_type.should eq("method_declaration")
+    method.extraction_method.should eq("tree_sitter_ast")
+  end
+
+  it "keeps Go variables, struct fields, and functions distinct in typed declarations" do
+    source = <<-GO
+      package demo
+
+      var DefaultName string = "anonymous"
+      type Person struct {
+        Name string
+        Age int
+      }
+      func NewPerson(name string) Person { return Person{Name: name} }
+      GO
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(Chiasmus::Graph::SourceFile.new("person.go", source), "go") || raise "missing extraction"
+    declarations = result.typed.declarations
+    variable = declarations.find { |declaration| declaration.name == "DefaultName" } || raise "missing variable"
+    name_field = declarations.find { |declaration| declaration.name == "Name" } || raise "missing Name field"
+    age_field = declarations.find { |declaration| declaration.name == "Age" } || raise "missing Age field"
+    constructor = declarations.find { |declaration| declaration.name == "NewPerson" } || raise "missing function"
+
+    variable.kind.should eq("variable")
+    variable.return_type.should eq("string")
+    variable.mutable.should be_true
+    [name_field, age_field].map(&.kind).should eq(["field", "field"])
+    [name_field, age_field].map(&.owner).should eq(["Person", "Person"])
+    [name_field, age_field].map(&.return_type).should eq(["string", "int"])
+    constructor.kind.should eq("function")
+    constructor.parameters.try(&.map(&.name)).should eq(["name"])
+    constructor.return_type.should eq("Person")
+    declarations.all? { |declaration| declaration.declaration_id.try(&.starts_with?("decl:v1:")) }.should be_true
+  end
+
+  it "preserves Go named types and multi-name value declarations" do
+    source = <<-GO
+      package demo
+      type Count int
+      type Label = string
+      const First, Second = 1, 2
+      var Left, Right int
+      GO
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(Chiasmus::Graph::SourceFile.new("values.go", source), "go") || raise "missing extraction"
+    declarations = result.typed.declarations
+    expected_kinds = {"Count" => "defined_type", "Label" => "type_alias", "First" => "constant", "Second" => "constant", "Left" => "variable", "Right" => "variable"}
+    expected_kinds.each do |name, kind|
+      declaration = declarations.find { |item| item.name == name } || raise "missing #{name}"
+      declaration.kind.should eq(kind)
+      declaration.declaration_id.should_not be_nil
+    end
+    declarations.select { |item| item.name.in?("Left", "Right") }.map(&.return_type).should eq(["int", "int"])
+  end
+
   it "reuses a combined extraction and invalidates it on content edits" do
     dir = File.join(Dir.tempdir, "chiasmus-unified-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)
