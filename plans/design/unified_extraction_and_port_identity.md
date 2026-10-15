@@ -317,6 +317,8 @@ results and join declaration IDs by exact legacy alias, retaining local
 wrong-language aliases remain unjoined. `chiasmus-facts --declarations-out`
 now exports those typed per-file results from its existing bounded graph
 extraction pass; tests cover one parse, cold/warm/edit cache behavior, and an
-end-to-end Java-to-Crystal parity join. The next slice is to teach the
-cross-language parity wrapper to pass those sidecars through when compatible
-toolchain binaries advertise both flags.
+end-to-end Java-to-Crystal parity join. The cross-language parity wrapper now
+passes those sidecars through when compatible toolchain binaries advertise the
+typed flags; older binaries continue to produce legacy reports. The next
+slice is a capability-reviewed graph-wide resolution/parity cache that reuses
+typed declarations without reparsing either side.
