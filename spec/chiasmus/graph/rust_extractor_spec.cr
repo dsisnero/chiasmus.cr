@@ -328,4 +328,86 @@ describe "Rust extractor" do
     calls = graph.calls.select { |call| call.caller == "run" }.map(&.callee)
     calls.should contain("new")
   end
+
+  it "keeps tuple struct and enum payload types in typed declarations" do
+    source = <<-RUST
+      pub struct Record(u64, String);
+
+      pub enum Event {
+          Closed(u16),
+          Renamed { from: String, to: String },
+      }
+      RUST
+    typed_results = [] of Chiasmus::Graph::FileExtraction::Result
+    Chiasmus::Graph::Extractor.extract_graph(
+      [Chiasmus::Graph::SourceFile.new("payloads.rs", source)],
+      typed_results: typed_results,
+    )
+    declarations = typed_results.first.declarations
+
+    record = declarations.find { |declaration| declaration.name == "Record" } || raise "missing tuple struct"
+    record.kind.should eq("struct")
+    record.parameters.try(&.map(&.type_name)).should eq(["u64", "String"])
+
+    closed = declarations.find { |declaration| declaration.name == "Closed" } || raise "missing tuple variant"
+    closed.kind.should eq("enum_variant")
+    closed.parameters.try(&.map(&.type_name)).should eq(["u16"])
+
+    renamed = declarations.find { |declaration| declaration.name == "Renamed" } || raise "missing struct variant"
+    renamed.parameters.try(&.map(&.name)).should eq(["from", "to"])
+    renamed.parameters.try(&.map(&.type_name)).should eq(["String", "String"])
+  end
+
+  it "extracts macro definitions as typed declarations" do
+    source = <<-RUST
+      macro_rules! make_answer {
+          () => { 42 };
+      }
+      RUST
+    typed_results = [] of Chiasmus::Graph::FileExtraction::Result
+    Chiasmus::Graph::Extractor.extract_graph(
+      [Chiasmus::Graph::SourceFile.new("macros.rs", source)],
+      typed_results: typed_results,
+    )
+    macro_decl = typed_results.first.declarations.find { |declaration| declaration.name == "make_answer" }
+    macro_decl.should_not be_nil
+    if macro_decl
+      macro_decl.kind.should eq("macro")
+      macro_decl.ast_node_type.should eq("macro_definition")
+      macro_decl.declaration_id.should_not be_nil
+    end
+  end
+
+  it "gives trait implementation methods an identity distinct from inherent methods" do
+    source = <<-RUST
+      struct Point;
+
+      impl Point {
+          fn render(&self) {}
+      }
+
+      trait Render {
+          fn render(&self);
+      }
+
+      impl Render for Point {
+          fn render(&self) {}
+      }
+      RUST
+    typed_results = [] of Chiasmus::Graph::FileExtraction::Result
+    Chiasmus::Graph::Extractor.extract_graph(
+      [Chiasmus::Graph::SourceFile.new("impls.rs", source)],
+      typed_results: typed_results,
+    )
+    methods = typed_results.first.declarations.select { |declaration| declaration.name == "render" }
+    inherent = methods.find { |declaration| declaration.ast_node_type == "function_item" && declaration.owner == "Point" }
+    trait_impl = methods.find { |declaration| declaration.ast_node_type == "function_item" && declaration.owner != "Point" }
+
+    inherent.should_not be_nil
+    trait_impl.should_not be_nil
+    if inherent && trait_impl
+      trait_impl.owner.not_nil!.should contain("Render")
+      trait_impl.declaration_id.should_not eq(inherent.declaration_id)
+    end
+  end
 end

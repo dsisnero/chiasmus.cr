@@ -634,4 +634,30 @@ describe Chiasmus::Graph::Extractor do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "retains Rust macro, tuple, variant payload, and generic impl ownership" do
+    source = <<-RUST
+      pub struct Pair<T>(pub T, u32);
+      pub enum State { Busy(u32, bool), Named { value: u8 } }
+      macro_rules! make_pair { () => { Pair(1, 2) }; }
+      impl<T> Pair<T> { pub fn first(&self) -> &T { &self.0 } }
+      RUST
+    result = Chiasmus::Graph::Extractor.extract_with_discovery(
+      Chiasmus::Graph::SourceFile.new("src/lib.rs", source), "rust"
+    ) || raise "missing extraction"
+    declarations = result.typed.declarations
+
+    macro_item = declarations.find { |item| item.name == "make_pair" } || raise "missing macro"
+    macro_item.kind.should eq("macro")
+    pair_fields = declarations.select { |item| item.kind == "field" && item.owner == "Pair" }
+    pair_fields.map(&.name).should eq(["0", "1"])
+    pair_fields.map(&.return_type).should eq(["T", "u32"])
+    busy_fields = declarations.select { |item| item.kind == "field" && item.owner == "State.Busy" }
+    busy_fields.map(&.return_type).should eq(["u32", "bool"])
+    named_field = declarations.find { |item| item.kind == "field" && item.name == "value" } || raise "missing named variant field"
+    named_field.owner.should eq("State.Named")
+    first = declarations.find { |item| item.name == "first" } || raise "missing generic impl method"
+    first.owner.should eq("Pair")
+    first.return_type.should eq("&T")
+  end
 end

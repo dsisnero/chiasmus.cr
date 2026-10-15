@@ -12,6 +12,7 @@ module Chiasmus
         "static_item"       => "variable",
         "field_declaration" => "field",
         "enum_variant"      => "enum_variant",
+        "macro_definition"  => "macro",
       }
 
       private def rust_declarations(root : TreeSitter::Node, source : String, file_path : String, logical_path : String?) : Array(Declaration)
@@ -28,19 +29,58 @@ module Chiasmus
           declarations << rust_declaration(node, name_node, source, file_path, logical_path, modules, owners, kind, name)
           if node.type == "mod_item"
             modules = modules + [name]
-          elsif node.type.in?("struct_item", "enum_item", "trait_item", "union_item")
+          elsif node.type.in?("struct_item", "enum_item", "trait_item", "union_item", "enum_variant")
             owners = owners + [name]
           end
         elsif node.type == "impl_item"
           if type_node = node.child_by_field_name("type")
-            owners = owners + [type_node.text(source)]
+            owners = owners + [rust_impl_owner(type_node, node.child_by_field_name("trait"), source)]
           end
+        elsif node.type == "ordered_field_declaration_list"
+          rust_positional_fields(node, source, file_path, logical_path, modules, owners, declarations)
+          return
         end
 
         return if node.type.in?("function_item", "function_signature_item")
 
         node.children.each do |child|
           rust_walk(child, source, file_path, logical_path, modules, owners, declarations)
+        end
+      end
+
+      private def rust_impl_owner(type_node : TreeSitter::Node, trait_node : TreeSitter::Node?, source : String) : String
+        type_name = type_node.text(source).sub(/<.*\z/, "")
+        trait_node ? "#{trait_node.text(source)} for #{type_name}" : type_name
+      end
+
+      private def rust_positional_fields(node : TreeSitter::Node, source : String, file_path : String, logical_path : String?, modules : Array(String), owners : Array(String), declarations : Array(Declaration)) : Nil
+        namespace = modules.empty? ? nil : modules.join(".")
+        owner = (modules + owners).join(".")
+        index = 0
+        visibility = "private"
+        node.children.to_a.each_with_index do |child, child_index|
+          if child.type == "visibility_modifier"
+            visibility = child.text(source) == "pub" ? "public" : child.text(source)
+            next
+          end
+          next unless node.field_name_for_child(child_index.to_u32) == "type"
+
+          name = index.to_s
+          qualified_name = "#{owner}.#{name}"
+          declarations << Declaration.new(
+            language: "rust", namespace: namespace, owner: owner, kind: "field", name: name,
+            qualified_name: qualified_name, file: file_path, span: Span.from_node(child),
+            ast_node_type: child.type, extraction_method: "tree_sitter_ast", return_type: child.text(source),
+            visibility: visibility,
+            legacy_aliases: ["#{file_path}::field::#{qualified_name}"],
+            declaration_id: DeclarationIdentity.declaration_id(DeclarationIdentityInput.new(
+              language: "rust", namespace: namespace, owner_chain: owners,
+              kind: "field", name: name,
+            )),
+            occurrence_id: occurrence_id(logical_path, child),
+          )
+          index += 1
+          visibility = "private"
         end
       end
 
@@ -54,7 +94,7 @@ module Chiasmus
         owner_parts = modules + owners
         owner = owner_parts.empty? ? nil : owner_parts.join(".")
         qualified_name = (owner_parts + [name]).join(".")
-        parameters = rust_parameters(node, source)
+        parameters = rust_parameters(node, source) || rust_payload_parameters(node, source)
         return_type = node.child_by_field_name("return_type").try(&.text(source)) || node.child_by_field_name("type").try(&.text(source))
         overload_key = parameters.try { |items| "(#{items.map { |item| item.type_name || "?" }.join(",")})" }
         visibility = rust_visibility(node, source)
@@ -74,6 +114,24 @@ module Chiasmus
           )),
           occurrence_id: occurrence_id(logical_path, name_node),
         )
+      end
+
+      private def rust_payload_parameters(node : TreeSitter::Node, source : String) : Array(Parameter)?
+        body = node.child_by_field_name("body") || node.children.find { |child| child.type == "ordered_field_declaration_list" }
+        return nil unless body && body.type.in?("ordered_field_declaration_list", "field_declaration_list")
+
+        parameters = [] of Parameter
+        body.children.to_a.each_with_index do |child, child_index|
+          if body.type == "ordered_field_declaration_list"
+            next unless body.field_name_for_child(child_index.to_u32) == "type"
+            parameters << Parameter.new(name: parameters.size.to_s, type_name: child.text(source))
+          elsif child.type == "field_declaration"
+            name = child.child_by_field_name("name").try(&.text(source))
+            next unless name
+            parameters << Parameter.new(name: name, type_name: child.child_by_field_name("type").try(&.text(source)))
+          end
+        end
+        parameters
       end
 
       private def rust_legacy_kind(kind : String) : String

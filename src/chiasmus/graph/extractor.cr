@@ -65,7 +65,8 @@ module Chiasmus
         end
       end
 
-      UNIFIED_EXTRACTION_VERSION = "5"
+      UNIFIED_EXTRACTION_VERSION    = "5"
+      RUST_TYPED_EXTRACTION_VERSION = "5-rust-2"
 
       @@merge_mutex = Mutex.new
       # tree_sitter's loaded-language registry and node StringPool are mutable
@@ -306,7 +307,8 @@ module Chiasmus
                        else
                          "unavailable"
                        end
-        "#{UNIFIED_EXTRACTION_VERSION}:#{EXTRACTION_CACHE_VERSION}:#{parser.class.name}:#{grammar_stat}"
+        typed_version = language == "rust" ? RUST_TYPED_EXTRACTION_VERSION : UNIFIED_EXTRACTION_VERSION
+        "#{typed_version}:#{EXTRACTION_CACHE_VERSION}:#{parser.class.name}:#{grammar_stat}"
       end
 
       def set_before_async_result_send_hook_for_test(&block : ->) : Nil
