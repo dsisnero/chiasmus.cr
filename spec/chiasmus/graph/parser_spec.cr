@@ -202,6 +202,22 @@ module Chiasmus
         Parser.parse_source("some content", "test.unknown").should be_nil
       end
 
+      it "initializes the service before synchronous parsing" do
+        environment = FakeParserEnvironment.new
+        grammar = FakeGrammarGateway.new
+        service = Parser::Service.new(
+          FakeResolver.new,
+          environment,
+          grammar,
+          FakeLanguageGateway.new,
+          FakeTreeBuilder.new
+        )
+
+        service.parse("some content", "test.unknown").should be_nil
+        environment.ensure_calls.should eq(1)
+        grammar.init_calls.should eq(1)
+      end
+
       it "returns a failure result for unsupported files through the async parser API" do
         result = TreeSitterManager::Timeout.with_timeout_async(100, Parser.parse_async("some content", "test.unknown"))
 

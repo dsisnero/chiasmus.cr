@@ -195,6 +195,7 @@ module Chiasmus
         end
 
         def parse(content : String, file_path : String, timeout_ms : Int32 = 30_000) : TreeSitter::Tree?
+          init unless initialized?
           parse_runner.run(content, file_path, timeout_ms).tree
         end
 
