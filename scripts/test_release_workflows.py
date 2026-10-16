@@ -97,7 +97,7 @@ class ReleaseWorkflowTest(unittest.TestCase):
 
     def test_build_submodule_selector_lists_only_pinned_grammars(self) -> None:
         result = subprocess.run(
-            ["bash", str(ROOT / "scripts" / "init_build_grammars.sh"), "--list"],
+            ["bash", "scripts/init_build_grammars.sh", "--list"],
             cwd=ROOT,
             text=True,
             capture_output=True,
@@ -113,6 +113,16 @@ class ReleaseWorkflowTest(unittest.TestCase):
     def test_ci_test_jobs_may_keep_recursive_submodules(self) -> None:
         test_job = job_block(self.ci, "test")
         self.assertIn("submodules: recursive", checkout_step(test_job))
+
+    def test_release_build_installs_swi_prolog_on_unix_platforms(self) -> None:
+        self.assertRegex(
+            self.release,
+            r"(?s)name: Install Linux dependencies.*?sudo apt-get install -y[^\n]*swi-prolog",
+        )
+        self.assertRegex(
+            self.release,
+            r"(?s)name: Install macOS dependencies.*?brew install[^\n]*swi-prolog",
+        )
 
 
 if __name__ == "__main__":
