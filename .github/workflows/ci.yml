@@ -110,7 +110,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: recursive
+        submodules: false
+
+    - name: Initialize build grammars
+      shell: bash
+      run: bash scripts/init_build_grammars.sh
 
     - name: Setup Crystal
       uses: crystal-lang/install-crystal@v1
