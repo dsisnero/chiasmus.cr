@@ -10,6 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
+BUILD_GRAMMAR_SELECTOR = ROOT / "scripts" / "init_build_grammars.sh"
 
 
 def named_block(text: str, name: str, indent: int) -> str:
@@ -104,19 +105,38 @@ class ReleaseWorkflowTest(unittest.TestCase):
                 self.assertNotIn("vendor/openapi_cr", job)
 
     def test_build_submodule_selector_lists_only_pinned_grammars(self) -> None:
+        selector = BUILD_GRAMMAR_SELECTOR.read_text()
         result = subprocess.run(
-            ["bash", "scripts/init_build_grammars.sh", "--list"],
+            ["git", "ls-files", "--stage", "-z", "--", "grammars"],
             cwd=ROOT,
-            text=True,
             capture_output=True,
             check=False,
         )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        paths = result.stdout.splitlines()
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+
+        # The selector filters the index for gitlinks under grammars/tree-sitter-*.
+        # Read the same metadata directly so this contract works on Windows Python
+        # installations that do not provide a usable `bash` executable.
+        paths = []
+        for entry in result.stdout.split(b"\0"):
+            if not entry:
+                continue
+            metadata, separator, raw_path = entry.partition(b"\t")
+            self.assertTrue(separator, f"malformed git ls-files entry: {entry!r}")
+            mode = metadata.split(b" ", 1)[0]
+            path = raw_path.decode("utf-8")
+            if mode == b"160000" and path.startswith("grammars/tree-sitter-"):
+                paths.append(path)
+
         self.assertGreaterEqual(len(paths), 10)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertTrue(all(path.startswith("grammars/tree-sitter-") for path in paths))
         self.assertNotIn("vendor/openapi_cr", paths)
+
+        self.assertIn('[[ "${metadata}" == 160000\\ * ]]', selector)
+        self.assertIn('[[ "${path}" == grammars/tree-sitter-* ]]', selector)
+        self.assertIn("--list)", selector)
+        self.assertIn("printf '%s\\n' \"${grammar_paths[@]}\"", selector)
 
     def test_ci_test_jobs_may_keep_recursive_submodules(self) -> None:
         test_job = job_block(self.ci, "test")
@@ -130,6 +150,42 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertRegex(
             self.release,
             r"(?s)name: Install macOS dependencies.*?brew install(?=[^\n]*swi-prolog)(?=[^\n]*z3)[^\n]*",
+        )
+
+    def test_windows_builds_install_native_libraries_and_package_runtime_dlls(self) -> None:
+        for label, workflow, job_name in (
+            ("release", self.release, "build"),
+            ("CI", self.ci, "build-clis"),
+        ):
+            with self.subTest(workflow=label):
+                job = job_block(workflow, job_name)
+                windows_dependencies = re.search(
+                    r"(?ms)^    - name: Install Windows dependencies\n(.*?)(?=^    - |\Z)",
+                    job,
+                )
+                self.assertIsNotNone(windows_dependencies)
+                block = windows_dependencies.group(1)
+                self.assertRegex(block, r"(?i)vcpkg install[^\n]*sqlite3:x64-windows")
+                self.assertIn(r"x64-windows\lib", block)
+                self.assertIn(r"x64-windows\bin", block)
+                self.assertIn("$GITHUB_PATH", block)
+
+        self.assertRegex(
+            self.release,
+            r"(?s)name: Copy Windows runtime libraries.*?sqlite3\.dll",
+        )
+
+    def test_windows_release_build_omits_server_that_needs_unbundled_swi_prolog(self) -> None:
+        build = job_block(self.release, "build")
+        build_step = re.search(
+            r"(?ms)^    - name: Build binaries\n(.*?)(?=^    - |\Z)",
+            build,
+        )
+        self.assertIsNotNone(build_step)
+        self.assertRegex(
+            build_step.group(1),
+            r'(?s)if \[ "\$\{\{ runner\.os \}\}" != "Windows" \]; then\s+'
+            r'crystal build --release -o dist/chiasmus/chiasmus\$\{\{ matrix\.ext \}\} src/chiasmus_cli\.cr',
         )
 
 
