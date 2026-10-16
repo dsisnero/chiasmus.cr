@@ -78,6 +78,14 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertIn("python scripts/test_release_workflows.py", build)
         self.assertIn("uses: actions/upload-artifact@", build)
 
+    def test_release_workflow_contract_uses_bash_on_all_platforms(self) -> None:
+        step = re.search(
+            r"(?ms)^    - name: Test release workflow contract\n(.*?)(?=^    - |\Z)",
+            self.release,
+        )
+        self.assertIsNotNone(step, "release workflow contract step is missing")
+        self.assertRegex(step.group(1), r"(?m)^      shell: bash$")
+
     def test_release_and_ci_build_jobs_initialize_grammar_submodules_without_openapi_cr(self) -> None:
         jobs = (
             ("release build", job_block(self.release, "build")),

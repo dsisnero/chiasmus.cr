@@ -39,6 +39,7 @@ jobs:
         python-version: '3.12'
 
     - name: Test release workflow contract
+      shell: bash
       run: python scripts/test_release_workflows.py
 
     - name: Test release manifest contract
