@@ -2,6 +2,7 @@
 
 require "file_utils"
 require "process"
+require "./compiler_detection"
 
 # Required languages for static binary (with dependencies)
 REQUIRED_LANGUAGES = {
@@ -227,7 +228,7 @@ def compile_grammar(source_dir : String, language : String) : Bool
     end
 
     # Check for C compiler
-    unless system("which cc > /dev/null 2>&1") || system("which gcc > /dev/null 2>&1") || system("which clang > /dev/null 2>&1")
+    unless GrammarCompiler.available_c_compiler?
       puts "    ✗ C compiler not found"
       return false
     end
