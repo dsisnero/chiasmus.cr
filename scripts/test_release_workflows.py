@@ -122,14 +122,14 @@ class ReleaseWorkflowTest(unittest.TestCase):
         test_job = job_block(self.ci, "test")
         self.assertIn("submodules: recursive", checkout_step(test_job))
 
-    def test_release_build_installs_swi_prolog_on_unix_platforms(self) -> None:
+    def test_release_build_installs_solver_libraries_on_unix_platforms(self) -> None:
         self.assertRegex(
             self.release,
-            r"(?s)name: Install Linux dependencies.*?sudo apt-get install -y[^\n]*swi-prolog",
+            r"(?s)name: Install Linux dependencies.*?sudo apt-get install -y(?=[^\n]*swi-prolog)(?=[^\n]*libz3)[^\n]*",
         )
         self.assertRegex(
             self.release,
-            r"(?s)name: Install macOS dependencies.*?brew install[^\n]*swi-prolog",
+            r"(?s)name: Install macOS dependencies.*?brew install(?=[^\n]*swi-prolog)(?=[^\n]*z3)[^\n]*",
         )
 
 
