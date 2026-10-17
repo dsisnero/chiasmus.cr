@@ -18,6 +18,10 @@ SOURCES = {
 CRYSTAL = "class Widget\n  def size : Int32\n    1\n  end\nend\n"
 
 
+def success_message(language: str) -> str:
+    return f"{language} - Crystal release smoke passed"
+
+
 def run(command: list[str], env: dict[str, str], output: Path | None = None) -> str:
     result = subprocess.run(command, env=env, capture_output=True, text=True, check=False)
     if result.returncode:
@@ -78,7 +82,7 @@ def smoke(root: Path, platform: str) -> None:
             for name in ("maps.tsv", "surfaces.tsv", "maps.pl", "port-concepts.jsonl"):
                 if not (report / name).is_file():
                     raise RuntimeError(f"{language} reconciliation did not write {name}")
-            print(f"{language}→Crystal release smoke passed")
+            print(success_message(language))
 
 
 def main() -> int:
