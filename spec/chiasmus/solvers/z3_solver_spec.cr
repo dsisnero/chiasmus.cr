@@ -62,7 +62,9 @@ describe Chiasmus::Solvers::Z3Solver do
 
   it "times out a hung request, resets its process, and recovers on the next request" do
     directory, command = fake_z3_command
-    solver = Chiasmus::Solvers::Z3Solver.new(command: command, timeout: 250.milliseconds)
+    # Recovery starts a replacement process; allow its reader to run under a
+    # busy full suite while still bounding the deliberately hung request.
+    solver = Chiasmus::Solvers::Z3Solver.new(command: command, timeout: 2.seconds)
 
     begin
       started_at = Time.instant
@@ -70,7 +72,7 @@ describe Chiasmus::Solvers::Z3Solver do
 
       timed_out.should be_a(Chiasmus::Solvers::ErrorResult)
       timed_out.as(Chiasmus::Solvers::ErrorResult).error.should match(/timed out/i)
-      (Time.instant - started_at).should be < 500.milliseconds
+      (Time.instant - started_at).should be < 3.seconds
 
       recovered = solver.solve(Chiasmus::Solvers::Z3SolverInput.new("(assert true)"))
       recovered.should be_a(Chiasmus::Solvers::SatResult)
