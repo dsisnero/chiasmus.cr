@@ -3,6 +3,7 @@
 require "file_utils"
 require "process"
 require "./compiler_detection"
+require "./npm_command"
 
 # Required languages for static binary (with dependencies)
 REQUIRED_LANGUAGES = {
@@ -122,12 +123,12 @@ def download_and_compile(language : String, package : String, temp_dir : String)
     if File.exists?(File.join(target_dir, "package.json"))
       puts "    Installing npm dependencies in #{target_dir}..."
       Dir.cd(target_dir) do
-        npm_status = Process.run("npm", ["install", "--no-audit", "--no-fund"],
+        npm_status = NpmCommand.run("npm", ["install", "--no-audit", "--no-fund"],
           output: Process::Redirect::Inherit, error: Process::Redirect::Inherit
         )
         unless npm_status.success?
           puts "    ⚠ npm install failed, trying --legacy-peer-deps..."
-          Process.run("npm", ["install", "--legacy-peer-deps", "--no-audit", "--no-fund"],
+          NpmCommand.run("npm", ["install", "--legacy-peer-deps", "--no-audit", "--no-fund"],
             output: Process::Redirect::Inherit, error: Process::Redirect::Inherit
           )
         end
@@ -139,7 +140,7 @@ def download_and_compile(language : String, package : String, temp_dir : String)
     if File.exists?(File.join(target_dir, "package.json")) && !Dir.exists?(File.join(target_dir, "node_modules"))
       puts "    Installing npm dependencies for tsx..."
       Dir.cd(target_dir) do
-        Process.run("npm", ["install", "--no-audit", "--no-fund"],
+        NpmCommand.run("npm", ["install", "--no-audit", "--no-fund"],
           output: Process::Redirect::Close, error: Process::Redirect::Close
         )
       end
@@ -217,7 +218,7 @@ def compile_grammar(source_dir : String, language : String) : Bool
       "tree-sitter"
     rescue
       begin
-        Process.run("npx", ["tree-sitter", "--version"],
+        NpmCommand.run("npx", ["tree-sitter", "--version"],
           output: Process::Redirect::Close,
           error: Process::Redirect::Close)
         "npx tree-sitter"
@@ -236,7 +237,7 @@ def compile_grammar(source_dir : String, language : String) : Bool
     # Generate parser
     puts "    Generating parser..."
     ts_parts = ts_cmd.split
-    generate_status = Process.run(ts_parts[0], ts_parts[1..].concat(["generate"]),
+    generate_status = NpmCommand.run(ts_parts[0], ts_parts[1..].concat(["generate"]),
       output: Process::Redirect::Inherit,
       error: Process::Redirect::Inherit
     ).success?
@@ -248,7 +249,7 @@ def compile_grammar(source_dir : String, language : String) : Bool
 
     # Build grammar
     puts "    Building grammar..."
-    build_status = Process.run(ts_parts[0], ts_parts[1..].concat(["build"]),
+    build_status = NpmCommand.run(ts_parts[0], ts_parts[1..].concat(["build"]),
       output: Process::Redirect::Close,
       error: Process::Redirect::Close
     ).success?
