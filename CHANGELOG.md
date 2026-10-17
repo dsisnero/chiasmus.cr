@@ -6,8 +6,12 @@ The format is based on Keep a Changelog, and the project uses semantic version t
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-17
+
 ### Added
 
+- Manifest-verified discovery, facts, parity, planning, and completion toolchain archives for Linux, macOS, and Windows, with bundled grammars and archive smoke tests.
+- Typed declaration extraction and cached parity reconciliation for Java, Crystal, Go, and Rust, including inline Rust test discovery.
 - Repo-local parity configuration support under `.chiasmus/config.yml`, including vendor/target path equivalence rules and shared atomic file writes for repo config persistence.
 - Snapshot metadata headers in `chiasmus-facts` output plus focused specs for cached facts, parity snapshots, planner snapshots, completion artifacts, and repo-config startup behavior.
 - Pure embedding-resolution helpers on `SearchTool` so provider selection can be asserted without invoking live embedding clients during tests.
