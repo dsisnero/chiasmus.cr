@@ -6,6 +6,13 @@ The format is based on Keep a Changelog, and the project uses semantic version t
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-17
+
+### Fixed
+
+- Keep the discovery parser alive throughout native tree-sitter parsing in optimized builds, preventing a crash on large Rust sources such as the pinned `regex-automata` tree.
+- Include a large-Rust discovery case in platform release smoke tests so future archives cannot publish with this regression.
+
 ## [0.3.1] - 2026-10-17
 
 ### Added
