@@ -24,13 +24,13 @@ crystal: ">= 1.20.2"
 dependencies:
   dir-walk:
     github: dsisnero/dir-walk
-    branch: codex/windows-raw-dirent-fallback
+    commit: 2cc9758436bc42008e2ed6e70c8f143c84796629
   tree_sitter:
     github: dsisnero/crystal-tree-sitter
-    branch: codex/windows-abi-dynamic-loader
+    commit: 967a40ab396ad9e906d4a8ca2d2a16fa562fbc7c
   tree-sitter-manager:
     github: dsisnero/tree-sitter-manager
-    branch: codex/windows-dynamic-loader
+    commit: aeb88175ff63427a5a728eb27a2a7a20f1b536b0
   z3:
     github: taw/crystal-z3
   crolog:

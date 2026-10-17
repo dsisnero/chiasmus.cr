@@ -66,7 +66,7 @@ shards:
 
   dir-walk:
     git: https://github.com/dsisnero/dir-walk.git
-    version: 0.1.0+git.commit.cd5dcf8479a10a9fe8a1cda846d145d1601adb44
+    version: 0.1.0+git.commit.2cc9758436bc42008e2ed6e70c8f143c84796629
 
   discordcr:
     git: https://github.com/shardlab/discordcr.git
@@ -138,11 +138,11 @@ shards:
 
   tree-sitter-manager:
     git: https://github.com/dsisnero/tree-sitter-manager.git
-    version: 0.1.0+git.commit.9c67f9272b2fe181325ee6e1fa40d4e81b67733d
+    version: 0.1.0+git.commit.aeb88175ff63427a5a728eb27a2a7a20f1b536b0
 
   tree_sitter:
     git: https://github.com/dsisnero/crystal-tree-sitter.git
-    version: 0.4.0+git.commit.d11575c240526af3df9c14149e9585c0b68e484c
+    version: 0.4.0+git.commit.967a40ab396ad9e906d4a8ca2d2a16fa562fbc7c
 
   ultraviolet:
     git: https://github.com/dsisnero/ultraviolet.git
