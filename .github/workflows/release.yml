@@ -63,6 +63,7 @@ jobs:
       if: runner.os == 'Windows'
       shell: bash
       run: |
+        vcpkg install sqlite3:x64-windows
         # Build tree-sitter C library from source using cmake (MSVC)
         git clone --depth 1 --branch v0.26.8 https://github.com/tree-sitter/tree-sitter.git /tmp/tree-sitter-lib
         cd /tmp/tree-sitter-lib
@@ -71,9 +72,10 @@ jobs:
         cmake --install build --prefix /c/tree-sitter
         # Show what was installed
         find /c/tree-sitter -name "*.lib" -o -name "*.dll" 2>/dev/null
-        # Add to LIB/INCLUDE for Crystal compiler linking (MSVC-style)
-        echo "LIB=/c/tree-sitter/lib" >> $GITHUB_ENV
+        # Add MSVC library paths and runtime DLL directory to the runner environment.
+        echo 'LIB=C:\vcpkg\installed\x64-windows\lib;C:\tree-sitter\lib' >> "$GITHUB_ENV"
         echo "INCLUDE=/c/tree-sitter/include" >> $GITHUB_ENV
+        echo 'C:\vcpkg\installed\x64-windows\bin' >> "$GITHUB_PATH"
 
     - name: Install tree-sitter CLI
       uses: baptiste0928/cargo-install@v3
@@ -99,13 +101,22 @@ jobs:
           # Fallback: also put it next to the source
           cp /c/tree-sitter/lib/tree-sitter.lib . 2>/dev/null || true
         fi
-        crystal build --release -o dist/chiasmus/chiasmus${{ matrix.ext }} src/chiasmus_cli.cr
+        # The MCP server needs SWI-Prolog and Z3; those runtimes are not bundled on Windows.
+        if [ "${{ runner.os }}" != "Windows" ]; then
+          crystal build --release -o dist/chiasmus/chiasmus${{ matrix.ext }} src/chiasmus_cli.cr
+        fi
         crystal build --release -o dist/chiasmus/chiasmus-discover${{ matrix.ext }} src/chiasmus_discover.cr
         crystal build --release -o dist/chiasmus/chiasmus-grammar${{ matrix.ext }} src/chiasmus_grammar.cr
         crystal build --release -o dist/chiasmus/chiasmus-parity${{ matrix.ext }} src/chiasmus_parity.cr
         crystal build --release -o dist/chiasmus/chiasmus-facts${{ matrix.ext }} src/chiasmus_facts.cr
         crystal build --release -o dist/chiasmus/chiasmus-plan${{ matrix.ext }} src/chiasmus_plan.cr
         crystal build --release -o dist/chiasmus/chiasmus-complete${{ matrix.ext }} src/chiasmus_complete.cr
+
+    - name: Copy Windows runtime libraries
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        cp /c/vcpkg/installed/x64-windows/bin/sqlite3.dll dist/chiasmus/
 
     - name: Copy grammar libraries
       shell: bash

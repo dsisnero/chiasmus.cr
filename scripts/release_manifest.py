@@ -55,11 +55,14 @@ def archive_files(root: Path) -> dict[str, Path]:
 
 
 def required_paths(platform: str) -> set[str]:
-    _system, executable, grammar = platform_parts(platform)
-    return {f"{name}{executable}" for name in REQUIRED_TOOLS} | {
+    system, executable, grammar = platform_parts(platform)
+    required = {f"{name}{executable}" for name in REQUIRED_TOOLS} | {
         f"grammars/libtree-sitter-{language}.{grammar}"
         for language in REQUIRED_GRAMMARS
     }
+    if system == "windows":
+        required.add("sqlite3.dll")
+    return required
 
 
 def check_required(files: dict[str, Path], platform: str) -> None:

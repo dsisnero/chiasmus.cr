@@ -178,6 +178,21 @@ class ReleaseManifestTest(unittest.TestCase):
         )
         self.assertIn("chiasmus-plan", result.stderr)
 
+    def test_windows_manifest_requires_sqlite_runtime_dll(self) -> None:
+        for name in TOOLS:
+            (self.root / f"{name}.exe").write_bytes(f"placeholder:{name}".encode())
+        grammar_dir = self.root / "grammars"
+        for name in GRAMMARS:
+            (grammar_dir / name.replace(".so", ".dll")).write_bytes(f"grammar:{name}".encode())
+
+        result = self.run_manifest(
+            "create", "--root", str(self.root), "--platform", "windows-x86_64",
+            "--source-commit", "a" * 40, "--build-id", "windows-build",
+            "--capabilities-json", json.dumps(CAPABILITIES),
+            "--schemas-json", json.dumps(SCHEMA_VERSIONS), succeeds=False,
+        )
+        self.assertIn("sqlite3.dll", result.stderr)
+
     def test_verifier_rejects_unmanifested_files_and_symlinked_files(self) -> None:
         self.create_manifest()
         (self.root / "unexpected.txt").write_text("not covered by the manifest")
