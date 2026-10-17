@@ -85,6 +85,22 @@ struct SlowTypeScriptExtractor < Chiasmus::Discovery::LanguageExtractor
 end
 
 describe Chiasmus::Discovery::Pipeline do
+  it "keeps the native parser alive while discovering a large Rust file" do
+    source = String.build do |io|
+      10_000.times do |index|
+        io << "pub fn f_" << index << "(x: usize) -> usize { x + " << index << " }\n"
+      end
+    end
+    pipeline = Chiasmus::Discovery::Pipeline.new([
+      Chiasmus::Discovery::RustExtractor.new,
+    ], max_concurrent: 1)
+
+    result = pipeline.discover_files([{"large.rs", source}])
+    functions = result.items.select { |item| item.kind == "function" }
+    functions.size.should eq(10_000)
+    functions.last.name.should eq("f_9999")
+  end
+
   it "discovers files in a directory" do
     dir = File.join(Dir.tempdir, "chiasmus-pipe-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)

@@ -107,6 +107,9 @@ module Chiasmus
 
         parser = TreeSitter::Parser.new(language: lang)
         tree = parser.parse(content)
+        # Keep the owning parser live across native parsing in optimized builds.
+        # Otherwise its finalizer can delete TSParser while tree-sitter uses it.
+        parser.language
         root = tree.root_node
         items = extractor.extract(root, content, file_path)
 

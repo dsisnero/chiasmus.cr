@@ -84,6 +84,21 @@ def smoke(root: Path, platform: str) -> None:
                     raise RuntimeError(f"{language} reconciliation did not write {name}")
             print(success_message(language))
 
+        rust = scratch / "rust"
+        rust.mkdir()
+        rust_source = "\n".join(
+            f"pub fn f_{index}(x: usize) -> usize {{ x + {index} }}"
+            for index in range(10_000)
+        )
+        (rust / "large.rs").write_text(rust_source, encoding="utf-8")
+        discovered = run(
+            [tool("discover"), "--language", "rust", "--dir", str(rust), "--parser", "tree-sitter"],
+            environment,
+        )
+        if "f_9999" not in discovered:
+            raise RuntimeError("rust tree-sitter discovery missed the last generated function")
+        print("rust release smoke passed")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
