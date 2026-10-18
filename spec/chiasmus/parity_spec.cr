@@ -27,6 +27,121 @@ describe Chiasmus::Parity::Naming do
 end
 
 describe Chiasmus::Parity do
+  it "keys the bundle cache on facts, typed declarations, rules, and inventory contents" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-bundle-cache-key-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      paths = ["source.pl", "target.pl", "inventory.tsv", "rules.yml", "source.jsonl", "target.jsonl"].map do |name|
+        path = File.join(dir, name)
+        File.write(path, "first")
+        path
+      end
+      cache_dir = File.join(dir, "cache")
+      inputs = paths.map { |path| path.as(String?) }
+      artifacts = {
+        "maps.tsv"            => "maps",
+        "surfaces.tsv"        => "surfaces",
+        "maps.pl"             => "prolog",
+        "port-concepts.jsonl" => "concepts",
+      }
+      Chiasmus::Parity::BundleCache.load(cache_dir, inputs).should be_nil
+      Chiasmus::Parity::BundleCache.save(cache_dir, inputs, artifacts)
+      Chiasmus::Parity::BundleCache.load(cache_dir, inputs).should eq(artifacts)
+
+      paths.each_with_index do |path, index|
+        File.write(path, "changed-#{index}")
+        Chiasmus::Parity::BundleCache.load(cache_dir, inputs).should be_nil
+        File.write(path, "first")
+        Chiasmus::Parity::BundleCache.load(cache_dir, inputs).should eq(artifacts)
+      end
+
+      File.write(paths.first, "oversized")
+      oversized = artifacts.merge({"maps.tsv" => "x" * (Chiasmus::Parity::BundleCache::MAX_BUNDLE_BYTES + 1)})
+      Chiasmus::Parity::BundleCache.save(cache_dir, inputs, oversized)
+      Chiasmus::Parity::BundleCache.load(cache_dir, inputs).should be_nil
+
+      Chiasmus::Graph::GraphCache.save_extraction_payload(
+        paths.first,
+        Chiasmus::Parity::BundleCache.fingerprint(inputs),
+        "parity-bundle",
+        Chiasmus::Parity::BundleCache::VERSION,
+        "{",
+        cache_dir,
+      )
+      Chiasmus::Parity::BundleCache.load(cache_dir, inputs).should be_nil
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "reuses a cached parity bundle and invalidates it when an input changes" do
+    dir = File.join(Dir.tempdir, "chiasmus-parity-bundle-cache-#{Random::Secure.hex(8)}")
+    Dir.mkdir_p(dir)
+    begin
+      source_path = File.join(dir, "source.pl")
+      target_path = File.join(dir, "target.pl")
+      inventory_path = File.join(dir, "inventory.tsv")
+      cache_dir = File.join(dir, "cache")
+      bundle_dir = File.join(dir, "bundle")
+      source = Chiasmus::Graph::CodeGraph.new(
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "src/demo.java", name: "Demo.run", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1))],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+      target = Chiasmus::Graph::CodeGraph.new(
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "src/demo.cr", name: "Demo.run", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1))],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+      File.write(source_path, Chiasmus::Graph::Facts.graph_to_prolog(source))
+      File.write(target_path, Chiasmus::Graph::Facts.graph_to_prolog(target))
+      File.write(inventory_path, "src/demo.java::method::Demo.run\tmethod\tported\tsrc/demo.cr:1\t-\n")
+      args = ["--source-facts", source_path, "--crystal-facts", target_path, "--inventory", inventory_path, "--cache-dir", cache_dir, "--bundle-dir", bundle_dir]
+      error = IO::Memory.new
+
+      Chiasmus::Parity::CLI.run(args.dup, IO::Memory.new, error).should eq(0), error.to_s
+      first_reports = {"maps.tsv", "surfaces.tsv", "maps.pl", "divergences.tsv"}.map do |filename|
+        File.read(File.join(bundle_dir, filename))
+      end
+      cache_inputs = [source_path, target_path, inventory_path, nil, nil, nil] of String?
+      cached = Chiasmus::Parity::BundleCache.load(cache_dir, cache_inputs)
+      cached.should_not be_nil
+      if artifacts = cached
+        replay_probe = artifacts.dup
+        replay_probe["maps.tsv"] = "cached replay probe\n"
+        Chiasmus::Parity::BundleCache.save(cache_dir, cache_inputs, replay_probe)
+        Chiasmus::Parity::CLI.run(args.dup, IO::Memory.new, error).should eq(0), error.to_s
+        File.read(File.join(bundle_dir, "maps.tsv")).should eq("cached replay probe\n")
+        Chiasmus::Parity::BundleCache.save(cache_dir, cache_inputs, artifacts)
+      end
+      Chiasmus::Parity::CLI.run(args.dup, IO::Memory.new, error).should eq(0), error.to_s
+      {"maps.tsv", "surfaces.tsv", "maps.pl", "divergences.tsv"}.each_with_index do |filename, index|
+        File.read(File.join(bundle_dir, filename)).should eq(first_reports[index])
+      end
+
+      no_inventory_args = ["--source-facts", source_path, "--crystal-facts", target_path, "--cache-dir", cache_dir, "--bundle-dir", bundle_dir]
+      Chiasmus::Parity::CLI.run(no_inventory_args, IO::Memory.new, error).should eq(0), error.to_s
+      File.exists?(File.join(bundle_dir, "divergences.tsv")).should be_false
+
+      changed_source = Chiasmus::Graph::CodeGraph.new(
+        defines: [Chiasmus::Graph::DefinesFact.new(file: "src/demo.java", name: "Demo.changed", kind: Chiasmus::Graph::SymbolKind::Method, span: Chiasmus::Graph::Span.line_range(1))],
+        calls: [] of Chiasmus::Graph::CallsFact,
+        imports: [] of Chiasmus::Graph::ImportsFact,
+        exports: [] of Chiasmus::Graph::ExportsFact,
+        contains: [] of Chiasmus::Graph::ContainsFact,
+      )
+      File.write(source_path, Chiasmus::Graph::Facts.graph_to_prolog(changed_source))
+      Chiasmus::Parity::CLI.run(args.dup, IO::Memory.new, error).should eq(0), error.to_s
+      File.read(File.join(bundle_dir, "maps.tsv")).should_not eq(first_reports[0])
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "renders all reconciliation reports from a single bundle invocation" do
     dir = File.join(Dir.tempdir, "chiasmus-parity-bundle-#{Random::Secure.hex(8)}")
     Dir.mkdir_p(dir)

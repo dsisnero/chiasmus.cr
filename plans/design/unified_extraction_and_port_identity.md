@@ -319,14 +319,18 @@ now exports those typed per-file results from its existing bounded graph
 extraction pass; tests cover one parse, cold/warm/edit cache behavior, and an
 end-to-end Java-to-Crystal parity join. The cross-language parity wrapper now
 passes those sidecars through when compatible toolchain binaries advertise the
-typed flags; older binaries continue to produce legacy reports. The next
-slice is a capability-reviewed graph-wide resolution/parity cache that reuses
-typed declarations without reparsing either side.
+typed flags; older binaries continue to produce legacy reports. P78 adds a
+content-addressed cache for the complete rendered parity bundle in the existing
+SQLite WAL store. Its key covers both facts, typed declaration sidecars, rules,
+inventory, and renderer version; warm runs reuse every report without repeating
+reconciliation. The parity skill passes the cache directory only when the
+selected binary supports it. Graph-wide call-resolution caching and
+content-stamped snapshot validation remain separate future work.
 
-Release archive verification has started independently of that cache slice:
-each platform build now writes a versioned file-hash manifest and CI verifies
-and smoke-tests the unpacked archive before publishing. The manifest's
-capabilities are currently declared and exercised by the smoke test, not yet
-reported independently by each binary. The skill still needs a whole-toolchain
-resolver and a published, compatible release before automatic latest-compatible
-selection can replace its stale bundled binaries.
+Release archives now carry a versioned file-hash manifest, and CI verifies and
+smoke-tests unpacked Linux, macOS, and Windows archives before publication. The
+skill resolves the latest compatible complete release and verifies its manifest;
+`v0.3.2` is the current published toolchain. Manifest capabilities are still
+declared and exercised by smoke tests rather than reported independently by each
+binary. P78's new CLI cache flag will become available to the skill after a
+subsequent compatible toolchain release.

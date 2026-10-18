@@ -12,6 +12,7 @@ require "./parity/naming"
 require "./parity/rules"
 require "./parity/reconcile"
 require "./parity/port_concepts"
+require "./parity/bundle_cache"
 require "./parity/surface"
 
 module Chiasmus
@@ -2019,6 +2020,7 @@ module Chiasmus
         source_declarations_path : String? = nil
         target_declarations_path : String? = nil
         bundle_dir : String? = nil
+        cache_dir : String? = nil
         format = "tsv"
         help_requested = false
 
@@ -2036,6 +2038,7 @@ module Chiasmus
           opts.on("--target-declarations FILE", "Optional target typed declarations JSONL for bundle sidecar") { |value| target_declarations_path = value }
           opts.on("--format FORMAT", "Output format: tsv|completion-facts|maps|maps-prolog|surfaces|divergences") { |value| format = value }
           opts.on("--bundle-dir DIR", "Write maps, surfaces, maps-Prolog, and divergences in one reconciliation") { |value| bundle_dir = value }
+          opts.on("--cache-dir DIR", "Reuse content-addressed parity bundles in SQLite (bundle mode only)") { |value| cache_dir = value }
           opts.on("--help", "Show this help") do
             help_requested = true
           end
@@ -2061,8 +2064,13 @@ module Chiasmus
             error.puts "--source-facts and --crystal-facts are required for --bundle-dir"
             return 1
           end
-          render_bundle(destination, source_path, crystal_path, inventory_path, map_rules_path, source_declarations_path, target_declarations_path)
+          render_bundle(destination, source_path, crystal_path, inventory_path, map_rules_path, source_declarations_path, target_declarations_path, cache_dir)
           return 0
+        end
+
+        if cache_dir
+          error.puts "--cache-dir is only supported with --bundle-dir"
+          return 1
         end
 
         if format == "maps"
@@ -2187,7 +2195,21 @@ module Chiasmus
         rules_path : String?,
         source_declarations_path : String?,
         target_declarations_path : String?,
+        cache_dir : String? = nil,
       ) : Nil
+        input_paths = [source_path, crystal_path, inventory_path.empty? ? nil : inventory_path, rules_path, source_declarations_path, target_declarations_path]
+        initial_fingerprint = cache_dir.try { BundleCache.fingerprint(input_paths) }
+        if directory = cache_dir
+          if fingerprint = initial_fingerprint
+            if cache = BundleCache.load(directory, input_paths, fingerprint)
+              if BundleCache.fingerprint(input_paths) == fingerprint
+                write_bundle(destination, cache)
+                return
+              end
+            end
+          end
+        end
+
         source_graph = Structural.load_graph(source_path)
         target_graph = Structural.load_graph(crystal_path)
         rules = Rules::RuleSet.load_if(rules_path)
@@ -2198,13 +2220,49 @@ module Chiasmus
         divergences = inventory_path.empty? ? nil : InventoryJoin.divergences(Loader.read_inventory(inventory_path), mappings, rules)
 
         Dir.mkdir_p(destination)
-        File.open(File.join(destination, "maps.tsv"), "w") { |report| render_maps(report, mappings, rules_path) }
-        File.open(File.join(destination, "surfaces.tsv"), "w") { |report| render_surfaces(report, surfaces) }
-        File.open(File.join(destination, "maps.pl"), "w") { |report| render_maps_prolog(report, source_graph, target_graph, mappings, divergences, rules, surfaces) }
-        File.open(File.join(destination, "port-concepts.jsonl"), "w") { |report| PortConcepts.render(report, mappings, source_graph, target_graph, rules, source_typed, target_typed) }
-        if rows = divergences
-          File.open(File.join(destination, "divergences.tsv"), "w") { |report| render_divergences(report, rows) }
+        if directory = cache_dir
+          artifacts = {} of String => String
+          artifacts["maps.tsv"] = render_to_string { |report| render_maps(report, mappings, rules_path) }
+          artifacts["surfaces.tsv"] = render_to_string { |report| render_surfaces(report, surfaces) }
+          artifacts["maps.pl"] = render_to_string { |report| render_maps_prolog(report, source_graph, target_graph, mappings, divergences, rules, surfaces) }
+          artifacts["port-concepts.jsonl"] = render_to_string { |report| PortConcepts.render(report, mappings, source_graph, target_graph, rules, source_typed, target_typed) }
+          if rows = divergences
+            artifacts["divergences.tsv"] = render_to_string { |report| render_divergences(report, rows) }
+          end
+          if fingerprint = initial_fingerprint
+            BundleCache.save(directory, input_paths, artifacts, fingerprint) if BundleCache.fingerprint(input_paths) == fingerprint
+          end
+          write_bundle(destination, artifacts)
+        else
+          File.open(File.join(destination, "maps.tsv"), "w") { |report| render_maps(report, mappings, rules_path) }
+          File.open(File.join(destination, "surfaces.tsv"), "w") { |report| render_surfaces(report, surfaces) }
+          File.open(File.join(destination, "maps.pl"), "w") { |report| render_maps_prolog(report, source_graph, target_graph, mappings, divergences, rules, surfaces) }
+          File.open(File.join(destination, "port-concepts.jsonl"), "w") { |report| PortConcepts.render(report, mappings, source_graph, target_graph, rules, source_typed, target_typed) }
+          if rows = divergences
+            File.open(File.join(destination, "divergences.tsv"), "w") { |report| render_divergences(report, rows) }
+          else
+            delete_divergences(destination)
+          end
         end
+      end
+
+      private def render_to_string(& : IO ->) : String
+        output = IO::Memory.new
+        yield output
+        output.to_s
+      end
+
+      private def write_bundle(destination : String, artifacts : Hash(String, String)) : Nil
+        Dir.mkdir_p(destination)
+        delete_divergences(destination) unless artifacts.has_key?("divergences.tsv")
+        artifacts.each do |name, content|
+          File.write(File.join(destination, name), content)
+        end
+      end
+
+      private def delete_divergences(destination : String) : Nil
+        path = File.join(destination, "divergences.tsv")
+        File.delete(path) if File.file?(path)
       end
 
       private def render_maps(output : IO, mappings : Array(Reconcile::Mapping), rules_path : String?) : Nil
