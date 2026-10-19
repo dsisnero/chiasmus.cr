@@ -66,6 +66,9 @@ Export `CHIASMUS_VERSION=<exact-tag>` to pin the skill. Offline operation requir
 a verified cache or a complete manually provisioned toolchain.
 
 Run the release smoke tests against the extracted archive before publishing.
-Also run Crystal Forge's `scripts/verify_released_toolchain.py --version <tag>`
-after publication and repeat with `--offline`. Record platform-specific
-results; fixture tests and local macOS results do not verify Linux or Windows.
+After publication, from the canonical Crystal Forge parity skill directory, run
+`bash scripts/install_chiasmus_toolchain.sh --version <tag>` and then
+`CHIASMUS_VERSION=<tag> bash scripts/verify_skill_install.sh /path/to/port java tree-sitter`.
+Repeat both commands with `CHIASMUS_TOOLCHAIN_OFFLINE=1` to verify the pinned
+cache without network access. Record platform-specific results; fixture tests
+and local macOS results do not verify Linux or Windows.
