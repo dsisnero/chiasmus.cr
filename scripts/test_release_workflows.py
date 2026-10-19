@@ -79,6 +79,10 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertIn("python scripts/test_release_workflows.py", build)
         self.assertIn("uses: actions/upload-artifact@", build)
 
+    def test_release_smoke_unit_tests_run_in_all_matrix_jobs(self) -> None:
+        build = job_block(self.release, "build")
+        self.assertIn("python scripts/test_release_smoke.py", build)
+
     def test_release_workflow_contract_uses_bash_on_all_platforms(self) -> None:
         step = re.search(
             r"(?ms)^    - name: Test release workflow contract\n(.*?)(?=^    - |\Z)",

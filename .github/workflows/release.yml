@@ -45,6 +45,9 @@ jobs:
     - name: Test release manifest contract
       run: python scripts/test_release_manifest.py
 
+    - name: Test release smoke contract
+      run: python scripts/test_release_smoke.py
+
     # Platform-specific system dependencies (matching CI installs)
     - name: Install Linux dependencies
       if: runner.os == 'Linux'
