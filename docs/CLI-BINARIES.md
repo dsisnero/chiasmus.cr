@@ -1,5 +1,8 @@
 # CLI Binaries
 
+For packaged platforms, grammars, and runtime prerequisites, see
+[release requirements](RELEASES.md).
+
 `shard.yml` builds these executables. They split into the **MCP server** family
 (LLM-facing) and the **parity toolchain** family (porting/verification). All
 parity binaries consume or emit Prolog facts (`defines/5`, `calls/2`, …) via

@@ -137,6 +137,10 @@ jobs:
         done
         ls dist/chiasmus/grammars/
 
+    - name: Include release requirements
+      shell: bash
+      run: cp docs/RELEASES.md dist/chiasmus/RELEASES.md
+
     - name: Create and verify toolchain manifest
       shell: bash
       run: |
