@@ -2,10 +2,13 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
+# Support both `python -m unittest scripts.test_release_smoke` and direct runs.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts import release_smoke
 
 
@@ -127,6 +130,13 @@ class ReleaseSmokeTests(unittest.TestCase):
                 release_smoke.run(["tool"], {}, self.scratch, expected_code=2)
 
     def test_relative_package_root_is_absolute_and_help_is_isolated(self):
+        root = self.scratch / "relative-package"
+        root.mkdir()
+        (root / "grammars").mkdir()
+        (root / "grammars" / "fixture.so").write_text("placeholder")
+        for name in ("discover", "facts", "parity", "plan", "complete"):
+            binary = root / f"chiasmus-{name}.exe"
+            binary.write_text("placeholder")
         calls = []
 
         def stop_after_help(command, environment, cwd, **kwargs):
@@ -135,7 +145,6 @@ class ReleaseSmokeTests(unittest.TestCase):
                 raise RuntimeError("stop after help")
             return "help"
 
-        root = Path("relative-package")
         with patch.object(release_smoke, "run", side_effect=stop_after_help):
             with self.assertRaisesRegex(RuntimeError, "stop after help"):
                 release_smoke.smoke(root, "windows-x86_64")
@@ -145,6 +154,63 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertTrue(cwd.is_absolute())
             self.assertNotEqual(cwd, Path.cwd())
             self.assertTrue(Path(environment["HOME"]).is_relative_to(cwd))
+
+    def test_resolve_tools_requires_all_package_executables_and_grammars(self):
+        root = self.scratch / "package"
+        root.mkdir()
+        (root / "grammars").mkdir()
+        (root / "grammars" / "fixture.so").write_text("placeholder")
+        for name in ("discover", "facts", "parity", "plan", "complete"):
+            binary = root / f"chiasmus-{name}"
+            binary.write_text("placeholder")
+            binary.chmod(0o755)
+
+        tools = release_smoke.resolve_tools(root, "linux-x86_64")
+        self.assertEqual(set(tools), {"discover", "facts", "parity", "plan", "complete"})
+        self.assertTrue(all(Path(path).is_absolute() for path in tools.values()))
+
+        (root / "chiasmus-plan").unlink()
+        with self.assertRaisesRegex(RuntimeError, "chiasmus-plan"):
+            release_smoke.resolve_tools(root, "linux-x86_64")
+
+        (root / "chiasmus-plan").write_text("placeholder")
+        (root / "chiasmus-plan").chmod(0o644)
+        if os.name != "nt":
+            with self.assertRaisesRegex(RuntimeError, "executable"):
+                release_smoke.resolve_tools(root, "linux-x86_64")
+
+        (root / "chiasmus-plan").chmod(0o755)
+        (root / "grammars" / "fixture.so").unlink()
+        with self.assertRaisesRegex(RuntimeError, "grammars"):
+            release_smoke.resolve_tools(root, "linux-x86_64")
+
+        (root / "grammars" / "fixture.so").write_text("placeholder")
+        external = self.scratch / "external-plan"
+        external.write_text("placeholder")
+        external.chmod(0o755)
+        (root / "chiasmus-plan").unlink()
+        try:
+            (root / "chiasmus-plan").symlink_to(external)
+        except OSError:
+            # Windows runners may lack permission to create symlinks.
+            return
+        with self.assertRaisesRegex(RuntimeError, "inside the package"):
+            release_smoke.resolve_tools(root, "linux-x86_64")
+
+    def test_cli_options_used_by_the_skill_are_required(self):
+        good = {
+            "discover": "--cache-dir",
+            "facts": "--cache-dir --declarations-out",
+            "parity": "--source-declarations --target-declarations --bundle-dir --cache-dir",
+        }
+        release_smoke.check_cli_options(good)
+        for tool, option in (("discover", "--cache-dir"), ("facts", "--declarations-out"),
+                             ("parity", "--target-declarations"), ("parity", "--bundle-dir"),
+                             ("parity", "--cache-dir")):
+            help_output = dict(good)
+            help_output[tool] = help_output[tool].replace(option, "")
+            with self.subTest(tool=tool, option=option), self.assertRaises(RuntimeError):
+                release_smoke.check_cli_options(help_output)
 
     def planning_child(self, command, environment, cwd, **kwargs):
         self.assertEqual(cwd, self.scratch)

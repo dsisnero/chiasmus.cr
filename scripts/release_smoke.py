@@ -25,6 +25,48 @@ def success_message(language: str) -> str:
     return f"{language} - Crystal release smoke passed"
 
 
+def resolve_tools(root: Path, platform: str) -> dict[str, str]:
+    root = root.resolve(strict=True)
+    if not root.is_dir():
+        raise RuntimeError(f"package root is not a directory: {root}")
+    grammar_dir = root / "grammars"
+    try:
+        resolved_grammar_dir = grammar_dir.resolve(strict=True)
+    except FileNotFoundError as error:
+        raise RuntimeError(f"package grammar directory is missing: {grammar_dir}") from error
+    if (not resolved_grammar_dir.is_relative_to(root) or not resolved_grammar_dir.is_dir()
+            or not any(path.is_file() for path in resolved_grammar_dir.rglob("*"))):
+        raise RuntimeError(f"package grammar directory is missing or empty: {grammar_dir}")
+
+    suffix = ".exe" if platform.startswith("windows-") else ""
+    tools = {}
+    for name in ("discover", "facts", "parity", "plan", "complete"):
+        candidate = root / f"chiasmus-{name}{suffix}"
+        try:
+            executable = candidate.resolve(strict=True)
+        except FileNotFoundError as error:
+            raise RuntimeError(f"package executable is missing: {candidate}") from error
+        if not executable.is_relative_to(root) or not executable.is_file():
+            raise RuntimeError(f"package executable does not resolve to a file inside the package: {candidate}")
+        if (os.name != "nt" and not platform.startswith("windows-")
+                and not os.access(executable, os.X_OK)):
+            raise RuntimeError(f"package executable is not executable: {candidate}")
+        tools[name] = str(executable)
+    return tools
+
+
+def check_cli_options(help_output: dict[str, str]) -> None:
+    required = {
+        "discover": ("--cache-dir",),
+        "facts": ("--cache-dir", "--declarations-out"),
+        "parity": ("--source-declarations", "--target-declarations", "--bundle-dir", "--cache-dir"),
+    }
+    for tool, options in required.items():
+        missing = [option for option in options if option not in help_output[tool]]
+        if missing:
+            raise RuntimeError(f"{tool} is missing required release options: {', '.join(missing)}")
+
+
 def run(command: list[str], env: dict[str, str], cwd: Path,
         output: Path | None = None, expected_code: int = 0) -> str:
     result = subprocess.run(command, env=env, cwd=cwd, capture_output=True, text=True, check=False, timeout=180)
@@ -148,16 +190,15 @@ def check_planning(tool, environment: dict[str, str], scratch: Path) -> None:
 
 
 def smoke(root: Path, platform: str) -> None:
-    root = root.resolve()
-    executable = ".exe" if platform.startswith("windows-") else ""
-    tool = lambda name: str(root / f"chiasmus-{name}{executable}")
+    tools = resolve_tools(root, platform)
+    tool = tools.__getitem__
     with tempfile.TemporaryDirectory(prefix="chiasmus-release-smoke-") as temporary:
         scratch = Path(temporary).resolve()
-        environment = isolated_environment(root, scratch)
+        environment = isolated_environment(Path(tools["discover"]).parent, scratch)
         help_output = {name: run([tool(name), "--help"], environment, scratch)
                        for name in ("discover", "facts", "parity", "plan", "complete")}
-        parity_cache_args = (["--cache-dir", str(scratch / "cache" / "extraction")]
-                             if "--cache-dir" in help_output["parity"] else [])
+        check_cli_options(help_output)
+        parity_cache_args = ["--cache-dir", str(scratch / "cache" / "parity")]
         check_planning(tool, environment, scratch)
         target = scratch / "crystal"
         target.mkdir()
