@@ -69,6 +69,14 @@ def check_required(files: dict[str, Path], platform: str) -> None:
     missing = required_paths(platform) - files.keys()
     if missing:
         raise ManifestError("missing required archive file: " + ", ".join(sorted(missing)))
+    system, executable, _grammar = platform_parts(platform)
+    # Windows does not preserve POSIX execute bits when inspecting a Unix
+    # fixture; native Unix archive verification checks the actual file mode.
+    if system != "windows" and os.name != "nt":
+        for name in REQUIRED_TOOLS:
+            path = files[f"{name}{executable}"]
+            if not path.stat().st_mode & 0o111:
+                raise ManifestError(f"Unix CLI is not executable: {name}")
 
 
 def digest(path: Path) -> str:
@@ -136,6 +144,9 @@ def verify(args: argparse.Namespace) -> None:
         raise ManifestError("unsupported manifest version")
     if manifest.get("platform") != args.platform:
         raise ManifestError(f"platform mismatch: expected {args.platform}, got {manifest.get('platform')}")
+    build_id = manifest.get("build_id")
+    if not isinstance(build_id, str) or not build_id.strip():
+        raise ManifestError("build ID must not be empty")
     actual = archive_files(root)
     check_required(actual, args.platform)
     entries = manifest.get("files")

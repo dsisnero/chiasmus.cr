@@ -52,7 +52,9 @@ class ReleaseManifestTest(unittest.TestCase):
         grammar_dir = self.root / "grammars"
         grammar_dir.mkdir(parents=True)
         for name in TOOLS:
-            (self.root / name).write_bytes(f"placeholder:{name}".encode())
+            executable = self.root / name
+            executable.write_bytes(f"placeholder:{name}".encode())
+            executable.chmod(0o755)
         for name in GRAMMARS:
             (grammar_dir / name).write_bytes(f"grammar:{name}".encode())
 
@@ -115,6 +117,26 @@ class ReleaseManifestTest(unittest.TestCase):
             "verify", "--root", str(self.root), "--platform", PLATFORM, succeeds=False
         )
         self.assertIn("checksum", result.stderr.lower())
+
+    @unittest.skipIf(os.name == "nt", "Windows does not preserve Unix executable bits")
+    def test_verifier_rejects_non_executable_unix_cli(self) -> None:
+        self.create_manifest()
+        (self.root / "chiasmus-discover").chmod(0o644)
+
+        result = self.run_manifest(
+            "verify", "--root", str(self.root), "--platform", PLATFORM, succeeds=False
+        )
+        self.assertIn("executable", result.stderr.lower())
+
+    def test_verifier_rejects_empty_build_id(self) -> None:
+        manifest = self.create_manifest()
+        manifest["build_id"] = ""
+        (self.root / "toolchain-manifest.json").write_text(json.dumps(manifest))
+
+        result = self.run_manifest(
+            "verify", "--root", str(self.root), "--platform", PLATFORM, succeeds=False
+        )
+        self.assertIn("build id", result.stderr.lower())
 
     def test_verifier_rejects_missing_file(self) -> None:
         self.create_manifest()
