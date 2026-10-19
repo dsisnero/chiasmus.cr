@@ -6,6 +6,16 @@ The format is based on Keep a Changelog, and the project uses semantic version t
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-19
+
+### Added
+
+- Optional content-addressed caching for complete parity bundle reports, allowing unchanged inputs to reuse prior reconciliation results through the shared SQLite cache.
+
+### Changed
+
+- Release smoke checks now preflight packaged tool identities, executability, and parity-toolchain inputs across platform builds; runtime library prerequisites and remaining release signoff checks are documented.
+
 ## [0.3.2] - 2026-10-17
 
 ### Fixed
