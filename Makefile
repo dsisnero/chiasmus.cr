@@ -254,27 +254,10 @@ install-built: verify-runtime
 	install -m 755 bin/chiasmus-discover $(HOME)/.local/bin/chiasmus-discover
 	install -m 755 bin/chiasmus-facts $(HOME)/.local/bin/chiasmus-facts
 	install -m 755 bin/chiasmus-agent $(HOME)/.local/bin/chiasmus-agent
-	@# Verify what we installed actually execs. A Mach-O that was overwritten in
-	@# place keeps the previous inode's cached code signature, so macOS kills it
-	@# with SIGKILL "Killed: 9" (Taskgated: Invalid Signature) on the next exec.
-	@# Without this check `make install` "succeeds" and the MCP server simply
-	@# fails to start for no visible reason. Exit 126/137 means "could not exec"
-	@# or "killed on exec"; those binaries reject --version with exit 1 instead.
+	@# Probe every installed CLI with a supported flag so missing libraries,
+	@# crashes, bad signatures, and other startup failures fail installation.
 	@echo "Verifying installed binaries exec..."
-	@for bin in chiasmus chiasmus-grammar chiasmus-discover chiasmus-facts chiasmus-agent; do \
-		$(HOME)/.local/bin/$$bin --version >/dev/null 2>&1; \
-		code=$$?; \
-		if [ $$code -eq 126 ] || [ $$code -eq 137 ]; then \
-			echo "error: $(HOME)/.local/bin/$$bin could not exec (exit $$code)." >&2; \
-			echo "       This is usually a stale code signature left by an in-place copy." >&2; \
-			echo "       Fix: rm -f $(HOME)/.local/bin/$$bin && make install" >&2; \
-			exit 1; \
-		fi; \
-	done
-	@$(HOME)/.local/bin/chiasmus --version >/dev/null 2>&1 || { \
-		echo "error: $(HOME)/.local/bin/chiasmus --version failed; the MCP server will not start." >&2; \
-		exit 1; \
-	}
+	@sh scripts/verify_installed_binaries.sh "$(HOME)/.local/bin"
 	@echo "Done. Ensure $(HOME)/.local/bin is on your PATH."
 
 install-with-build: release build-clis
