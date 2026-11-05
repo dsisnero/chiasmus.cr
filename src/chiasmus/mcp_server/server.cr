@@ -25,6 +25,10 @@ module Chiasmus
   module MCPServer
     RUNTIME_LOCK = Mutex.new
 
+    # Upper bound on how long shutdown waits for in-flight watcher callbacks
+    # (graph extraction + cache invalidation) before closing shared state.
+    CALLBACK_DRAIN_TIMEOUT = 5.seconds
+
     record AsyncCallResult(T),
       value : T? = nil,
       error : String? = nil
@@ -77,6 +81,54 @@ module Chiasmus
 
         @cleanup.call
         true
+      end
+    end
+
+    # Coordinates watcher callback fibers with shutdown.
+    #
+    # New callbacks are accepted until shutdown begins; callbacks already running
+    # are waited for (bounded) before the caches they touch are closed.
+    class WatcherCallbackGate
+      def initialize(@timeout : Time::Span = CALLBACK_DRAIN_TIMEOUT)
+        @lock = Mutex.new
+        @wg = WaitGroup.new
+        @closing = false
+      end
+
+      # Returns true when the caller owns a slot and must call `#finish` once the
+      # work is done. Returns false once shutdown has begun.
+      def accept : Bool
+        @lock.synchronize do
+          return false if @closing
+          @wg.add
+          true
+        end
+      end
+
+      def finish : Nil
+        @wg.done
+      end
+
+      def closing? : Bool
+        @lock.synchronize { @closing }
+      end
+
+      # Stop accepting work and wait for in-flight callbacks. Never blocks longer
+      # than the configured timeout.
+      def close_and_drain : Nil
+        @lock.synchronize { @closing = true }
+
+        drained = Channel(Nil).new(1)
+        spawn do
+          @wg.wait
+          drained.send(nil) rescue nil
+        end
+
+        select
+        when drained.receive
+        when timeout(@timeout)
+          STDERR.puts "[Chiasmus] warning: watcher callbacks still running after #{@timeout}; closing shared state"
+        end
       end
     end
 
@@ -283,9 +335,25 @@ module Chiasmus
         STDERR.puts "  Waiting for MCP client connection on stdio..."
 
         mcp = build_mcp_transport
+
+        # Tracks watcher callback fibers so shutdown can drain them before
+        # closing the state they use.
+        gate = WatcherCallbackGate.new
+
         wg = WaitGroup.new(1)
         shutdown = ShutdownCoordinator.new do
           STDERR.puts "[Chiasmus] MCP server shutting down"
+
+          # Stop the watcher BEFORE waiting on the group. The watcher fiber only
+          # exits when stopped, so stopping it after `wg.wait` meant the group
+          # could never drain and the process never exited.
+          if watcher = @watcher
+            watcher.stop
+            watcher.wait
+          end
+
+          gate.close_and_drain
+
           Graph::GraphCache.flush_async_writes rescue nil
           Graph::GraphCache.close_file_cache_stores rescue nil
           @skill_library.close rescue nil
@@ -328,32 +396,52 @@ module Chiasmus
         repo_key = Graph::GraphCache.default_repo_key(project_root)
         @watcher = Index::Watcher.new(project_root, interval: 2.0) do |changes|
           STDERR.puts "[Chiasmus] files changed: +#{changes.added.size} ~#{changes.modified.size} -#{changes.deleted.size}"
-          spawn do
-            deleted_paths = changes.deleted.map { |path| File.join(project_root, path) }
-            changed_paths = changes.changed.map { |path| File.join(project_root, path) }
-            graphs = Utils::BoundedWork.map_ordered(changed_paths) do |abs_path|
-              Graph::Extractor.extract_and_cache_file(
-                abs_path,
-                cache_dir: cache_dir,
-                repo_key: repo_key,
-              )
-            end.compact_map(&.itself)
+          next unless gate.accept
 
-            @project_index.apply_batch(graphs, deleted_paths)
-            Graph::GraphCache.invalidate_file_cache(deleted_paths, cache_dir, repo_key: repo_key) unless deleted_paths.empty?
+          spawn do
+            apply_watch_changes(changes, project_root, cache_dir, repo_key)
+          ensure
+            gate.finish
           end
         end
         wg.spawn do
           sleep(2.seconds)
-          STDERR.puts "[Chiasmus] file watcher started for #{project_root}"
+          # Skip the loop when shutdown already ran while we slept; `run` is
+          # still called on the stopped watcher so its `done` channel closes and
+          # any waiter is released.
+          STDERR.puts "[Chiasmus] file watcher started for #{project_root}" unless gate.closing?
           @watcher.try(&.run)
         end
 
         wg.spawn { mcp.connect(MCP::Server::StdioServerTransport.new(STDIN, STDOUT)) }
         wg.wait
 
-        # Cleanup watcher on shutdown
+        # Shutdown stops the watcher itself; this is only a safety net.
         @watcher.try(&.stop)
+      end
+
+      # Applies one watcher change set: re-extract changed files, then update the
+      # project index and drop cache entries for deleted files.
+      private def apply_watch_changes(
+        changes : Index::ChangeSet,
+        project_root : String,
+        cache_dir : String,
+        repo_key : String,
+      ) : Nil
+        deleted_paths = changes.deleted.map { |path| File.join(project_root, path) }
+        changed_paths = changes.changed.map { |path| File.join(project_root, path) }
+        graphs = Utils::BoundedWork.map_ordered(changed_paths) do |abs_path|
+          Graph::Extractor.extract_and_cache_file(
+            abs_path,
+            cache_dir: cache_dir,
+            repo_key: repo_key,
+          )
+        end.compact_map(&.itself)
+
+        @project_index.apply_batch(graphs, deleted_paths)
+        unless deleted_paths.empty?
+          Graph::GraphCache.invalidate_file_cache(deleted_paths, cache_dir, repo_key: repo_key)
+        end
       end
 
       # Perform an in-memory healthcheck: MCP initialize + tools/list

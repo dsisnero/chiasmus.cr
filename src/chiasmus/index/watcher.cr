@@ -26,11 +26,20 @@ module Chiasmus
     #
     # Call `stop` to end the polling loop.
     class Watcher
+      # A poll that sees the whole watched set vanish is far more likely to be a
+      # transient filesystem view (a volume briefly unmounting, an exFAT/Fskit
+      # hiccup) than a real `rm -rf`. Require this many consecutive empty polls
+      # before reporting every tracked file as deleted.
+      FULL_DELETION_CONFIRMATIONS = 2
+
       @root : String
       @interval : Time::Span
       @callback : ChangeSet ->
       @timestamps = Sync::Map(String, Time).new
       @running = false
+      @stop_requested = Atomic(Bool).new(false)
+      @stop_channel = Channel(Nil).new(1)
+      @empty_scans = 0
       @done = Channel(Bool).new(1)
 
       def initialize(@root, interval : Time::Span | Float64 = 1.0, &@callback : ChangeSet ->)
@@ -39,22 +48,34 @@ module Chiasmus
 
       # Start polling in the current fiber.
       def run
+        # `stop` may be called before this fiber gets scheduled (for example a
+        # signal during startup). Honour that instead of resurrecting the loop.
+        return if @stop_requested.get
+
         @running = true
         scan_initial
 
-        while @running
+        until @stop_requested.get
           changes = scan_changes
           @callback.call(changes) unless changes.empty?
-          sleep(@interval)
+          break unless wait_for_next_poll
         end
       rescue
       ensure
+        @running = false
         @done.close rescue nil
       end
 
       # Stop the watcher. Returns immediately.
       def stop : Bool
+        @stop_requested.set(true)
         @running = false
+        # Wake a fiber parked in wait_for_next_poll so it does not have to burn
+        # a whole interval before noticing.
+        select
+        when @stop_channel.send(nil)
+        else
+        end
         true
       end
 
@@ -69,6 +90,17 @@ module Chiasmus
         @timestamps.keys.sort!
       end
 
+      # Block until the next poll is due. Returns false when a stop was
+      # requested, so shutdown does not wait out the whole interval.
+      private def wait_for_next_poll : Bool
+        select
+        when @stop_channel.receive
+          false
+        when timeout(@interval)
+          true
+        end
+      end
+
       private def scan_initial
         each_file_entry(@root) do |relative, mtime|
           @timestamps.store(relative, mtime)
@@ -76,12 +108,27 @@ module Chiasmus
       end
 
       private def scan_changes : ChangeSet
+        entries = [] of Tuple(String, Time)
+        each_file_entry(@root) { |relative, mtime| entries << {relative, mtime} }
+
+        if entries.empty? && !@timestamps.empty?
+          @empty_scans += 1
+          if @empty_scans < FULL_DELETION_CONFIRMATIONS
+            # Suspected transient empty view: report nothing and leave
+            # `@timestamps` untouched so files that come back are not treated
+            # as a delete followed by a re-add.
+            return ChangeSet.new([] of String, [] of String, [] of String)
+          end
+        else
+          @empty_scans = 0
+        end
+
         added = [] of String
         modified = [] of String
         deleted = [] of String
         seen = Set(String).new
 
-        each_file_entry(@root) do |relative, mtime|
+        entries.each do |(relative, mtime)|
           seen << relative
           prev, found = @timestamps.load(relative)
 

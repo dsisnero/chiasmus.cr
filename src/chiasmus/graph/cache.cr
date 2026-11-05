@@ -37,6 +37,11 @@ module Chiasmus
     module GraphCache
       extend self
 
+      # Raised when cache access is attempted after the stores were closed for
+      # shutdown. Post-shutdown callers must not silently reopen the database.
+      class CacheClosedError < Exception
+      end
+
       private alias CacheItem = NamedTuple(path: String, content: String, graph: CodeGraph)
       private alias CacheLookupItem = NamedTuple(path: String, content: String)
       private record FileCacheWriteRequest,
@@ -81,6 +86,7 @@ module Chiasmus
       @@before_snapshot_write_hook : Proc(Nil)? = nil
       @@store_mutex = Mutex.new
       @@stores = Hash(String, SQLiteCacheStore).new
+      @@stores_closed = false
 
       # SHA-256(extraction schema version + \0 + content + \0 + path) → hex
       # digest. This rejects stale per-file payloads after extractor changes.
@@ -401,23 +407,35 @@ module Chiasmus
         @@writer_mutex.synchronize { @@before_snapshot_write_hook = nil }
       end
 
+      # Close every open file-cache store.
+      #
+      # `@@stores_closed` is set under `@@store_mutex` before any handle is
+      # closed, and `sqlite_store` consults it under the same mutex. That way a
+      # fiber racing shutdown either gets a usable store before the flag flips
+      # or a `CacheClosedError` instead of a handle that is being closed
+      # underneath it. The map is only emptied once the close calls finished, so
+      # observers never see an empty map while handles are still live.
       def close_file_cache_stores : Nil
         stores = @@store_mutex.synchronize do
-          values = @@stores.values
-          @@stores.clear
-          values
+          @@stores_closed = true
+          @@stores.values
         end
         stores.each(&.close)
+        @@store_mutex.synchronize { @@stores.clear }
       end
 
+      # Specs share this process-wide cache; reset the closed state so a suite
+      # that closed the stores can keep using them.
       def close_file_cache_stores_for_test : Nil
         close_file_cache_stores
+        @@store_mutex.synchronize { @@stores_closed = false }
       end
 
       # --- Private helpers ---
 
       private def sqlite_store(database_path : String) : SQLiteCacheStore
         @@store_mutex.synchronize do
+          raise CacheClosedError.new("graph cache stores are closed") if @@stores_closed
           @@stores[database_path] ||= SQLiteCacheStore.new(database_path)
         end
       end
