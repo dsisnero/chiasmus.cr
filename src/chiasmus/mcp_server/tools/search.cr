@@ -12,12 +12,15 @@ require "../../graph/extractor"
 require "../../utils/config"
 require "../../utils/bounded_work"
 require "tracing"
+require "../../index/file_discovery"
 
 module Chiasmus
   module MCPServer
     module Tools
       class SearchTool
         MAX_FILE_SIZE             = 500_000
+        MAX_SEARCH_FILES          =     500
+        MAX_SEARCH_BYTES          = 25 * 1024 * 1024
         DEFAULT_MAX_CONCURRENT    = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
         OLLAMA_PROBE_TIMEOUT      = 1.second
         SUPPORTED_EMBED_PROVIDERS = %w[ollama openai openrouter deepseek]
@@ -48,16 +51,20 @@ module Chiasmus
           args = Types::SearchInput.from_json(arguments.to_json)
 
           return Types::ErrorResponse.new("'query' (non-empty string) is required") if args.query.strip.empty?
-          return Types::ErrorResponse.new("'files' (non-empty array of absolute paths) is required") if args.files.empty?
           if error = self.class.local_embedding_configuration_error(@config)
             return Types::ErrorResponse.new(error)
           end
 
           top_k = {1, {args.top_k, 100}.min}.max
 
-          file_contents, warnings = read_search_files(args.files)
+          search_files = if directory = args.directory
+                           directory_search_files(directory, args.include_patterns)
+                         else
+                           args.files || [] of String
+                         end
+          file_contents, warnings = read_search_files(search_files)
 
-          if error = validate_search_files(file_contents, warnings)
+          if error = validate_search_files(file_contents, warnings, args.directory ? "directory" : "files")
             return error
           end
 
@@ -67,7 +74,7 @@ module Chiasmus
           corpus = Search::SearchEngine.build_search_corpus(graph, file_contents)
 
           if corpus.empty?
-            return Types::SearchResponse.new([] of Types::SearchHitJSON, warnings: warnings.empty? ? nil : warnings)
+            return Types::SearchResponse.new([] of Types::SearchHitJSON, warnings: warnings.empty? ? nil : warnings, searched_files: file_contents.size)
           end
 
           resolution = self.class.resolve_embedding_resolution(@config) ||
@@ -102,7 +109,7 @@ module Chiasmus
             )
           end
 
-          Types::SearchResponse.new(hits: result, warnings: warnings.empty? ? nil : warnings)
+          Types::SearchResponse.new(hits: result, warnings: warnings.empty? ? nil : warnings, searched_files: file_contents.size)
         rescue ex
           Types::ErrorResponse.new("#{ex.class}: #{ex.message || "(no message)"}")
         end
@@ -112,17 +119,47 @@ module Chiasmus
           return "'query' (non-empty string) is required" unless query
           return "'query' (non-empty string) is required" if query.strip.empty?
 
-          files = arguments["files"]?.try(&.as_a?)
-          return "'files' (non-empty array of absolute paths) is required" unless files
-          return "'files' (non-empty array of absolute paths) is required" if files.empty?
-          return "'files' (non-empty array of absolute paths) is required" if files.any? { |file| file.as_s?.nil? }
+          files = arguments["files"]?
+          directory = arguments["directory"]?
+          return "Exactly one of 'files' or 'directory' is required" if files.nil? == directory.nil?
+          if files
+            array = files.as_a?
+            return "'files' (non-empty array of absolute paths) is required" if array.nil? || array.empty? || array.any? { |file| file.as_s?.nil? }
+          end
+          if directory
+            path = directory.as_s?
+            return "'directory' must be an absolute directory path" unless path && path.starts_with?('/')
+            return "'directory' must exist and be a directory" unless File.directory?(path)
+          end
+          if patterns = arguments["include"]?
+            return "'include' is only valid with 'directory'" unless directory
+            array = patterns.as_a?
+            return "'include' must be an array of relative glob patterns" unless array && array.all? { |include_pattern| include_pattern.as_s?.try { |glob| !glob.starts_with?('/') && !glob.split('/').includes?("..") } }
+          end
 
           nil
         end
 
-        private def validate_search_files(file_contents : Hash(String, String), warnings : Array(String)) : Types::SearchErrorResponse?
+        private def directory_search_files(directory : String, patterns : Array(String)?) : Array(String)
+          root = File.realpath(directory)
+          raise ArgumentError.new("Invalid search directory") unless File.directory?(root)
+          paths = Index::FileDiscovery.paths(root).select do |path|
+            real = File.realpath(path)
+            next unless real.starts_with?(root + "/")
+            relative = Path.new(path).relative_to(root).to_s
+            (patterns.nil? || patterns.empty? || patterns.any? { |pattern| File.match?(pattern, relative) }) && !relative.starts_with?("../")
+          end
+          paths.uniq!
+          paths.sort!
+          raise ArgumentError.new("Directory search exceeds #{MAX_SEARCH_FILES} files") if paths.size > MAX_SEARCH_FILES
+          total_size = paths.sum { |path| File.info(path).size }
+          raise ArgumentError.new("Directory search exceeds #{MAX_SEARCH_BYTES} bytes") if total_size > MAX_SEARCH_BYTES
+          paths
+        end
+
+        private def validate_search_files(file_contents : Hash(String, String), warnings : Array(String), input_name : String) : Types::SearchErrorResponse?
           return nil unless file_contents.empty?
-          Types::SearchErrorResponse.new("No readable files in `files`.", warnings)
+          Types::SearchErrorResponse.new("No readable files in `#{input_name}`.", warnings)
         end
 
         private def load_search_graph(source_files : Array(Graph::SourceFile)) : Graph::CodeGraph?
@@ -188,7 +225,11 @@ module Chiasmus
             client.embedding_model(resolution.model_name)
           when "openai"
             api_key = resolution.api_key || return nil
-            client = Crig::Providers::OpenAI::Client.new(api_key)
+            client = if base_url = resolution.base_url
+                       Crig::Providers::OpenAI::Client.new(api_key, base_url)
+                     else
+                       Crig::Providers::OpenAI::Client.new(api_key)
+                     end
             client.embedding_model(resolution.model_name)
           else
             nil
@@ -374,12 +415,13 @@ module Chiasmus
         # remote endpoint cannot stall tool registration, and uncaught failures
         # degrade to "not available" rather than raising during handshake.
         def self.ollama_embedding_available?(base_url : String?, model : String) : Bool
-          uri = URI.parse(base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL)
-          client = HTTP::Client.new(uri)
-          client.connect_timeout = OLLAMA_PROBE_TIMEOUT
-          client.read_timeout = OLLAMA_PROBE_TIMEOUT
-
+          client : HTTP::Client? = nil
           begin
+            uri = URI.parse(base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL)
+            client = HTTP::Client.new(uri)
+            client.connect_timeout = OLLAMA_PROBE_TIMEOUT
+            client.read_timeout = OLLAMA_PROBE_TIMEOUT
+
             response = client.get("/api/tags", headers: HTTP::Headers{"Accept" => "application/json"})
             return false unless response.success?
 
@@ -392,7 +434,7 @@ module Chiasmus
           rescue
             false
           ensure
-            client.close rescue nil
+            client.try(&.close) rescue nil
           end
         end
 
@@ -499,6 +541,8 @@ module Chiasmus
           CHIASMUS_EMBED_URL   → override base URL (e.g. a remote Ollama)
 
           Caches embeddings by content SHA-256 — unchanged code is not re-embedded.
+          Directory searches accept an absolute directory and optional relative include globs.
+          Discovery is limited to 500 source files and 25 MiB total; larger corpora return an error.
           DESC
         end
 
@@ -507,11 +551,13 @@ module Chiasmus
             properties: {
               "query"     => ToolSchemas::SchemaProperty.new("string", "Natural language query for semantic search"),
               "files"     => ToolSchemas::Common.files_property,
+              "directory" => ToolSchemas::SchemaProperty.new("string", "Absolute project directory to search"),
+              "include"   => ToolSchemas::ArraySchemaProperty.new("Relative glob patterns to include within directory"),
               "top_k"     => ToolSchemas::SchemaProperty.new("number", "Number of results (1–100, default 10)"),
               "languages" => ToolSchemas::ArraySchemaProperty.new("Filter by language(s) — e.g. [\"go\", \"rust\"]. Uses Discovery pipeline with broader language support when specified."),
               "kinds"     => ToolSchemas::ArraySchemaProperty.new("Filter by symbol kind(s) — e.g. [\"class\", \"interface\"]. Requires languages param."),
             },
-            required: ["query", "files"]
+            required: ["query"]
           ).to_mcp_input
         end
 

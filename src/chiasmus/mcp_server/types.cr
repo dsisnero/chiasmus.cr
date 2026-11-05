@@ -397,8 +397,9 @@ module Chiasmus
       struct SearchResponse < Response
         getter hits : Array(SearchHitJSON)
         getter warnings : Array(String)?
+        getter searched_files : Int32?
 
-        def initialize(@hits : Array(SearchHitJSON), @warnings : Array(String)? = nil)
+        def initialize(@hits : Array(SearchHitJSON), @warnings : Array(String)? = nil, @searched_files : Int32? = nil)
           super("success")
         end
       end
@@ -655,7 +656,10 @@ module Chiasmus
         include JSON::Serializable
 
         getter query : String
-        getter files : Array(String)
+        getter files : Array(String)?
+        getter directory : String?
+        @[JSON::Field(key: "include")]
+        getter include_patterns : Array(String)?
         getter top_k : Int32 = 10
         getter languages : Array(String)?
         getter kinds : Array(String)?

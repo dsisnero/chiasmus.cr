@@ -181,6 +181,17 @@ Supported provider families in the server factory include:
 ### Embeddings for semantic search
 
 `chiasmus_search` uses embeddings plus cosine similarity over extracted defines.
+Pass either a `files` array or an absolute `directory`; directory mode discovers
+supported source files and accepts optional `include` globs relative to that
+directory:
+
+```json
+{"query":"where are model calls retried?","directory":"/absolute/path/to/repo","include":["src/**/*.cr"]}
+```
+
+Directory mode uses Git-aware file discovery, then filters before extraction and
+embedding. It returns `searched_files` with the hits and fails clearly above
+500 files or 25 MiB of source. Use `files` for a small, exact corpus.
 
 A reachable local Ollama embedding model is used by default, so no API key is
 required:

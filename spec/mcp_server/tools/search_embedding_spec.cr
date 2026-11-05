@@ -27,6 +27,12 @@ private def with_env(vars : Hash(String, String?), &)
   end
 end
 
+private class SearchToolEmbeddingTest < Chiasmus::MCPServer::Tools::SearchTool
+  def resolve_for_test(resolution)
+    resolve_embedding_model(resolution)
+  end
+end
+
 describe Chiasmus::MCPServer::Tools::SearchTool do
   it "returns warning-bearing errors for unreadable files" do
     missing = File.join(Dir.tempdir, "search-missing-#{Random::Secure.hex(8)}.cr")
@@ -81,6 +87,21 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
         "CHIASMUS_EMBED_PROVIDER" => "openai",
       }) do
         Chiasmus::MCPServer::Tools::SearchTool.resolved_embedding_provider_name.should eq("openai")
+      end
+    end
+
+    it "passes CHIASMUS_EMBED_URL to the OpenAI embedding client" do
+      endpoint = "http://127.0.0.1:9999/v1"
+      with_env({
+        "OPENAI_API_KEY"          => "sk-oai-test",
+        "CHIASMUS_EMBED_PROVIDER" => "openai",
+        "CHIASMUS_EMBED_URL"      => endpoint,
+      }) do
+        resolution = Chiasmus::MCPServer::Tools::SearchTool.resolve_embedding_resolution
+        resolution.should_not be_nil
+        model = SearchToolEmbeddingTest.new.resolve_for_test(resolution.not_nil!)
+        model.should_not be_nil
+        model.not_nil!.client.base_url.should eq(endpoint)
       end
     end
 
@@ -222,6 +243,10 @@ describe Chiasmus::MCPServer::Tools::SearchTool do
   end
 
   describe "embedding capability gate" do
+    it "treats a malformed Ollama URL as unavailable" do
+      Chiasmus::MCPServer::Tools::SearchTool.ollama_embedding_available?("not a URL", "nomic-embed-text").should be_false
+    end
+
     it "prefers a reachable local Ollama over ambient API keys" do
       server = HTTP::Server.new do |context|
         context.response.content_type = "application/json"
