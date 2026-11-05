@@ -2,6 +2,7 @@
 require "mcp"
 require "crig"
 require "openssl"
+require "http/client"
 require "../types"
 require "../tool_schemas"
 require "../../search/engine"
@@ -16,8 +17,10 @@ module Chiasmus
   module MCPServer
     module Tools
       class SearchTool
-        MAX_FILE_SIZE          = 500_000
-        DEFAULT_MAX_CONCURRENT = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
+        MAX_FILE_SIZE             = 500_000
+        DEFAULT_MAX_CONCURRENT    = Utils::BoundedWork::DEFAULT_MAX_CONCURRENT
+        OLLAMA_PROBE_TIMEOUT      = 1.second
+        SUPPORTED_EMBED_PROVIDERS = %w[ollama openai openrouter deepseek]
 
         record EmbeddingResolution,
           provider : String,
@@ -69,9 +72,7 @@ module Chiasmus
 
           resolution = self.class.resolve_embedding_resolution(@config) ||
                        return Types::ErrorResponse.new(
-                         "No embedding provider configured. " +
-                         "Set OPENAI_API_KEY / DEEPSEEK_API_KEY / OPENROUTER_API_KEY " +
-                         "(see CHIASMUS_EMBED_* env vars for overrides)."
+                         self.class.embedding_configuration_error(@config) || "No embedding provider configured."
                        )
           model = resolve_embedding_model(resolution) ||
                   return Types::ErrorResponse.new("Unable to create embedding model for #{resolution.provider}")
@@ -167,7 +168,7 @@ module Chiasmus
 
         # Resolve embedding model from environment.
         # Provider priority: CHIASMUS_EMBED_PROVIDER > env-backed fallback > implicit ollama.
-        # Supports: ollama, deepseek, openai.
+        # Supports: ollama, openai, openrouter, deepseek (with CHIASMUS_EMBED_URL).
         # Ollama defaults to nomic-embed-text, others to text-embedding-3-small.
         private def resolve_embedding_model(resolution : EmbeddingResolution)
           case resolution.provider
@@ -176,6 +177,14 @@ module Chiasmus
           when "deepseek"
             api_key = resolution.api_key || return nil
             client = Crig::Providers::OpenAI::Client.new(api_key, resolution.base_url || "https://api.deepseek.com/v1")
+            client.embedding_model(resolution.model_name)
+          when "openrouter"
+            api_key = resolution.api_key || return nil
+            client = if base_url = resolution.base_url
+                       Crig::Providers::OpenRouter::Client.new(api_key, base_url)
+                     else
+                       Crig::Providers::OpenRouter::Client.new(api_key)
+                     end
             client.embedding_model(resolution.model_name)
           when "openai"
             api_key = resolution.api_key || return nil
@@ -215,13 +224,19 @@ module Chiasmus
                 base_url: base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL,
               )
             when "deepseek"
+              # DeepSeek exposes no /embeddings endpoint, so the key alone cannot
+              # back chiasmus_search (upstream warns and returns null for the same
+              # reason). Only honour it when CHIASMUS_EMBED_URL points at an
+              # OpenAI-compatible embeddings endpoint such as a gateway or Ollama.
               if api_key = ENV["DEEPSEEK_API_KEY"]?
-                return EmbeddingResolution.new(
-                  provider: "deepseek",
-                  model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
-                  api_key: api_key,
-                  base_url: base_url || "https://api.deepseek.com/v1",
-                )
+                if base_url
+                  return EmbeddingResolution.new(
+                    provider: "deepseek",
+                    model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
+                    api_key: api_key,
+                    base_url: base_url,
+                  )
+                end
               end
             when "openai"
               if api_key = ENV["OPENAI_API_KEY"]?
@@ -229,6 +244,16 @@ module Chiasmus
                   provider: "openai",
                   model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
                   api_key: api_key,
+                  base_url: base_url,
+                )
+              end
+            when "openrouter"
+              if api_key = ENV["OPENROUTER_API_KEY"]?
+                return EmbeddingResolution.new(
+                  provider: "openrouter",
+                  model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
+                  api_key: api_key,
+                  base_url: base_url,
                 )
               end
             end
@@ -236,12 +261,14 @@ module Chiasmus
             return nil
           end
 
-          if api_key = ENV["DEEPSEEK_API_KEY"]?
+          # Local-first: a reachable Ollama embedding model is free, private, and
+          # keeps source code off the network. It wins over ambient API keys
+          # unless the user names a provider explicitly.
+          if ollama_embedding_available?(base_url, ENV["CHIASMUS_EMBED_MODEL"]? || Crig::Providers::Ollama::NOMIC_EMBED_TEXT)
             return EmbeddingResolution.new(
-              provider: "deepseek",
-              model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
-              api_key: api_key,
-              base_url: base_url || "https://api.deepseek.com/v1",
+              provider: "ollama",
+              model_name: ENV["CHIASMUS_EMBED_MODEL"]? || Crig::Providers::Ollama::NOMIC_EMBED_TEXT,
+              base_url: base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL,
             )
           end
 
@@ -250,6 +277,29 @@ module Chiasmus
               provider: "openai",
               model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
               api_key: api_key,
+              base_url: base_url,
+            )
+          end
+
+          if api_key = ENV["OPENROUTER_API_KEY"]?
+            return EmbeddingResolution.new(
+              provider: "openrouter",
+              model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
+              api_key: api_key,
+              base_url: base_url,
+            )
+          end
+
+          # DEEPSEEK_API_KEY is deliberately not auto-selected: DeepSeek has no
+          # embeddings API, so auto-selecting it produced a confusing 404.
+          # CHIASMUS_EMBED_URL still routes the key at an OpenAI-compatible
+          # endpoint when one is configured.
+          if (api_key = ENV["DEEPSEEK_API_KEY"]?) && base_url
+            return EmbeddingResolution.new(
+              provider: "deepseek",
+              model_name: ENV["CHIASMUS_EMBED_MODEL"]? || "text-embedding-3-small",
+              api_key: api_key,
+              base_url: base_url,
             )
           end
 
@@ -285,25 +335,115 @@ module Chiasmus
           embedding_configured?(Utils::Config.load)
         end
 
+        # Whether chiasmus_search can actually run. Delegates to the resolver so
+        # the gate can never drift from the provider chain it is gating, then
+        # upgrades the implicit-Ollama default to a live check: a configured
+        # local endpoint is only usable if the embedding model is pulled.
         def self.embedding_configured?(config : Utils::Config::ChiasmusConfig) : Bool
+          # An unsupported provider value can only ever fail; keep the tool hidden.
+          return false if explicit_embedding_configuration_error
+
+          resolution = resolve_embedding_resolution(config) || return false
+
+          explicit = explicitly_configured_provider?(config)
+          return true if explicit
+
+          case resolution.provider
+          when "ollama"
+            ollama_embedding_available?(resolution.base_url, resolution.model_name)
+          else
+            true
+          end
+        end
+
+        # True when the user named a provider or shipped a key, as opposed to the
+        # implicit local Ollama fallback, which has to be probe-verified.
+        private def self.explicitly_configured_provider?(config : Utils::Config::ChiasmusConfig) : Bool
+          return true if ENV["CHIASMUS_EMBED_PROVIDER"]?
+
           if local = config.local_embeddings
             return true if local.enabled? && local.model.try { |model| !model.blank? }
           end
 
-          provider = ENV["CHIASMUS_EMBED_PROVIDER"]?
+          configured?(ENV["OPENAI_API_KEY"]?) ||
+            configured?(ENV["OPENROUTER_API_KEY"]?) ||
+            (configured?(ENV["DEEPSEEK_API_KEY"]?) && configured?(ENV["CHIASMUS_EMBED_URL"]?))
+        end
 
-          case provider
-          when "ollama"
-            true
-          when "deepseek"
-            configured?(ENV["DEEPSEEK_API_KEY"]?)
-          when "openai"
-            configured?(ENV["OPENAI_API_KEY"]?)
-          when nil
+        # Probe Ollama for the requested embedding model. Bounded so a hung or
+        # remote endpoint cannot stall tool registration, and uncaught failures
+        # degrade to "not available" rather than raising during handshake.
+        def self.ollama_embedding_available?(base_url : String?, model : String) : Bool
+          uri = URI.parse(base_url || Crig::Providers::Ollama::OLLAMA_API_BASE_URL)
+          client = HTTP::Client.new(uri)
+          client.connect_timeout = OLLAMA_PROBE_TIMEOUT
+          client.read_timeout = OLLAMA_PROBE_TIMEOUT
+
+          begin
+            response = client.get("/api/tags", headers: HTTP::Headers{"Accept" => "application/json"})
+            return false unless response.success?
+
+            models = JSON.parse(response.body)["models"]?.try(&.as_a?) || return false
+            models.any? do |entry|
+              name = entry["name"]?.try(&.as_s?) || entry["model"]?.try(&.as_s?)
+              next false unless name
+              name == model || name == "#{model}:latest" || name.starts_with?("#{model}:")
+            end
+          rescue
             false
-          else
-            false
+          ensure
+            client.close rescue nil
           end
+        end
+
+        # Actionable reason chiasmus_search cannot run, or nil when it can.
+        def self.embedding_configuration_error(config : Utils::Config::ChiasmusConfig) : String?
+          if error = explicit_embedding_configuration_error
+            return error
+          end
+
+          resolution = resolve_embedding_resolution(config) || return no_provider_message
+
+          if resolution.provider == "ollama" && !explicitly_configured_provider?(config)
+            unless ollama_embedding_available?(resolution.base_url, resolution.model_name)
+              return "No embedding provider configured. Ollama at #{resolution.base_url} does not serve " +
+                "an embedding model named '#{resolution.model_name}'. Start Ollama and run " +
+                "`ollama pull #{resolution.model_name}`, or #{no_provider_hint}."
+            end
+          end
+
+          nil
+        end
+
+        # Env-only misconfiguration, deterministic and network-free so callers
+        # can reject bad settings without depending on a live endpoint.
+        def self.explicit_embedding_configuration_error : String?
+          provider = ENV["CHIASMUS_EMBED_PROVIDER"]?
+          return nil unless provider
+
+          unless provider.in?(SUPPORTED_EMBED_PROVIDERS)
+            return "Unsupported CHIASMUS_EMBED_PROVIDER=#{provider.inspect}. " +
+              "Supported values: #{SUPPORTED_EMBED_PROVIDERS.join(", ")}."
+          end
+
+          if provider == "deepseek" && !configured?(ENV["CHIASMUS_EMBED_URL"]?)
+            return "CHIASMUS_EMBED_PROVIDER=deepseek needs CHIASMUS_EMBED_URL: DeepSeek has no " +
+              "embeddings API. Point it at an OpenAI-compatible embeddings endpoint " +
+              "(for a local Ollama: CHIASMUS_EMBED_URL=#{Crig::Providers::Ollama::OLLAMA_API_BASE_URL})."
+          end
+
+          nil
+        end
+
+        private def self.no_provider_message : String
+          "No embedding provider configured. #{no_provider_hint} " +
+            "(see CHIASMUS_EMBED_* env vars for overrides)."
+        end
+
+        private def self.no_provider_hint : String
+          "Run a local Ollama embedding model (CHIASMUS_EMBED_PROVIDER=ollama, " +
+            "e.g. #{Crig::Providers::Ollama::NOMIC_EMBED_TEXT}), or set " +
+            "OPENAI_API_KEY / OPENROUTER_API_KEY"
         end
 
         # Content hashes alone are insufficient because vectors from different
@@ -346,10 +486,17 @@ module Chiasmus
           {name, file, line, line_end, score}. Ranking is by closeness of the concept,
           NOT by exact name match.
 
-          Requires an embedding provider configured via env:
-            OPENAI_API_KEY  → OpenAI text-embedding-3-small
-            DEEPSEEK_API_KEY → DeepSeek (OpenAI-compatible)
-            CHIASMUS_EMBED_MODEL → override default model
+          Code is embedded with a configured provider, defaulting to a local
+          Ollama embedding model when one is reachable.
+
+          Provider selection (first match wins):
+            CHIASMUS_EMBED_PROVIDER=ollama      → local Ollama (default nomic-embed-text)
+            OPENAI_API_KEY                      → OpenAI text-embedding-3-small
+            OPENROUTER_API_KEY                  → OpenRouter
+            DEEPSEEK_API_KEY + CHIASMUS_EMBED_URL → OpenAI-compatible endpoint
+            (no keys, no provider)              → local Ollama if reachable
+          CHIASMUS_EMBED_MODEL → override default model
+          CHIASMUS_EMBED_URL   → override base URL (e.g. a remote Ollama)
 
           Caches embeddings by content SHA-256 — unchanged code is not re-embedded.
           DESC

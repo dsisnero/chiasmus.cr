@@ -250,6 +250,43 @@ describe Chiasmus::Discovery::JavaExtractor do
 end
 
 describe Chiasmus::Discovery::RustExtractor do
+  it "discovers the native Rust declaration vocabulary with strict tree-sitter provenance" do
+    source = <<-RUST
+      pub const VALUE: i32 = 1;
+      pub fn free_function() {}
+      pub struct Demo;
+      pub enum Mode { First }
+      pub trait Action { fn apply(&self); }
+      impl Demo { pub fn method(&self) {} }
+      #[cfg(test)]
+      mod tests { #[test] fn smoke() { assert_eq!(super::VALUE, 1); } }
+    RUST
+
+    result = Chiasmus::Discovery.discover_file("rust", source, "src/lib.rs", force_parser: "tree-sitter")
+
+    result.parser_mode.should eq("tree-sitter")
+    by_id = result.items.to_h { |item| {item.id, item} }
+    expected = {
+      "src/lib.rs::const::VALUE"            => "const",
+      "src/lib.rs::function::free_function" => "function",
+      "src/lib.rs::class::Demo"             => "class",
+      "src/lib.rs::class::Mode"             => "class",
+      "src/lib.rs::interface::Action"       => "interface",
+      "src/lib.rs::method::Demo.method"     => "method",
+      "src/lib.rs::test::tests::smoke"      => "test",
+    }
+
+    expected.each do |id, kind|
+      item = by_id[id]?
+      item.should_not be_nil
+      if item
+        item.kind.should eq(kind)
+        item.scope.should eq(kind == "test" ? "test" : "source")
+        item.file.should eq("src/lib.rs")
+      end
+    end
+  end
+
   it "extracts struct_item as class" do
     extractor = Chiasmus::Discovery::RustExtractor.new
     lang = TreeSitterManager::GrammarLoader.load_language("rust")

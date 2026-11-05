@@ -1142,8 +1142,9 @@ describe "Tool gating by configured capability" do
     with_env({
       "CHIASMUS_EMBED_PROVIDER" => nil,
       "CHIASMUS_EMBED_MODEL"    => nil,
-      "CHIASMUS_EMBED_URL"      => nil,
+      "CHIASMUS_EMBED_URL"      => "http://127.0.0.1:1",
       "OPENAI_API_KEY"          => nil,
+      "OPENROUTER_API_KEY"      => nil,
       "DEEPSEEK_API_KEY"        => nil,
     }) do
       server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
@@ -1199,38 +1200,49 @@ describe "Tool gating by configured capability" do
   end
 
   it "always lists llm-independent tools" do
-    server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
-    transport = server.build_mcp_transport
+    # Hermetic: an unreachable Ollama URL keeps chiasmus_search gated even on
+    # hosts where a local Ollama is serving an embedding model.
+    with_env({
+      "CHIASMUS_EMBED_PROVIDER" => nil,
+      "CHIASMUS_EMBED_MODEL"    => nil,
+      "CHIASMUS_EMBED_URL"      => "http://127.0.0.1:1",
+      "OPENAI_API_KEY"          => nil,
+      "OPENROUTER_API_KEY"      => nil,
+      "DEEPSEEK_API_KEY"        => nil,
+    }) do
+      server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
+      transport = server.build_mcp_transport
 
-    st, ct = linked_transports
-    transport.connect(st)
+      st, ct = linked_transports
+      transport.connect(st)
 
-    client = MCP::Client::Client.new(
-      MCP::Protocol::Implementation.new(name: "test-client", version: "0.0.1")
-    )
-    client.connect(ct)
+      client = MCP::Client::Client.new(
+        MCP::Protocol::Implementation.new(name: "test-client", version: "0.0.1")
+      )
+      client.connect(ct)
 
-    begin
-      result = client.list_tools
-      result.should_not be_nil
-      if r = result
-        names = r.tools.map(&.name)
+      begin
+        result = client.list_tools
+        result.should_not be_nil
+        if r = result
+          names = r.tools.map(&.name)
 
-        names.should contain("chiasmus_verify")
-        names.should contain("chiasmus_skills")
-        names.should contain("chiasmus_lint")
-        names.should contain("chiasmus_graph")
-        names.should contain("chiasmus_map")
-        names.should contain("chiasmus_craft")
-        names.should contain("chiasmus_review")
-        names.should contain("chiasmus_formalize")
-        names.should contain("chiasmus_solve")
-        names.should_not contain("chiasmus_search")
+          names.should contain("chiasmus_verify")
+          names.should contain("chiasmus_skills")
+          names.should contain("chiasmus_lint")
+          names.should contain("chiasmus_graph")
+          names.should contain("chiasmus_map")
+          names.should contain("chiasmus_craft")
+          names.should contain("chiasmus_review")
+          names.should contain("chiasmus_formalize")
+          names.should contain("chiasmus_solve")
+          names.should_not contain("chiasmus_search")
+        end
+      ensure
+        client.close rescue nil
+        transport.close rescue nil
+        server.skill_library.close rescue nil
       end
-    ensure
-      client.close rescue nil
-      transport.close rescue nil
-      server.skill_library.close rescue nil
     end
   end
 end

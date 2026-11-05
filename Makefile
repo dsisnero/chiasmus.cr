@@ -245,11 +245,15 @@ install-built: verify-runtime
 	@test -x bin/chiasmus-facts || (echo "Missing bin/chiasmus-facts; build first or run 'make install-with-build'" && exit 1)
 	@mkdir -p $(HOME)/.local/bin
 	@echo "Installing chiasmus binaries to $(HOME)/.local/bin..."
-	cp bin/chiasmus $(HOME)/.local/bin/chiasmus
-	cp bin/chiasmus-grammar $(HOME)/.local/bin/chiasmus-grammar
-	cp bin/chiasmus-discover $(HOME)/.local/bin/chiasmus-discover
-	cp bin/chiasmus-facts $(HOME)/.local/bin/chiasmus-facts
-	cp bin/chiasmus-agent $(HOME)/.local/bin/chiasmus-agent
+	@# `install` unlinks before writing, so each artifact gets a fresh inode.
+	@# Overwriting an adhoc-signed Mach-O in place with `cp` can leave macOS
+	@# holding a stale signature for that inode and killing it with SIGKILL
+	@# ("Killed: 9") on the next exec.
+	install -m 755 bin/chiasmus $(HOME)/.local/bin/chiasmus
+	install -m 755 bin/chiasmus-grammar $(HOME)/.local/bin/chiasmus-grammar
+	install -m 755 bin/chiasmus-discover $(HOME)/.local/bin/chiasmus-discover
+	install -m 755 bin/chiasmus-facts $(HOME)/.local/bin/chiasmus-facts
+	install -m 755 bin/chiasmus-agent $(HOME)/.local/bin/chiasmus-agent
 	@echo "Done. Ensure $(HOME)/.local/bin is on your PATH."
 
 install-with-build: release build-clis

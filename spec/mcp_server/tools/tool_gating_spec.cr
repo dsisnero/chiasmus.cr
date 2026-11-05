@@ -3,11 +3,14 @@ require "mcp"
 
 # Helper: create server with MockCompletionModel (no real LLM, no embedding),
 # connect via in-memory transport, and return list of tool names.
+# CHIASMUS_EMBED_URL points at a refused port so the implicit-Ollama probe is
+# deterministic even on hosts that run Ollama on the default port.
 EMBED_GATE_ENV = {
   "CHIASMUS_EMBED_PROVIDER" => nil,
   "CHIASMUS_EMBED_MODEL"    => nil,
-  "CHIASMUS_EMBED_URL"      => nil,
+  "CHIASMUS_EMBED_URL"      => "http://127.0.0.1:1",
   "OPENAI_API_KEY"          => nil,
+  "OPENROUTER_API_KEY"      => nil,
   "DEEPSEEK_API_KEY"        => nil,
 }
 

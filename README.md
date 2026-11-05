@@ -182,19 +182,41 @@ Supported provider families in the server factory include:
 
 `chiasmus_search` uses embeddings plus cosine similarity over extracted defines.
 
-Common environment variables:
+A reachable local Ollama embedding model is used by default, so no API key is
+required:
 
 ```bash
-export CHIASMUS_EMBED_PROVIDER=openai
-export CHIASMUS_EMBED_MODEL=text-embedding-3-small
-export OPENAI_API_KEY=...
+ollama pull nomic-embed-text   # 768 dimensions
 ```
+
+Selection order when `CHIASMUS_EMBED_PROVIDER` is unset:
+
+1. A local Ollama endpoint serving the embedding model (local-first: free,
+   private, no source code leaves the machine)
+2. `OPENAI_API_KEY` → OpenAI `text-embedding-3-small`
+3. `OPENROUTER_API_KEY` → OpenRouter
+4. `DEEPSEEK_API_KEY` + `CHIASMUS_EMBED_URL` → that OpenAI-compatible endpoint
+
+Name a provider explicitly to override the order:
+
+```bash
+export CHIASMUS_EMBED_PROVIDER=ollama      # ollama | openai | openrouter | deepseek
+export CHIASMUS_EMBED_MODEL=nomic-embed-text
+export CHIASMUS_EMBED_URL=http://localhost:11434   # optional base URL override
+```
+
+`DEEPSEEK_API_KEY` alone is never auto-selected: DeepSeek has no `/embeddings`
+endpoint, so it only backs search when `CHIASMUS_EMBED_URL` points at an
+OpenAI-compatible embeddings endpoint (a gateway, or a local Ollama).
+
+`chiasmus_search` is only advertised when the backend is actually usable: an
+explicit provider counts immediately, while the implicit Ollama default is
+probed and hidden from the tool list until Ollama serves the model.
 
 The TypeScript upstream's `CHIASMUS_LOCAL_EMBED*` / `localEmbeddings` options
 use the Node-only `node-llama-cpp` backend and are not supported by this Crystal
-build. For local embeddings, run Ollama and configure
-`CHIASMUS_EMBED_PROVIDER=ollama` with an embedding model such as
-`nomic-embed-text`.
+build. Use `CHIASMUS_EMBED_PROVIDER=ollama` with an embedding model such as
+`nomic-embed-text` instead.
 
 ### Grammar installation and lookup
 

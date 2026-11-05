@@ -132,6 +132,18 @@ end
 | crystal | tree-sitter-crystal | `class_def` `struct_def` | `module_def` | — | `method_def` | `(constant)` node type | `describe`/`it` blocks |
 | scala | tree-sitter-scala | `class_definition` `object_definition` | `trait_definition` | `function_definition` | `function_definition` (in class) | UPPERCASE `val` | specs |
 
+### Native Rust discovery kinds
+
+Rust discovery preserves this stable native ID vocabulary: constants use
+`const`, free functions use `function`, structs and enums use `class`, traits
+use `interface`, impl methods use `method`, and `#[test]` functions use `test`.
+IDs retain the form `{file}::{kind}::{name}`; for example,
+`src/lib.rs::class::Mode` and `src/lib.rs::method::Demo.method`. Inline test
+modules are included in the test name, such as
+`src/lib.rs::test::tests::smoke`. Callers can confirm native extraction through
+`Result.parser_mode == "tree-sitter"`; each item retains its originating file
+in `Item.file`.
+
 ## Query Pattern Design
 
 Each extractor defines query patterns as S-expression strings keyed by target kind:
