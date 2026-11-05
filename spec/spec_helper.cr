@@ -127,10 +127,9 @@ def chiasmus_cli_binary : String
 end
 
 def chiasmus_cli_sources : Array(String)
-  [
-    File.join(Dir.current, "src", "chiasmus.cr"),
-    File.join(Dir.current, "src", "chiasmus_cli.cr"),
+  Dir.glob(File.join(Dir.current, "src", "**", "*.cr")).sort + [
     File.join(Dir.current, "shard.yml"),
+    File.join(Dir.current, "shard.lock"),
   ]
 end
 
