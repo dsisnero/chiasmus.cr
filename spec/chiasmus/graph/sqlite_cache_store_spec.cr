@@ -5,6 +5,64 @@ require "../../../src/chiasmus/graph/cache"
 include Chiasmus::Graph
 
 describe SQLiteCacheStore do
+  it "keeps an in-use store open until its operation ends" do
+    dir = File.tempname("chiasmus-sqlite-cache-close-race")
+    Dir.mkdir_p(dir)
+    store = SQLiteCacheStore.new(File.join(dir, "graph-cache.sqlite3"))
+    entered = Channel(Nil).new(1)
+    release = Channel(Nil).new(1)
+    closed = Channel(Nil).new(1)
+
+    begin
+      spawn do
+        store.with_lease do
+          entered.send(nil)
+          release.receive
+        end
+      end
+      entered.receive
+      spawn do
+        store.close
+        closed.send(nil)
+      end
+
+      select
+      when closed.receive
+        fail "store closed while an operation still held it"
+      when timeout(20.milliseconds)
+      end
+      release.send(nil)
+      closed.receive
+      expect_raises(GraphCache::CacheClosedError) { store.size }
+    ensure
+      store.close rescue nil
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "rolls back deletes when a later upsert in the same batch fails" do
+    dir = File.tempname("chiasmus-sqlite-cache-atomic")
+    Dir.mkdir_p(dir)
+    path = File.join(dir, "graph-cache.sqlite3")
+    store = SQLiteCacheStore.new(path)
+
+    begin
+      old = SQLiteCacheEntry.new("old.cr", "old", "/repo/old.cr", "old", 3_i64, 1_i64)
+      store.apply_batch([old], [] of String)
+      DB.open("sqlite3:#{path}") do |db|
+        db.exec("CREATE TRIGGER fail_insert BEFORE INSERT ON cache_entries WHEN NEW.path = 'fail.cr' BEGIN SELECT RAISE(ABORT, 'forced failure'); END")
+      end
+      good = SQLiteCacheEntry.new("good.cr", "good", "/repo/good.cr", "good", 4_i64, 2_i64)
+      bad = SQLiteCacheEntry.new("fail.cr", "bad", "/repo/fail.cr", "bad", 3_i64, 2_i64)
+
+      expect_raises(Exception) { store.apply_batch([good, bad], ["old.cr"]) }
+      store.paths.should eq(["old.cr"])
+    ensure
+      store.close rescue nil
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "atomically applies added, modified, and deleted file entries in WAL mode" do
     dir = File.tempname("chiasmus-sqlite-cache")
     Dir.mkdir_p(dir)
@@ -87,6 +145,28 @@ describe SQLiteCacheStore do
       FileUtils.rm_rf(dir)
     end
   end
+
+  it "applies large write batches in bounded chunks" do
+    dir = File.tempname("chiasmus-sqlite-cache-write-batches")
+    Dir.mkdir_p(dir)
+    store = SQLiteCacheStore.new(File.join(dir, "graph-cache.sqlite3"))
+
+    begin
+      total = SQLiteCacheStore::WRITE_BATCH_SIZE * 2 + 5
+      entries = (1..total).map do |index|
+        SQLiteCacheEntry.new("src/file_#{index}.cr", "hash-#{index}", "/repo/src/file_#{index}.cr", "graph", 5_i64, 1_i64)
+      end
+
+      store.apply_batch(entries, [] of String)
+      store.size.should eq(total.to_i64)
+
+      store.apply_batch([] of SQLiteCacheEntry, entries.map(&.path))
+      store.size.should eq(0_i64)
+    ensure
+      store.close
+      FileUtils.rm_rf(dir)
+    end
+  end
 end
 
 describe GraphCache do
@@ -113,6 +193,42 @@ describe GraphCache do
 
       GraphCache.invalidate_file_cache([path], dir, repo_key: "repo")
       GraphCache.check_file_cache([{path: path, content: "new"}], dir, repo_key: "repo")[:misses].size.should eq(1)
+    ensure
+      GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "invalidates a large deleted batch in bounded write chunks" do
+    dir = File.tempname("chiasmus-graph-cache-invalidate-many")
+    Dir.mkdir_p(dir)
+
+    begin
+      paths = (1..(SQLiteCacheStore::WRITE_BATCH_SIZE + 5)).map do |index|
+        File.join(dir, "src", "file_#{index}.cr")
+      end
+      entries = paths.map { |path| SQLiteCacheEntry.new(path, "hash-#{path}", path, "graph", 5_i64, 1_i64) }
+      extraction_entries = paths.map do |path|
+        SQLiteCacheEntry.new("extraction:go:#{path}", "hash-#{path}", path, "payload", 7_i64, 1_i64)
+      end
+
+      database_path = GraphCache.resolve_cache_paths(dir, "repo")["database_path"]
+      writer = SQLiteCacheStore.new(database_path)
+      begin
+        writer.apply_batch(entries + extraction_entries, [] of String)
+        writer.size.should eq((paths.size * 2).to_i64)
+      ensure
+        writer.close
+      end
+
+      GraphCache.invalidate_file_cache(paths, dir, repo_key: "repo")
+
+      reader = SQLiteCacheStore.new(database_path)
+      begin
+        reader.size.should eq(0_i64)
+      ensure
+        reader.close
+      end
     ensure
       GraphCache.close_file_cache_stores_for_test
       FileUtils.rm_rf(dir)

@@ -39,8 +39,7 @@ module Chiasmus
 
       # Raised when cache access is attempted after the stores were closed for
       # shutdown. Post-shutdown callers must not silently reopen the database.
-      class CacheClosedError < Exception
-      end
+      alias CacheClosedError = Graph::CacheClosedError
 
       private alias CacheItem = NamedTuple(path: String, content: String, graph: CodeGraph)
       private alias CacheLookupItem = NamedTuple(path: String, content: String)
@@ -260,14 +259,16 @@ module Chiasmus
         cache_dir : String,
         repo_key : String? = nil,
       ) : Nil
+        return if file_paths.empty?
         paths = resolve_cache_paths(cache_dir, repo_key)
+        # Resolve the Git context once per directory. A large deletion batch
+        # otherwise walks the tree from every file up to the repository root.
+        contexts = {} of String => GitRepoContext?
         keys = file_paths.map do |abs_path|
-          if context = git_repo_context_for(abs_path)
-            repo_relative_path(context.repo_root, abs_path) || abs_path
-          else
-            abs_path
-          end
-        end
+          dir = File.dirname(abs_path)
+          context = contexts.fetch(dir) { contexts[dir] = git_repo_context_for(abs_path) }
+          context.try { |ctx| repo_relative_path(ctx.repo_root, abs_path) } || abs_path
+        end.uniq!
         extraction_keys = keys.flat_map do |key|
           ["java", "crystal", "go", "rust"].map { |language| "extraction:#{language}:#{key}" }
         end
@@ -409,12 +410,10 @@ module Chiasmus
 
       # Close every open file-cache store.
       #
-      # `@@stores_closed` is set under `@@store_mutex` before any handle is
-      # closed, and `sqlite_store` consults it under the same mutex. That way a
-      # fiber racing shutdown either gets a usable store before the flag flips
-      # or a `CacheClosedError` instead of a handle that is being closed
-      # underneath it. The map is only emptied once the close calls finished, so
-      # observers never see an empty map while handles are still live.
+      # Block new checkouts before closing handles. A caller that already holds
+      # a store is protected by the store's operation leases: close waits for
+      # active operations, and later operations raise CacheClosedError. Keep the
+      # map populated until all closes finish.
       def close_file_cache_stores : Nil
         stores = @@store_mutex.synchronize do
           @@stores_closed = true
