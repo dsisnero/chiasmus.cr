@@ -6,6 +6,14 @@ The format is based on Keep a Changelog, and the project uses semantic version t
 
 ## [Unreleased]
 
+### Fixed
+
+- `chiasmus_craft` no longer stores a template when the solver reports an error for its `test=true` example; it returns `created: false`, the solver message in `errors`, and leaves the name available for a corrected template. `sat`, `unsat`, `unknown`, and a Prolog query without answers still store.
+
+### Changed
+
+- Vendored TypeScript source advanced from upstream 0.1.37 (`1ba3cba`) to 0.1.40 (`e3e8aa5`); the craft behavior above is the only port-relevant delta.
+
 ## [0.3.3] - 2026-10-19
 
 ### Added

@@ -270,7 +270,7 @@ module Chiasmus
         end
 
         def self.test_property : BooleanSchemaProperty
-          BooleanSchemaProperty.new("Test the template with an example (requires test_example)")
+          BooleanSchemaProperty.new("If true and example provided, run example through the solver first; a solver error stores nothing (default: false)")
         end
 
         def self.example_property : SchemaProperty

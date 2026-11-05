@@ -155,16 +155,87 @@ describe Chiasmus::Skills do
       end
     end
 
-    it "returns error for broken z3 examples while still creating the template" do
+    it "refuses a broken z3 example with the solver's message and stores nothing" do
       with_craft_library do |library, _dir|
         result = Chiasmus::Skills.craft_template(valid_craft_input(
-          example: "(declare-const x Int) (assert (> x \"bad\"))",
+          example: %((declare-const x Int) (assert (> x "bad"))),
+          test: true
+        ), library)
+
+        result.created.should be_false
+        result.tested.should be_true
+        result.test_result.should eq("error")
+        errors = result.errors || raise("nil errors")
+        errors.size.should eq(1)
+        errors[0].should contain("not stored")
+        errors[0].should contain("Sort mismatch")
+        library.get("test-template").should be_nil
+
+        # Nothing holds the name, so a fixed example goes in under it.
+        fixed = Chiasmus::Skills.craft_template(valid_craft_input(
+          example: "(declare-const x Int)\n(assert (> x 0))",
+          test: true
+        ), library)
+        fixed.created.should be_true
+        fixed.test_result.should eq("sat")
+      end
+    end
+
+    it "refuses a Prolog example the solver errors on" do
+      with_craft_library do |library, _dir|
+        result = Chiasmus::Skills.craft_template(valid_craft_input(
+          solver: "prolog",
+          skeleton: "{{SLOT:facts}}\n{{SLOT:rules}}",
+          slots: [
+            Chiasmus::Skills::SlotDef.new(name: "facts", description: "Facts", format: "parent(tom, bob)."),
+            Chiasmus::Skills::SlotDef.new(name: "rules", description: "Rules", format: "ancestor(X,Y) :- parent(X,Y)."),
+          ],
+          example: "parent(tom, bob).\n?- ancestor(tom, X).",
+          test: true
+        ), library)
+
+        result.created.should be_false
+        result.tested.should be_true
+        result.test_result.should eq("error")
+        errors = result.errors || raise("nil errors")
+        errors.size.should eq(1)
+        errors[0].should contain("not stored")
+        errors[0].should contain("existence_error")
+        library.get("test-template").should be_nil
+      end
+    end
+
+    # An example may show the no-conflict or no-path case on purpose, so only
+    # an example the solver could not run is refused.
+    it "stores a template whose example is unsat" do
+      with_craft_library do |library, _dir|
+        result = Chiasmus::Skills.craft_template(valid_craft_input(
+          example: "(declare-const x Int)\n(assert (> x 0))\n(assert (< x 0))",
           test: true
         ), library)
 
         result.created.should be_true
-        result.tested.should be_true
-        result.test_result.should eq("error")
+        result.test_result.should eq("unsat")
+        library.get("test-template").should_not be_nil
+      end
+    end
+
+    it "stores a Prolog template whose query has no answers" do
+      with_craft_library do |library, _dir|
+        result = Chiasmus::Skills.craft_template(valid_craft_input(
+          solver: "prolog",
+          skeleton: "{{SLOT:facts}}\n{{SLOT:rules}}",
+          slots: [
+            Chiasmus::Skills::SlotDef.new(name: "facts", description: "Facts", format: "parent(tom, bob)."),
+            Chiasmus::Skills::SlotDef.new(name: "rules", description: "Rules", format: "ancestor(X,Y) :- parent(X,Y)."),
+          ],
+          example: "parent(tom, bob).\n?- parent(bob, tom).",
+          test: true
+        ), library)
+
+        result.created.should be_true
+        result.test_result.should eq("success")
+        library.get("test-template").should_not be_nil
       end
     end
 

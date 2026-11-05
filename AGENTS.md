@@ -7,7 +7,7 @@
 
 Chiasmus.cr is a Crystal port of the chiasmus TypeScript MCP server from
 [yogthos/chiasmus](https://github.com/yogthos/chiasmus), vendored as a git
-submodule at `vendor/chiasmus` (current pointer `1ba3cbac`, upstream `v0.1.37`).
+submodule at `vendor/chiasmus` (current pointer `e3e8aa5`, upstream `0.1.40`).
 The curated parity inventory was last reconciled at `55d43881`
 (upstream v0.1.27–v0.1.28); see the plan for that drift.
 

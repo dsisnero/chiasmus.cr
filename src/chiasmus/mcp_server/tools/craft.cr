@@ -52,7 +52,8 @@ module Chiasmus
           Create a new formalization template and add it to the skill library.
 
           The calling LLM designs the template. Submit a skeleton with {{SLOT:name}} markers, slot definitions, and normalization recipes.
-          Optionally set test=true with an example to run it through the solver after validation.
+          Optionally set test=true with an example to run it through the solver first.
+          If the solver reports an error for the example, nothing is stored and errors carries its message; any other result (sat, unsat, unknown, Prolog answers or none) is stored and reported in testResult.
           DESC
         end
 

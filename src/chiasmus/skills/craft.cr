@@ -65,9 +65,25 @@ module Chiasmus
 
         tested = false
         test_result = nil.as(String?)
+        test_error = nil.as(String?)
         if input.test && (example = input.example)
           tested = true
-          test_result = run_template_test(template.solver, example)
+          outcome = run_template_test(template.solver, example)
+          test_result = outcome[:status]
+          test_error = outcome[:error]
+        end
+
+        # No tool removes a stored template, so one whose example the solver
+        # could not run is refused rather than stored unchecked. unsat, unknown
+        # and a Prolog query without answers are stored: an example may show
+        # that case on purpose.
+        if test_error
+          return CraftResult.new(
+            created: false,
+            tested: tested,
+            test_result: test_result,
+            errors: ["Example test failed, so the template was not stored: #{test_error}"]
+          )
         end
 
         added = library.add_learned(template)
@@ -171,30 +187,33 @@ module Chiasmus
       end
     end
 
-    private def self.run_template_test(solver_type : Solvers::SolverType, example : String) : String
-      solver = Solvers::Factory.build(solver_type)
+    private def self.run_template_test(solver_type : Solvers::SolverType, example : String) : NamedTuple(status: String, error: String?)
+      solver = nil.as(Solvers::Solver?)
       Tracing.info(
         "chiasmus.skills.template_test.start",
         solver: solver_type.to_s.downcase,
         example_bytes: example.bytesize
       )
       begin
+        solver = Solvers::Factory.build(solver_type)
         result = solver.solve(build_solver_input(solver_type, example))
         Tracing.info(
           "chiasmus.skills.template_test.finish",
           solver: solver_type.to_s.downcase,
           status: result.status
         )
-        result.status
+        solver_error = result.is_a?(Solvers::ErrorResult) ? result.error.strip : nil
+        {status: result.status, error: solver_error}
       rescue ex
+        message = (ex.message || ex.class.name).strip
         Tracing.error(
           "chiasmus.skills.template_test.error",
           solver: solver_type.to_s.downcase,
           error: ex.class.name
         )
-        "error: #{ex.message || ex.class.name}"
+        {status: "error: #{message}", error: message}
       ensure
-        solver.dispose
+        solver.try &.dispose
         Tracing.info(
           "chiasmus.skills.template_test.dispose",
           solver: solver_type.to_s.downcase
