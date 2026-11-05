@@ -50,7 +50,7 @@ When an LLM backend is not configured, the server still starts:
 
 - `chiasmus_formalize` falls back to template search
 - `chiasmus_solve` falls back to the formalize path
-- `chiasmus_learn` is gated from the tool listing because it truly requires an LLM
+- `chiasmus_learn` is retired: it is never listed, and a client that still calls it gets a notice pointing at `chiasmus_craft`
 
 That design keeps the verification and graph-analysis parts useful even on machines without API keys.
 
@@ -67,7 +67,7 @@ Typical flow:
 1. Ask `chiasmus_formalize` for a template matching the problem
 2. Fill the returned slots with concrete declarations, rules, facts, or constraints
 3. Run `chiasmus_verify`
-4. Optionally use `chiasmus_learn` to extract a reusable template from a verified solution
+4. Optionally use `chiasmus_craft` to store a reusable, validated template
 
 ### 4. Code analysis flow
 
@@ -91,13 +91,15 @@ The server currently exposes these tool families:
 - `chiasmus_skills`: search and inspect formalization templates
 - `chiasmus_formalize`: pick a template for a natural-language problem
 - `chiasmus_solve`: run the end-to-end solve loop
-- `chiasmus_learn`: turn a verified solution into a reusable template
 - `chiasmus_lint`: clean and validate a formal spec without executing it
 - `chiasmus_graph`: extract and analyze call graphs
 - `chiasmus_map`: return a compact codebase map
 - `chiasmus_search`: semantic code search over extracted defines
 - `chiasmus_craft`: author a new template and add it to the library
 - `chiasmus_review`: generate a phased code-review plan
+
+`chiasmus_learn` is retired and no longer listed; calls by that name return
+`{"status":"error","error":"chiasmus_learn was retired; use chiasmus_craft"}`.
 - `chiasmus_crig`: run a direct prompt against the configured LLM provider
 
 ## Included Binaries

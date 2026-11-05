@@ -68,7 +68,7 @@ module Chiasmus
           <<-DESC
           List and search formalization skill templates.
 
-          Without name or query → lists all templates (starter + learned).
+          Without name or query → lists all templates (starter + crafted).
           With name → returns exact template + related suggestions.
           With query → BM25 search over signatures + domains.
           Filter by domain or solver type.

@@ -9,7 +9,7 @@ subprocess spec builds (`bf7425d`, the tip at `v0.3.2-18`).
 
 **Gates:** run `make lint` and `make test` before changing anything. Last
 verified baseline on 2026-11-05: `make lint` passed (169 files, 0 failures) and
-`make test` passed (1,661 examples, 0 failures, 0 errors, 0 pending, 2:55).
+`make test` passed (1,636 examples, 0 failures, 0 errors, 0 pending, 1:31).
 
 **Next up** (take the first unchecked item):
 
@@ -154,6 +154,7 @@ parity check; generated manifests remain generated artifacts.
 | P77 ✓ | Release-build Rust discovery liveness | Completed 2026-10-17: keep the parser reachable past its native Rust tree-sitter parse, with a generated 10,000-function regression in specs and release smoke. No TypeScript inventory rows change. | The fixed optimized CLI passes ten synthetic runs and discovers 2,657 rows from pinned `regex-automata`. Format, lint, no-codegen build, release contracts, and the full verbose suite (1,611 examples, 1 pending) pass. Commit `a33cc53` passed five CI jobs (`39057914775`), three build-only platform jobs (`39057932638`), and the published `v0.3.2` build/publish run (`39060748216`). All three published assets pass `SHA256SUMS`; the macOS manifest verifies the source commit. After the parity skill's macOS AppleDouble cache fix, online resolution selects `v0.3.2`, and `regex-automata` `make parity` passes 1,936 inventory items, 1,936 APIs, and 220 tests. |
 | P78 ✓ | Content-addressed parity bundle reuse | Completed 2026-10-17: `chiasmus-parity --bundle-dir --cache-dir` stores complete reports in the existing SQLite WAL cache. Both facts inputs, optional typed sidecars, rules, inventory, and renderer version determine the key; a warm hit replays reports without reconciliation. Changed inputs invalidate the entry, an input-fingerprint change during rendering prevents cache population, uncached runs retain streaming, and bundles over 8 MiB are not cached. The skill passes `--cache-dir` only when the selected binary supports it. No TypeScript inventory rows change. | Red-to-green cache-key, warm-replay, edited-input, and stale-divergence specs pass. Full Crystal suite: 1,613 examples, 0 failures; format, lint (168 files, 0 failures), CLI/server no-codegen builds, five wrapper tests, shell/Ruby syntax, skill validation, and pinned-upstream strict inventory/source/test checks (669/669/1,190) pass. Commit `37bb0a2` passed all five CI jobs (`39092780861`) and all three build-only packaged smoke jobs (`39092959719`); publish was skipped. The downloaded macOS manifest verifies the commit, and two real skill reconciliations against that archive populate then reuse the SQLite bundle entry. Published `v0.3.2` remains compatible but lacks the new flag until a subsequent release. |
 | P79 ✓ | Vendor 0.1.40 pin and craft example-error refusal | Completed 2026-11-05: bumped `vendor/chiasmus` `1ba3cba` → `e3e8aa5` (upstream 0.1.37 → 0.1.40; only 5 files differ by tree because the pin sits on a rewritten `recovered-pin` branch) and ported upstream `a229309`: `chiasmus_craft` now refuses to store a template when the solver reports an error for its `test=true` example, returning `created: false`, the solver message in `errors`, and leaving the name free. `sat`, `unsat`, `unknown`, and a Prolog query without answers still store. No curated source rows change; `src/skills/craft.ts` was already fully ledgered. | Red-to-green specs cover z3 `Sort mismatch`, Prolog `existence_error`, unsat and no-answer storage, and reusing a refused name. Format, lint, focused craft/skills/MCP specs, and the full Crystal suite pass. Pre-existing inventory drift (213 source items / 426 test items against the `55d43881` reconciliation) remains the inventory next-up item; delta analysis is in `plans/vendor_chiasmus_e3e8aa5.md`. |
+| P80 ✓ | Retire `chiasmus_learn` | Completed 2026-11-05: ports upstream `803be29` and `8fcc45f`. The tool, its handler, `Skills::Learner`, promotion state (`promote`, `SkillMetadata#promoted`, `candidates`) and the `LearnInput`/`LearnResponse` payloads are removed. `SkillLibrary#add_learned` becomes `#add_template` with a deprecated alias. `chiasmus_learn` is never listed, and a call by name returns `chiasmus_learn was retired; use chiasmus_craft` without storing anything. Promoted state already persisted in older metadata files is ignored on load. | Red-to-green integration coverage proves the tool is absent even with an LLM configured and that a call by name returns the notice and stores nothing; gating, tool-metadata, schema, and library specs are updated. Format, lint, the focused suites, and the full Crystal suite pass. The 10 learner rows are removed from the curated ledger and the `addTemplate`/`promote` rows curated. |
 
 P76 follow-up: Windows grammar setup used a POSIX `which` shell probe that rejected the available compiler in CI. A platform-aware executable lookup and two explicit-PATH regressions now pass locally; Windows-target no-codegen compilation of the setup script, format, lint, and 1,606 verbose fail-fast specs also pass. Remote Windows grammar compilation and archive smoke remain unverified until a run includes this fix.
 
@@ -909,7 +910,7 @@ P0-P21, P23 complete. 1204 specs, 0 failures. Lint 0 failures, format clean. The
 
 ## MCP Tools Feature Matrix
 
-All 11 upstream MCP tools are ported. Crystal adds 1 extra tool (`chiasmus_crig`).
+Upstream's 10 listed MCP tools are ported; the retired `chiasmus_learn` name is handled with a notice. Crystal adds 1 extra tool (`chiasmus_crig`).
 
 | Tool | Upstream | Crystal | Source | Specs | Transport | Status |
 |---|---|---|---|---|---|---|
@@ -917,7 +918,7 @@ All 11 upstream MCP tools are ported. Crystal adds 1 extra tool (`chiasmus_crig`
 | `chiasmus_skills` | ✓ | ✓ | `tools/skills.cr` | 7 | — | Complete |
 | `chiasmus_formalize` | ✓ | ✓ | `tools/formalize.cr` | 6 | — | Complete |
 | `chiasmus_solve` | ✓ | ✓ | `tools/solve.cr` | 4 | — | Complete |
-| `chiasmus_learn` | ✓ | ✓ | `tools/learn.cr` | 8 | — | Complete |
+| `chiasmus_learn` | retired | retired | — | 2 | ✓ | Retired by upstream `803be29`: never listed; a call by name returns `chiasmus_learn was retired; use chiasmus_craft` and stores nothing. |
 | `chiasmus_lint` | ✓ | ✓ | `tools/lint.cr` | 10 | — | Complete |
 | `chiasmus_graph` | ✓ | ✓ | `tools/graph.cr` | 26 | ✓ | Complete |
 | `chiasmus_map` | ✓ | ✓ | `tools/map.cr` | 0 | — | Complete |

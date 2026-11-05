@@ -198,25 +198,6 @@ describe "All 13 chiasmus tools - post-refactor smoke test" do
     end
   end
 
-  describe "chiasmus_learn" do
-    it "returns error when no learner is available" do
-      server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
-      Chiasmus::MCPServer.current_server = server
-      tool = Chiasmus::MCPServer::Tools::LearnTool.new
-      r = tool.invoke({"solver" => JSON::Any.new("z3"), "spec" => JSON::Any.new("(assert true)"), "problem" => JSON::Any.new("test")})
-      r.status.should eq("error")
-      r.as(Chiasmus::MCPServer::Types::ErrorResponse).error.should contain("LLM")
-    ensure
-      Chiasmus::MCPServer.current_server = nil
-    end
-
-    it "rejects missing parameters" do
-      tool = Chiasmus::MCPServer::Tools::LearnTool.new
-      r = tool.invoke({"solver" => JSON::Any.new("z3")})
-      r.status.should eq("error")
-    end
-  end
-
   describe "chiasmus_graph" do
     it "returns error for missing files" do
       tool = Chiasmus::MCPServer::Tools::GraphTool.new
@@ -419,13 +400,12 @@ describe "All 13 chiasmus tools - post-refactor smoke test" do
   end
 
   describe "tool metadata completeness" do
-    it "all 13 tools have non-empty name and description" do
+    it "all 12 tools have non-empty name and description" do
       tools = [
         Chiasmus::MCPServer::Tools::VerifyTool,
         Chiasmus::MCPServer::Tools::SkillsTool,
         Chiasmus::MCPServer::Tools::FormalizeTool,
         Chiasmus::MCPServer::Tools::SolveTool,
-        Chiasmus::MCPServer::Tools::LearnTool,
         Chiasmus::MCPServer::Tools::LintTool,
         Chiasmus::MCPServer::Tools::GraphTool,
         Chiasmus::MCPServer::Tools::MapTool,

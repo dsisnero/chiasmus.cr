@@ -86,7 +86,7 @@ module Chiasmus
           )
         end
 
-        added = library.add_learned(template)
+        added = library.add_template(template)
         unless added
           return CraftResult.new(
             created: false,

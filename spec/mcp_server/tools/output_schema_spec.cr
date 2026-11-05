@@ -13,9 +13,6 @@ describe "Tool output schemas" do
   it "SolveTool has output_schema" do
     Chiasmus::MCPServer::Tools::SolveTool.responds_to?(:output_schema).should be_true
   end
-  it "LearnTool has output_schema" do
-    Chiasmus::MCPServer::Tools::LearnTool.responds_to?(:output_schema).should be_true
-  end
   it "LintTool has output_schema" do
     Chiasmus::MCPServer::Tools::LintTool.responds_to?(:output_schema).should be_true
   end

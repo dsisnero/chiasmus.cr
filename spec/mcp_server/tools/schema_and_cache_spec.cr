@@ -8,7 +8,6 @@ describe "Tool schema unification" do
       Chiasmus::MCPServer::Tools::SkillsTool,
       Chiasmus::MCPServer::Tools::FormalizeTool,
       Chiasmus::MCPServer::Tools::SolveTool,
-      Chiasmus::MCPServer::Tools::LearnTool,
       Chiasmus::MCPServer::Tools::LintTool,
       Chiasmus::MCPServer::Tools::GraphTool,
       Chiasmus::MCPServer::Tools::MapTool,

@@ -4,7 +4,8 @@ require "mcp"
 # Port of upstream tests/mcp-tool-gating.test.ts
 # Verifies that tools whose required backend isn't configured are not
 # advertised in the ListTools response — matching upstream behavior
-# where chiasmus_search needs embedding and chiasmus_learn needs LLM.
+# where chiasmus_search needs embedding. chiasmus_learn is retired and is
+# never advertised, with or without an LLM.
 
 # Helper: create a minimal MCP server with tools registered
 private def build_server(tools : Array(String))
@@ -59,7 +60,6 @@ ALL_TOOLS = [
   "chiasmus_skills",
   "chiasmus_formalize",
   "chiasmus_solve",
-  "chiasmus_learn",
   "chiasmus_lint",
   "chiasmus_graph",
   "chiasmus_map",
@@ -86,9 +86,8 @@ describe "MCP tool gating by configured capability" do
     names.should contain("chiasmus_search")
   end
 
-  it "hides chiasmus_learn when no LLM is configured" do
+  it "never lists the retired chiasmus_learn tool" do
     server = build_server(ALL_TOOLS)
-    server.remove_tool("chiasmus_learn")
     names = list_tool_names(server)
     names.should_not contain("chiasmus_learn")
     names.should contain("chiasmus_verify")
@@ -96,8 +95,6 @@ describe "MCP tool gating by configured capability" do
 
   it "keeps gracefully-degrading tools (solve, formalize) listed without an LLM" do
     server = build_server(ALL_TOOLS)
-    # Remove only the LLM-only tool; keep gracefully-degrading ones
-    server.remove_tool("chiasmus_learn")
     names = list_tool_names(server)
     names.should contain("chiasmus_solve")
     names.should contain("chiasmus_formalize")
@@ -105,19 +102,17 @@ describe "MCP tool gating by configured capability" do
 
   it "always lists capability-independent tools (graph, map, read_symbol)" do
     server = build_server(ALL_TOOLS)
-    # Remove both backend-dependent tools
+    # Remove the embedding-dependent tool
     server.remove_tool("chiasmus_search")
-    server.remove_tool("chiasmus_learn")
     names = list_tool_names(server)
     names.should contain("chiasmus_graph")
     names.should contain("chiasmus_map")
     names.should contain("chiasmus_read_symbol")
   end
 
-  it "hides both chiasmus_search and chiasmus_learn when neither backend is configured" do
+  it "hides chiasmus_search when no embedding provider is configured" do
     server = build_server(ALL_TOOLS)
     server.remove_tool("chiasmus_search")
-    server.remove_tool("chiasmus_learn")
     names = list_tool_names(server)
     names.should_not contain("chiasmus_search")
     names.should_not contain("chiasmus_learn")

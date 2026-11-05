@@ -1,9 +1,10 @@
 require "../spec_helper"
 require "../support/formalize_scripted_agent"
 require "mcp"
+require "file_utils"
 
 # Comprehensive MCP protocol integration tests.
-# Tests all 14 chiasmus tools through the full MCP stack:
+# Tests all 13 chiasmus tools through the full MCP stack:
 #   InMemoryTransport → MCP::Server → MCP::Client.call_tool
 #
 # Plus tool gating and the in-memory healthcheck.
@@ -31,7 +32,6 @@ private def register_all_tools_on(mcp_server : MCP::Server::Server)
     {Chiasmus::MCPServer::Tools::SkillsTool, Chiasmus::MCPServer::Tools::SkillsTool.tool_name, Chiasmus::MCPServer::Tools::SkillsTool.tool_description, Chiasmus::MCPServer::Tools::SkillsTool.input_schema},
     {Chiasmus::MCPServer::Tools::FormalizeTool, Chiasmus::MCPServer::Tools::FormalizeTool.tool_name, Chiasmus::MCPServer::Tools::FormalizeTool.tool_description, Chiasmus::MCPServer::Tools::FormalizeTool.input_schema},
     {Chiasmus::MCPServer::Tools::SolveTool, Chiasmus::MCPServer::Tools::SolveTool.tool_name, Chiasmus::MCPServer::Tools::SolveTool.tool_description, Chiasmus::MCPServer::Tools::SolveTool.input_schema},
-    {Chiasmus::MCPServer::Tools::LearnTool, Chiasmus::MCPServer::Tools::LearnTool.tool_name, Chiasmus::MCPServer::Tools::LearnTool.tool_description, Chiasmus::MCPServer::Tools::LearnTool.input_schema},
     {Chiasmus::MCPServer::Tools::LintTool, Chiasmus::MCPServer::Tools::LintTool.tool_name, Chiasmus::MCPServer::Tools::LintTool.tool_description, Chiasmus::MCPServer::Tools::LintTool.input_schema},
     {Chiasmus::MCPServer::Tools::GraphTool, Chiasmus::MCPServer::Tools::GraphTool.tool_name, Chiasmus::MCPServer::Tools::GraphTool.tool_description, Chiasmus::MCPServer::Tools::GraphTool.input_schema},
     {Chiasmus::MCPServer::Tools::SnapshotStatusTool, Chiasmus::MCPServer::Tools::SnapshotStatusTool.tool_name, Chiasmus::MCPServer::Tools::SnapshotStatusTool.tool_description, Chiasmus::MCPServer::Tools::SnapshotStatusTool.input_schema},
@@ -207,7 +207,6 @@ describe "MCP Server initialization via transport" do
             "chiasmus_skills",
             "chiasmus_formalize",
             "chiasmus_solve",
-            "chiasmus_learn",
             "chiasmus_lint",
             "chiasmus_graph",
             "chiasmus_snapshot_status",
@@ -762,34 +761,66 @@ describe "All 14 tools through MCP transport" do
   end
 
   describe "chiasmus_learn" do
-    it "returns error when learner is not available" do
-      server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
-      Chiasmus::MCPServer.current_server = server
-
-      mcp_server, client = connect_server_and_client
+    it "answers a call by name with a retirement notice and stores nothing" do
+      home = File.join(Dir.tempdir, "chiasmus-learn-retired-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(home)
       begin
-        result = call_tool(client, "chiasmus_learn", {
-          "solver"  => JSON::Any.new("z3"),
-          "spec"    => JSON::Any.new("(assert true)"),
-          "problem" => JSON::Any.new("test"),
-        })
-        result["status"].as_s.should eq("error")
-        result["error"].as_s.should contain("LLM")
+        server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new(chiasmus_home: home)
+        transport = server.build_mcp_transport
+
+        st, ct = linked_transports
+        transport.connect(st)
+        client = MCP::Client::Client.new(
+          MCP::Protocol::Implementation.new(name: "test-client", version: "0.0.1")
+        )
+        client.connect(ct)
+
+        begin
+          result = call_tool(client, "chiasmus_learn", {
+            "solver"  => JSON::Any.new("prolog"),
+            "spec"    => JSON::Any.new("edge(a, b)."),
+            "problem" => JSON::Any.new("Find cycles in a three-node graph"),
+          })
+          result["status"].as_s.should eq("error")
+          result["error"].as_s.should eq("chiasmus_learn was retired; use chiasmus_craft")
+          server.skill_library.get("three-edge-cycle").should be_nil
+        ensure
+          client.close rescue nil
+          transport.close rescue nil
+          server.skill_library.close rescue nil
+        end
       ensure
-        disconnect(mcp_server, client)
-        Chiasmus::MCPServer.current_server = nil
+        FileUtils.rm_rf(home)
       end
     end
 
-    it "rejects missing parameters" do
-      mcp_server, client = connect_server_and_client
+    it "is not listed even when an LLM is configured" do
+      home = File.join(Dir.tempdir, "chiasmus-learn-retired-llm-#{Random::Secure.hex(8)}")
+      Dir.mkdir_p(home)
       begin
-        result = call_tool(client, "chiasmus_learn", {
-          "solver" => JSON::Any.new("z3"),
-        })
-        result["status"].as_s.should eq("error")
+        server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new(chiasmus_home: home)
+        server.with_agent(Chiasmus::LLM::MockAdapter.create_agent)
+        transport = server.build_mcp_transport
+
+        st, ct = linked_transports
+        transport.connect(st)
+        client = MCP::Client::Client.new(
+          MCP::Protocol::Implementation.new(name: "test-client", version: "0.0.1")
+        )
+        client.connect(ct)
+
+        begin
+          result = client.list_tools.as(MCP::Protocol::ListToolsResult)
+          names = result.tools.map(&.name)
+          names.should_not contain("chiasmus_learn")
+          names.should contain("chiasmus_craft")
+        ensure
+          client.close rescue nil
+          transport.close rescue nil
+          server.skill_library.close rescue nil
+        end
       ensure
-        disconnect(mcp_server, client)
+        FileUtils.rm_rf(home)
       end
     end
   end
@@ -1135,7 +1166,8 @@ describe "Server#healthcheck" do
 end
 
 # =============================================================================
-# Tool gating: chiasmus_learn hidden when no LLM configured
+# Tool gating: chiasmus_search hidden without an embedding backend, and the
+# retired chiasmus_learn never listed
 # =============================================================================
 describe "Tool gating by configured capability" do
   it "chiasmus_search is hidden when no embedding provider is configured" do
@@ -1173,7 +1205,7 @@ describe "Tool gating by configured capability" do
     end
   end
 
-  it "chiasmus_learn is hidden when no LLM is configured" do
+  it "chiasmus_learn is never listed because it is retired" do
     server = Chiasmus::MCPServer::Server(Chiasmus::LLM::MockCompletionModel).new
     transport = server.build_mcp_transport
 

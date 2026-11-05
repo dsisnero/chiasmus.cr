@@ -14,6 +14,10 @@ The format is based on Keep a Changelog, and the project uses semantic version t
 
 - Vendored TypeScript source advanced from upstream 0.1.37 (`1ba3cba`) to 0.1.40 (`e3e8aa5`); the craft behavior above is the only port-relevant delta.
 
+### Removed
+
+- `chiasmus_learn`, its handler, the template learner, and promotion state are retired. The tool is no longer listed; a call by that name returns `chiasmus_learn was retired; use chiasmus_craft` and stores nothing. `chiasmus_skills` metadata no longer reports `promoted`.
+
 ## [0.3.3] - 2026-10-19
 
 ### Added

@@ -27,7 +27,6 @@ describe Chiasmus::Skills::Library do
           item.metadata.reuse_count.should eq(0)
           item.metadata.success_count.should eq(0)
           item.metadata.last_used.should be_nil
-          item.metadata.promoted.should be_true
         end
       end
     end
@@ -279,8 +278,8 @@ describe Chiasmus::Skills::Library do
       end
     end
 
-    it "does not block promote on metadata persistence" do
-      dir = File.join(Dir.tempdir, "chiasmus-skill-library-promote-async-#{Random::Secure.hex(8)}")
+    it "does not block add_template on metadata persistence" do
+      dir = File.join(Dir.tempdir, "chiasmus-skill-library-add-async-#{Random::Secure.hex(8)}")
       Dir.mkdir_p(dir)
 
       entered = Channel(Bool).new(1)
@@ -289,10 +288,10 @@ describe Chiasmus::Skills::Library do
 
       begin
         template = Chiasmus::Skills::SkillTemplate.new(
-          name: "promote-async",
+          name: "add-async",
           domain: "analysis",
           solver: Chiasmus::Solvers::SolverType::Prolog,
-          signature: "test promote async",
+          signature: "test add async",
           skeleton: "test.",
           slots: [] of Chiasmus::Skills::SlotDef,
           normalizations: [
@@ -301,7 +300,6 @@ describe Chiasmus::Skills::Library do
         )
 
         library = Chiasmus::Skills::Library.create(dir)
-        library.add_learned(template).should be_true
 
         begin
           Chiasmus::Skills::Library.set_before_metadata_write_hook_for_test do
@@ -310,7 +308,7 @@ describe Chiasmus::Skills::Library do
           end
 
           spawn do
-            returned.send(library.promote("promote-async"))
+            returned.send(library.add_template(template))
           end
 
           entered.receive.should be_true
@@ -319,7 +317,7 @@ describe Chiasmus::Skills::Library do
           when value = returned.receive?
             value.should be_true
           when timeout 250.milliseconds
-            fail("expected promote to return before metadata persistence finished")
+            fail("expected add_template to return before metadata persistence finished")
           end
         ensure
           release.send(true) rescue nil
@@ -351,10 +349,10 @@ describe Chiasmus::Skills::Library do
     end
   end
 
-  describe "learned template persistence" do
-    it "add_learned returns false when the name already exists" do
+  describe "template persistence" do
+    it "add_template returns false when the name already exists" do
       with_skill_library do |library, _dir|
-        result = library.add_learned(Chiasmus::Skills::SkillTemplate.new(
+        result = library.add_template(Chiasmus::Skills::SkillTemplate.new(
           name: "policy-contradiction",
           domain: "authorization",
           solver: Chiasmus::Solvers::SolverType::Z3,
@@ -367,7 +365,7 @@ describe Chiasmus::Skills::Library do
       end
     end
 
-    it "persists learned templates across library instances" do
+    it "persists added templates across library instances" do
       dir = File.join(Dir.tempdir, "chiasmus-skill-library-persist-tpl-#{Random::Secure.hex(8)}")
       Dir.mkdir_p(dir)
 
@@ -389,7 +387,7 @@ describe Chiasmus::Skills::Library do
         )
 
         lib1 = Chiasmus::Skills::Library.create(dir)
-        lib1.add_learned(tpl).should be_true
+        lib1.add_template(tpl).should be_true
         lib1.close
 
         lib2 = Chiasmus::Skills::Library.create(dir)
@@ -403,42 +401,7 @@ describe Chiasmus::Skills::Library do
           r.template.normalizations.size.should eq(1)
           r.template.tips.should eq(["use declare-const"])
           r.template.example.should eq("(declare-const x Bool)\n(assert x)")
-          r.metadata.promoted.should be_false
           r.metadata.reuse_count.should eq(0)
-        end
-        lib2.close
-      ensure
-        FileUtils.rm_rf(dir)
-      end
-    end
-
-    it "persists promoted state across library instances" do
-      dir = File.join(Dir.tempdir, "chiasmus-skill-library-promote-persist-#{Random::Secure.hex(8)}")
-      Dir.mkdir_p(dir)
-
-      begin
-        tpl = Chiasmus::Skills::SkillTemplate.new(
-          name: "to-promote",
-          domain: "analysis",
-          solver: Chiasmus::Solvers::SolverType::Prolog,
-          signature: "test promote",
-          skeleton: "test.",
-          slots: [] of Chiasmus::Skills::SlotDef,
-          normalizations: [
-            Chiasmus::Skills::Normalization.new(source: "test", transform: "test"),
-          ],
-        )
-
-        lib1 = Chiasmus::Skills::Library.create(dir)
-        lib1.add_learned(tpl)
-        lib1.promote("to-promote").should be_true
-        lib1.close
-
-        lib2 = Chiasmus::Skills::Library.create(dir)
-        restored = lib2.get("to-promote")
-        restored.should_not be_nil
-        if restored
-          restored.metadata.promoted.should be_true
         end
         lib2.close
       ensure
@@ -464,7 +427,7 @@ describe Chiasmus::Skills::Library do
         )
 
         lib1 = Chiasmus::Skills::Library.create(dir)
-        lib1.add_learned(tpl)
+        lib1.add_template(tpl)
         lib1.get("to-remove").should_not be_nil
         lib1.remove("to-remove")
         lib1.get("to-remove").should be_nil
@@ -496,7 +459,7 @@ describe Chiasmus::Skills::Library do
         )
 
         lib1 = Chiasmus::Skills::Library.create(dir)
-        lib1.add_learned(tpl)
+        lib1.add_template(tpl)
         lib1.close
 
         lib2 = Chiasmus::Skills::Library.create(dir)
@@ -509,13 +472,7 @@ describe Chiasmus::Skills::Library do
       end
     end
 
-    it "cannot promote a nonexistent template name" do
-      with_skill_library do |library, _dir|
-        library.promote("nonexistent").should be_false
-      end
-    end
-
-    it "allows only one concurrent learned insert for the same name" do
+    it "allows only one concurrent insert for the same name" do
       with_skill_library do |library, _dir|
         template = Chiasmus::Skills::SkillTemplate.new(
           name: "concurrent-template",
@@ -535,7 +492,7 @@ describe Chiasmus::Skills::Library do
         2.times do
           spawn do
             start.receive
-            results.send(library.add_learned(template))
+            results.send(library.add_template(template))
           end
         end
 
@@ -544,27 +501,6 @@ describe Chiasmus::Skills::Library do
 
         outcomes.count(true).should eq(1)
         library.get("concurrent-template").should_not be_nil
-      end
-    end
-
-    it "candidates returns only non-promoted templates" do
-      with_skill_library do |library, _dir|
-        tpl = Chiasmus::Skills::SkillTemplate.new(
-          name: "candidate-test",
-          domain: "analysis",
-          solver: Chiasmus::Solvers::SolverType::Prolog,
-          signature: "test candidates",
-          skeleton: "test.",
-          slots: [] of Chiasmus::Skills::SlotDef,
-          normalizations: [
-            Chiasmus::Skills::Normalization.new(source: "test", transform: "test"),
-          ],
-        )
-        library.add_learned(tpl)
-        cands = library.candidates
-        names = cands.map(&.template.name)
-        names.should contain("candidate-test")
-        names.should_not contain("policy-contradiction")
       end
     end
   end

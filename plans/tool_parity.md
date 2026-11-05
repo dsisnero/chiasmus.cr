@@ -2,7 +2,7 @@
 
 ## Summary
 
-All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spec coverage.
+All upstream tools are ported to Crystal. `chiasmus_learn` is retired upstream and implemented as a retirement notice, not a template extractor.
 
 | Tool | Upstream | Crystal | Specs | Status |
 |------|:--------:|:-------:|:-----:|:------:|
@@ -10,7 +10,7 @@ All 8 upstream tools are ported to Crystal. The main gap is `chiasmus_graph` spe
 | `chiasmus_skills` | ✓ | ✓ | ✓ (7) | Complete |
 | `chiasmus_formalize` | ✓ | ✓ | ✓ (6) | Complete |
 | `chiasmus_solve` | ✓ | ✓ | ✓ (4) | Complete |
-| `chiasmus_learn` | ✓ | ✓ | ✓ (8) | Complete |
+| `chiasmus_learn` | retired | retired | ✓ (2 retirement) | Retired |
 | `chiasmus_lint` | ✓ | ✓ | ✓ (10) | Complete |
 | `chiasmus_graph` | ✓ | ✓ | ✓ (26) | Complete |
 | `chiasmus_craft` | ✓ | ✓ | ✓ (4) | Complete |

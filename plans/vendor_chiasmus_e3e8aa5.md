@@ -27,6 +27,14 @@ promotion-column removal, mermaid linear-time parsing, solver child-process
 isolation and limits, the `chiasmus-http` entry point, the graph child-process
 pool, and the earlier craft fixes.
 
+### Follow-up: learn retirement (P80)
+
+The `chiasmus_learn` retirement and the learner/promotion removal were already
+part of the `1ba3cba` tree but had not been ported. P80 ports them: the tool is
+never listed, a call by name returns a retirement notice, and
+`SkillLibrary#add_template` replaces `#add_learned` (kept as a deprecated
+alias). This is upstream `803be29` + `8fcc45f`, not part of the `e3e8aa5` delta.
+
 ## Compatibility contract
 
 1. A crafted template whose `test=true` example makes the solver return

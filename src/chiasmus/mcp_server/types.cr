@@ -262,13 +262,8 @@ module Chiasmus
 
         @[JSON::Field(key: "lastUsed")]
         getter last_used : String?
-        getter? promoted : Bool
 
-        def initialize(@reuse_count : Int32, @success_count : Int32, @last_used : String? = nil, @promoted : Bool = false)
-        end
-
-        def promoted : Bool
-          @promoted
+        def initialize(@reuse_count : Int32, @success_count : Int32, @last_used : String? = nil)
         end
       end
 
@@ -515,32 +510,6 @@ module Chiasmus
         end
       end
 
-      # Learn tool response
-      struct LearnResponse < Response
-        getter? extracted : Bool
-        getter template : String?
-        getter domain : String?
-        getter solver : String?
-        getter signature : String?
-        getter slots : Int32?
-        getter? promoted : Bool?
-        getter reason : String?
-
-        def initialize(@extracted : Bool, @template : String? = nil, @domain : String? = nil,
-                       @solver : String? = nil, @signature : String? = nil, @slots : Int32? = nil,
-                       @promoted : Bool? = nil, @reason : String? = nil)
-          super("success")
-        end
-
-        def extracted : Bool
-          @extracted
-        end
-
-        def promoted : Bool?
-          @promoted
-        end
-      end
-
       # Crig tool response
       struct CrigResponse < Response
         getter output : String?
@@ -587,14 +556,6 @@ module Chiasmus
       struct SolveInput
         include JSON::Serializable
 
-        getter problem : String
-      end
-
-      struct LearnInput
-        include JSON::Serializable
-
-        getter solver : String
-        getter spec : String
         getter problem : String
       end
 
@@ -815,8 +776,7 @@ module Chiasmus
         SkillMetadataJSON.new(
           reuse_count: metadata.reuse_count,
           success_count: metadata.success_count,
-          last_used: metadata.last_used.try(&.to_s),
-          promoted: metadata.promoted
+          last_used: metadata.last_used.try(&.to_s)
         )
       end
     end

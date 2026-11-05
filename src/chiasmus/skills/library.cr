@@ -82,8 +82,7 @@ module Chiasmus
               name: name,
               reuse_count: 0,
               success_count: 0,
-              last_used: nil,
-              promoted: true
+              last_used: nil
             )
           end
 
@@ -218,8 +217,7 @@ module Chiasmus
             name: name,
             reuse_count: metadata.reuse_count + 1,
             success_count: metadata.success_count + (success ? 1 : 0),
-            last_used: Time.utc,
-            promoted: metadata.promoted
+            last_used: Time.utc
           )
         end
         save_metadata_async
@@ -229,7 +227,7 @@ module Chiasmus
         @mutex.synchronize { @metadata[name]? }
       end
 
-      def add_learned(template : SkillTemplate) : Bool
+      def add_template(template : SkillTemplate) : Bool
         added = @mutex.synchronize do
           next false if @templates.has_key?(template.name)
 
@@ -240,8 +238,7 @@ module Chiasmus
             name: template.name,
             reuse_count: 0,
             success_count: 0,
-            last_used: nil,
-            promoted: false
+            last_used: nil
           )
           true
         end
@@ -253,25 +250,9 @@ module Chiasmus
         true
       end
 
-      def promote(name : String) : Bool
-        promoted = @mutex.synchronize do
-          metadata = @metadata[name]?
-          next false unless metadata
-
-          @metadata[name] = SkillMetadata.new(
-            name: name,
-            reuse_count: metadata.reuse_count,
-            success_count: metadata.success_count,
-            last_used: metadata.last_used,
-            promoted: true
-          )
-          true
-        end
-
-        return false unless promoted
-
-        save_metadata_async
-        true
+      # Deprecated: the former name of `#add_template`; call that instead.
+      def add_learned(template : SkillTemplate) : Bool
+        add_template(template)
       end
 
       def remove(name : String) : Nil
@@ -284,10 +265,6 @@ module Chiasmus
         end
         save_metadata_async
         save_templates
-      end
-
-      def candidates : Array(SkillWithMetadata)
-        list.reject(&.metadata.promoted)
       end
 
       def close : Nil
@@ -412,8 +389,7 @@ module Chiasmus
           name: name,
           reuse_count: 0,
           success_count: 0,
-          last_used: nil,
-          promoted: false
+          last_used: nil
         )
       end
 

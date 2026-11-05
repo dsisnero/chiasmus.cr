@@ -79,7 +79,7 @@ describe "MCP tool gating by configured capability" do
     names.should contain("chiasmus_search")
   end
 
-  it "hides chiasmus_learn when no LLM is configured" do
+  it "never lists the retired chiasmus_learn tool" do
     names = build_and_list_tools
     names.should_not contain("chiasmus_learn")
   end

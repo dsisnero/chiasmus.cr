@@ -7,7 +7,6 @@ require "./tools/verify"
 require "./tools/skills"
 require "./tools/formalize"
 require "./tools/solve"
-require "./tools/learn"
 require "./tools/lint"
 require "./tools/graph"
 require "./tools/snapshot_status"
@@ -123,7 +122,7 @@ module Chiasmus
 
     abstract class BaseServer
       abstract def skill_library : Skills::Library
-      abstract def skill_learner : Skills::Learner?
+      abstract def llm_configured? : Bool
       abstract def project_index : Index::ProjectIndex
       abstract def refreshable_from_env? : Bool
       abstract def formalize(problem : String) : Formalize::FormalizeResult?
@@ -147,15 +146,9 @@ module Chiasmus
       end
     end
 
-    def self.current_skill_learner : Skills::Learner?
-      RUNTIME_LOCK.synchronize do
-        @@current_server.try(&.skill_learner)
-      end
-    end
-
     def self.refresh_with_llm_if_available(server : BaseServer?) : BaseServer?
       return server unless server
-      return server if server.skill_learner
+      return server if server.llm_configured?
       return server unless server.refreshable_from_env?
       return server unless llm_env_available?
 
@@ -178,7 +171,6 @@ module Chiasmus
       @@before_solve_async_result_send_hook : Proc(Nil)? = nil
 
       @formalization_engine : Formalize::Engine(M)?
-      @skill_learner : Skills::Learner?
       @tool_dispatcher : ToolDispatcher
       @tool_handlers : Hash(String, Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult))
       @watcher : Index::Watcher?
@@ -203,7 +195,6 @@ module Chiasmus
       end
 
       getter skill_library : Skills::Library
-      getter skill_learner : Skills::Learner?
       getter? refreshable_from_env : Bool
 
       def initialize(@refreshable_from_env : Bool = false, chiasmus_home : String? = nil)
@@ -212,7 +203,6 @@ module Chiasmus
         @config = Utils::Config.load(home)
         Utils::Config.load_repo_config(Dir.current)
         @skill_library = Skills::Library.create(home)
-        @skill_learner = nil
         @formalization_engine = nil
         @tool_dispatcher = ToolDispatcher.new
         @tool_handlers = {} of String => Proc(Hash(String, JSON::Any), MCP::Protocol::CallToolResult)
@@ -222,7 +212,6 @@ module Chiasmus
       # Set the agent for formalization engine
       def with_agent(agent : Crig::Agent(M)) : self
         @formalization_engine = Formalize::Engine.new(@skill_library, agent)
-        @skill_learner = Skills::Learner.new(@skill_library, build_skill_extractor(agent))
         self
       end
 
@@ -514,9 +503,8 @@ module Chiasmus
       end
 
       # Whether an LLM agent has been configured (via with_agent).
-      # When false, chiasmus_learn is gated from the tool listing because it
-      # requires an LLM to extract templates. Other tools degrade gracefully.
-      private def llm_configured? : Bool
+      # Tools that need an LLM degrade gracefully when this is false.
+      def llm_configured? : Bool
         !@formalization_engine.nil?
       end
 
@@ -530,7 +518,6 @@ module Chiasmus
           {Tools::SkillsTool, Tools::SkillsTool.tool_name, Tools::SkillsTool.tool_description, Tools::SkillsTool.input_schema},
           {Tools::FormalizeTool, Tools::FormalizeTool.tool_name, Tools::FormalizeTool.tool_description, Tools::FormalizeTool.input_schema},
           {Tools::SolveTool, Tools::SolveTool.tool_name, Tools::SolveTool.tool_description, Tools::SolveTool.input_schema},
-          {Tools::LearnTool, Tools::LearnTool.tool_name, Tools::LearnTool.tool_description, Tools::LearnTool.input_schema},
           {Tools::LintTool, Tools::LintTool.tool_name, Tools::LintTool.tool_description, Tools::LintTool.input_schema},
           {Tools::GraphTool, Tools::GraphTool.tool_name, Tools::GraphTool.tool_description, Tools::GraphTool.input_schema},
           {Tools::SnapshotStatusTool, Tools::SnapshotStatusTool.tool_name, Tools::SnapshotStatusTool.tool_description, Tools::SnapshotStatusTool.input_schema},
@@ -543,11 +530,9 @@ module Chiasmus
         ]
 
         # Gate tools whose required backend is not configured.
-        # chiasmus_learn requires an LLM to extract reusable templates.
         # chiasmus_search requires an embedding provider.
         gated = tool_defs.reject do |(tool_class, name, _, _)|
-          (name == "chiasmus_learn" && !llm_configured?) ||
-            (name == "chiasmus_search" && !embedding_configured?)
+          name == "chiasmus_search" && !embedding_configured?
         end
 
         gated.each do |(tool_class, name, description, input_schema)|
@@ -587,6 +572,14 @@ module Chiasmus
         request : MCP::Protocol::CallToolRequestParams,
         extra : MCP::Shared::RequestHandlerExtra,
       ) : MCP::Protocol::CallToolResult
+        # Not in the tool list. A client that still has the name from an older
+        # version is told where template creation went; nothing is stored.
+        if request.name == "chiasmus_learn"
+          return build_call_tool_result(
+            Types::ErrorResponse.new("chiasmus_learn was retired; use chiasmus_craft")
+          )
+        end
+
         handler = @tool_handlers[request.name]?
         return build_call_tool_result(Types::ErrorResponse.new("Tool not found: #{request.name}")) unless handler
 
@@ -648,24 +641,6 @@ module Chiasmus
           nil
         end
         MCP::Protocol::CallToolResult.new(content: content, structured_content: structured)
-      end
-
-      private def build_skill_extractor(agent : Crig::Agent(M)) : Skills::Learner::Extractor
-        ->(solver : Solvers::SolverType, verified_spec : String, problem_description : String) do
-          agent.prompt(
-            <<-CONTENT
-            #{Skills::Learner::EXTRACT_SYSTEM}
-
-            SOLVER: #{solver.to_s.downcase}
-            VERIFIED SPECIFICATION:
-            #{verified_spec}
-
-            PROBLEM DESCRIPTION: #{problem_description}
-
-            Extract a reusable template from this verified solution.
-            CONTENT
-          ).send_async.receive.unwrap
-        end
       end
     end
   end

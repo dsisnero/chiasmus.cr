@@ -95,7 +95,7 @@ describe "Chiasmus MCP Server Transport" do
       info.version.should eq(Chiasmus::VERSION)
     end
 
-    it "lists all 12 expected tools" do
+    it "lists all 11 expected tools" do
       result = (client || raise("not connected")).list_tools
       result.should_not be_nil
       if result
@@ -106,7 +106,6 @@ describe "Chiasmus MCP Server Transport" do
           "chiasmus_skills",
           "chiasmus_formalize",
           "chiasmus_solve",
-          "chiasmus_learn",
           "chiasmus_lint",
           "chiasmus_graph",
           "chiasmus_map",
@@ -186,7 +185,6 @@ private def register_tools_on(mcp_server : MCP::Server::Server)
     {Chiasmus::MCPServer::Tools::SkillsTool, Chiasmus::MCPServer::Tools::SkillsTool.tool_name, Chiasmus::MCPServer::Tools::SkillsTool.tool_description, Chiasmus::MCPServer::Tools::SkillsTool.input_schema},
     {Chiasmus::MCPServer::Tools::FormalizeTool, Chiasmus::MCPServer::Tools::FormalizeTool.tool_name, Chiasmus::MCPServer::Tools::FormalizeTool.tool_description, Chiasmus::MCPServer::Tools::FormalizeTool.input_schema},
     {Chiasmus::MCPServer::Tools::SolveTool, Chiasmus::MCPServer::Tools::SolveTool.tool_name, Chiasmus::MCPServer::Tools::SolveTool.tool_description, Chiasmus::MCPServer::Tools::SolveTool.input_schema},
-    {Chiasmus::MCPServer::Tools::LearnTool, Chiasmus::MCPServer::Tools::LearnTool.tool_name, Chiasmus::MCPServer::Tools::LearnTool.tool_description, Chiasmus::MCPServer::Tools::LearnTool.input_schema},
     {Chiasmus::MCPServer::Tools::LintTool, Chiasmus::MCPServer::Tools::LintTool.tool_name, Chiasmus::MCPServer::Tools::LintTool.tool_description, Chiasmus::MCPServer::Tools::LintTool.input_schema},
     {Chiasmus::MCPServer::Tools::GraphTool, Chiasmus::MCPServer::Tools::GraphTool.tool_name, Chiasmus::MCPServer::Tools::GraphTool.tool_description, Chiasmus::MCPServer::Tools::GraphTool.input_schema},
     {Chiasmus::MCPServer::Tools::MapTool, Chiasmus::MCPServer::Tools::MapTool.tool_name, Chiasmus::MCPServer::Tools::MapTool.tool_description, Chiasmus::MCPServer::Tools::MapTool.input_schema},

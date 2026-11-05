@@ -134,8 +134,8 @@ module Chiasmus
 
       # Create a server without an LLM agent — tools that need an LLM
       # degrade gracefully (chiasmus_formalize falls back to template search,
-      # chiasmus_solve falls back to formalize, chiasmus_learn returns
-      # "no LLM configured", chiasmus_crig returns "no API key").
+      # chiasmus_solve falls back to formalize, chiasmus_crig returns
+      # "no API key").
       private def self.no_llm_server : Server(LLM::MockCompletionModel)
         server = Server(LLM::MockCompletionModel).new(refreshable_from_env: true)
         MCPServer.current_server = server
@@ -146,15 +146,15 @@ module Chiasmus
       #
       # Uses the provider-specific API key to detect whether an LLM backend
       # is available. Falls back to a server without LLM when the key is
-      # missing, so the MCP process still starts and responds to tools/list
-      # (hiding chiasmus_learn). Matches upstream createLLMFromEnv() behaviour.
+      # missing, so the MCP process still starts and responds to tools/list.
+      # Matches upstream createLLMFromEnv() behaviour.
       def self.from_env
         provider = ENV["CHIASMUS_LLM_PROVIDER"]? || "deepseek"
         model = ENV["CHIASMUS_LLM_MODEL"]? || Crig::Providers::DeepSeek::DEEPSEEK_CHAT
 
         unless provider_api_key_set?(provider)
           STDERR.puts "[Chiasmus] v#{Chiasmus::VERSION} — No #{provider}_API_KEY set — Starting without LLM"
-          STDERR.puts "[Chiasmus] chiasmus_learn gated; formalize/solve degrade gracefully"
+          STDERR.puts "[Chiasmus] formalize/solve degrade gracefully"
           return no_llm_server
         end
 

@@ -57,14 +57,12 @@ module Chiasmus
       getter reuse_count : Int32
       getter success_count : Int32
       getter last_used : Time?
-      getter promoted : Bool
 
       def initialize(
         @name : String,
         @reuse_count : Int32,
         @success_count : Int32,
         @last_used : Time? = nil,
-        @promoted : Bool = false,
       )
       end
     end
