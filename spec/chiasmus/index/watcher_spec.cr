@@ -181,6 +181,30 @@ describe Watcher do
     end
   end
 
+  it "reports when a blocked scan has not stopped by the shutdown deadline" do
+    with_temp_dir do |dir|
+      File.write(File.join(dir, "a.ts"), "a")
+      entered = Channel(Nil).new(1)
+      release = Channel(Nil).new(1)
+      watcher = Watcher.new(dir, interval: 0.01.seconds) do |_changes|
+        entered.send(nil)
+        release.receive
+      end
+      spawn { watcher.run }
+      wait_until { watcher.watched_files.includes?("a.ts") }.should be_true
+      File.write(File.join(dir, "a.ts"), "changed")
+      entered.receive
+
+      begin
+        watcher.stop
+        watcher.wait(20.milliseconds).should be_false
+      ensure
+        release.send(nil)
+        watcher.wait
+      end
+    end
+  end
+
   it "does not start polling when stopped before run is called" do
     with_temp_dir do |dir|
       File.write(File.join(dir, "a.ts"), "a")

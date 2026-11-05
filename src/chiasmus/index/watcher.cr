@@ -16,6 +16,43 @@ module Chiasmus
       def changed : Array(String)
         added + modified
       end
+
+      def size : Int32
+        added.size + modified.size + deleted.size
+      end
+
+      # Fold a later poll delta into this one, keeping the net effect:
+      # deleting then re-creating a path is an add, and adding then deleting a
+      # path before either batch ran is a delete (it never entered the index).
+      # Used to coalesce change sets that arrive while a batch is running.
+      def merge(other : ChangeSet) : ChangeSet
+        added = self.added.to_set
+        modified = self.modified.to_set
+        deleted = self.deleted.to_set
+
+        other.added.each do |path|
+          deleted.delete(path)
+          modified.delete(path)
+          added << path
+        end
+
+        other.modified.each do |path|
+          next if added.includes?(path)
+          if deleted.delete(path)
+            added << path
+          else
+            modified << path
+          end
+        end
+
+        other.deleted.each do |path|
+          modified.delete(path)
+          added.delete(path)
+          deleted << path
+        end
+
+        ChangeSet.new(added.to_a.sort!, modified.to_a.sort!, deleted.to_a.sort!)
+      end
     end
 
     # Polling-based filesystem watcher.
@@ -79,10 +116,20 @@ module Chiasmus
         true
       end
 
-      # Block until the watcher fiber has stopped.
-      def wait
-        @done.receive?
-      rescue Channel::ClosedError
+      # Wait for the watcher fiber to stop. A deadline lets a shutting-down
+      # stdio server exit even if a filesystem scan never returns.
+      def wait(deadline : Time::Span? = nil) : Bool
+        if span = deadline
+          select
+          when @done.receive?
+            true
+          when timeout(span)
+            false
+          end
+        else
+          @done.receive?
+          true
+        end
       end
 
       # Return relative paths of all watched files.

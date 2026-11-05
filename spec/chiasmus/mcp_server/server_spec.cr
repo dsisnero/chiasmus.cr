@@ -15,6 +15,45 @@ describe Chiasmus::MCPServer::ShutdownCoordinator do
   end
 end
 
+describe "Chiasmus::MCPServer shutdown work" do
+  it "returns by the deadline when a flush cannot finish" do
+    release = Channel(Nil).new(1)
+    begin
+      Chiasmus::MCPServer.finish_shutdown_work(20.milliseconds) do
+        release.receive
+      end.should be_false
+    ensure
+      release.send(nil)
+    end
+  end
+end
+
+describe "Chiasmus::MCPServer watcher logging" do
+  it "only reports trivial batches when CHIASMUS_DEBUG is set" do
+    previous = ENV["CHIASMUS_DEBUG"]?
+    ENV.delete("CHIASMUS_DEBUG")
+
+    begin
+      trivial = Chiasmus::Index::ChangeSet.new(["a.cr"], [] of String, [] of String)
+      noisy = Chiasmus::Index::ChangeSet.new((1..11).map { |index| "file_#{index}.cr" }, [] of String, [] of String)
+
+      Chiasmus::MCPServer.watch_debug?.should be_false
+      Chiasmus::MCPServer.watch_log_needed?(trivial).should be_false
+      Chiasmus::MCPServer.watch_log_needed?(noisy).should be_true
+
+      ENV["CHIASMUS_DEBUG"] = "1"
+      Chiasmus::MCPServer.watch_debug?.should be_true
+      Chiasmus::MCPServer.watch_log_needed?(trivial).should be_true
+    ensure
+      if previous
+        ENV["CHIASMUS_DEBUG"] = previous
+      else
+        ENV.delete("CHIASMUS_DEBUG")
+      end
+    end
+  end
+end
+
 describe "Chiasmus MCP Server Transport" do
   mcp_server = uninitialized MCP::Server::Server
   client = uninitialized MCP::Client::Client
