@@ -1,4 +1,4 @@
-.PHONY: help install-deps ensure-shards install install-built install-with-build update format lint test clean build build_release build-clis release dist setup-grammars warm-cache verify-runtime
+.PHONY: help install-deps ensure-shards install install-built install-with-build update format lint test clean build build_release build-clis release dist setup-grammars warm-cache verify-runtime strip-appledouble
 
 # Default: show help.
 help:
@@ -33,14 +33,20 @@ install-deps:
 update:
 	shards update
 
-format:
+# macOS writes AppleDouble `._*` sidecars on exFAT/removable volumes. They are
+# not Crystal source, but some Crystal versions glob them and fail; clear the
+# ones under tracked source before formatting, linting, or testing.
+strip-appledouble:
+	@find src spec -name '._*' -delete 2>/dev/null || true
+
+format: strip-appledouble
 	crystal tool format src spec
 
-lint:
+lint: strip-appledouble
 	crystal tool format --check src spec
 	ameba src spec
 
-test:
+test: strip-appledouble
 	crystal spec spec/
 
 SRC := $(shell find src -name "*.cr" -not -name "._*")
@@ -268,3 +274,5 @@ clean:
 	rm -rf bin
 	rm -rf dist
 	rm -rf .build
+	@mkdir -p temp
+	@find temp -mindepth 1 -delete

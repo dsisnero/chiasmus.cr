@@ -5,6 +5,9 @@
 /plans/generated/
 *.dwarf
 
+# Local agent/tool settings
+/.claude/
+
 # AppleDouble/macOS metadata sidecars commonly created on exFAT/removable volumes
 ._*
 **/._*

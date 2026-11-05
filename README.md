@@ -329,9 +329,14 @@ make build-clis
 
 For deeper guidance, use:
 
+- [docs/resuming.md](docs/resuming.md) — start here in a new session
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- [docs/CODING-GUIDELINES.md](docs/CODING-GUIDELINES.md)
 - [docs/TESTING.md](docs/TESTING.md)
+- [docs/PR-WORKFLOW.md](docs/PR-WORKFLOW.md)
+- [docs/RELEASES.md](docs/RELEASES.md)
+- [docs/CLI-BINARIES.md](docs/CLI-BINARIES.md)
 - [docs/INDEX.md](docs/INDEX.md)
 - [AGENTS.md](AGENTS.md)
 

@@ -1,5 +1,99 @@
 # Agent Engineering Guide
 
+> **How to resume:** read [`plans/parity.md`](plans/parity.md) first and use its
+> **Where we are** block (current focus + ordered "Next up"), then run
+> `make lint` and `make test`. Details: [docs/resuming.md](docs/resuming.md).
+> Do not re-derive state from git.
+
+Chiasmus.cr is a Crystal port of the chiasmus TypeScript MCP server from
+[yogthos/chiasmus](https://github.com/yogthos/chiasmus), vendored as a git
+submodule at `vendor/chiasmus` (current pointer `1ba3cbac`, upstream `v0.1.37`).
+The curated parity inventory was last reconciled at `55d43881`
+(upstream v0.1.27–v0.1.28); see the plan for that drift.
+
+## Commands
+
+```bash
+make install-deps   # shards install
+make update         # shards update
+make format         # auto-format src/ and spec/
+make lint           # crystal tool format --check src spec && ameba src spec
+make test           # crystal spec spec/
+make clean          # remove bin/, .build/, .crystal-cache/, dist/; empty temp/
+make build          # release binary at bin/chiasmus
+make build-clis     # the auxiliary CLIs under bin/
+```
+
+## Docs
+
+- [Resuming work](docs/resuming.md)
+- [Documentation index](docs/INDEX.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Development](docs/DEVELOPMENT.md)
+- [Coding Guidelines](docs/CODING-GUIDELINES.md)
+- [Testing](docs/TESTING.md)
+- [PR Workflow](docs/PR-WORKFLOW.md)
+- [CLI binaries](docs/CLI-BINARIES.md)
+
+## Principles
+
+1. Upstream behavior is the source of truth; `vendor/chiasmus` wins over local
+   preference.
+2. Port behavior, not style.
+3. Port upstream tests early and never weaken assertions.
+4. Track parity in `plans/parity.md` and `plans/inventory/`.
+5. Commit one completed feature at a time.
+
+## Session continuity (read this first)
+
+`plans/parity.md` is the single source of truth for where we are. At the start
+of every session:
+
+1. Read `plans/parity.md` and use its **Where we are** block to find the current
+   focus, the ordered "Next up" list, and per-area status. Do not re-derive
+   state from git history.
+2. Skim `git log --oneline -10` and `git status` to confirm the working tree.
+3. Run `make lint` and `make test` before changes to confirm a clean baseline.
+
+See [docs/resuming.md](docs/resuming.md) for the full resume checklist.
+
+### Keeping `plans/parity.md` resumable
+
+- `plans/parity.md` starts with a **Where we are** block (`Current focus`,
+  `Next up`, gate results, gotchas). Keep it accurate after every feature.
+- Work items are feature-sized (roughly one branch/commit). Per-symbol state
+  lives in `plans/inventory/typescript_port_inventory.tsv`, not in the plan.
+- The phase tables under it are the durable history. Do not rewrite completed
+  phases; append new ones and refresh **Where we are**.
+- If the plan grows too large, split it into `plans/<area>.md` files, link each
+  from `plans/parity.md`, and mark each split file complete/in-progress plus the
+  file being worked on next.
+
+### Definition of done for every feature (required)
+
+A feature is complete only when all of the following are true, and all of it
+must be committed as **one** atomic commit before starting the next feature:
+
+1. the API surface is implemented;
+2. upstream tests (or equivalent characterization specs) exist and pass;
+3. gates pass: `make lint` and `make test`;
+4. parity inventory rows for the feature are updated
+   (`plans/inventory/typescript_port_inventory.tsv`), or the change is recorded
+   as a local extension that does not touch TypeScript rows;
+5. `plans/parity.md` status is updated and the **Where we are** block refreshed
+   (current focus + next up);
+6. any intentional divergence is documented (in `plans/parity.md` and/or the
+   commit message).
+
+### Commit message
+
+Porting work starts with `port:` and a one-line feature name, then bullets for
+what changed, then the upstream revision (`yogthos/chiasmus <release> (<sha>)`).
+Maintenance work uses the existing conventional prefixes (`fix:`, `feat:`,
+`docs:`, `test:`, `build:`, `release:`). Either way, include new/changed files,
+divergences, and the gate results so a new session can resume from the commit
+alone.
+
 ## Project Overview
 
 This repository is a Crystal port of [yogthos/chiasmus](https://github.com/yogthos/chiasmus), an MCP server for formal verification with Z3 SMT solver, Tau Prolog, and tree-sitter-based source code analysis.
@@ -55,16 +149,6 @@ The upstream source is pinned as a git submodule at `vendor/chiasmus` (tracking 
 
 **Upstream behavior is the source of truth.** Port behavior first, then express it with Crystal idioms.
 
-## Quality Gates
-
-Run these commands to ensure code quality:
-
-```bash
-make format    # crystal tool format --check src spec
-make lint      # ameba src spec
-make test      # crystal spec
-```
-
 ## Porting Workflow
 
 1. **Inventory-first**: All porting work must be tracked in `plans/inventory/` manifests
@@ -111,14 +195,9 @@ Use these skills for different aspects of the port:
 
 ## Completion Criteria
 
-A ported unit is complete when:
-
-1. API surface is translated and wired
-2. Relevant upstream tests are ported as Crystal specs
-3. Crystal quality gates pass (`format`, `ameba`, `spec`)
-4. Parity outputs/fixtures match upstream expectations
-5. Cross-language parity checks pass
-6. Documentation reflects completion status and any unavoidable deviations
+The authoritative checklist is **Definition of done for every feature** above.
+In addition, a ported unit requires parity outputs/fixtures to match upstream
+expectations and cross-language parity checks to pass.
 
 ## Vendor Directories (`vendor/`)
 

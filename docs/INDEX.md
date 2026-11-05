@@ -5,6 +5,7 @@
 - [../README.md](../README.md): project overview, binaries, MCP tools, and quick start
 - [../CHANGELOG.md](../CHANGELOG.md): shipped changes by release
 - [../AGENTS.md](../AGENTS.md): repo-level engineering and concurrency rules
+- [resuming.md](resuming.md): new-session checklist, clean baseline, and environment quirks
 
 ## Core Docs
 
@@ -13,6 +14,7 @@
 - [TESTING.md](TESTING.md): test structure, focused runs, and release verification
 - [CODING-GUIDELINES.md](CODING-GUIDELINES.md): Crystal and porting conventions
 - [PR-WORKFLOW.md](PR-WORKFLOW.md): pull-request expectations and review checklist
+- [RELEASES.md](RELEASES.md): release preparation, tags, and published artifacts
 - [adding_additional_language.md](adding_additional_language.md): extending grammar and discovery support
 
 ## Reference Material
@@ -20,6 +22,10 @@
 - [../plans/parity.md](../plans/parity.md): curated parity roadmap
 - [../plans/inventory/](../plans/inventory/): source, test, and port inventory artifacts
 - [../shards_issues/](../shards_issues/): upstream shard and dependency issue notes
+- [chiasmus-snapshot-code-flow.md](chiasmus-snapshot-code-flow.md): graph snapshot/save/diff call flow
+- [snapshot-performance-analysis.md](snapshot-performance-analysis.md): snapshot write-path measurements
+- [crig-graph-analysis.md](crig-graph-analysis.md): graph analysis through the Crig boundary
+- [parity-rule-data.md](parity-rule-data.md): conversion-rule data used by the inventory tooling
 - [swi_prolog/README.md](swi_prolog/README.md): SWI-Prolog reference notes used during integration work
 
 ## Useful Entry Points In The Codebase

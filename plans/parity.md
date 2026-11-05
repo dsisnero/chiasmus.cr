@@ -1,11 +1,39 @@
 # Chiasmus Crystal Parity Plan
 
+## Where we are
+
+**Current focus:** maintenance after the `0.3.3` changelog entry. The TypeScript
+port itself is in parity maintenance; recent commits harden release
+installation, MCP watcher shutdown, search defaults, cache lifetime, and
+subprocess spec builds (`bf7425d`, the tip at `v0.3.2-18`).
+
+**Gates:** run `make lint` and `make test` before changing anything. Last
+verified baseline on 2026-11-05: `make lint` passed (169 files, 0 failures) and
+`make test` passed (1,658 examples, 0 failures, 0 errors, 0 pending, 1:35).
+
+**Next up** (take the first unchecked item):
+
+1. [ ] Reconcile the curated inventory with the current vendor pointer
+   `1ba3cbac` (upstream `v0.1.37`). The inventory tables below are still the
+   `55d43881` reconciliation (upstream v0.1.27–v0.1.28); P65/P67 note that the
+   newer vendor checkout has declarations that are not yet ledgered.
+2. [ ] Document and test the native Rust declaration-kind vocabulary emitted by
+   `chiasmus-discover` so downstream parity consumers can filter kinds reliably
+   (reproduction notes in `issues/chiasmus-1.md`).
+
+**Gotchas:**
+
+- `vendor/chiasmus` is a git submodule, so the git pointer is authoritative,
+  not a locally modified checkout: check `git ls-tree HEAD vendor/chiasmus`.
+- This checkout is on an exFAT-style volume that produces `._*` AppleDouble
+  sidecars. `make format`, `make lint`, and `make test` strip them first;
+  recovery commands live in `docs/resuming.md`.
+
 ## Current Inventory State (vendor/chiasmus @ `55d43881`)
 
-The pinned vendor pointer is `55d43881` (upstream v0.1.27–v0.1.28). The
-counts below reflect the current curated and generated manifests at that
-revision. A separately modified `vendor/chiasmus` checkout is newer and has
-not been reconciled into those manifests.
+These manifests were last reconciled at `55d43881` (upstream
+v0.1.27–v0.1.28). The current submodule pointer is `1ba3cbac` (upstream
+`v0.1.37`) and has not been reconciled into them yet; see **Next up** above.
 
 _(The completed P20 notes below describe the earlier 07bbf4a → 576ed38 update; they are retained as implementation history.)_
 
