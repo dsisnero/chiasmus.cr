@@ -5,6 +5,80 @@ require "tree-sitter-manager"
 require "file_utils"
 
 describe Chiasmus::DiscoverCLI do
+  it "emits stable native Go declaration IDs alongside auxiliary kinds" do
+    dir = File.join(Dir.tempdir, "discover-cli-go-#{Random::Secure.hex(8)}")
+    source_dir = File.join(dir, "src")
+    cache_dir = File.join(dir, "cache")
+    Dir.mkdir_p(source_dir)
+
+    begin
+      File.write(File.join(source_dir, "server.go"), <<-GO)
+        package sample
+
+        const DefaultPort = 8080
+        const (
+            MinPort = 1
+            MaxPort = 65535
+        )
+
+        type Port int
+        type Listener interface { Start(port Port) bool }
+        type Server struct { Port Port }
+
+        func Ready(port Port) bool { return port > 0 }
+        func (server *Server) Start(port Port) bool {
+            _ = Server{Port: port}
+            return Ready(port)
+        }
+        GO
+      File.write(File.join(source_dir, "server_test.go"), <<-GO)
+        package sample
+
+        import "testing"
+
+        func TestReady(t *testing.T) { t.Log(Ready(DefaultPort)) }
+        GO
+
+      args = ["--language", "go", "--dir", dir, "--parser", "tree-sitter"]
+      output = IO::Memory.new
+      Chiasmus::DiscoverCLI.run(args, output: output).should eq(0)
+      rows = output.to_s.lines.reject(&.starts_with?('#')).map(&.split('\t'))
+      rows.map(&.[4]).uniq!.should eq(["parser=tree-sitter"])
+
+      declaration_kinds = %w[function class interface method const test]
+      declarations, auxiliary = rows.map { |row| {row[0], row[1]} }
+        .partition { |(_id, kind)| declaration_kinds.includes?(kind) }
+      declarations.sort!.should eq([
+        {"src/server.go::class::Server", "class"},
+        {"src/server.go::const::DefaultPort", "const"},
+        {"src/server.go::const::MaxPort", "const"},
+        {"src/server.go::const::MinPort", "const"},
+        {"src/server.go::function::Ready", "function"},
+        {"src/server.go::interface::Listener", "interface"},
+        {"src/server.go::method::Server.Start", "method"},
+        {"src/server_test.go::function::TestReady", "function"},
+        {"src/server_test.go::test::TestReady", "test"},
+      ])
+      auxiliary.should contain({"src/server.go::definition.type::Port", "definition.type"})
+      auxiliary.should contain({"src/server.go::definition.function::Ready", "definition.function"})
+      auxiliary.should contain({"src/server.go::definition.method::Server.Start", "definition.method"})
+      auxiliary.should contain({"src/server.go::field::Port", "field"})
+      auxiliary.should contain({"src/server.go::package::sample", "package"})
+      auxiliary.should contain({"src/server.go::params::Server.Start", "params"})
+      auxiliary.should contain({"src/server.go::reference.call::Ready", "reference.call"})
+      auxiliary.should contain({"src/server.go::reference.class::Server", "reference.class"})
+      auxiliary.should contain({"src/server.go::return_type::Ready", "return_type"})
+
+      cached_output = IO::Memory.new
+      Chiasmus::DiscoverCLI.run(args + ["--cache-dir", cache_dir], output: cached_output).should eq(0)
+      cached_output.to_s.lines.sort!.should eq(output.to_s.lines.sort!)
+    ensure
+      Chiasmus::Graph::GraphCache.flush_async_writes
+      Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      FileUtils.rm_rf(dir)
+    end
+  end
+
   it "shares cached extraction with facts and sees edited declarations" do
     dir = File.join(Dir.tempdir, "discover-cli-shared-#{Random::Secure.hex(8)}")
     source_dir = File.join(dir, "src")

@@ -75,6 +75,33 @@ graph-plus-discovery extraction with `chiasmus-facts --cache-dir`. Content edits
 invalidate that result on the next run. Other languages retain their existing
 discovery path while adapters are promoted.
 
+### Native Go declaration kinds
+
+With `--language go --parser tree-sitter`, declaration IDs use the form
+`relative/path.go::kind::name`. Paths are relative to `--dir`. The kind
+column carries the same label as the ID.
+
+| Kind | Go declaration | Example ID |
+|---|---|---|
+| `function` | Top-level function | `src/server.go::function::Ready` |
+| `class` | Named struct | `src/server.go::class::Server` |
+| `interface` | Named interface | `src/server.go::interface::Listener` |
+| `method` | Receiver-qualified method | `src/server.go::method::Server.Start` |
+| `const` | Constant in a standalone or grouped declaration | `src/server.go::const::DefaultPort` |
+| `test` | Top-level function whose name starts with `Test` | `src/server_test.go::test::TestReady` |
+
+Pointer receiver methods use the receiver type without the leading `*`. A
+`Test`-prefixed function also has a `function` ID. Use the `test` kind to select
+test rows and preserve the emitted kind labels when joining discovery IDs.
+
+Auxiliary rows use distinct kinds such as `package`, `field`, `definition.*`,
+`reference.*`, `params`, and `return_type`. For example, the CLI can emit
+`src/server.go::definition.function::Ready` alongside the `function` ID, and
+`type Port int` yields `src/server.go::definition.type::Port`. Filter by the
+kind column to select the declaration rows above. Check `parser=tree-sitter`
+in the notes column to confirm native extraction. Port completion is tracked
+separately in the curated parity inventory.
+
 ## `chiasmus-facts` — fact extraction
 
 Extracts language-neutral, layer-A Prolog facts from a source tree — the
