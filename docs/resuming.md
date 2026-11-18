@@ -43,6 +43,11 @@ Both must pass before changing anything. `make lint` runs
 `crystal tool format --check src spec` followed by `ameba src spec`;
 `make test` runs `crystal spec spec/`.
 
+Use the **Parity tooling** commands in [`../AGENTS.md`](../AGENTS.md) to check
+inventory drift. They call the currently installed skill scripts and verify
+the effective tree-sitter backend. Compare any failing inventory result with
+the documented upstream drift in the plan before changing the ledger.
+
 ## 4. Pick the next feature
 
 Take the first unchecked item in the **Next up** list in

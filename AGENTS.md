@@ -44,6 +44,26 @@ make build-clis     # the auxiliary CLIs under bin/
 4. Track parity in `plans/parity.md` and `plans/inventory/`.
 5. Commit one completed feature at a time.
 
+## Parity tooling
+
+Use the current scripts in the installed `cross-language-crystal-parity` skill:
+
+```bash
+SKILL_DIR="${CHIASMUS_PARITY_SKILL_DIR:-$HOME/.agents/skills/crystal_forge/skills/cross-language-crystal-parity}"
+"${SKILL_DIR}/scripts/verify_skill_install.sh" . typescript tree-sitter
+PORT_PARSER=tree-sitter "${SKILL_DIR}/scripts/check_port_inventory.sh" . plans/inventory/typescript_port_inventory.tsv vendor/chiasmus typescript
+PORT_PARSER=tree-sitter "${SKILL_DIR}/scripts/check_source_parity.sh" . plans/inventory/typescript_source_parity.tsv vendor/chiasmus typescript
+PORT_PARSER=tree-sitter "${SKILL_DIR}/scripts/check_test_parity.sh" . plans/inventory/typescript_test_parity.tsv vendor/chiasmus typescript
+```
+
+Run the skill scripts directly or through thin forwarding wrappers. Do not use
+copied parity scripts: updating the installed skill does not update copies.
+Confirm `PARITY_DISCOVERY_BACKEND=chiasmus-tree-sitter` in each check's output;
+when regenerating manifests, inspect their `.metadata.json` `backend` field.
+The installed skill resolves compatible Chiasmus binaries separately from its
+own scripts. The current stale ledger reference and upstream inventory drift
+are recorded in `plans/parity.md` for the next reconciliation task.
+
 ## Session continuity (read this first)
 
 `plans/parity.md` is the single source of truth for where we are. At the start
@@ -53,7 +73,8 @@ of every session:
    focus, the ordered "Next up" list, and per-area status. Do not re-derive
    state from git history.
 2. Skim `git log --oneline -10` and `git status` to confirm the working tree.
-3. Run `make lint` and `make test` before changes to confirm a clean baseline.
+3. Run `make lint` and `make test` before changes, then use the **Parity
+   tooling** commands to inspect inventory drift with the current skill.
 
 See [docs/resuming.md](docs/resuming.md) for the full resume checklist.
 

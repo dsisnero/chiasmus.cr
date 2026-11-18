@@ -8,8 +8,8 @@ release installation, MCP watcher shutdown, search defaults, cache lifetime, and
 subprocess spec builds (`bf7425d`, the tip at `v0.3.2-18`).
 
 **Gates:** run `make lint` and `make test` before changing anything. Last
-verified baseline on 2026-11-05: `make lint` passed (169 files, 0 failures) and
-`make test` passed (1,636 examples, 0 failures, 0 errors, 0 pending, 1:31).
+verified baseline on 2026-11-17: `make lint` passed (167 files, 0 failures) and
+`make test` passed (1,636 examples, 0 failures, 0 errors, 0 pending, 1:47).
 
 **Next up** (take the first unchecked item):
 
@@ -18,7 +18,9 @@ verified baseline on 2026-11-05: `make lint` passed (169 files, 0 failures) and
    `55d43881` reconciliation (upstream v0.1.27–v0.1.28); the drift predates the
    P79 bump: `check_port_inventory.sh` reports 213 newer source items missing
    and `check_test_parity.sh` reports 426 newer test items missing, even though
-   `src/skills/craft.ts` is fully ledgered.
+   `src/skills/craft.ts` is fully ledgered. The canonical strict check now stops
+   first on a stale `handleLearn` reference to removed
+   `src/chiasmus/mcp_server/tools/learn.cr`; repair that row during reconciliation.
 2. [ ] Document and test the native Rust declaration-kind vocabulary emitted by
    `chiasmus-discover` so downstream parity consumers can filter kinds reliably
    (reproduction notes in `issues/chiasmus-1.md`).
@@ -30,6 +32,11 @@ verified baseline on 2026-11-05: `make lint` passed (169 files, 0 failures) and
 - This checkout is on an exFAT-style volume that produces `._*` AppleDouble
   sidecars. `make format`, `make lint`, and `make test` strip them first;
   recovery commands live in `docs/resuming.md`.
+- `AGENTS.md` now points parity checks at the current installed skill scripts
+  and requires the effective tree-sitter backend to be verified. On
+  2026-11-17 the strict preflight reported `chiasmus-tree-sitter`; source and
+  test checks reported the known drift, while the curated inventory check
+  stopped on the stale `handleLearn` file reference above.
 
 ## Current Inventory State (vendor/chiasmus @ `55d43881`)
 
