@@ -15,6 +15,8 @@ describe Chiasmus::DiscoverCLI do
       File.write(File.join(source_dir, "server.go"), <<-GO)
         package sample
 
+        import "io"
+
         const DefaultPort = 8080
         const (
             MinPort = 1
@@ -24,6 +26,16 @@ describe Chiasmus::DiscoverCLI do
         type Port int
         type Listener interface { Start(port Port) bool }
         type Server struct { Port Port }
+        type PortAlias = Port
+        type PortPointer *Port
+        type (
+            Buffer []byte
+            Handler func(Port) bool
+            Index[T comparable] map[T]Port
+            Reader io.Reader
+            ServerAlias = struct { Port Port }
+            ListenerAlias = interface { Start(port Port) bool }
+        )
 
         func Ready(port Port) bool { return port > 0 }
         func (server *Server) Start(port Port) bool {
@@ -45,7 +57,7 @@ describe Chiasmus::DiscoverCLI do
       rows = output.to_s.lines.reject(&.starts_with?('#')).map(&.split('\t'))
       rows.map(&.[4]).uniq!.should eq(["parser=tree-sitter"])
 
-      declaration_kinds = %w[function class interface method const test]
+      declaration_kinds = %w[function class interface method const test type]
       declarations, auxiliary = rows.map { |row| {row[0], row[1]} }
         .partition { |(_id, kind)| declaration_kinds.includes?(kind) }
       declarations.sort!.should eq([
@@ -56,6 +68,15 @@ describe Chiasmus::DiscoverCLI do
         {"src/server.go::function::Ready", "function"},
         {"src/server.go::interface::Listener", "interface"},
         {"src/server.go::method::Server.Start", "method"},
+        {"src/server.go::type::Buffer", "type"},
+        {"src/server.go::type::Handler", "type"},
+        {"src/server.go::type::Index", "type"},
+        {"src/server.go::type::ListenerAlias", "type"},
+        {"src/server.go::type::Port", "type"},
+        {"src/server.go::type::PortAlias", "type"},
+        {"src/server.go::type::PortPointer", "type"},
+        {"src/server.go::type::Reader", "type"},
+        {"src/server.go::type::ServerAlias", "type"},
         {"src/server_test.go::function::TestReady", "function"},
         {"src/server_test.go::test::TestReady", "test"},
       ])
@@ -69,9 +90,13 @@ describe Chiasmus::DiscoverCLI do
       auxiliary.should contain({"src/server.go::reference.class::Server", "reference.class"})
       auxiliary.should contain({"src/server.go::return_type::Ready", "return_type"})
 
-      cached_output = IO::Memory.new
-      Chiasmus::DiscoverCLI.run(args + ["--cache-dir", cache_dir], output: cached_output).should eq(0)
-      cached_output.to_s.lines.sort!.should eq(output.to_s.lines.sort!)
+      2.times do
+        cached_output = IO::Memory.new
+        Chiasmus::DiscoverCLI.run(args + ["--cache-dir", cache_dir], output: cached_output).should eq(0)
+        cached_output.to_s.lines.sort!.should eq(output.to_s.lines.sort!)
+        Chiasmus::Graph::GraphCache.flush_async_writes
+        Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test
+      end
     ensure
       Chiasmus::Graph::GraphCache.flush_async_writes
       Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test

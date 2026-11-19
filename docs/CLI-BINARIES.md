@@ -86,6 +86,7 @@ column carries the same label as the ID.
 | `function` | Top-level function | `src/server.go::function::Ready` |
 | `class` | Named struct | `src/server.go::class::Server` |
 | `interface` | Named interface | `src/server.go::interface::Listener` |
+| `type` | Type alias or named type with another underlying type | `src/server.go::type::Port` |
 | `method` | Receiver-qualified method | `src/server.go::method::Server.Start` |
 | `const` | Constant in a standalone or grouped declaration | `src/server.go::const::DefaultPort` |
 | `test` | Top-level function whose name starts with `Test` | `src/server_test.go::test::TestReady` |
@@ -93,11 +94,13 @@ column carries the same label as the ID.
 Pointer receiver methods use the receiver type without the leading `*`. A
 `Test`-prefixed function also has a `function` ID. Use the `test` kind to select
 test rows and preserve the emitted kind labels when joining discovery IDs.
+Standalone and grouped type declarations use the same kinds. A type alias has
+kind `type` even when its target is a struct or interface.
 
 Auxiliary rows use distinct kinds such as `package`, `field`, `definition.*`,
 `reference.*`, `params`, and `return_type`. For example, the CLI can emit
 `src/server.go::definition.function::Ready` alongside the `function` ID, and
-`type Port int` yields `src/server.go::definition.type::Port`. Filter by the
+`type Port int` also yields `src/server.go::definition.type::Port`. Filter by the
 kind column to select the declaration rows above. Check `parser=tree-sitter`
 in the notes column to confirm native extraction. Port completion is tracked
 separately in the curated parity inventory.

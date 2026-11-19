@@ -17,3 +17,4 @@ params: ()
 reference.call: Pattern2
 reference.class: Pattern0
 return_type: string
+type: Alias

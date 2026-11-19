@@ -232,7 +232,7 @@ module Chiasmus
                    when "class"            then {"class_declaration", "type_spec", "struct_specifier", "class_definition", "class_body"}
                    when "interface"        then {"interface_declaration", "interface_type", "trait_declaration", "interface_definition"}
                    when "enum"             then {"enum_declaration", "enum_definition"}
-                   when "type"             then "type_alias_declaration"
+                   when "type"             then {"type_alias_declaration", "type_spec", "type_alias"}
                    when "const"            then {"lexical_declaration", "variable_declaration", "field_declaration"}
                    else
                      nil

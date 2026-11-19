@@ -6,6 +6,13 @@ The format is based on Keep a Changelog, and the project uses semantic version t
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-18
+
+### Added
+
+- Go tree-sitter discovery emits `type` IDs for named types and aliases. Existing struct, interface, and enriched type IDs remain compatible.
+- Optional content-addressed caching for complete parity bundle reports, allowing unchanged inputs to reuse prior reconciliation results through the shared SQLite cache.
+
 ### Fixed
 
 - `chiasmus_craft` no longer stores a template when the solver reports an error for its `test=true` example; it returns `created: false`, the solver message in `errors`, and leaves the name available for a corrected template. `sat`, `unsat`, `unknown`, and a Prolog query without answers still store.
@@ -13,20 +20,11 @@ The format is based on Keep a Changelog, and the project uses semantic version t
 ### Changed
 
 - Vendored TypeScript source advanced from upstream 0.1.37 (`1ba3cba`) to 0.1.40 (`e3e8aa5`); the craft behavior above is the only port-relevant delta.
+- Release smoke checks now preflight packaged tool identities, executability, and parity-toolchain inputs across platform builds; runtime library prerequisites and remaining release signoff checks are documented.
 
 ### Removed
 
 - `chiasmus_learn`, its handler, the template learner, and promotion state are retired. The tool is no longer listed; a call by that name returns `chiasmus_learn was retired; use chiasmus_craft` and stores nothing. `chiasmus_skills` metadata no longer reports `promoted`.
-
-## [0.3.3] - 2026-10-19
-
-### Added
-
-- Optional content-addressed caching for complete parity bundle reports, allowing unchanged inputs to reuse prior reconciliation results through the shared SQLite cache.
-
-### Changed
-
-- Release smoke checks now preflight packaged tool identities, executability, and parity-toolchain inputs across platform builds; runtime library prerequisites and remaining release signoff checks are documented.
 
 ## [0.3.2] - 2026-10-17
 

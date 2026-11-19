@@ -19,10 +19,14 @@ module Chiasmus
         {
           "class"     => "(type_spec name: (type_identifier) @name type: (struct_type)) @def",
           "interface" => "(type_spec name: (type_identifier) @name type: (interface_type)) @def",
-          "function"  => "(function_declaration name: (identifier) @name) @def",
-          "method"    => "(method_declaration name: (field_identifier) @name) @def",
-          "test"      => "(function_declaration name: (identifier) @name) @def",
-          "const"     => "(const_spec name: (identifier) @name) @def",
+          "type"      => <<-QUERY,
+            (type_spec name: (type_identifier) @name type: (_)) @def
+            (type_alias name: (type_identifier) @name type: (_)) @def
+            QUERY
+          "function" => "(function_declaration name: (identifier) @name) @def",
+          "method"   => "(method_declaration name: (field_identifier) @name) @def",
+          "test"     => "(function_declaration name: (identifier) @name) @def",
+          "const"    => "(const_spec name: (identifier) @name) @def",
         }
       end
 
@@ -42,6 +46,13 @@ module Chiasmus
 
       def post_filter(kind : String, name : String, node : TreeSitter::Node?, source : String) : String?
         case kind
+        when "type"
+          declaration = node.try(&.parent)
+          if declaration && declaration.type == "type_spec"
+            underlying_type = declaration.child_by_field_name("type")
+            return nil if underlying_type && underlying_type.type.in?("struct_type", "interface_type")
+          end
+          name
         when "method"
           node ? qualify_method_go(node, source, name) : name
         when "test"

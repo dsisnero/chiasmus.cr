@@ -16,7 +16,7 @@ import tempfile
 
 SOURCES = {
     "java": ("Widget.java", "class Widget { int size() { return 1; } }\n"),
-    "go": ("widget.go", "package sample\ntype Widget struct{}\nfunc (w Widget) Size() int { return 1 }\n"),
+    "go": ("widget.go", "package sample\ntype Widget struct{}\ntype Mode int\nfunc (w Widget) Size() int { return 1 }\n"),
 }
 CRYSTAL = "class Widget\n  def size : Int32\n    1\n  end\nend\n"
 
@@ -95,7 +95,7 @@ def isolated_environment(root: Path, scratch: Path) -> dict[str, str]:
     return environment
 
 
-def check_discovery(text: str, expected: set[str]) -> None:
+def check_discovery(text: str, expected: set[str], *, expected_ids: frozenset[str] = frozenset()) -> None:
     rows = [line.split("\t") for line in text.splitlines()
             if line.strip() and not line.startswith("#")]
     if not rows or any(len(row) != 5 or row[4] != "parser=tree-sitter" for row in rows):
@@ -103,6 +103,9 @@ def check_discovery(text: str, expected: set[str]) -> None:
     names = {row[0].rsplit("::", 1)[-1] for row in rows}
     if not expected <= names:
         raise RuntimeError(f"discovery missing expected symbols: {expected - names}")
+    ids = {row[0] for row in rows}
+    if not expected_ids <= ids:
+        raise RuntimeError(f"discovery missing expected IDs: {expected_ids - ids}")
 
 
 def check_declarations(path: Path, expected: set[str]) -> None:
@@ -213,7 +216,8 @@ def smoke(root: Path, platform: str) -> None:
                 environment, scratch,
             )
             method = "Size" if language == "go" else "size"
-            check_discovery(discovered, {"Widget", f"Widget.{method}"})
+            expected_ids = frozenset({"widget.go::type::Mode"}) if language == "go" else frozenset()
+            check_discovery(discovered, {"Widget", f"Widget.{method}"}, expected_ids=expected_ids)
             report = scratch / f"{language}-report"
             report.mkdir()
             source_facts = report / "source.pl"

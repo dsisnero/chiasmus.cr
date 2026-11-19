@@ -49,6 +49,14 @@ class ReleaseSmokeTests(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(RuntimeError):
                 release_smoke.check_discovery(bad, {"Widget"})
 
+    def test_discovery_requires_the_requested_declaration_id(self):
+        expected_ids = frozenset({"widget.go::type::Mode"})
+        auxiliary = "widget.go::definition.type::Mode\tdefinition.type\tported\t-\tparser=tree-sitter\n"
+        with self.assertRaisesRegex(RuntimeError, "widget.go::type::Mode"):
+            release_smoke.check_discovery(auxiliary, {"Mode"}, expected_ids=expected_ids)
+        declaration = auxiliary.replace("definition.type", "type")
+        release_smoke.check_discovery(auxiliary + declaration, {"Mode"}, expected_ids=expected_ids)
+
     def test_declarations_require_ast_provenance_and_expected_names(self):
         path = self.scratch / "declarations.jsonl"
         good = [{"name": name, "extraction_method": "tree_sitter_ast"}
