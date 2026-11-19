@@ -6,7 +6,16 @@ The format is based on Keep a Changelog, and the project uses semantic version t
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-11-18
+
+### Fixed
+
+- Keep discovery IDs relative to the scan root on Windows, with forward slashes in nested paths.
+
 ## [0.3.3] - 2026-11-18
+
+The release workflow stopped at the Windows archive smoke test. Release
+`v0.3.4` includes these changes.
 
 ### Added
 

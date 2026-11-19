@@ -90,9 +90,14 @@ describe Chiasmus::DiscoverCLI do
       auxiliary.should contain({"src/server.go::reference.class::Server", "reference.class"})
       auxiliary.should contain({"src/server.go::return_type::Ready", "return_type"})
 
-      2.times do
+      trailing_root_args = ["--language", "go", "--dir", "#{dir}#{File::SEPARATOR}", "--parser", "tree-sitter"]
+      trailing_root_output = IO::Memory.new
+      Chiasmus::DiscoverCLI.run(trailing_root_args, output: trailing_root_output).should eq(0)
+      trailing_root_output.to_s.lines.sort!.should eq(output.to_s.lines.sort!)
+
+      [args, trailing_root_args].each do |cached_args|
         cached_output = IO::Memory.new
-        Chiasmus::DiscoverCLI.run(args + ["--cache-dir", cache_dir], output: cached_output).should eq(0)
+        Chiasmus::DiscoverCLI.run(cached_args + ["--cache-dir", cache_dir], output: cached_output).should eq(0)
         cached_output.to_s.lines.sort!.should eq(output.to_s.lines.sort!)
         Chiasmus::Graph::GraphCache.flush_async_writes
         Chiasmus::Graph::GraphCache.close_file_cache_stores_for_test

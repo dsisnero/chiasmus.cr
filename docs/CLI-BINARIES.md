@@ -78,8 +78,8 @@ discovery path while adapters are promoted.
 ### Native Go declaration kinds
 
 With `--language go --parser tree-sitter`, declaration IDs use the form
-`relative/path.go::kind::name`. Paths are relative to `--dir`. The kind
-column carries the same label as the ID.
+`relative/path.go::kind::name`. Paths are relative to `--dir` and use forward
+slashes across platforms. The kind column carries the same label as the ID.
 
 | Kind | Go declaration | Example ID |
 |---|---|---|

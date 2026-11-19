@@ -2,12 +2,12 @@
 
 ## Where we are
 
-**Current focus:** maintenance at `0.3.3`. P82 adds native Go `type`
-declaration IDs for named types and aliases. The vendor pin is upstream
-`0.1.40` (`e3e8aa5`).
+**Current focus:** maintenance at `0.3.4`. P83 fixes path-relative discovery
+IDs across platforms after the Windows `0.3.3` release smoke failure. The
+vendor pin is upstream `0.1.40` (`e3e8aa5`).
 
 **Gates:** run `make lint` and `make test` before changing anything. On
-2026-11-18, P82 passed `make lint` (167 files, 0 failures) and `make test`
+2026-11-18, P83 passed `make lint` (167 files, 0 failures) and `make test`
 (1,637 examples, 0 failures, 0 errors, 0 pending).
 
 **Next up** (take the first unchecked item):
@@ -162,6 +162,7 @@ parity check; generated manifests remain generated artifacts.
 | P80 ✓ | Retire `chiasmus_learn` | Completed 2026-11-05: ports upstream `803be29` and `8fcc45f`. The tool, its handler, `Skills::Learner`, promotion state (`promote`, `SkillMetadata#promoted`, `candidates`) and the `LearnInput`/`LearnResponse` payloads are removed. `SkillLibrary#add_learned` becomes `#add_template` with a deprecated alias. `chiasmus_learn` is never listed, and a call by name returns `chiasmus_learn was retired; use chiasmus_craft` without storing anything. Promoted state already persisted in older metadata files is ignored on load. | Red-to-green integration coverage proves the tool is absent even with an LLM configured and that a call by name returns the notice and stores nothing; gating, tool-metadata, schema, and library specs are updated. Format, lint, the focused suites, and the full Crystal suite pass. The 10 learner rows are removed from the curated ledger and the `addTemplate`/`promote` rows curated. |
 | P81 ✓ | Native Go discovery CLI contract | Completed 2026-11-18. The CLI reference documents the six native declaration kinds, path-relative IDs, dual function/test rows, and distinct auxiliary kinds. This is a local Chiasmus CLI contract. No TypeScript inventory rows change. | The strict Go CLI spec verifies exact declaration IDs, auxiliary rows, and cache equivalence. A freshly built release executable verifies the same fixture. Lint and all 1,637 Crystal specs pass. |
 | P82 ✓ | Native Go named type and alias discovery | Completed 2026-11-18. The Go CLI emits `type` IDs for aliases and named types other than direct struct and interface declarations. The existing `class`, `interface`, and auxiliary `definition.type` IDs are preserved. Extraction cache schema 6 invalidates earlier results. This is a local extension with no TypeScript inventory changes. | Red-to-green CLI coverage checks exact IDs for standalone, grouped, generic, qualified, and pointer declarations, aliases to structs and interfaces, and cold and warm cache output. The Go golden adds the new `type` row. Lint, 1,637 Crystal specs, and 35 Python release tests pass. The verified host archive passes Java, Go, and Rust release smoke tests. |
+| P83 ✓ | Portable relative discovery paths | Resolve scan paths with native path semantics and write forward slashes in CLI IDs. Rebase cached IDs while retaining their original kind and name suffixes. This is a local CLI fix with no TypeScript inventory or extraction cache schema changes. | The `v0.3.3` Linux package passed release smoke. Windows discovered the Go type by name but failed the exact relative-ID assertion. The trailing-root-separator regression goes red then green on macOS and verifies uncached and reopened-cache output. The optimized host bundle passes Java, Go, and Rust release smoke, and 35 Python release tests pass. Lint and all 1,637 Crystal specs pass. |
 
 P76 follow-up: Windows grammar setup used a POSIX `which` shell probe that rejected the available compiler in CI. A platform-aware executable lookup and two explicit-PATH regressions now pass locally; Windows-target no-codegen compilation of the setup script, format, lint, and 1,606 verbose fail-fast specs also pass. Remote Windows grammar compilation and archive smoke remain unverified until a run includes this fix.
 

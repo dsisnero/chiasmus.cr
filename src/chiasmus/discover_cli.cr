@@ -75,7 +75,8 @@ module Chiasmus
         source = Graph::SourceFile.new(path: absolute_path, content: content)
         if result = Graph::Extractor.extract_with_discovery(source, language, cache_dir: cache_dir)
           result.discovery.items.each do |item|
-            id = item.id.sub(/^#{Regex.escape(absolute_path)}::/, "#{relative_path}::")
+            id_suffix = item.id.lchop("#{item.file}::")
+            id = "#{relative_path}::#{id_suffix}"
             items << Chiasmus::Discovery::Item.new(id: id, kind: item.kind, scope: item.scope, name: item.name, file: relative_path, span: item.span)
           end
         end
@@ -95,6 +96,7 @@ module Chiasmus
 
     private def scan_files(language : String, dir : String) : Array(Tuple(String, String))
       extensions = LanguageRegistry.extensions(language)
+      root = Path[dir].expand
       paths = [] of String
 
       Index::DirectoryWalk.files(dir, max_depth: 50).each do |path|
@@ -102,9 +104,9 @@ module Chiasmus
       end
 
       Utils::BoundedWork.map_ordered_or_raise(paths, scan_max_concurrent) do |path|
-        rel = path.lchop?(dir).try(&.lchop?('/')) || path
+        relative_path = Path[path].expand.relative_to(root).to_posix(mappings: false).to_s
         run_before_scan_file_read_hook(path)
-        {rel, File.read(path)}
+        {relative_path, File.read(path)}
       end
     end
 
